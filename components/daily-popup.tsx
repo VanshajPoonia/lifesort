@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import Link from "next/link"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -20,10 +20,94 @@ import {
   Lightbulb,
   HelpCircle,
   Brain,
-  Trophy
+  Trophy,
+  Eye,
+  Zap,
+  Target
 } from "lucide-react"
 import { WordleGame } from "@/components/games/wordle-game"
 import { SnakeGame } from "@/components/games/snake-game"
+
+// Fuzzy matching utility - checks if user's answer is close enough to the correct answer
+function normalizeString(str: string): string {
+  return str
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s]/g, '') // Remove special characters
+    .replace(/\s+/g, ' ') // Normalize spaces
+    .replace(/^(a|an|the)\s+/i, '') // Remove common articles
+}
+
+function calculateSimilarity(str1: string, str2: string): number {
+  const s1 = normalizeString(str1)
+  const s2 = normalizeString(str2)
+  
+  // Exact match after normalization
+  if (s1 === s2) return 1
+  
+  // Check if one contains the other
+  if (s1.includes(s2) || s2.includes(s1)) return 0.9
+  
+  // Levenshtein distance for fuzzy matching
+  const matrix: number[][] = []
+  for (let i = 0; i <= s1.length; i++) {
+    matrix[i] = [i]
+  }
+  for (let j = 0; j <= s2.length; j++) {
+    matrix[0][j] = j
+  }
+  for (let i = 1; i <= s1.length; i++) {
+    for (let j = 1; j <= s2.length; j++) {
+      const cost = s1[i - 1] === s2[j - 1] ? 0 : 1
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,
+        matrix[i][j - 1] + 1,
+        matrix[i - 1][j - 1] + cost
+      )
+    }
+  }
+  const distance = matrix[s1.length][s2.length]
+  const maxLen = Math.max(s1.length, s2.length)
+  return maxLen === 0 ? 1 : 1 - distance / maxLen
+}
+
+function isAnswerClose(userAnswer: string, correctAnswer: string): { isCorrect: boolean; isClose: boolean } {
+  const similarity = calculateSimilarity(userAnswer, correctAnswer)
+  return {
+    isCorrect: similarity >= 0.85, // 85% similarity = correct
+    isClose: similarity >= 0.6 && similarity < 0.85 // 60-85% = close
+  }
+}
+
+// Generate hint from answer
+function generateHint(answer: string, hintLevel: number): string {
+  const cleanAnswer = answer.trim()
+  const words = cleanAnswer.split(' ')
+  
+  if (hintLevel === 1) {
+    // First hint: show number of letters/words
+    if (words.length > 1) {
+      return `Hint: ${words.length} words, ${cleanAnswer.replace(/\s/g, '').length} letters total`
+    }
+    return `Hint: ${cleanAnswer.length} letters`
+  } else if (hintLevel === 2) {
+    // Second hint: show first letter(s)
+    if (words.length > 1) {
+      return `Hint: Starts with "${words.map(w => w[0].toUpperCase()).join(' ')}..."`
+    }
+    return `Hint: Starts with "${cleanAnswer[0].toUpperCase()}"`
+  } else {
+    // Third hint: show first and last letter with blanks
+    if (words.length > 1) {
+      const revealed = words.map(w => `${w[0]}${'_'.repeat(Math.max(0, w.length - 2))}${w.length > 1 ? w[w.length - 1] : ''}`).join(' ')
+      return `Hint: ${revealed}`
+    }
+    const first = cleanAnswer[0]
+    const last = cleanAnswer[cleanAnswer.length - 1]
+    const middle = '_'.repeat(Math.max(0, cleanAnswer.length - 2))
+    return `Hint: ${first}${middle}${cleanAnswer.length > 1 ? last : ''}`
+  }
+}
 
 interface DailyContent {
   id?: number
@@ -59,9 +143,18 @@ export function DailyPopup() {
   const [userAnswer, setUserAnswer] = useState("")
   const [showAnswer, setShowAnswer] = useState(false)
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null)
+  const [isClose, setIsClose] = useState(false)
   const [loading, setLoading] = useState(true)
   const [wyrChoice, setWyrChoice] = useState<"a" | "b" | null>(null)
   const [activeGame, setActiveGame] = useState<"wordle" | "snake" | null>(null)
+  const [hintLevel, setHintLevel] = useState(0)
+  const [attempts, setAttempts] = useState(0)
+
+  // Generate current hint based on hint level
+  const currentHint = useMemo(() => {
+    if (hintLevel === 0 || !content?.extra_data?.answer) return null
+    return generateHint(content.extra_data.answer, hintLevel)
+  }, [hintLevel, content?.extra_data?.answer])
 
   useEffect(() => {
     checkDailyContent()
@@ -249,8 +342,11 @@ export function DailyPopup() {
     setShowAnswer(false)
     setUserAnswer("")
     setIsCorrect(null)
+    setIsClose(false)
     setWyrChoice(null)
     setActiveGame(null)
+    setHintLevel(0)
+    setAttempts(0)
   }
 
   const handleClose = () => {
@@ -260,9 +356,36 @@ export function DailyPopup() {
 
   const checkAnswer = () => {
     if (!content?.extra_data?.answer) return
-    const correct = userAnswer.toLowerCase().trim() === content.extra_data.answer.toLowerCase().trim()
-    setIsCorrect(correct)
+    const result = isAnswerClose(userAnswer, content.extra_data.answer)
+    setAttempts(prev => prev + 1)
+    
+    if (result.isCorrect) {
+      setIsCorrect(true)
+      setIsClose(false)
+      setShowAnswer(true)
+    } else if (result.isClose) {
+      setIsClose(true)
+      setIsCorrect(false)
+      // Don't show answer yet, let them try again
+    } else {
+      setIsCorrect(false)
+      setIsClose(false)
+      // After 3 wrong attempts, show the answer
+      if (attempts >= 2) {
+        setShowAnswer(true)
+      }
+    }
+  }
+
+  const showHint = () => {
+    if (hintLevel < 3) {
+      setHintLevel(prev => prev + 1)
+    }
+  }
+
+  const giveUp = () => {
     setShowAnswer(true)
+    setIsCorrect(false)
   }
 
   const getContentTypeInfo = () => {
@@ -347,23 +470,103 @@ export function DailyPopup() {
     if (content.content_type === "riddle") {
       return (
         <div className="space-y-4">
-          <p className="text-lg font-medium">{content.content}</p>
-          <Input
-            placeholder="Type your answer..."
-            value={userAnswer}
-            onChange={(e) => setUserAnswer(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && !showAnswer && checkAnswer()}
-            disabled={showAnswer}
-            className="text-foreground"
-          />
+          {/* Riddle question with engaging styling */}
+          <div className="relative p-4 rounded-xl bg-gradient-to-br from-purple-500/10 via-indigo-500/5 to-transparent border border-purple-500/20">
+            <Target className="absolute top-3 right-3 h-5 w-5 text-purple-400/50" />
+            <p className="text-lg font-medium leading-relaxed pr-6">{content.content}</p>
+          </div>
+
+          {/* Hint display */}
+          {currentHint && (
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 animate-in fade-in slide-in-from-top-2 duration-300">
+              <Lightbulb className="h-4 w-4 text-amber-500 shrink-0" />
+              <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">{currentHint}</p>
+            </div>
+          )}
+
+          {/* Close answer feedback */}
+          {isClose && !showAnswer && (
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-orange-500/10 border border-orange-500/20 animate-in fade-in slide-in-from-top-2 duration-300">
+              <Zap className="h-4 w-4 text-orange-500" />
+              <p className="text-sm text-orange-600 dark:text-orange-400 font-medium">
+                So close! You&apos;re on the right track. Try again!
+              </p>
+            </div>
+          )}
+
+          {/* Attempt counter */}
+          {attempts > 0 && !showAnswer && !isClose && (
+            <p className="text-xs text-muted-foreground text-center">
+              {attempts === 1 ? "1 attempt" : `${attempts} attempts`} - {3 - attempts > 0 ? `${3 - attempts} more before reveal` : "Last chance!"}
+            </p>
+          )}
+
+          {/* Answer input */}
+          <div className="relative">
+            <Input
+              placeholder="Type your answer..."
+              value={userAnswer}
+              onChange={(e) => {
+                setUserAnswer(e.target.value)
+                setIsClose(false) // Reset close state when typing
+              }}
+              onKeyDown={(e) => e.key === "Enter" && !showAnswer && userAnswer && checkAnswer()}
+              disabled={showAnswer}
+              className="text-foreground pr-10"
+            />
+            {userAnswer && !showAnswer && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                <kbd className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">Enter</kbd>
+              </div>
+            )}
+          </div>
+
           {!showAnswer ? (
-            <Button className="w-full" onClick={checkAnswer} disabled={!userAnswer}>
-              Check Answer
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                className="flex-1" 
+                onClick={checkAnswer} 
+                disabled={!userAnswer}
+              >
+                <Check className="mr-2 h-4 w-4" />
+                Check Answer
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={showHint}
+                disabled={hintLevel >= 3}
+                className="shrink-0"
+                title={hintLevel >= 3 ? "No more hints" : "Get a hint"}
+              >
+                <Eye className="h-4 w-4" />
+                <span className="ml-2 text-xs text-muted-foreground">{3 - hintLevel}</span>
+              </Button>
+              <Button 
+                variant="ghost" 
+                onClick={giveUp}
+                className="shrink-0 text-muted-foreground hover:text-destructive"
+                title="Give up and see the answer"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           ) : (
-            <div className={`p-4 rounded-lg ${isCorrect ? 'bg-green-500/10 border border-green-500/20' : 'bg-red-500/10 border border-red-500/20'}`}>
-              <p className={`font-semibold ${isCorrect ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                {isCorrect ? "Correct!" : `The answer was: ${content.extra_data?.answer}`}
+            <div className={`p-4 rounded-xl ${isCorrect ? 'bg-gradient-to-br from-green-500/20 to-emerald-500/10 border border-green-500/30' : 'bg-gradient-to-br from-red-500/10 to-orange-500/5 border border-red-500/20'}`}>
+              <div className="flex items-center gap-2 mb-1">
+                {isCorrect ? (
+                  <Check className="h-5 w-5 text-green-500" />
+                ) : (
+                  <HelpCircle className="h-5 w-5 text-red-400" />
+                )}
+                <p className={`font-bold ${isCorrect ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                  {isCorrect ? "Brilliant!" : "Not quite!"}
+                </p>
+              </div>
+              <p className={`text-sm ${isCorrect ? 'text-green-600/80 dark:text-green-400/80' : 'text-foreground/80'}`}>
+                {isCorrect 
+                  ? `You got it${attempts === 1 ? " on the first try!" : ` in ${attempts} attempts!`}${hintLevel === 0 ? " Without any hints!" : ""}`
+                  : `The answer was: ${content.extra_data?.answer}`
+                }
               </p>
             </div>
           )}
@@ -371,33 +574,74 @@ export function DailyPopup() {
       )
     }
 
-    // Trivia
+// Trivia
     if (content.content_type === "trivia" && content.extra_data?.options) {
       return (
         <div className="space-y-4">
-          <p className="text-lg font-medium">{content.content}</p>
-          <div className="grid grid-cols-2 gap-2">
-            {content.extra_data.options.map((option) => (
-              <Button
-                key={option}
-                variant={showAnswer ? (option === content.extra_data?.answer ? "default" : userAnswer === option ? "destructive" : "outline") : userAnswer === option ? "secondary" : "outline"}
-                className={`h-auto py-3 ${showAnswer && option === content.extra_data?.answer ? "bg-green-500 hover:bg-green-600" : ""}`}
-                onClick={() => !showAnswer && setUserAnswer(option)}
-                disabled={showAnswer}
-              >
-                {option}
-                {showAnswer && option === content.extra_data?.answer && <Check className="ml-2 h-4 w-4" />}
-              </Button>
-            ))}
+          {/* Question with engaging styling */}
+          <div className="relative p-4 rounded-xl bg-gradient-to-br from-blue-500/10 via-cyan-500/5 to-transparent border border-blue-500/20">
+            <Brain className="absolute top-3 right-3 h-5 w-5 text-blue-400/50" />
+            <p className="text-lg font-medium leading-relaxed pr-6">{content.content}</p>
           </div>
+          
+          <div className="grid grid-cols-2 gap-2">
+            {content.extra_data.options.map((option, index) => {
+              const isSelected = userAnswer === option
+              const isCorrectOption = option === content.extra_data?.answer
+              const letters = ['A', 'B', 'C', 'D']
+              
+              return (
+                <Button
+                  key={option}
+                  variant={showAnswer ? (isCorrectOption ? "default" : isSelected ? "destructive" : "outline") : isSelected ? "secondary" : "outline"}
+                  className={`h-auto py-3 px-3 text-left justify-start transition-all ${
+                    showAnswer && isCorrectOption ? "bg-green-500 hover:bg-green-600 text-white" : ""
+                  } ${!showAnswer && isSelected ? "ring-2 ring-primary ring-offset-2" : ""}`}
+                  onClick={() => !showAnswer && setUserAnswer(option)}
+                  disabled={showAnswer}
+                >
+                  <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold mr-2 shrink-0 ${
+                    showAnswer && isCorrectOption 
+                      ? "bg-white/20 text-white" 
+                      : isSelected 
+                        ? "bg-primary text-primary-foreground" 
+                        : "bg-muted text-muted-foreground"
+                  }`}>
+                    {letters[index]}
+                  </span>
+                  <span className="line-clamp-2">{option}</span>
+                  {showAnswer && isCorrectOption && <Check className="ml-auto h-4 w-4 shrink-0" />}
+                </Button>
+              )
+            })}
+          </div>
+          
           {!showAnswer ? (
-            <Button className="w-full" onClick={() => { setIsCorrect(userAnswer === content.extra_data?.answer); setShowAnswer(true) }} disabled={!userAnswer}>
-              Check Answer
+            <Button 
+              className="w-full" 
+              onClick={() => { 
+                setIsCorrect(userAnswer === content.extra_data?.answer)
+                setShowAnswer(true)
+                setAttempts(prev => prev + 1)
+              }} 
+              disabled={!userAnswer}
+            >
+              <Check className="mr-2 h-4 w-4" />
+              Lock In Answer
             </Button>
           ) : (
-            <p className={`text-center font-semibold ${isCorrect ? 'text-green-500' : 'text-red-500'}`}>
-              {isCorrect ? "Correct!" : `The answer was: ${content.extra_data?.answer}`}
-            </p>
+            <div className={`p-4 rounded-xl ${isCorrect ? 'bg-gradient-to-br from-green-500/20 to-emerald-500/10 border border-green-500/30' : 'bg-gradient-to-br from-red-500/10 to-orange-500/5 border border-red-500/20'}`}>
+              <div className="flex items-center gap-2">
+                {isCorrect ? (
+                  <Check className="h-5 w-5 text-green-500" />
+                ) : (
+                  <X className="h-5 w-5 text-red-400" />
+                )}
+                <p className={`font-bold ${isCorrect ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                  {isCorrect ? "Excellent! You got it right!" : `The correct answer was: ${content.extra_data?.answer}`}
+                </p>
+              </div>
+            </div>
           )}
         </div>
       )
