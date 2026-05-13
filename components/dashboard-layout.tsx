@@ -5,6 +5,7 @@ import { X } from "lucide-react" // Import X from lucide-react
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { useAuth } from "@/components/auth-provider"
 import {
   Target,
@@ -77,6 +78,7 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
     })
   }
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const pathname = usePathname()
   const { user, logout } = useAuth()
   const [showUpgrade, setShowUpgrade] = useState(false)
   const [sidebarPrefs, setSidebarPrefs] = useState<Record<string, boolean> | null>(null)
@@ -125,6 +127,10 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
   
   // Use defaults while loading, then use actual prefs
   const prefs = sidebarPrefs || DEFAULT_SIDEBAR_PREFS
+  const isActivePath = (href: string) => href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`)
+  const navButtonClass = (href: string) =>
+    `w-full justify-start gap-3 ${isActivePath(href) ? "text-secondary-foreground" : "text-foreground hover:text-foreground hover:bg-secondary"}`
+  const navIconClass = (href: string) => `h-5 w-5 ${isActivePath(href) ? "text-secondary-foreground" : "text-foreground"}`
 
   useEffect(() => {
     if (!user) return
@@ -201,88 +207,88 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
 
             {prefs.dashboard && (
               <Link href="/">
-                <Button variant="secondary" className="w-full justify-start gap-3 text-secondary-foreground">
-                  <LayoutGrid className="h-5 w-5 text-secondary-foreground" />
+                <Button variant={isActivePath("/") ? "secondary" : "ghost"} className={navButtonClass("/")}>
+                  <LayoutGrid className={navIconClass("/")} />
                   Dashboard
                 </Button>
               </Link>
             )}
             {prefs.calendar && (
               <Link href="/calendar">
-                <Button variant="ghost" className="w-full justify-start gap-3 text-foreground hover:text-foreground hover:bg-secondary">
-                  <CalendarIcon className="h-5 w-5 text-foreground" />
+                <Button variant={isActivePath("/calendar") ? "secondary" : "ghost"} className={navButtonClass("/calendar")}>
+                  <CalendarIcon className={navIconClass("/calendar")} />
                   Calendar
                 </Button>
               </Link>
             )}
             {prefs.goals && (
               <Link href="/goals">
-                <Button variant="ghost" className="w-full justify-start gap-3 text-foreground hover:text-foreground hover:bg-secondary">
-                  <Target className="h-5 w-5 text-foreground" />
+                <Button variant={isActivePath("/goals") ? "secondary" : "ghost"} className={navButtonClass("/goals")}>
+                  <Target className={navIconClass("/goals")} />
                   Goals
                 </Button>
               </Link>
             )}
             {prefs.tasks && (
               <Link href="/tasks">
-                <Button variant="ghost" className="w-full justify-start gap-3 text-foreground hover:text-foreground hover:bg-secondary">
-                  <CheckSquare className="h-5 w-5 text-foreground" />
+                <Button variant={isActivePath("/tasks") ? "secondary" : "ghost"} className={navButtonClass("/tasks")}>
+                  <CheckSquare className={navIconClass("/tasks")} />
                   Daily Tasks
                 </Button>
               </Link>
             )}
             {prefs.nuke && (
               <Link href="/nuke">
-                <Button variant="ghost" className="w-full justify-start gap-3 text-foreground hover:text-foreground hover:bg-secondary">
-                  <Zap className="h-5 w-5 text-foreground" />
+                <Button variant={isActivePath("/nuke") ? "secondary" : "ghost"} className={navButtonClass("/nuke")}>
+                  <Zap className={navIconClass("/nuke")} />
                   Nuke Goal
                 </Button>
               </Link>
             )}
             {prefs.pomodoro && (
               <Link href="/pomodoro">
-                <Button variant="ghost" className="w-full justify-start gap-3 text-foreground hover:text-foreground hover:bg-secondary">
-                  <Timer className="h-5 w-5 text-foreground" />
+                <Button variant={isActivePath("/pomodoro") ? "secondary" : "ghost"} className={navButtonClass("/pomodoro")}>
+                  <Timer className={navIconClass("/pomodoro")} />
                   Pomodoro
                 </Button>
               </Link>
             )}
             {prefs.notes && (
               <Link href="/notes">
-                <Button variant="ghost" className="w-full justify-start gap-3 text-foreground hover:text-foreground hover:bg-secondary">
-                  <FileText className="h-5 w-5 text-foreground" />
+                <Button variant={isActivePath("/notes") ? "secondary" : "ghost"} className={navButtonClass("/notes")}>
+                  <FileText className={navIconClass("/notes")} />
                   Notes
                 </Button>
               </Link>
             )}
             {prefs.wishlist && (
               <Link href="/wishlist">
-                <Button variant="ghost" className="w-full justify-start gap-3 text-foreground hover:text-foreground hover:bg-secondary">
-                  <Heart className="h-5 w-5 text-foreground" />
+                <Button variant={isActivePath("/wishlist") ? "secondary" : "ghost"} className={navButtonClass("/wishlist")}>
+                  <Heart className={navIconClass("/wishlist")} />
                   Wishlist
                 </Button>
               </Link>
             )}
             {prefs.investments && (
               <Link href="/investments">
-                <Button variant="ghost" className="w-full justify-start gap-3 text-foreground hover:text-foreground hover:bg-secondary">
-                  <TrendingUp className="h-5 w-5 text-foreground" />
+                <Button variant={isActivePath("/investments") ? "secondary" : "ghost"} className={navButtonClass("/investments")}>
+                  <TrendingUp className={navIconClass("/investments")} />
                   Investments
                 </Button>
               </Link>
             )}
             {prefs.income && (
               <Link href="/income">
-                <Button variant="ghost" className="w-full justify-start gap-3 text-foreground hover:text-foreground hover:bg-secondary">
-                  <DollarSign className="h-5 w-5 text-foreground" />
+                <Button variant={isActivePath("/income") ? "secondary" : "ghost"} className={navButtonClass("/income")}>
+                  <DollarSign className={navIconClass("/income")} />
                   Income
                 </Button>
               </Link>
             )}
             {prefs.budget && (
               <Link href="/budget">
-                <Button variant="ghost" className="w-full justify-start gap-3 text-foreground hover:text-foreground hover:bg-secondary">
-                  <Wallet className="h-5 w-5 text-foreground" />
+                <Button variant={isActivePath("/budget") ? "secondary" : "ghost"} className={navButtonClass("/budget")}>
+                  <Wallet className={navIconClass("/budget")} />
                   Budget
                 </Button>
               </Link>
@@ -290,32 +296,32 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
             <div className="my-2 h-px bg-border" />
             {prefs.links && (
               <Link href="/links">
-                <Button variant="ghost" className="w-full justify-start gap-3 text-foreground hover:text-foreground hover:bg-secondary">
-                  <Link2 className="h-5 w-5 text-foreground" />
+                <Button variant={isActivePath("/links") ? "secondary" : "ghost"} className={navButtonClass("/links")}>
+                  <Link2 className={navIconClass("/links")} />
                   My Links
                 </Button>
               </Link>
             )}
             {prefs.custom_sections && (
               <Link href="/custom-sections">
-                <Button variant="ghost" className="w-full justify-start gap-3 text-foreground hover:text-foreground hover:bg-secondary">
-                  <FolderPlus className="h-5 w-5 text-foreground" />
+                <Button variant={isActivePath("/custom-sections") ? "secondary" : "ghost"} className={navButtonClass("/custom-sections")}>
+                  <FolderPlus className={navIconClass("/custom-sections")} />
                   Custom Sections
                 </Button>
               </Link>
             )}
             {prefs.daily_content && (
               <Link href="/daily-content">
-                <Button variant="ghost" className="w-full justify-start gap-3 text-foreground hover:text-foreground hover:bg-secondary">
-                  <Sparkles className="h-5 w-5 text-foreground" />
+                <Button variant={isActivePath("/daily-content") ? "secondary" : "ghost"} className={navButtonClass("/daily-content")}>
+                  <Sparkles className={navIconClass("/daily-content")} />
                   Daily Quotes & Games
                 </Button>
               </Link>
             )}
             {prefs.ai_assistant && (
               <Link href="/ai-chat">
-                <Button variant="ghost" className="w-full justify-start gap-3 text-foreground hover:text-foreground hover:bg-secondary">
-                  <Sparkles className="h-5 w-5 text-foreground" />
+                <Button variant={isActivePath("/ai-chat") ? "secondary" : "ghost"} className={navButtonClass("/ai-chat")}>
+                  <Sparkles className={navIconClass("/ai-chat")} />
                   AI Assistant
                 </Button>
               </Link>
