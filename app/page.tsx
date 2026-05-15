@@ -412,9 +412,115 @@ export default function Home() {
   }
 
   const firstName = user.name?.split(" ")[0] || "there"
-  const tasksProgress = dashboard.stats.tasksToday
-    ? Math.round((dashboard.stats.completedTasksToday / dashboard.stats.tasksToday) * 100)
+  const activeGoals = sources.goals.filter((goal) => goal.status !== "completed")
+  const completedGoals = sources.goals.length - activeGoals.length
+  const dueSoonTasks = sources.tasks
+    .filter((task) => isDueWithinDays(task, 3))
+    .sort((a, b) => new Date(a.due_date || "").getTime() - new Date(b.due_date || "").getTime())
+  const openDueSoonTasks = dueSoonTasks.filter((task) => !task.completed)
+  const completedDueSoonTasks = dueSoonTasks.length - openDueSoonTasks.length
+  const taskProgress = dueSoonTasks.length ? Math.round((completedDueSoonTasks / dueSoonTasks.length) * 100) : 0
+
+  const goalProgress = sources.goals.length
+    ? Math.round(sources.goals.reduce((total, goal) => total + getGoalProgress(goal), 0) / sources.goals.length)
     : 0
+  const investmentTotal = sources.investments.reduce(
+    (total, investment) => total + (toNumber(investment.current_value) || toNumber(investment.amount)),
+    0,
+  )
+  const investmentBasis = sources.investments.reduce((total, investment) => total + toNumber(investment.amount), 0)
+  const investmentGain = investmentTotal - investmentBasis
+  const monthlyIncome = sources.income.reduce((total, source) => total + monthlyIncomeForSource(source), 0)
+  const budgetSummary = sources.budget?.summary
+  const budgetIncome = toNumber(budgetSummary?.income)
+  const budgetExpenses = toNumber(budgetSummary?.expenses)
+  const budgetBalance = toNumber(budgetSummary?.balance)
+  const wishlistPurchased = sources.wishlist.filter((item) => item.purchased).length
+  const wishlistOpen = sources.wishlist.filter((item) => !item.purchased)
+  const wishlistOpenValue = wishlistOpen.reduce((total, item) => total + toNumber(item.price), 0)
+  const wishlistTotalValue = sources.wishlist.reduce((total, item) => total + toNumber(item.price), 0)
+  const wishlistProgress = sources.wishlist.length ? Math.round((wishlistPurchased / sources.wishlist.length) * 100) : 0
+
+  const upcomingDeadlines = sortByDueDate([
+    ...activeGoals
+      .filter((goal) => getGoalDate(goal))
+      .map((goal) => ({
+        id: `goal-${goal.id}`,
+        title: goal.title,
+        type: "Goal",
+        date: getGoalDate(goal) || "",
+        href: "/goals",
+      })),
+    ...openDueSoonTasks
+      .filter((task) => task.due_date)
+      .map((task) => ({
+        id: `task-${task.id}`,
+        title: task.title,
+        type: "Task",
+        date: task.due_date || "",
+        href: "/tasks",
+      })),
+  ]).slice(0, 7)
+
+  const recentNotes = [...sources.notes]
+    .sort((a, b) => new Date(getTimestamp(b)).getTime() - new Date(getTimestamp(a)).getTime())
+    .slice(0, 4)
+
+  const recentActivity: ActivityItem[] = [
+    ...sources.tasks.map((task) => ({
+      id: `task-${task.id}`,
+      title: task.title,
+      label: task.completed ? "Completed task" : "Updated task",
+      href: "/tasks",
+      type: "Task",
+      at: getTimestamp(task),
+    })),
+    ...sources.goals.map((goal) => ({
+      id: `goal-${goal.id}`,
+      title: goal.title,
+      label: goal.status === "completed" ? "Completed goal" : "Updated goal",
+      href: "/goals",
+      type: "Goal",
+      at: getTimestamp(goal),
+    })),
+    ...sources.notes.map((note) => ({
+      id: `note-${note.id}`,
+      title: note.title || "Untitled note",
+      label: "Updated note",
+      href: "/notes",
+      type: "Note",
+      at: getTimestamp(note),
+    })),
+    ...sources.wishlist.map((item) => ({
+      id: `wishlist-${item.id}`,
+      title: item.title,
+      label: item.purchased ? "Purchased wishlist item" : "Updated wishlist item",
+      href: "/wishlist",
+      type: "Wishlist",
+      at: getTimestamp(item),
+    })),
+    ...sources.investments.map((investment) => ({
+      id: `investment-${investment.id}`,
+      title: investment.name,
+      label: "Updated investment",
+      href: "/investments",
+      type: "Investment",
+      at: getTimestamp(investment),
+    })),
+    ...sources.income.map((source) => ({
+      id: `income-${source.id}`,
+      title: source.source_name || source.name || "Income source",
+      label: "Updated income source",
+      href: "/income",
+      type: "Income",
+      at: getTimestamp(source),
+    })),
+  ]
+    .filter((activity) => activity.at)
+    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+    .slice(0, 6)
+
+  const hasAnyErrors = Object.keys(errors).length > 0
 
   return (
     <DashboardLayout>
