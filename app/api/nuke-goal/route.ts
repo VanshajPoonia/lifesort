@@ -1,24 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
-import { getSessionFromCookie, getSession, getUserFromSession } from "@/lib/auth"
+import { getUserFromRequest } from "@/lib/auth"
 
 const sql = neon(process.env.DATABASE_URL!)
 
 export async function GET(request: NextRequest) {
   try {
-    const sessionToken = getSessionFromCookie(request)
-    if (!sessionToken) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const session = await getSession(sessionToken)
-    if (!session) {
-      return NextResponse.json({ error: "Invalid session" }, { status: 401 })
-    }
-
-    const user = await getUserFromSession(session)
+    const user = await getUserFromRequest(request)
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const result = await sql`
@@ -36,19 +26,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const sessionToken = getSessionFromCookie(request)
-    if (!sessionToken) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const session = await getSession(sessionToken)
-    if (!session) {
-      return NextResponse.json({ error: "Invalid session" }, { status: 401 })
-    }
-
-    const user = await getUserFromSession(session)
+    const user = await getUserFromRequest(request)
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const { title, description, deadline, milestones } = await request.json()
@@ -94,19 +74,9 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const sessionToken = getSessionFromCookie(request)
-    if (!sessionToken) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const session = await getSession(sessionToken)
-    if (!session) {
-      return NextResponse.json({ error: "Invalid session" }, { status: 401 })
-    }
-
-    const user = await getUserFromSession(session)
+    const user = await getUserFromRequest(request)
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const { title, description, deadline, milestones, completed } = await request.json()
@@ -136,19 +106,9 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const sessionToken = getSessionFromCookie(request)
-    if (!sessionToken) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const session = await getSession(sessionToken)
-    if (!session) {
-      return NextResponse.json({ error: "Invalid session" }, { status: 401 })
-    }
-
-    const user = await getUserFromSession(session)
+    const user = await getUserFromRequest(request)
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     await sql`

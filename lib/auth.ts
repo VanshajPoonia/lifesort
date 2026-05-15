@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers'
 import { neon } from '@neondatabase/serverless'
+import bcrypt from 'bcryptjs'
 
 const sql = neon(process.env.DATABASE_URL!)
 
@@ -21,8 +22,7 @@ export interface Session {
   expires_at: string
 }
 
-// Hash password using Web Crypto API (available in Next.js)
-export async function hashPassword(password: string): Promise<string> {
+async function hashPasswordSha256(password: string): Promise<string> {
   const encoder = new TextEncoder()
   const data = encoder.encode(password)
   const hash = await crypto.subtle.digest('SHA-256', data)
@@ -31,10 +31,32 @@ export async function hashPassword(password: string): Promise<string> {
     .join('')
 }
 
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 12)
+}
+
 // Verify password
 export async function verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
-  const hash = await hashPassword(password)
-  return hash === hashedPassword
+  if (!hashedPassword) return false
+
+  if (hashedPassword.startsWith('$2a$') || hashedPassword.startsWith('$2b$') || hashedPassword.startsWith('$2y$')) {
+    return bcrypt.compare(password, hashedPassword)
+  }
+
+  const legacyHash = await hashPasswordSha256(password)
+  return legacyHash === hashedPassword
+}
+
+export function isLegacyPasswordHash(hashedPassword: string): boolean {
+  return Boolean(hashedPassword && !hashedPassword.startsWith('$2'))
+}
+
+export async function updateUserPasswordHash(userId: string, password: string): Promise<void> {
+  const passwordHash = await hashPassword(password)
+  await sql`
+    UPDATE users SET password_hash = ${passwordHash}, updated_at = NOW()
+    WHERE id = ${userId}
+  `
 }
 
 // Create session
@@ -84,6 +106,16 @@ export async function getUserById(session: Session): Promise<User | null> {
   return result[0] as User || null
 }
 
+export async function getUserFromRequest(request: Request): Promise<User | null> {
+  const sessionToken = getSessionFromCookie(request)
+  if (!sessionToken) return null
+
+  const session = await getSession(sessionToken)
+  if (!session) return null
+
+  return getUserById(session)
+}
+
 // Get user from session
 export async function getUserFromSession(): Promise<User | null> {
   const cookieStore = await cookies()
@@ -111,7 +143,7 @@ export async function createUser(email: string, password: string, name: string):
   
   const result = await sql`
     INSERT INTO users (email, password_hash, name, trial_ends_at, onboarding_completed)
-    VALUES (${email}, ${hashedPassword}, ${name}, ${trialEndsAt.toISOString()}, false)
+    VALUES (${email.toLowerCase()}, ${hashedPassword}, ${name}, ${trialEndsAt.toISOString()}, false)
     RETURNING id, email, name, created_at, trial_ends_at, is_subscribed, subscription_ends_at, is_admin, onboarding_completed
   `
   
@@ -121,7 +153,7 @@ export async function createUser(email: string, password: string, name: string):
 // Get user by email
 export async function getUserByEmail(email: string) {
   const result = await sql`
-    SELECT * FROM users WHERE email = ${email}
+    SELECT * FROM users WHERE email = ${email.toLowerCase()}
   `
   
   return result[0] || null

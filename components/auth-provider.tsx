@@ -14,6 +14,7 @@ interface User {
   is_subscribed: boolean
   subscription_ends_at: string | null
   is_admin: boolean
+  onboarding_completed?: boolean
 }
 
 interface AuthContextType {

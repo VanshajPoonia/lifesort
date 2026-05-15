@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { getUserByEmail, verifyPassword, createSession } from '@/lib/auth'
+import { createSession, getUserByEmail, isLegacyPasswordHash, updateUserPasswordHash, verifyPassword } from '@/lib/auth'
 
 export async function POST(request: Request) {
   try {
@@ -32,6 +32,10 @@ export async function POST(request: Request) {
       )
     }
 
+    if (isLegacyPasswordHash(user.password_hash)) {
+      await updateUserPasswordHash(user.id, password)
+    }
+
     // Create session
     const sessionId = await createSession(user.id)
 
@@ -49,7 +53,12 @@ export async function POST(request: Request) {
         id: user.id,
         email: user.email,
         name: user.name,
-        created_at: user.created_at
+        created_at: user.created_at,
+        trial_ends_at: user.trial_ends_at,
+        is_subscribed: user.is_subscribed,
+        subscription_ends_at: user.subscription_ends_at,
+        is_admin: user.is_admin,
+        onboarding_completed: user.onboarding_completed,
       }
     })
   } catch (error) {
