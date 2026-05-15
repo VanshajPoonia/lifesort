@@ -77,6 +77,19 @@ export default function IncomePage() {
     }
   }
 
+  useEffect(() => {
+    if (!user) return
+
+    const handleQuickAdd = (event: Event) => {
+      if ((event as CustomEvent).detail?.type === "income") {
+        fetchIncomeSources()
+      }
+    }
+
+    window.addEventListener("lifesort:quick-add-created", handleQuickAdd)
+    return () => window.removeEventListener("lifesort:quick-add-created", handleQuickAdd)
+  }, [user])
+
   const handleAddIncome = async () => {
     if (newIncome.name && newIncome.type && newIncome.amount && newIncome.frequency) {
       try {

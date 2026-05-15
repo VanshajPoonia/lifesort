@@ -187,6 +187,19 @@ export default function InvestmentsPage() {
     }
   }
 
+  useEffect(() => {
+    if (!user) return
+
+    const handleQuickAdd = (event: Event) => {
+      if ((event as CustomEvent).detail?.type === "investment") {
+        fetchInvestments()
+      }
+    }
+
+    window.addEventListener("lifesort:quick-add-created", handleQuickAdd)
+    return () => window.removeEventListener("lifesort:quick-add-created", handleQuickAdd)
+  }, [user])
+
   const fetchWishlistItems = async () => {
     try {
       const response = await fetch("/api/wishlist")
