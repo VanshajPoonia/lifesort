@@ -905,15 +905,24 @@ export default function Home() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Zap className="h-5 w-5 text-primary" />
-                Activity
+                Recent Activity
               </CardTitle>
+              <CardDescription>Real updates from your LifeSort modules.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {dashboard.recent.activity.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Your recent updates will show here.</p>
+              {dashboardLoading ? (
+                <>
+                  <Skeleton className="h-14 w-full" />
+                  <Skeleton className="h-14 w-full" />
+                  <Skeleton className="h-14 w-full" />
+                </>
+              ) : errors.tasks && errors.goals && errors.notes && errors.wishlist && errors.investments && errors.income ? (
+                <SectionUnavailable label="Activity" />
+              ) : recentActivity.length === 0 ? (
+                <EmptyState>No recent activity yet. Updates will appear here after you add or change items.</EmptyState>
               ) : (
-                dashboard.recent.activity.slice(0, 5).map((activity) => (
-                  <Link key={`${activity.type}-${activity.title}-${activity.at}`} href={activity.href} className="block rounded-md border p-3 hover:bg-secondary">
+                recentActivity.map((activity) => (
+                  <Link key={activity.id} href={activity.href} className="block rounded-md border p-3 hover:bg-secondary">
                     <div className="flex items-center justify-between gap-3">
                       <p className="truncate text-sm font-medium">{activity.title}</p>
                       <Badge variant="outline">{activity.type}</Badge>
@@ -927,35 +936,6 @@ export default function Home() {
             </CardContent>
           </Card>
         </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Heart className="h-5 w-5 text-primary" />
-              Saved Links
-            </CardTitle>
-            <CardDescription>Your newest bookmarks and saved resources.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {dashboard.recent.links.length === 0 ? (
-              <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-                No saved links yet. Build your personal library from My Links.
-              </p>
-            ) : (
-              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                {dashboard.recent.links.map((link) => (
-                  <Link key={link.id} href="/links" className="rounded-md border p-3 hover:bg-secondary">
-                    <div className="flex items-center gap-2">
-                      <Link2 className="h-4 w-4 text-primary" />
-                      <p className="truncate font-medium">{link.title}</p>
-                    </div>
-                    <p className="mt-1 truncate text-xs text-muted-foreground">{link.url || "Saved item"}</p>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </div>
     </DashboardLayout>
   )
