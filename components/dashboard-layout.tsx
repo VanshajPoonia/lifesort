@@ -16,7 +16,6 @@ import {
   TrendingUp,
   DollarSign,
   Menu,
-  Search,
   Bell,
   Settings,
   LayoutGrid,
@@ -33,11 +32,11 @@ import {
   Plus,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { ThemeSwitcher } from "@/components/theme-switcher"
 import { DailyPopup } from "@/components/daily-popup"
 import { QuickAddModal } from "@/components/quick-add-modal"
+import { GlobalSearch } from "@/components/global-search"
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -382,10 +381,7 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
           </div>
         </div>
         <div className="flex items-center gap-2 md:gap-4">
-          <div className="relative hidden lg:block">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Search..." className="w-48 lg:w-64 pl-9" />
-          </div>
+          <GlobalSearch />
           <Button className="gap-2" onClick={() => setQuickAddOpen(true)}>
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Quick Add</span>
