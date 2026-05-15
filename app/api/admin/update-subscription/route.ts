@@ -1,10 +1,16 @@
 import { NextResponse } from 'next/server'
 import { neon } from '@neondatabase/serverless'
+import { getUserFromSession } from '@/lib/auth'
 
 const sql = neon(process.env.DATABASE_URL!)
 
 export async function POST(request: Request) {
   try {
+    const admin = await getUserFromSession()
+    if (!admin?.is_admin) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     const { userId, isSubscribed, subscriptionEndsAt } = await request.json()
 
     if (!userId) {
@@ -39,6 +45,11 @@ export async function POST(request: Request) {
 // Get all users with their subscription status and profile info
 export async function GET() {
   try {
+    const admin = await getUserFromSession()
+    if (!admin?.is_admin) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     const users = await sql`
       SELECT 
         id, 
