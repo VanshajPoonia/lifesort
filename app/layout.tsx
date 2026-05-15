@@ -5,6 +5,7 @@ import "./globals.css"
 import { AuthProvider } from "@/components/auth-provider"
 import { SubscriptionChecker } from "@/components/subscription-checker"
 import { ThemeProvider } from "@/components/theme-provider"
+import { Toaster } from "@/components/ui/toaster"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -50,6 +51,7 @@ export default function RootLayout({
           <AuthProvider>
             <SubscriptionChecker />
             {children}
+            <Toaster />
           </AuthProvider>
         </ThemeProvider>
       </body>

@@ -30,12 +30,14 @@ import {
   Crown,
   Wallet,
   LogOut,
+  Plus,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { ThemeSwitcher } from "@/components/theme-switcher"
 import { DailyPopup } from "@/components/daily-popup"
+import { QuickAddModal } from "@/components/quick-add-modal"
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -84,6 +86,7 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
   const [showUpgrade, setShowUpgrade] = useState(false)
   const [sidebarPrefs, setSidebarPrefs] = useState<Record<string, boolean> | null>(null)
   const [prefsLoaded, setPrefsLoaded] = useState(false)
+  const [quickAddOpen, setQuickAddOpen] = useState(false)
 
   useEffect(() => {
     fetchSidebarPrefs()
@@ -152,6 +155,7 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Daily Content Popup */}
       <DailyPopup />
+      <QuickAddModal open={quickAddOpen} onOpenChange={setQuickAddOpen} />
       
       {/* Mobile Overlay */}
       {sidebarOpen && (
@@ -382,6 +386,11 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input placeholder="Search..." className="w-48 lg:w-64 pl-9" />
           </div>
+          <Button className="gap-2" onClick={() => setQuickAddOpen(true)}>
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">Quick Add</span>
+            <span className="sm:hidden">Add</span>
+          </Button>
           <ThemeSwitcher />
           <Button variant="ghost" size="icon" className="hidden sm:flex">
             <Bell className="h-5 w-5 text-foreground" />
