@@ -4,12 +4,12 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
-  CalendarDays,
+  AlertCircle,
+  ArrowRight,
   CheckCircle2,
   Clock,
   FileText,
   Heart,
-  Link2,
   ListTodo,
   NotebookText,
   PiggyBank,
@@ -26,66 +26,155 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
+import { Skeleton } from "@/components/ui/skeleton"
 
-interface DashboardData {
-  stats: {
-    totalGoals: number
-    completedGoals: number
-    goalsProgress: number
-    tasksToday: number
-    completedTasksToday: number
-    portfolioValue: number
-    monthlyIncome: number
-    monthlyBudgetIncome: number
-    monthlyExpenses: number
-    monthlyBalance: number
-    wishlistOpenValue: number
-    notesCount: number
-    linksCount: number
-  }
-  today: {
-    tasks: Array<{ id: string; title: string; completed: boolean; priority?: string; due_date?: string }>
-    events: Array<{ id: string; title: string; event_date: string; start_time?: string; location?: string }>
-  }
-  upcoming: {
-    events: Array<{ id: string; title: string; event_date: string; start_time?: string; location?: string }>
-    deadlines: Array<{ id: string; title: string; type: string; date: string; href: string }>
-  }
-  recent: {
-    notes: Array<{ id: string; title?: string; content?: string; updated_at?: string }>
-    links: Array<{ id: string; title: string; url?: string }>
-    activity: Array<{ label: string; title: string; href: string; type: string; at: string }>
+type DashboardApiKey = "tasks" | "goals" | "notes" | "budget" | "investments" | "wishlist" | "income"
+
+interface Task {
+  id: number | string
+  title: string
+  description?: string | null
+  completed?: boolean
+  priority?: string | null
+  due_date?: string | null
+  updated_at?: string | null
+  created_at?: string | null
+}
+
+interface Goal {
+  id: number | string
+  title: string
+  description?: string | null
+  category?: string | null
+  progress?: number | string | null
+  status?: string | null
+  target_date?: string | null
+  deadline?: string | null
+  target_value?: number | string | null
+  current_value?: number | string | null
+  updated_at?: string | null
+  created_at?: string | null
+}
+
+interface Note {
+  id: number | string
+  title?: string | null
+  content?: string | null
+  updated_at?: string | null
+  created_at?: string | null
+}
+
+interface BudgetTransaction {
+  id: number | string
+  type?: string | null
+  amount?: number | string | null
+  description?: string | null
+  date?: string | null
+  updated_at?: string | null
+  created_at?: string | null
+}
+
+interface BudgetData {
+  categories?: unknown[]
+  transactions?: BudgetTransaction[]
+  goals?: unknown[]
+  summary?: {
+    income?: number | string | null
+    expenses?: number | string | null
+    balance?: number | string | null
   }
 }
 
-const emptyDashboard: DashboardData = {
-  stats: {
-    totalGoals: 0,
-    completedGoals: 0,
-    goalsProgress: 0,
-    tasksToday: 0,
-    completedTasksToday: 0,
-    portfolioValue: 0,
-    monthlyIncome: 0,
-    monthlyBudgetIncome: 0,
-    monthlyExpenses: 0,
-    monthlyBalance: 0,
-    wishlistOpenValue: 0,
-    notesCount: 0,
-    linksCount: 0,
-  },
-  today: { tasks: [], events: [] },
-  upcoming: { events: [], deadlines: [] },
-  recent: { notes: [], links: [], activity: [] },
+interface Investment {
+  id: number | string
+  name: string
+  type?: string | null
+  symbol?: string | null
+  amount?: number | string | null
+  current_value?: number | string | null
+  updated_at?: string | null
+  created_at?: string | null
+}
+
+interface WishlistItem {
+  id: number | string
+  title: string
+  price?: number | string | null
+  purchased?: boolean | null
+  priority?: string | null
+  updated_at?: string | null
+  created_at?: string | null
+}
+
+interface IncomeSource {
+  id: number | string
+  name?: string | null
+  source_name?: string | null
+  type?: string | null
+  category?: string | null
+  amount?: number | string | null
+  frequency?: string | null
+  active?: boolean | null
+  updated_at?: string | null
+  created_at?: string | null
+}
+
+interface DashboardSources {
+  tasks: Task[]
+  goals: Goal[]
+  notes: Note[]
+  budget: BudgetData | null
+  investments: Investment[]
+  wishlist: WishlistItem[]
+  income: IncomeSource[]
+}
+
+interface ActivityItem {
+  id: string
+  title: string
+  label: string
+  href: string
+  type: string
+  at: string
+}
+
+const emptySources: DashboardSources = {
+  tasks: [],
+  goals: [],
+  notes: [],
+  budget: null,
+  investments: [],
+  wishlist: [],
+  income: [],
+}
+
+const apiEndpoints: Record<DashboardApiKey, string> = {
+  tasks: "/api/tasks",
+  goals: "/api/goals",
+  notes: "/api/notes",
+  budget: "/api/budget",
+  investments: "/api/investments",
+  wishlist: "/api/wishlist",
+  income: "/api/income",
 }
 
 const quickActions = [
   { title: "Add task", href: "/tasks", icon: ListTodo },
   { title: "Add goal", href: "/goals", icon: Target },
   { title: "Write note", href: "/notes", icon: NotebookText },
-  { title: "Save link", href: "/links", icon: Link2 },
-  { title: "Track spend", href: "/budget", icon: Wallet },
+  { title: "Track budget", href: "/budget", icon: Wallet },
+  { title: "Add wishlist", href: "/wishlist", icon: Heart },
+  { title: "Track investment", href: "/investments", icon: TrendingUp },
 ]
+
+function toNumber(value: unknown) {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0
+  if (typeof value === "string") {
+    const parsed = Number.parseFloat(value)
+    return Number.isFinite(parsed) ? parsed : 0
+  }
+  return 0
+}
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("en-US", {
@@ -95,18 +184,16 @@ function formatCurrency(value: number) {
   }).format(value || 0)
 }
 
-function formatDate(value?: string) {
+function formatDate(value?: string | null) {
   if (!value) return "No date"
-  return new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-}
-
-function formatTime(value?: string) {
-  if (!value) return ""
-  return value.slice(0, 5)
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return "No date"
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
 }
 
 function timeAgo(value: string) {
   const diff = Date.now() - new Date(value).getTime()
+  if (Number.isNaN(diff)) return "Recently"
   const minutes = Math.max(0, Math.floor(diff / 60000))
   if (minutes < 1) return "Just now"
   if (minutes < 60) return `${minutes}m ago`
@@ -115,12 +202,140 @@ function timeAgo(value: string) {
   return `${Math.floor(hours / 24)}d ago`
 }
 
+function startOfToday() {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return today
+}
+
+function parseDate(value?: string | null) {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  date.setHours(0, 0, 0, 0)
+  return date
+}
+
+function isDueWithinDays(task: Task, days: number) {
+  const date = parseDate(task.due_date)
+  if (!date) return false
+  const today = startOfToday()
+  const limit = new Date(today)
+  limit.setDate(limit.getDate() + days)
+  return date <= limit && (!task.completed || date >= today)
+}
+
+function sortByDueDate<T extends { date: string }>(items: T[]) {
+  return [...items].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+}
+
+function getGoalDate(goal: Goal) {
+  return goal.target_date || goal.deadline || null
+}
+
+function getGoalProgress(goal: Goal) {
+  const explicitProgress = toNumber(goal.progress)
+  const targetValue = toNumber(goal.target_value)
+  const currentValue = toNumber(goal.current_value)
+  if (targetValue > 0) return Math.min(100, Math.round((currentValue / targetValue) * 100))
+  return Math.min(100, Math.max(0, Math.round(explicitProgress)))
+}
+
+function monthlyIncomeForSource(source: IncomeSource) {
+  if (source.active === false) return 0
+  const amount = toNumber(source.amount)
+  switch (source.frequency) {
+    case "weekly":
+      return amount * 4
+    case "bi-weekly":
+      return amount * 2
+    case "quarterly":
+      return amount / 3
+    case "yearly":
+      return amount / 12
+    case "monthly":
+    default:
+      return amount
+  }
+}
+
+function getTimestamp(item: { updated_at?: string | null; created_at?: string | null }) {
+  return item.updated_at || item.created_at || ""
+}
+
+function normalizeArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : []
+}
+
+async function fetchJson<T>(url: string): Promise<{ data: T | null; error: string | null }> {
+  try {
+    const response = await fetch(url)
+    if (!response.ok) {
+      return { data: null, error: `Could not load ${url.replace("/api/", "")}` }
+    }
+    return { data: (await response.json()) as T, error: null }
+  } catch (error) {
+    console.error(`Dashboard fetch failed for ${url}:`, error)
+    return { data: null, error: `Could not load ${url.replace("/api/", "")}` }
+  }
+}
+
+function LoadingCard() {
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <Skeleton className="h-4 w-32" />
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <Skeleton className="h-8 w-24" />
+        <Skeleton className="h-3 w-full" />
+      </CardContent>
+    </Card>
+  )
+}
+
+function SectionUnavailable({ label }: { label: string }) {
+  return (
+    <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+      <div className="flex items-center gap-2">
+        <AlertCircle className="h-4 w-4" />
+        <span>{label} could not be loaded.</span>
+      </div>
+    </div>
+  )
+}
+
+function EmptyState({
+  children,
+  actionHref,
+  actionLabel,
+}: {
+  children: React.ReactNode
+  actionHref?: string
+  actionLabel?: string
+}) {
+  return (
+    <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+      <p>{children}</p>
+      {actionHref && actionLabel && (
+        <Button asChild variant="link" className="mt-2 h-auto p-0 text-sm">
+          <Link href={actionHref}>
+            {actionLabel}
+            <ArrowRight className="ml-1 h-3.5 w-3.5" />
+          </Link>
+        </Button>
+      )}
+    </div>
+  )
+}
+
 export default function Home() {
   const { user, loading } = useAuth()
   const router = useRouter()
   const [showOnboarding, setShowOnboarding] = useState(false)
-  const [dashboard, setDashboard] = useState<DashboardData>(emptyDashboard)
+  const [sources, setSources] = useState<DashboardSources>(emptySources)
   const [dashboardLoading, setDashboardLoading] = useState(true)
+  const [errors, setErrors] = useState<Partial<Record<DashboardApiKey, string>>>({})
 
   useEffect(() => {
     if (!loading && !user) {
@@ -154,16 +369,35 @@ export default function Home() {
 
   const fetchDashboard = async () => {
     setDashboardLoading(true)
-    try {
-      const response = await fetch("/api/dashboard")
-      if (response.ok) {
-        setDashboard(await response.json())
-      }
-    } catch (error) {
-      console.error("Error fetching dashboard:", error)
-    } finally {
-      setDashboardLoading(false)
-    }
+    const [tasks, goals, notes, budget, investments, wishlist, income] = await Promise.all([
+      fetchJson<Task[]>(apiEndpoints.tasks),
+      fetchJson<Goal[]>(apiEndpoints.goals),
+      fetchJson<Note[]>(apiEndpoints.notes),
+      fetchJson<BudgetData>(apiEndpoints.budget),
+      fetchJson<Investment[]>(apiEndpoints.investments),
+      fetchJson<WishlistItem[]>(apiEndpoints.wishlist),
+      fetchJson<IncomeSource[]>(apiEndpoints.income),
+    ])
+
+    setSources({
+      tasks: normalizeArray<Task>(tasks.data),
+      goals: normalizeArray<Goal>(goals.data),
+      notes: normalizeArray<Note>(notes.data),
+      budget: budget.data,
+      investments: normalizeArray<Investment>(investments.data),
+      wishlist: normalizeArray<WishlistItem>(wishlist.data),
+      income: normalizeArray<IncomeSource>(income.data),
+    })
+    setErrors({
+      ...(tasks.error ? { tasks: tasks.error } : {}),
+      ...(goals.error ? { goals: goals.error } : {}),
+      ...(notes.error ? { notes: notes.error } : {}),
+      ...(budget.error ? { budget: budget.error } : {}),
+      ...(investments.error ? { investments: investments.error } : {}),
+      ...(wishlist.error ? { wishlist: wishlist.error } : {}),
+      ...(income.error ? { income: income.error } : {}),
+    })
+    setDashboardLoading(false)
   }
 
   if (loading || !user) {
