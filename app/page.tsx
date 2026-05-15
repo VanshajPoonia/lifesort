@@ -1,706 +1,490 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
-import { useAuth } from "@/components/auth-provider"
+import { useRouter } from "next/navigation"
 import {
-  Target,
-  CheckSquare,
+  CalendarDays,
+  CheckCircle2,
   Clock,
-  Timer,
-  Heart,
-  TrendingUp,
-  DollarSign,
-  Menu,
-  Search,
-  Bell,
-  Settings,
-  LayoutGrid,
-  Calendar as CalendarIcon,
-  Zap,
-  Activity,
   FileText,
-  Sparkles,
-  FolderPlus,
+  Heart,
   Link2,
-  Crown,
-  Coffee,
-  X,
+  ListTodo,
+  NotebookText,
+  PiggyBank,
+  Plus,
+  Target,
+  TrendingUp,
+  Wallet,
+  Zap,
 } from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { ThemeSwitcher } from "@/components/theme-switcher"
-import { DailyPopup } from "@/components/daily-popup"
+import { DashboardLayout } from "@/components/dashboard-layout"
 import { OnboardingModal } from "@/components/onboarding-modal"
+import { useAuth } from "@/components/auth-provider"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress"
 
-const DEFAULT_SIDEBAR_PREFS = {
-  dashboard: true,
-  calendar: true,
-  links: true,
-  daily_content: true,
-  budget: true,
-  custom_sections: true,
-  notes: true,
-  tasks: true,
-  goals: true,
-  bookmarks: true,
-  wishlist: true,
-  nuke: true,
-  pomodoro: true,
-  investments: true,
-  income: true,
-  ai_assistant: true,
+interface DashboardData {
+  stats: {
+    totalGoals: number
+    completedGoals: number
+    goalsProgress: number
+    tasksToday: number
+    completedTasksToday: number
+    portfolioValue: number
+    monthlyIncome: number
+    monthlyBudgetIncome: number
+    monthlyExpenses: number
+    monthlyBalance: number
+    wishlistOpenValue: number
+    notesCount: number
+    linksCount: number
+  }
+  today: {
+    tasks: Array<{ id: string; title: string; completed: boolean; priority?: string; due_date?: string }>
+    events: Array<{ id: string; title: string; event_date: string; start_time?: string; location?: string }>
+  }
+  upcoming: {
+    events: Array<{ id: string; title: string; event_date: string; start_time?: string; location?: string }>
+    deadlines: Array<{ id: string; title: string; type: string; date: string; href: string }>
+  }
+  recent: {
+    notes: Array<{ id: string; title?: string; content?: string; updated_at?: string }>
+    links: Array<{ id: string; title: string; url?: string }>
+    activity: Array<{ label: string; title: string; href: string; type: string; at: string }>
+  }
+}
+
+const emptyDashboard: DashboardData = {
+  stats: {
+    totalGoals: 0,
+    completedGoals: 0,
+    goalsProgress: 0,
+    tasksToday: 0,
+    completedTasksToday: 0,
+    portfolioValue: 0,
+    monthlyIncome: 0,
+    monthlyBudgetIncome: 0,
+    monthlyExpenses: 0,
+    monthlyBalance: 0,
+    wishlistOpenValue: 0,
+    notesCount: 0,
+    linksCount: 0,
+  },
+  today: { tasks: [], events: [] },
+  upcoming: { events: [], deadlines: [] },
+  recent: { notes: [], links: [], activity: [] },
+}
+
+const quickActions = [
+  { title: "Add task", href: "/tasks", icon: ListTodo },
+  { title: "Add goal", href: "/goals", icon: Target },
+  { title: "Write note", href: "/notes", icon: NotebookText },
+  { title: "Save link", href: "/links", icon: Link2 },
+  { title: "Track spend", href: "/budget", icon: Wallet },
+]
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(value || 0)
+}
+
+function formatDate(value?: string) {
+  if (!value) return "No date"
+  return new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+}
+
+function formatTime(value?: string) {
+  if (!value) return ""
+  return value.slice(0, 5)
+}
+
+function timeAgo(value: string) {
+  const diff = Date.now() - new Date(value).getTime()
+  const minutes = Math.max(0, Math.floor(diff / 60000))
+  if (minutes < 1) return "Just now"
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  return `${Math.floor(hours / 24)}d ago`
 }
 
 export default function Home() {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { user, loading, logout } = useAuth()
+  const { user, loading } = useAuth()
   const router = useRouter()
-  const pathname = usePathname()
-  const [showUpgrade, setShowUpgrade] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
-  const [sidebarPrefs, setSidebarPrefs] = useState<Record<string, boolean> | null>(null)
-  const [stats, setStats] = useState({
-    goalsCompleted: 0,
-    totalGoals: 0,
-    tasksToday: 0,
-    tasksCompleted: 0,
-    pomodoroSessions: 0,
-    investmentValue: 0,
-    incomeStreams: 0,
-  })
-  const [recentActivity, setRecentActivity] = useState([
-    { text: "Completed morning workout", time: "2 hours ago", type: "task" },
-    { text: "Finished 3 Pomodoro sessions", time: "3 hours ago", type: "pomodoro" },
-    { text: "Added new goal: Learn Spanish", time: "Yesterday", type: "goal" },
-    { text: "Investment portfolio +2.4%", time: "Yesterday", type: "investment" },
-  ])
+  const [dashboard, setDashboard] = useState<DashboardData>(emptyDashboard)
+  const [dashboardLoading, setDashboardLoading] = useState(true)
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/login')
+      router.push("/login")
       return
     }
-    
-    if (user) {
-      // Check subscription status
-      const now = new Date()
-      const trialEnd = user.trial_ends_at ? new Date(user.trial_ends_at) : null
-      const hasActiveSubscription = user.is_subscribed && 
-        user.subscription_ends_at && 
-        new Date(user.subscription_ends_at) > now
 
-      // Show upgrade button if no active subscription
-      if (!hasActiveSubscription) {
-        setShowUpgrade(true)
-      }
-      
-      // Check onboarding status
+    if (user) {
       checkOnboarding()
-      fetchStats()
-      fetchSidebarPrefs()
+      fetchDashboard()
     }
   }, [user, loading, router])
 
-  const fetchSidebarPrefs = async () => {
-    try {
-      // Check sessionStorage cache first
-      const cached = sessionStorage.getItem("sidebar_prefs")
-      if (cached) {
-        try {
-          const cachedPrefs = JSON.parse(cached)
-          setSidebarPrefs({ ...DEFAULT_SIDEBAR_PREFS, ...cachedPrefs })
-        } catch (e) {
-          // Invalid cache, continue to fetch
-        }
-      }
-      
-      const response = await fetch("/api/sidebar-preferences")
-      if (response.ok) {
-        const data = await response.json()
-        if (data.preferences && typeof data.preferences === 'object') {
-          const finalPrefs = { ...DEFAULT_SIDEBAR_PREFS, ...data.preferences }
-          setSidebarPrefs(finalPrefs)
-          sessionStorage.setItem("sidebar_prefs", JSON.stringify(data.preferences))
-        } else {
-          setSidebarPrefs(DEFAULT_SIDEBAR_PREFS)
-        }
-      } else {
-        setSidebarPrefs(DEFAULT_SIDEBAR_PREFS)
-      }
-    } catch (error) {
-      console.error("Error fetching sidebar preferences:", error)
-      setSidebarPrefs(DEFAULT_SIDEBAR_PREFS)
-    }
-  }
-
-  // Fetch real stats from database
-  useEffect(() => {
-    if (user) {
-      fetchStats()
-    }
-  }, [user])
-
   const checkOnboarding = async () => {
     try {
-      // Check if onboarding was just completed in this session
-      const onboardingSkipped = sessionStorage.getItem("onboarding_completed")
-      if (onboardingSkipped === "true") {
-        return
-      }
-      
+      if (sessionStorage.getItem("onboarding_completed") === "true") return
+
       const response = await fetch("/api/onboarding")
-      
-      if (response.ok) {
-        const data = await response.json()
-        
-        // Only show onboarding if explicitly false (not null, undefined, or error)
-        if (data.onboarding_completed === false) {
-          setShowOnboarding(true)
-        } else {
-          // Mark as completed in session storage to avoid repeated checks
-          sessionStorage.setItem("onboarding_completed", "true")
-        }
+      if (!response.ok) return
+
+      const data = await response.json()
+      if (data.onboarding_completed === false) {
+        setShowOnboarding(true)
+      } else {
+        sessionStorage.setItem("onboarding_completed", "true")
       }
     } catch (error) {
       console.error("Error checking onboarding:", error)
     }
   }
 
-  const fetchStats = async () => {
+  const fetchDashboard = async () => {
+    setDashboardLoading(true)
     try {
-      const activities: Array<{text: string, time: string, type: string}> = []
-
-      // Fetch goals stats
-      const goalsRes = await fetch('/api/goals')
-      if (goalsRes.ok) {
-        const goals = await goalsRes.json()
-        const totalGoals = goals.length
-        const goalsCompleted = goals.filter((g: any) => g.status === 'completed').length
-        setStats(prev => ({ ...prev, totalGoals, goalsCompleted }))
-        
-        // Add recent goals to activity
-        goals.slice(0, 2).forEach((goal: any) => {
-          const timeAgo = getTimeAgo(new Date(goal.created_at))
-          activities.push({
-            text: `Goal: ${goal.title}`,
-            time: timeAgo,
-            type: 'goal'
-          })
-        })
+      const response = await fetch("/api/dashboard")
+      if (response.ok) {
+        setDashboard(await response.json())
       }
-
-      // Fetch tasks stats
-      const tasksRes = await fetch('/api/tasks')
-      if (tasksRes.ok) {
-        const tasks = await tasksRes.json()
-        const today = new Date().toDateString()
-        const todayTasks = tasks.filter((t: any) => 
-          new Date(t.created_at).toDateString() === today
-        )
-        const tasksToday = todayTasks.length
-        const tasksCompleted = todayTasks.filter((t: any) => t.completed).length
-        setStats(prev => ({ ...prev, tasksToday, tasksCompleted }))
-        
-        // Add completed tasks to activity
-        tasks.filter((t: any) => t.completed).slice(0, 2).forEach((task: any) => {
-          const timeAgo = getTimeAgo(new Date(task.updated_at || task.created_at))
-          activities.push({
-            text: `Completed: ${task.title}`,
-            time: timeAgo,
-            type: 'task'
-          })
-        })
-      }
-
-      // Fetch investments stats
-      const investmentsRes = await fetch('/api/investments')
-      if (investmentsRes.ok) {
-        const investments = await investmentsRes.json()
-        const investmentValue = investments.reduce((sum: number, inv: any) => sum + parseFloat(inv.current_value || inv.amount || 0), 0)
-        setStats(prev => ({ ...prev, investmentValue }))
-        
-        // Add recent investment to activity
-        if (investments.length > 0) {
-          const latestInv = investments[0]
-          const timeAgo = getTimeAgo(new Date(latestInv.created_at))
-          activities.push({
-            text: `Investment: ${latestInv.name}`,
-            time: timeAgo,
-            type: 'investment'
-          })
-        }
-      }
-
-      // Sort by most recent and take top 4
-      setRecentActivity(activities.slice(0, 4).sort((a, b) => new Date(b.time) - new Date(a.time)))
     } catch (error) {
-      console.error('[v0] Failed to fetch stats:', error)
+      console.error("Error fetching dashboard:", error)
+    } finally {
+      setDashboardLoading(false)
     }
   }
-
-  const getTimeAgo = (date: Date) => {
-    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000)
-    
-    if (seconds < 60) return 'Just now'
-    if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`
-    if (seconds < 604800) return `${Math.floor(seconds / 86400)} days ago`
-    return date.toLocaleDateString()
-  }
-
-  // Use defaults while loading, then use actual prefs
-  const prefs = sidebarPrefs || DEFAULT_SIDEBAR_PREFS
-  const isActivePath = (href: string) => href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`)
-  const navButtonClass = (href: string) =>
-    `w-full justify-start gap-3 ${isActivePath(href) ? "text-secondary-foreground" : "text-foreground hover:text-foreground hover:bg-secondary"}`
-  const navIconClass = (href: string) => `h-5 w-5 ${isActivePath(href) ? "text-secondary-foreground" : "text-foreground"}`
-
-  const quickActions = [
-    {
-      title: "Goals",
-      description: "Track your life goals",
-      icon: Target,
-      href: "/goals",
-      color: "text-primary",
-      bgColor: "bg-primary/10",
-    },
-    {
-      title: "Daily Tasks",
-      description: "Today's to-do list",
-      icon: CheckSquare,
-      href: "/tasks",
-      color: "text-success",
-      bgColor: "bg-success/10",
-    },
-    {
-      title: "Nuke Goal",
-      description: "Major milestone tracker",
-      icon: Zap,
-      href: "/nuke",
-      color: "text-warning",
-      bgColor: "bg-warning/10",
-    },
-    {
-      title: "Pomodoro",
-      description: "Focus timer",
-      icon: Timer,
-      href: "/pomodoro",
-      color: "text-destructive",
-      bgColor: "bg-destructive/10",
-    },
-    {
-      title: "Wishlist",
-      description: "Things you want",
-      icon: Heart,
-      href: "/wishlist",
-      color: "text-accent",
-      bgColor: "bg-accent/10",
-    },
-    {
-      title: "Investments",
-      description: "Track your assets",
-      icon: TrendingUp,
-      href: "/investments",
-      color: "text-success",
-      bgColor: "bg-success/10",
-    },
-    {
-      title: "Budget",
-      description: "Manage finances",
-      icon: DollarSign,
-      href: "/budget",
-      color: "text-warning",
-      bgColor: "bg-warning/10",
-    },
-  ]
 
   if (loading || !user) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="text-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto" />
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
           <p className="mt-4 text-muted-foreground">Loading...</p>
         </div>
       </div>
     )
   }
 
+  const firstName = user.name?.split(" ")[0] || "there"
+  const tasksProgress = dashboard.stats.tasksToday
+    ? Math.round((dashboard.stats.completedTasksToday / dashboard.stats.tasksToday) * 100)
+    : 0
+
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      {/* Onboarding Modal */}
+    <DashboardLayout>
       <OnboardingModal
         isOpen={showOnboarding}
         onComplete={() => {
           setShowOnboarding(false)
-          // Mark as completed in session to prevent showing again during this session
           sessionStorage.setItem("onboarding_completed", "true")
-          // Clear sidebar cache so it reloads with new preferences
           sessionStorage.removeItem("sidebar_prefs")
-          // Small delay to ensure database write completes before reload
-          setTimeout(() => {
-            window.location.reload()
-          }, 500)
+          fetchDashboard()
         }}
       />
-      
-      {/* Daily Popup */}
-      <DailyPopup />
-      
-      {/* Mobile Overlay */}
-      {sidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
 
-      {/* Sidebar */}
-      <aside
-        className={`${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } fixed inset-y-0 left-0 z-50 w-64 md:relative md:translate-x-0 border-r border-border bg-card transition-transform duration-300`}
-      >
-        <div className="flex h-full flex-col">
-          {/* Logo */}
-          <div className="flex h-16 items-center justify-between border-b border-border px-6">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent">
-                <LayoutGrid className="h-6 w-6 text-primary-foreground" />
-              </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                LifeSort
-              </span>
-            </div>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="md:hidden"
-              onClick={() => setSidebarOpen(false)}
-            >
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
-
-          {/* Navigation */}
-          <nav className="flex-1 space-y-1 p-4">
-            {/* Go Pro Button - Highlighted for non-premium users */}
-            {showUpgrade && (
-              <a 
-                href="https://buymeacoffee.com/lifesort" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="block mb-3"
-              >
-                <Button 
-                  className="w-full justify-start gap-3 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:via-orange-600 hover:to-amber-700 text-white shadow-lg shadow-amber-500/50"
-                >
-                  <Crown className="h-5 w-5" />
-                  <span className="font-bold">Go Pro</span>
-                  <Coffee className="h-4 w-4 ml-auto" />
-                </Button>
-              </a>
-            )}
-
-            {prefs.dashboard && (
-              <Link href="/">
-                <Button variant={isActivePath("/") ? "secondary" : "ghost"} className={navButtonClass("/")}>
-                  <LayoutGrid className={navIconClass("/")} />
-                  Dashboard
-                </Button>
-              </Link>
-            )}
-            {prefs.calendar && (
-              <Link href="/calendar">
-                <Button variant={isActivePath("/calendar") ? "secondary" : "ghost"} className={navButtonClass("/calendar")}>
-                  <CalendarIcon className={navIconClass("/calendar")} />
-                  Calendar
-                </Button>
-              </Link>
-            )}
-            {prefs.goals && (
-              <Link href="/goals">
-                <Button variant={isActivePath("/goals") ? "secondary" : "ghost"} className={navButtonClass("/goals")}>
-                  <Target className={navIconClass("/goals")} />
-                  Goals
-                </Button>
-              </Link>
-            )}
-            {prefs.tasks && (
-              <Link href="/tasks">
-                <Button variant={isActivePath("/tasks") ? "secondary" : "ghost"} className={navButtonClass("/tasks")}>
-                  <CheckSquare className={navIconClass("/tasks")} />
-                  Daily Tasks
-                </Button>
-              </Link>
-            )}
-            {prefs.nuke && (
-              <Link href="/nuke">
-                <Button variant={isActivePath("/nuke") ? "secondary" : "ghost"} className={navButtonClass("/nuke")}>
-                  <Zap className={navIconClass("/nuke")} />
-                  Nuke Goal
-                </Button>
-              </Link>
-            )}
-            {prefs.pomodoro && (
-              <Link href="/pomodoro">
-                <Button variant={isActivePath("/pomodoro") ? "secondary" : "ghost"} className={navButtonClass("/pomodoro")}>
-                  <Timer className={navIconClass("/pomodoro")} />
-                  Pomodoro
-                </Button>
-              </Link>
-            )}
-            {prefs.notes && (
-              <Link href="/notes">
-                <Button variant={isActivePath("/notes") ? "secondary" : "ghost"} className={navButtonClass("/notes")}>
-                  <FileText className={navIconClass("/notes")} />
-                  Notes
-                </Button>
-              </Link>
-            )}
-            {prefs.wishlist && (
-              <Link href="/wishlist">
-                <Button variant={isActivePath("/wishlist") ? "secondary" : "ghost"} className={navButtonClass("/wishlist")}>
-                  <Heart className={navIconClass("/wishlist")} />
-                  Wishlist
-                </Button>
-              </Link>
-            )}
-            {prefs.investments && (
-              <Link href="/investments">
-                <Button variant={isActivePath("/investments") ? "secondary" : "ghost"} className={navButtonClass("/investments")}>
-                  <TrendingUp className={navIconClass("/investments")} />
-                  Investments
-                </Button>
-              </Link>
-            )}
-            {prefs.income && (
-              <Link href="/income">
-                <Button variant={isActivePath("/income") ? "secondary" : "ghost"} className={navButtonClass("/income")}>
-                  <DollarSign className={navIconClass("/income")} />
-                  Income
-                </Button>
-              </Link>
-            )}
-            <div className="my-2 h-px bg-border" />
-            {prefs.links && (
-              <Link href="/links">
-                <Button variant={isActivePath("/links") ? "secondary" : "ghost"} className={navButtonClass("/links")}>
-                  <Link2 className={navIconClass("/links")} />
-                  My Links
-                </Button>
-              </Link>
-            )}
-            {prefs.daily_content && (
-              <Link href="/daily-content">
-                <Button variant={isActivePath("/daily-content") ? "secondary" : "ghost"} className={navButtonClass("/daily-content")}>
-                  <Sparkles className={navIconClass("/daily-content")} />
-                  Daily Quotes & Games
-                </Button>
-              </Link>
-            )}
-            {prefs.custom_sections && (
-              <Link href="/custom-sections">
-                <Button variant={isActivePath("/custom-sections") ? "secondary" : "ghost"} className={navButtonClass("/custom-sections")}>
-                  <FolderPlus className={navIconClass("/custom-sections")} />
-                  Custom Sections
-                </Button>
-              </Link>
-            )}
-            {prefs.ai_assistant && (
-              <Link href="/ai-chat">
-                <Button variant={isActivePath("/ai-chat") ? "secondary" : "ghost"} className={navButtonClass("/ai-chat")}>
-                  <Sparkles className={navIconClass("/ai-chat")} />
-                  AI Assistant
-                </Button>
-              </Link>
-            )}
-          </nav>
-
-          {/* User Profile */}
-          <div className="border-t border-border p-4">
-            <div className="flex items-center gap-3">
-              <Avatar>
-                <AvatarFallback className="bg-primary text-primary-foreground">
-                  {user?.name?.charAt(0).toUpperCase() || 'U'}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">{user?.name}</p>
-                <p className="text-xs text-muted-foreground truncate">ID: {user?.id}</p>
-              </div>
-<Link href="/settings">
-  <Button variant="ghost" size="icon" title="Settings">
-    <Settings className="h-4 w-4 text-foreground" />
-  </Button>
-</Link>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Header */}
-        <header className="flex h-16 items-center justify-between border-b border-border bg-card px-6">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)} className="md:hidden">
-              <Menu className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="text-xl font-bold text-foreground">Dashboard</h1>
-              <p className="text-sm text-muted-foreground">
-                {new Date().toLocaleDateString("en-US", {
-                  weekday: "long",
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 md:gap-4">
-            <div className="relative hidden md:block">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input placeholder="Search..." className="w-48 lg:w-64 pl-9" />
-            </div>
-            <ThemeSwitcher />
-            <Button variant="ghost" size="icon" className="hidden sm:flex">
-              <Bell className="h-5 w-5 text-foreground" />
-            </Button>
-<Link href="/settings">
-  <Button variant="ghost" size="icon" className="hidden sm:flex">
-    <Settings className="h-5 w-5 text-foreground" />
-  </Button>
-</Link>
-          </div>
-        </header>
-
-        {/* Page Content */}
-        <main className="flex-1 overflow-auto p-4 md:p-6">
-          <div className="mx-auto max-w-7xl space-y-4 md:space-y-6">
-        {/* Welcome Section */}
-          <div className="rounded-lg bg-gradient-to-r from-primary/20 to-accent/20 p-6">
-            <h2 className="text-2xl font-bold text-foreground">Welcome back, {user?.name?.split(" ")[0] || "there"}!</h2>
-            <p className="mt-2 text-muted-foreground">
-              Here's an overview of your life organization. Keep pushing forward!
+      <div className="space-y-6">
+        <section className="flex flex-col gap-4 rounded-lg border bg-card p-5 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-sm text-muted-foreground">Today at a glance</p>
+            <h1 className="mt-1 text-2xl font-bold text-foreground">Welcome back, {firstName}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Your tasks, deadlines, notes, and money snapshot are ready.
             </p>
-            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {quickActions.map((action) => (
+              <Button asChild key={action.href} variant="outline" size="sm">
+                <Link href={action.href} className="gap-2">
+                  <action.icon className="h-4 w-4" />
+                  {action.title}
+                </Link>
+              </Button>
+            ))}
+          </div>
+        </section>
 
-            {/* Stats Overview */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Goals Progress</CardTitle>
-                  <Target className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {stats.goalsCompleted}/{stats.totalGoals}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {stats.totalGoals > 0 ? Math.round((stats.goalsCompleted / stats.totalGoals) * 100) : 0}% complete
-                  </p>
-                </CardContent>
-              </Card>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                <CheckCircle2 className="h-4 w-4 text-primary" />
+                Tasks Today
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {dashboard.stats.completedTasksToday}/{dashboard.stats.tasksToday}
+              </div>
+              <Progress value={tasksProgress} className="mt-3 h-2" />
+            </CardContent>
+          </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Tasks Today</CardTitle>
-                  <CheckSquare className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {stats.tasksCompleted}/{stats.tasksToday}
-                  </div>
-                  <p className="text-xs text-muted-foreground">Keep going!</p>
-                </CardContent>
-              </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                <Target className="h-4 w-4 text-primary" />
+                Goals
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {dashboard.stats.completedGoals}/{dashboard.stats.totalGoals}
+              </div>
+              <p className="mt-2 text-sm text-muted-foreground">{dashboard.stats.goalsProgress}% complete</p>
+            </CardContent>
+          </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Pomodoro Sessions</CardTitle>
-                  <Timer className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.pomodoroSessions}</div>
-                  <p className="text-xs text-muted-foreground">Today's focus time</p>
-                </CardContent>
-              </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                <TrendingUp className="h-4 w-4 text-primary" />
+                Portfolio
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatCurrency(dashboard.stats.portfolioValue)}</div>
+              <p className="mt-2 text-sm text-muted-foreground">Current tracked value</p>
+            </CardContent>
+          </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Investments</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">${stats.investmentValue.toLocaleString()}</div>
-                  <p className="text-xs text-muted-foreground">Current portfolio value</p>
-                </CardContent>
-              </Card>
-            </div>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                <PiggyBank className="h-4 w-4 text-primary" />
+                Budget Balance
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatCurrency(dashboard.stats.monthlyBalance)}</div>
+              <p className="mt-2 text-sm text-muted-foreground">This month from budget entries</p>
+            </CardContent>
+          </Card>
+        </div>
 
-            {/* Quick Actions */}
-            <div>
-              <h3 className="mb-4 text-lg font-semibold text-foreground">Quick Actions</h3>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {quickActions.map((action, index) => (
-                  <Link key={index} href={action.href}>
-                    <Card className="group cursor-pointer transition-all hover:border-primary hover:shadow-lg">
-                      <CardHeader>
-                        <div className="flex items-center gap-4">
-                          <div className={`rounded-lg ${action.bgColor} p-3`}>
-                            <action.icon className={`h-6 w-6 ${action.color}`} />
-                          </div>
+        <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ListTodo className="h-5 w-5 text-primary" />
+                Today View
+              </CardTitle>
+              <CardDescription>Tasks and events that need attention today.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {dashboardLoading ? (
+                <p className="text-sm text-muted-foreground">Loading today...</p>
+              ) : (
+                <>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold">Tasks</h3>
+                      <Button asChild variant="ghost" size="sm">
+                        <Link href="/tasks">
+                          <Plus className="mr-2 h-4 w-4" />
+                          Add
+                        </Link>
+                      </Button>
+                    </div>
+                    {dashboard.today.tasks.length === 0 ? (
+                      <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                        No tasks for today. Add one small next step.
+                      </p>
+                    ) : (
+                      dashboard.today.tasks.map((task) => (
+                        <Link key={task.id} href="/tasks" className="flex items-center justify-between rounded-md border p-3 hover:bg-secondary">
                           <div>
-                            <CardTitle className="text-base">{action.title}</CardTitle>
-                            <CardDescription className="text-sm">{action.description}</CardDescription>
+                            <p className="font-medium">{task.title}</p>
+                            <p className="text-xs text-muted-foreground">{task.priority || "medium"} priority</p>
                           </div>
-                        </div>
-                      </CardHeader>
-                    </Card>
+                          <Badge variant={task.completed ? "default" : "outline"}>
+                            {task.completed ? "Done" : "Open"}
+                          </Badge>
+                        </Link>
+                      ))
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold">Events</h3>
+                      <Button asChild variant="ghost" size="sm">
+                        <Link href="/calendar">
+                          <CalendarDays className="mr-2 h-4 w-4" />
+                          Calendar
+                        </Link>
+                      </Button>
+                    </div>
+                    {dashboard.today.events.length === 0 ? (
+                      <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                        No events scheduled today.
+                      </p>
+                    ) : (
+                      dashboard.today.events.map((event) => (
+                        <Link key={event.id} href="/calendar" className="flex items-center justify-between rounded-md border p-3 hover:bg-secondary">
+                          <div>
+                            <p className="font-medium">{event.title}</p>
+                            <p className="text-xs text-muted-foreground">{event.location || "No location"}</p>
+                          </div>
+                          <Badge variant="secondary">{formatTime(event.start_time)}</Badge>
+                        </Link>
+                      ))
+                    )}
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="h-5 w-5 text-primary" />
+                Upcoming
+              </CardTitle>
+              <CardDescription>Deadlines and scheduled events.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {[...dashboard.upcoming.deadlines, ...dashboard.upcoming.events.map(event => ({
+                id: `event-${event.id}`,
+                title: event.title,
+                type: "Event",
+                date: event.event_date,
+                href: "/calendar",
+              }))].slice(0, 7).map((item) => (
+                <Link key={item.id} href={item.href} className="flex items-center justify-between rounded-md border p-3 hover:bg-secondary">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{item.title}</p>
+                    <p className="text-xs text-muted-foreground">{item.type}</p>
+                  </div>
+                  <Badge variant="outline">{formatDate(item.date)}</Badge>
+                </Link>
+              ))}
+              {dashboard.upcoming.deadlines.length === 0 && dashboard.upcoming.events.length === 0 && (
+                <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                  No upcoming deadlines yet.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-3">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Wallet className="h-5 w-5 text-primary" />
+                Money Snapshot
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Income sources</span>
+                <span className="font-medium">{formatCurrency(dashboard.stats.monthlyIncome)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Budget income</span>
+                <span className="font-medium">{formatCurrency(dashboard.stats.monthlyBudgetIncome)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Budget expenses</span>
+                <span className="font-medium">{formatCurrency(dashboard.stats.monthlyExpenses)}</span>
+              </div>
+              <div className="flex justify-between border-t pt-3 text-sm">
+                <span className="text-muted-foreground">Open wishlist value</span>
+                <span className="font-medium">{formatCurrency(dashboard.stats.wishlistOpenValue)}</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-primary" />
+                Recent Notes
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {dashboard.recent.notes.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No notes yet.</p>
+              ) : (
+                dashboard.recent.notes.slice(0, 4).map((note) => (
+                  <Link key={note.id} href="/notes" className="block rounded-md border p-3 hover:bg-secondary">
+                    <p className="truncate font-medium">{note.title || "Untitled"}</p>
+                    <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{note.content || "Empty note"}</p>
+                  </Link>
+                ))
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="h-5 w-5 text-primary" />
+                Activity
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {dashboard.recent.activity.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Your recent updates will show here.</p>
+              ) : (
+                dashboard.recent.activity.slice(0, 5).map((activity) => (
+                  <Link key={`${activity.type}-${activity.title}-${activity.at}`} href={activity.href} className="block rounded-md border p-3 hover:bg-secondary">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="truncate text-sm font-medium">{activity.title}</p>
+                      <Badge variant="outline">{activity.type}</Badge>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {activity.label} · {timeAgo(activity.at)}
+                    </p>
+                  </Link>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Heart className="h-5 w-5 text-primary" />
+              Saved Links
+            </CardTitle>
+            <CardDescription>Your newest bookmarks and saved resources.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {dashboard.recent.links.length === 0 ? (
+              <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                No saved links yet. Build your personal library from My Links.
+              </p>
+            ) : (
+              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                {dashboard.recent.links.map((link) => (
+                  <Link key={link.id} href="/links" className="rounded-md border p-3 hover:bg-secondary">
+                    <div className="flex items-center gap-2">
+                      <Link2 className="h-4 w-4 text-primary" />
+                      <p className="truncate font-medium">{link.title}</p>
+                    </div>
+                    <p className="mt-1 truncate text-xs text-muted-foreground">{link.url || "Saved item"}</p>
                   </Link>
                 ))}
               </div>
-            </div>
-
-            {/* Recent Activity */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>Your latest updates and achievements</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {recentActivity.length > 0 ? (
-                  <div className="space-y-4">
-                    {recentActivity.map((activity, index) => (
-                      <div key={index} className="flex items-center gap-4">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary">
-                          <Activity className="h-5 w-5 text-primary" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-foreground">{activity.text}</p>
-                          <p className="text-xs text-muted-foreground">{activity.time}</p>
-                        </div>
-                        <Badge variant="outline">{activity.type}</Badge>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    No recent activity. Start by adding a goal or task!
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </main>
+            )}
+          </CardContent>
+        </Card>
       </div>
-    </div>
+    </DashboardLayout>
   )
 }
