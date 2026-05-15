@@ -791,79 +791,110 @@ export default function Home() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-primary" />
-                Upcoming
+                <TrendingUp className="h-5 w-5 text-primary" />
+                Investment Summary
               </CardTitle>
-              <CardDescription>Deadlines and scheduled events.</CardDescription>
+              <CardDescription>Tracked value from your investments.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {[...dashboard.upcoming.deadlines, ...dashboard.upcoming.events.map(event => ({
-                id: `event-${event.id}`,
-                title: event.title,
-                type: "Event",
-                date: event.event_date,
-                href: "/calendar",
-              }))].slice(0, 7).map((item) => (
-                <Link key={item.id} href={item.href} className="flex items-center justify-between rounded-md border p-3 hover:bg-secondary">
-                  <div className="min-w-0">
-                    <p className="truncate font-medium">{item.title}</p>
-                    <p className="text-xs text-muted-foreground">{item.type}</p>
+              {dashboardLoading ? (
+                <>
+                  <Skeleton className="h-8 w-28" />
+                  <Skeleton className="h-5 w-full" />
+                </>
+              ) : errors.investments ? (
+                <SectionUnavailable label="Investments" />
+              ) : sources.investments.length === 0 ? (
+                <EmptyState actionHref="/investments" actionLabel="Add investment">
+                  No investments are tracked yet.
+                </EmptyState>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">{formatCurrency(investmentTotal)}</div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Cost basis</span>
+                    <span className="font-medium">{formatCurrency(investmentBasis)}</span>
                   </div>
-                  <Badge variant="outline">{formatDate(item.date)}</Badge>
-                </Link>
-              ))}
-              {dashboard.upcoming.deadlines.length === 0 && dashboard.upcoming.events.length === 0 && (
-                <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-                  No upcoming deadlines yet.
-                </p>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Gain/loss</span>
+                    <span className="font-medium">{formatCurrency(investmentGain)}</span>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Heart className="h-5 w-5 text-primary" />
+                Wishlist Summary
+              </CardTitle>
+              <CardDescription>Open wants and purchased items.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {dashboardLoading ? (
+                <>
+                  <Skeleton className="h-8 w-28" />
+                  <Skeleton className="h-3 w-full" />
+                </>
+              ) : errors.wishlist ? (
+                <SectionUnavailable label="Wishlist" />
+              ) : sources.wishlist.length === 0 ? (
+                <EmptyState actionHref="/wishlist" actionLabel="Add wishlist item">
+                  No wishlist items yet.
+                </EmptyState>
+              ) : (
+                <>
+                  <div className="flex items-end justify-between gap-3">
+                    <div>
+                      <div className="text-2xl font-bold">{formatCurrency(wishlistOpenValue)}</div>
+                      <p className="text-sm text-muted-foreground">Open wishlist value</p>
+                    </div>
+                    <Badge variant="secondary">
+                      {wishlistPurchased}/{sources.wishlist.length} bought
+                    </Badge>
+                  </div>
+                  <Progress value={wishlistProgress} className="h-2" />
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Total listed value</span>
+                    <span className="font-medium">{formatCurrency(wishlistTotalValue)}</span>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-3">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Wallet className="h-5 w-5 text-primary" />
-                Money Snapshot
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Income sources</span>
-                <span className="font-medium">{formatCurrency(dashboard.stats.monthlyIncome)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Budget income</span>
-                <span className="font-medium">{formatCurrency(dashboard.stats.monthlyBudgetIncome)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Budget expenses</span>
-                <span className="font-medium">{formatCurrency(dashboard.stats.monthlyExpenses)}</span>
-              </div>
-              <div className="flex justify-between border-t pt-3 text-sm">
-                <span className="text-muted-foreground">Open wishlist value</span>
-                <span className="font-medium">{formatCurrency(dashboard.stats.wishlistOpenValue)}</span>
-              </div>
-            </CardContent>
-          </Card>
-
+        <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5 text-primary" />
                 Recent Notes
               </CardTitle>
+              <CardDescription>Your latest saved thoughts and plans.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {dashboard.recent.notes.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No notes yet.</p>
+              {dashboardLoading ? (
+                <>
+                  <Skeleton className="h-16 w-full" />
+                  <Skeleton className="h-16 w-full" />
+                </>
+              ) : errors.notes ? (
+                <SectionUnavailable label="Notes" />
+              ) : recentNotes.length === 0 ? (
+                <EmptyState actionHref="/notes" actionLabel="Write a note">
+                  No notes yet.
+                </EmptyState>
               ) : (
-                dashboard.recent.notes.slice(0, 4).map((note) => (
+                recentNotes.map((note) => (
                   <Link key={note.id} href="/notes" className="block rounded-md border p-3 hover:bg-secondary">
-                    <p className="truncate font-medium">{note.title || "Untitled"}</p>
-                    <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{note.content || "Empty note"}</p>
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="truncate font-medium">{note.title || "Untitled"}</p>
+                      {getTimestamp(note) && <span className="shrink-0 text-xs text-muted-foreground">{timeAgo(getTimestamp(note))}</span>}
+                    </div>
+                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{note.content || "Empty note"}</p>
                   </Link>
                 ))
               )}
