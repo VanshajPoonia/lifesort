@@ -76,6 +76,8 @@ CREATE TABLE IF NOT EXISTS tasks (
   description TEXT,
   priority VARCHAR(50) DEFAULT 'medium',
   due_date DATE,
+  due_time TIME,
+  reminder_at TIMESTAMP,
   completed BOOLEAN DEFAULT FALSE,
   category VARCHAR(100),
   highlight_of_day BOOLEAN DEFAULT FALSE,
@@ -329,6 +331,10 @@ CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(session_token);
 CREATE INDEX IF NOT EXISTS idx_goals_user_id ON goals(user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);
+CREATE INDEX IF NOT EXISTS idx_tasks_completed ON tasks(completed);
+CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority);
+CREATE INDEX IF NOT EXISTS idx_tasks_category ON tasks(category);
+CREATE INDEX IF NOT EXISTS idx_tasks_reminder_at ON tasks(reminder_at);
 CREATE INDEX IF NOT EXISTS idx_calendar_events_user_date ON calendar_events(user_id, event_date);
 CREATE INDEX IF NOT EXISTS idx_notes_user_updated ON notes(user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_user_links_user_id ON user_links(user_id);
