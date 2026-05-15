@@ -290,6 +290,19 @@ export default function TasksPage() {
     }
   }
 
+  useEffect(() => {
+    if (!user) return
+
+    const handleQuickAdd = (event: Event) => {
+      if ((event as CustomEvent).detail?.type === "task") {
+        fetchTasks()
+      }
+    }
+
+    window.addEventListener("lifesort:quick-add-created", handleQuickAdd)
+    return () => window.removeEventListener("lifesort:quick-add-created", handleQuickAdd)
+  }, [user])
+
   const handleAddTask = async () => {
     setCreating(true)
     try {

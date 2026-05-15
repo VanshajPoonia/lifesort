@@ -77,6 +77,19 @@ export default function NotesPage() {
     }
   }
 
+  useEffect(() => {
+    if (!user) return
+
+    const handleQuickAdd = (event: Event) => {
+      if ((event as CustomEvent).detail?.type === "note") {
+        fetchNotes()
+      }
+    }
+
+    window.addEventListener("lifesort:quick-add-created", handleQuickAdd)
+    return () => window.removeEventListener("lifesort:quick-add-created", handleQuickAdd)
+  }, [user])
+
   const createNewNote = async () => {
     try {
       const response = await fetch('/api/notes', {

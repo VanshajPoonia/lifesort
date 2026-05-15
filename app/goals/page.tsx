@@ -239,9 +239,18 @@ export default function GoalsPage() {
     }
 
     fetchData()
+    const handleQuickAdd = (event: Event) => {
+      const type = (event as CustomEvent).detail?.type
+      if (type === "goal" || type === "task") {
+        fetchData()
+      }
+    }
+
+    window.addEventListener("lifesort:quick-add-created", handleQuickAdd)
 
     return () => {
       cancelled = true
+      window.removeEventListener("lifesort:quick-add-created", handleQuickAdd)
     }
   }, [user])
 
