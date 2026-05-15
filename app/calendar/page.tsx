@@ -182,6 +182,19 @@ export default function CalendarPage() {
     }
   }
 
+  useEffect(() => {
+    if (!user) return
+
+    const handleQuickAdd: EventListener = (event) => {
+      if ((event as CustomEvent).detail?.type === "calendar-event") {
+        fetchEvents()
+      }
+    }
+
+    window.addEventListener("lifesort:quick-add-created", handleQuickAdd)
+    return () => window.removeEventListener("lifesort:quick-add-created", handleQuickAdd)
+  }, [user])
+
   const formatTime12Hour = (time24: string) => {
     if (!time24) return ""
     const [hours, minutes] = time24.split(":")

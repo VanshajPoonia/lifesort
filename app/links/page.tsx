@@ -203,6 +203,19 @@ export default function LinksPage() {
     }
   }
 
+  useEffect(() => {
+    if (!user) return
+
+    const handleQuickAdd = (event: Event) => {
+      if ((event as CustomEvent).detail?.type === "link") {
+        fetchLinks()
+      }
+    }
+
+    window.addEventListener("lifesort:quick-add-created", handleQuickAdd)
+    return () => window.removeEventListener("lifesort:quick-add-created", handleQuickAdd)
+  }, [user])
+
   const getYouTubeId = (url: string) => {
     const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/
     const match = url.match(regex)

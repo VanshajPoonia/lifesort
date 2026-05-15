@@ -178,6 +178,19 @@ export default function WishlistPage() {
     }
   }
 
+  useEffect(() => {
+    if (!user) return
+
+    const handleQuickAdd = (event: Event) => {
+      if ((event as CustomEvent).detail?.type === "wishlist") {
+        fetchItems()
+      }
+    }
+
+    window.addEventListener("lifesort:quick-add-created", handleQuickAdd)
+    return () => window.removeEventListener("lifesort:quick-add-created", handleQuickAdd)
+  }, [user])
+
   const handleAddItem = async () => {
     if (newItem.title) {
       try {
