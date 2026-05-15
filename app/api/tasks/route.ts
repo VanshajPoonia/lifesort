@@ -19,6 +19,7 @@ type TaskBody = {
   reminder_sent?: boolean | null
   category?: string | null
   completed?: boolean | null
+  goal_id?: number | string | null
 }
 
 function hasField(body: TaskBody, field: keyof TaskBody) {
@@ -59,6 +60,12 @@ function cleanReminderDays(value: unknown, fallback = 1) {
   return Math.min(365, Math.max(0, parsed))
 }
 
+function cleanId(value: unknown) {
+  if (value === null || value === undefined || value === '') return null
+  const parsed = typeof value === 'number' ? value : Number.parseInt(String(value), 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+}
+
 function dateOnly(value: unknown) {
   if (!value) return null
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
@@ -82,6 +89,19 @@ function computeReminderAt(dueDate: string | null, dueTime: string | null, enabl
   reminder.setUTCDate(reminder.getUTCDate() - reminderDays)
 
   return reminder.toISOString().slice(0, 19).replace('T', ' ')
+}
+
+async function validateGoalId(goalId: number | null, userId: string) {
+  if (!goalId) return null
+
+  const rows = await sql`
+    SELECT id
+    FROM goals
+    WHERE id = ${goalId} AND user_id = ${userId}
+    LIMIT 1
+  `
+
+  return rows.length > 0 ? goalId : undefined
 }
 
 export async function GET() {
@@ -124,6 +144,11 @@ export async function POST(request: Request) {
     const emailReminder = Boolean(body.email_reminder && dueDate)
     const reminderDays = cleanReminderDays(body.reminder_days, 1)
     const reminderAt = computeReminderAt(dueDate, dueTime, emailReminder, reminderDays)
+    const goalId = await validateGoalId(cleanId(body.goal_id), user.id)
+
+    if (goalId === undefined) {
+      return NextResponse.json({ error: 'Goal not found' }, { status: 404 })
+    }
 
     const result = await sql`
       INSERT INTO tasks (
@@ -138,7 +163,8 @@ export async function POST(request: Request) {
         reminder_days,
         reminder_sent,
         category,
-        completed
+        completed,
+        goal_id
       )
       VALUES (
         ${user.id},
@@ -152,7 +178,8 @@ export async function POST(request: Request) {
         ${reminderDays},
         ${Boolean(body.reminder_sent) && Boolean(reminderAt)},
         ${cleanText(body.category)},
-        ${Boolean(body.completed)}
+        ${Boolean(body.completed)},
+        ${goalId}
       )
       RETURNING *
     `
@@ -196,6 +223,14 @@ export async function PUT(request: Request) {
     const nextDueTime = hasField(body, 'due_time') ? cleanTime(body.due_time) : timeOnly(existing.due_time)
     const nextCategory = hasField(body, 'category') ? cleanText(body.category) : existing.category
     const nextCompleted = hasField(body, 'completed') ? Boolean(body.completed) : Boolean(existing.completed)
+    const nextGoalId = hasField(body, 'goal_id')
+      ? await validateGoalId(cleanId(body.goal_id), user.id)
+      : cleanId(existing.goal_id)
+
+    if (nextGoalId === undefined) {
+      return NextResponse.json({ error: 'Goal not found' }, { status: 404 })
+    }
+
     const nextEmailReminder = hasField(body, 'email_reminder')
       ? Boolean(body.email_reminder && nextDueDate)
       : Boolean(existing.email_reminder && nextDueDate)
@@ -229,6 +264,7 @@ export async function PUT(request: Request) {
         reminder_sent = ${nextReminderSent},
         category = ${nextCategory},
         completed = ${nextCompleted},
+        goal_id = ${nextGoalId},
         updated_at = NOW()
       WHERE id = ${body.id} AND user_id = ${user.id}
       RETURNING *

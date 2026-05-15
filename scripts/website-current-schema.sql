@@ -58,7 +58,8 @@ CREATE TABLE IF NOT EXISTS goals (
   category VARCHAR(100) DEFAULT 'personal',
   target_date DATE,
   progress INTEGER DEFAULT 0,
-  status VARCHAR(50) DEFAULT 'in_progress',
+  status VARCHAR(50) DEFAULT 'active',
+  priority VARCHAR(50) DEFAULT 'medium',
   target_value NUMERIC,
   current_value NUMERIC DEFAULT 0,
   value_unit VARCHAR(50),
@@ -84,6 +85,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   email_reminder BOOLEAN DEFAULT FALSE,
   reminder_days INTEGER DEFAULT 1,
   reminder_sent BOOLEAN DEFAULT FALSE,
+  goal_id INTEGER REFERENCES goals(id) ON DELETE SET NULL,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -329,12 +331,17 @@ CREATE TABLE IF NOT EXISTS popular_investments (
 
 CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(session_token);
 CREATE INDEX IF NOT EXISTS idx_goals_user_id ON goals(user_id);
+CREATE INDEX IF NOT EXISTS idx_goals_status ON goals(status);
+CREATE INDEX IF NOT EXISTS idx_goals_target_date ON goals(target_date);
+CREATE INDEX IF NOT EXISTS idx_goals_priority ON goals(priority);
+CREATE INDEX IF NOT EXISTS idx_goals_category ON goals(category);
 CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);
 CREATE INDEX IF NOT EXISTS idx_tasks_completed ON tasks(completed);
 CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority);
 CREATE INDEX IF NOT EXISTS idx_tasks_category ON tasks(category);
 CREATE INDEX IF NOT EXISTS idx_tasks_reminder_at ON tasks(reminder_at);
+CREATE INDEX IF NOT EXISTS idx_tasks_goal_id ON tasks(goal_id);
 CREATE INDEX IF NOT EXISTS idx_calendar_events_user_date ON calendar_events(user_id, event_date);
 CREATE INDEX IF NOT EXISTS idx_notes_user_updated ON notes(user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_user_links_user_id ON user_links(user_id);

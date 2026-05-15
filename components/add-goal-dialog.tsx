@@ -18,6 +18,7 @@ interface AddGoalDialogProps {
     category: string
     target_date: string
     status: string
+    priority: string
     email_reminder?: boolean
     reminder_days?: number
     target_value?: number | null
@@ -32,7 +33,8 @@ export function AddGoalDialog({ open, onClose, onAdd }: AddGoalDialogProps) {
     description: "",
     category: "personal",
     target_date: "",
-    status: "in_progress",
+    status: "active",
+    priority: "medium",
     email_reminder: true,
     reminder_days: 3,
     target_value: null as number | null,
@@ -60,6 +62,7 @@ export function AddGoalDialog({ open, onClose, onAdd }: AddGoalDialogProps) {
         description: formData.description,
         category: formData.category,
         status: formData.status,
+        priority: formData.priority,
         target_date: noDeadline ? "" : formData.target_date,
         email_reminder: noDeadline ? false : formData.email_reminder,
         reminder_days: noDeadline ? 3 : formData.reminder_days,
@@ -72,7 +75,8 @@ export function AddGoalDialog({ open, onClose, onAdd }: AddGoalDialogProps) {
         description: "",
         category: "personal",
         target_date: "",
-        status: "in_progress",
+        status: "active",
+        priority: "medium",
         email_reminder: true,
         reminder_days: 3,
         target_value: null,
@@ -119,7 +123,7 @@ export function AddGoalDialog({ open, onClose, onAdd }: AddGoalDialogProps) {
               className="text-foreground min-h-[100px]"
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="category">Category</Label>
               <Select
@@ -135,6 +139,22 @@ export function AddGoalDialog({ open, onClose, onAdd }: AddGoalDialogProps) {
                   <SelectItem value="health">Health</SelectItem>
                   <SelectItem value="finance">Finance</SelectItem>
                   <SelectItem value="education">Education</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="priority">Priority</Label>
+              <Select
+                value={formData.priority}
+                onValueChange={(value) => setFormData({ ...formData, priority: value })}
+              >
+                <SelectTrigger id="priority">
+                  <SelectValue placeholder="Select priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
                 </SelectContent>
               </Select>
             </div>
