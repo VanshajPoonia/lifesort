@@ -540,7 +540,7 @@ export default function Home() {
             <p className="text-sm text-muted-foreground">Today at a glance</p>
             <h1 className="mt-1 text-2xl font-bold text-foreground">Welcome back, {firstName}</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Your tasks, deadlines, notes, and money snapshot are ready.
+              Your tasks, goals, notes, wishlist, and money summaries in one place.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -555,62 +555,106 @@ export default function Home() {
           </div>
         </section>
 
+        {hasAnyErrors && (
+          <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4" />
+              <span>Some dashboard sections could not load. No fallback numbers are being shown for failed data.</span>
+            </div>
+          </div>
+        )}
+
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-sm font-medium">
-                <CheckCircle2 className="h-4 w-4 text-primary" />
-                Tasks Today
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {dashboard.stats.completedTasksToday}/{dashboard.stats.tasksToday}
-              </div>
-              <Progress value={tasksProgress} className="mt-3 h-2" />
-            </CardContent>
-          </Card>
+          {dashboardLoading ? (
+            <>
+              <LoadingCard />
+              <LoadingCard />
+              <LoadingCard />
+              <LoadingCard />
+            </>
+          ) : (
+            <>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                    <CheckCircle2 className="h-4 w-4 text-primary" />
+                    Due Soon
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {errors.tasks ? (
+                    <p className="text-sm text-muted-foreground">Unavailable</p>
+                  ) : (
+                    <>
+                      <div className="text-2xl font-bold">
+                        {completedDueSoonTasks}/{dueSoonTasks.length}
+                      </div>
+                      <Progress value={taskProgress} className="mt-3 h-2" />
+                    </>
+                  )}
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-sm font-medium">
-                <Target className="h-4 w-4 text-primary" />
-                Goals
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {dashboard.stats.completedGoals}/{dashboard.stats.totalGoals}
-              </div>
-              <p className="mt-2 text-sm text-muted-foreground">{dashboard.stats.goalsProgress}% complete</p>
-            </CardContent>
-          </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                    <Target className="h-4 w-4 text-primary" />
+                    Goals
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {errors.goals ? (
+                    <p className="text-sm text-muted-foreground">Unavailable</p>
+                  ) : (
+                    <>
+                      <div className="text-2xl font-bold">
+                        {completedGoals}/{sources.goals.length}
+                      </div>
+                      <p className="mt-2 text-sm text-muted-foreground">{goalProgress}% average progress</p>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-sm font-medium">
-                <TrendingUp className="h-4 w-4 text-primary" />
-                Portfolio
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(dashboard.stats.portfolioValue)}</div>
-              <p className="mt-2 text-sm text-muted-foreground">Current tracked value</p>
-            </CardContent>
-          </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                    <Wallet className="h-4 w-4 text-primary" />
+                    Monthly Income
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {errors.income ? (
+                    <p className="text-sm text-muted-foreground">Unavailable</p>
+                  ) : (
+                    <>
+                      <div className="text-2xl font-bold">{formatCurrency(monthlyIncome)}</div>
+                      <p className="mt-2 text-sm text-muted-foreground">{sources.income.length} active or saved sources</p>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-sm font-medium">
-                <PiggyBank className="h-4 w-4 text-primary" />
-                Budget Balance
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(dashboard.stats.monthlyBalance)}</div>
-              <p className="mt-2 text-sm text-muted-foreground">This month from budget entries</p>
-            </CardContent>
-          </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                    <TrendingUp className="h-4 w-4 text-primary" />
+                    Portfolio
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {errors.investments ? (
+                    <p className="text-sm text-muted-foreground">Unavailable</p>
+                  ) : (
+                    <>
+                      <div className="text-2xl font-bold">{formatCurrency(investmentTotal)}</div>
+                      <p className="mt-2 text-sm text-muted-foreground">{sources.investments.length} tracked investments</p>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          )}
         </div>
 
         <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
@@ -618,70 +662,127 @@ export default function Home() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <ListTodo className="h-5 w-5 text-primary" />
-                Today View
+                Today's Tasks
               </CardTitle>
-              <CardDescription>Tasks and events that need attention today.</CardDescription>
+              <CardDescription>Incomplete tasks due today, overdue, or coming up soon.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-5">
+            <CardContent className="space-y-3">
               {dashboardLoading ? (
-                <p className="text-sm text-muted-foreground">Loading today...</p>
+                <>
+                  <Skeleton className="h-16 w-full" />
+                  <Skeleton className="h-16 w-full" />
+                  <Skeleton className="h-16 w-full" />
+                </>
+              ) : errors.tasks ? (
+                <SectionUnavailable label="Tasks" />
+              ) : openDueSoonTasks.length === 0 ? (
+                <EmptyState actionHref="/tasks" actionLabel="Add a task">
+                  No incomplete tasks are due soon.
+                </EmptyState>
+              ) : (
+                openDueSoonTasks.slice(0, 6).map((task) => (
+                  <Link
+                    key={task.id}
+                    href="/tasks"
+                    className="flex items-center justify-between gap-3 rounded-md border p-3 hover:bg-secondary"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{task.title}</p>
+                      <p className="text-xs text-muted-foreground">{formatDate(task.due_date)}</p>
+                    </div>
+                    <Badge variant="outline">{task.priority || "medium"}</Badge>
+                  </Link>
+                ))
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="h-5 w-5 text-primary" />
+                Upcoming Goals & Deadlines
+              </CardTitle>
+              <CardDescription>Goal target dates and task due dates from your current data.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {dashboardLoading ? (
+                <>
+                  <Skeleton className="h-14 w-full" />
+                  <Skeleton className="h-14 w-full" />
+                  <Skeleton className="h-14 w-full" />
+                </>
+              ) : errors.tasks && errors.goals ? (
+                <SectionUnavailable label="Deadlines" />
+              ) : upcomingDeadlines.length === 0 ? (
+                <EmptyState actionHref="/goals" actionLabel="Add a goal">
+                  No upcoming goal or task deadlines yet.
+                </EmptyState>
+              ) : (
+                upcomingDeadlines.map((item) => (
+                  <Link
+                    key={item.id}
+                    href={item.href}
+                    className="flex items-center justify-between gap-3 rounded-md border p-3 hover:bg-secondary"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{item.title}</p>
+                      <p className="text-xs text-muted-foreground">{item.type}</p>
+                    </div>
+                    <Badge variant="outline">{formatDate(item.date)}</Badge>
+                  </Link>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-3">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <PiggyBank className="h-5 w-5 text-primary" />
+                Budget Summary
+              </CardTitle>
+              <CardDescription>This month from budget entries and income sources.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {dashboardLoading ? (
+                <>
+                  <Skeleton className="h-5 w-full" />
+                  <Skeleton className="h-5 w-full" />
+                  <Skeleton className="h-5 w-full" />
+                </>
+              ) : errors.budget && errors.income ? (
+                <SectionUnavailable label="Budget" />
               ) : (
                 <>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold">Tasks</h3>
-                      <Button asChild variant="ghost" size="sm">
-                        <Link href="/tasks">
-                          <Plus className="mr-2 h-4 w-4" />
-                          Add
-                        </Link>
-                      </Button>
+                  {errors.income ? (
+                    <SectionUnavailable label="Income" />
+                  ) : (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Income sources</span>
+                      <span className="font-medium">{formatCurrency(monthlyIncome)}</span>
                     </div>
-                    {dashboard.today.tasks.length === 0 ? (
-                      <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-                        No tasks for today. Add one small next step.
-                      </p>
-                    ) : (
-                      dashboard.today.tasks.map((task) => (
-                        <Link key={task.id} href="/tasks" className="flex items-center justify-between rounded-md border p-3 hover:bg-secondary">
-                          <div>
-                            <p className="font-medium">{task.title}</p>
-                            <p className="text-xs text-muted-foreground">{task.priority || "medium"} priority</p>
-                          </div>
-                          <Badge variant={task.completed ? "default" : "outline"}>
-                            {task.completed ? "Done" : "Open"}
-                          </Badge>
-                        </Link>
-                      ))
-                    )}
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold">Events</h3>
-                      <Button asChild variant="ghost" size="sm">
-                        <Link href="/calendar">
-                          <CalendarDays className="mr-2 h-4 w-4" />
-                          Calendar
-                        </Link>
-                      </Button>
-                    </div>
-                    {dashboard.today.events.length === 0 ? (
-                      <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-                        No events scheduled today.
-                      </p>
-                    ) : (
-                      dashboard.today.events.map((event) => (
-                        <Link key={event.id} href="/calendar" className="flex items-center justify-between rounded-md border p-3 hover:bg-secondary">
-                          <div>
-                            <p className="font-medium">{event.title}</p>
-                            <p className="text-xs text-muted-foreground">{event.location || "No location"}</p>
-                          </div>
-                          <Badge variant="secondary">{formatTime(event.start_time)}</Badge>
-                        </Link>
-                      ))
-                    )}
-                  </div>
+                  )}
+                  {errors.budget ? (
+                    <SectionUnavailable label="Budget entries" />
+                  ) : (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Budget income</span>
+                        <span className="font-medium">{formatCurrency(budgetIncome)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Budget expenses</span>
+                        <span className="font-medium">{formatCurrency(budgetExpenses)}</span>
+                      </div>
+                      <div className="flex justify-between border-t pt-3 text-sm">
+                        <span className="text-muted-foreground">Budget balance</span>
+                        <span className="font-medium">{formatCurrency(budgetBalance)}</span>
+                      </div>
+                    </>
+                  )}
                 </>
               )}
             </CardContent>
