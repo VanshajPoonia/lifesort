@@ -2,6 +2,7 @@
 
 import React from "react"
 import { useState, useEffect, useRef } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { useAuth } from '@/components/auth-provider'
 import { Button } from '@/components/ui/button'
@@ -68,6 +69,17 @@ export default function LoginPage() {
       <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-accent/10 rounded-full blur-3xl" />
 
       <div ref={containerRef} className="relative z-10 min-h-screen flex flex-col items-center justify-center px-4 py-12">
+        <div className="animate-in mb-6">
+          <Image
+            src="/lifesort-logo-full.png"
+            alt="LifeSort"
+            width={320}
+            height={240}
+            priority
+            className="h-28 w-auto rounded-xl bg-white object-contain shadow-sm"
+          />
+        </div>
+
         {/* Badge */}
         <div className="animate-in mb-8">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20">
