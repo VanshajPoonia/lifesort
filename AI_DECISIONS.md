@@ -48,6 +48,7 @@ Architecture and product decision memory for LifeSort.
 - Most user-owned tables reference `users(id)` with `ON DELETE CASCADE`.
 - Tasks can link to goals through `tasks.goal_id`.
 - Investments can link to wishlist items through `investments.wishlist_item_id`.
+- Notes use a simple knowledge model: user-owned `note_folders`, optional `notes.folder_id`, inline `notes.tags` as `TEXT[]`, and `notes.is_pinned` for pinned/favorite notes.
 - Link folders can be nested through `link_folders.parent_id`.
 - Preferences use JSON/JSONB in user-related tables, including sidebar preferences and content preferences.
 - Daily content stores generated or played content with `content_type`, `category`, `content`, and `extra_data`.
