@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { sql } from '@vercel/postgres'
+import { neon } from '@neondatabase/serverless'
 import { getSessionFromCookie, getSession, getUserById } from '@/lib/auth'
+
+const sql = neon(process.env.DATABASE_URL!)
 
 export async function POST(request: NextRequest) {
   try {

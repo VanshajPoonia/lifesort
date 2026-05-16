@@ -16,6 +16,12 @@ interface ReminderItem {
   type: 'goal' | 'nuke' | 'task' | 'event'
 }
 
+// Shape of each row returned by the SQL queries below — Neon's tagged template
+// returns Record<string, unknown>[], so we narrow with this type at push time.
+type ReminderRow = Omit<ReminderItem, 'type' | 'reminder_days'> & {
+  reminder_days: number | null
+}
+
 // This endpoint is called daily by Vercel Cron
 export async function GET(request: Request) {
   // Verify cron secret to prevent unauthorized access
@@ -47,11 +53,11 @@ export async function GET(request: Request) {
       AND DATE(g.target_date) = CURRENT_DATE + INTERVAL '1 day' * COALESCE(g.reminder_days, 3)
     `
     
-    for (const goal of goals) {
+    for (const goal of goals as ReminderRow[]) {
       allReminders.push({
         ...goal,
         reminder_days: goal.reminder_days || 3,
-        type: 'goal'
+        type: 'goal',
       })
     }
     
@@ -69,11 +75,11 @@ export async function GET(request: Request) {
       AND DATE(n.deadline) = CURRENT_DATE + INTERVAL '1 day' * COALESCE(n.reminder_days, 3)
     `
     
-    for (const nuke of nukeGoals) {
+    for (const nuke of nukeGoals as ReminderRow[]) {
       allReminders.push({
         ...nuke,
         reminder_days: nuke.reminder_days || 3,
-        type: 'nuke'
+        type: 'nuke',
       })
     }
     
@@ -91,11 +97,11 @@ export async function GET(request: Request) {
       AND DATE(t.due_date) = CURRENT_DATE + INTERVAL '1 day' * COALESCE(t.reminder_days, 1)
     `
     
-    for (const task of tasks) {
+    for (const task of tasks as ReminderRow[]) {
       allReminders.push({
         ...task,
         reminder_days: task.reminder_days || 1,
-        type: 'task'
+        type: 'task',
       })
     }
 

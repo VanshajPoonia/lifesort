@@ -323,6 +323,45 @@ After that, re-run the regression checkpoint and the schema-drift 500s should di
 - Suggested next steps: (1) Run `scripts/run-pending-migrations.sql` against Neon, (2) re-run regression checkpoint to confirm 500s are gone, (3) browser-test the four UI gaps, (4) fix pre-existing TS errors.
 - Handoff prompt: "Pending: user must run `scripts/run-pending-migrations.sql` against Neon. After that, re-run the regression checkpoint prompt in `AI_CHECKLIST.md`. All schema-drift fixes are in that one SQL file."
 
+### 2026-05-17 - Cleared All Pre-Existing TypeScript Errors
+
+- Agent/tool used: Claude Code (Opus 4.7).
+- Task: Fix all 7 pre-existing TypeScript errors flagged by every regression checkpoint so far.
+- Files changed:
+  - `app/api/cron/deadline-reminders/route.ts`
+  - `app/api/wishlist/convert-to-investment/route.ts`
+  - `app/calendar/page.tsx`
+  - `components/games/snake-game.tsx`
+  - `AI_TASK_LOG.md` (this entry)
+
+**Errors fixed:**
+
+| File | Root cause | Fix |
+|---|---|---|
+| `cron/deadline-reminders/route.ts` (3 errors) | Neon's `sql` tag returns `Record<string, unknown>[]`; spreading row into `ReminderItem` lost the typed fields | Added `ReminderRow` helper type and cast each loop's array (`as ReminderRow[]`) so the spread satisfies `ReminderItem` |
+| `wishlist/convert-to-investment/route.ts` (2 errors) | Wrong SQL client — imported `sql` from `@vercel/postgres` (returns `{ rows: [] }`) but used it like Neon's tagged template (returns `[]` directly) | Swapped import to `neon(process.env.DATABASE_URL!)` to match the rest of the codebase. `.length` and `[0]` indexing now type-check correctly |
+| `calendar/page.tsx` (1 error) | API returns `category: string`, component `Event.category` is `"personal" \| "work" \| "health" \| "finance"` | Added an `isCategory` type-guard with a safe fallback to `'personal'` so the narrowed value satisfies the union |
+| `components/games/snake-game.tsx` (1 error) | React 19 stricter `useRef` — `useRef<number>()` with no arg fails because the overload requires an initial value | Changed to `useRef<number \| undefined>(undefined)` |
+
+**Verification:**
+
+- `npx tsc --noEmit` — **0 errors** across the entire codebase (previously 7 pre-existing).
+- `npm run build` — passes, 67 routes.
+
+**Behavioural impact:**
+
+- `convert-to-investment` now actually works against Neon (previously the wrong client meant the SQL call never ran correctly even at runtime).
+- All other fixes are pure type fixes; no runtime behaviour change.
+
+**Remaining low-priority items:**
+
+- ESLint flat config missing — separate task.
+- `metadata.viewport` warnings — Next.js cosmetic.
+- Migration `scripts/run-pending-migrations.sql` still needs to be run against Neon (user action).
+
+- Commands run: `npx tsc --noEmit`, `npm run build`. Both clean.
+- Handoff prompt: "TypeScript is now 100% clean — `npx tsc --noEmit` returns zero errors. Any new TS error from now on was introduced by the current change. ESLint flat config and metadata viewport warnings are the only remaining cosmetic items."
+
 ## Proposed Next Work
 
 - Add an ESLint flat config compatible with the installed ESLint version.

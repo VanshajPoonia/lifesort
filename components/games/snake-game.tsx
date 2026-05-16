@@ -34,7 +34,7 @@ export function SnakeGame({ onComplete }: SnakeGameProps) {
   const scoreRef = useRef(score)
   const gameOverRef = useRef(gameOver)
   const lastMoveTime = useRef(0)
-  const animationFrameRef = useRef<number>()
+  const animationFrameRef = useRef<number | undefined>(undefined)
 
   // Sync refs
   useEffect(() => { directionRef.current = direction }, [direction])

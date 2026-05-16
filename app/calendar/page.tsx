@@ -165,13 +165,17 @@ export default function CalendarPage() {
         const data = await response.json()
         // Convert database format to component format
         const eventsArray = Array.isArray(data) ? data : []
-        const formattedEvents = eventsArray.map((e: { id: number; title: string; event_date: string; start_time: string; description: string; category: string; location: string; attendees: string }) => ({
+        const allowedCategories = ['personal', 'work', 'health', 'finance'] as const
+        const isCategory = (v: string): v is Event['category'] =>
+          (allowedCategories as readonly string[]).includes(v)
+
+        const formattedEvents: Event[] = eventsArray.map((e: { id: number; title: string; event_date: string; start_time: string; description: string; category: string; location: string; attendees: string }) => ({
           id: e.id.toString(),
           title: e.title,
           date: new Date(e.event_date),
           time: e.start_time?.slice(0, 5) || '',
           description: e.description || '',
-          category: e.category || 'personal',
+          category: isCategory(e.category) ? e.category : 'personal',
           location: e.location,
           attendees: e.attendees,
         }))
