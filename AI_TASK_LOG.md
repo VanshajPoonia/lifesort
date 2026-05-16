@@ -75,6 +75,30 @@ Current verification state:
 - Next recommended task: Add an ESLint flat config and a typecheck script, then decide whether to re-enable build validation.
 - Handoff prompt for next agent: "Read all root AI memory files first. The safest next technical cleanup is to make `npm run lint` work with ESLint 10 and add a non-mutating `typecheck` script. Preserve existing app behavior."
 
+### 2026-05-16 - Configured Claude Code as Reviewer and Fallback Coding Agent
+
+- Agent/tool used: Claude Code (Opus 4.7).
+- Task summary: Created `CLAUDE.md` so Claude Code is configured as both a reviewer and a fallback coding agent. Claude Code uses `AGENTS.md` and the `AI_*.md` files as shared project memory. Codex continues to use `AGENTS.md` as its main instruction file. `AGENTS.md` was reviewed and already clearly lists the five memory files under "Required Reading Before Any Task", so no edits to `AGENTS.md` were needed.
+- Files changed:
+  - `CLAUDE.md` (new)
+  - `AI_TASK_LOG.md` (this entry)
+- What changed:
+  - Created `CLAUDE.md` importing `AGENTS.md` via `@AGENTS.md`.
+  - Documented Claude Code's default role: reviewer, architecture checker, planning assistant, and risk finder.
+  - Documented the fallback coding agent conditions: Codex unavailable, out of tokens, or user explicitly asks Claude Code to implement.
+  - Pointed Claude's fallback workflow at the same shared docs Codex uses (`AGENTS.md`, `AI_PROJECT.md`, `AI_TASK_LOG.md`, `AI_DECISIONS.md`, `AI_CHECKLIST.md`).
+  - Specified when each `AI_*.md` file should be updated after Claude's implementation work.
+  - Added a "Normal Claude Code Usage" section with example invocations.
+- Normal workflow going forward:
+  - Codex builds when available.
+  - Claude Code reviews by default.
+  - Claude Code can build when Codex is unavailable.
+  - `AI_TASK_LOG.md` tracks work and handoffs.
+- Commands run: none (documentation-only change).
+- Remaining issues: none introduced by this change; pre-existing lint/build gate issues remain.
+- Next recommended task: Continue with the previously proposed cleanup (ESLint flat config and a `typecheck` script).
+- Handoff prompt for next agent: "Codex remains the primary coding agent. Claude Code now has `CLAUDE.md` and may implement directly only when the user signals Codex is unavailable or asks Claude to do it."
+
 ## Current Work
 
 No active in-progress task is recorded after this documentation update.
