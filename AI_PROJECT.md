@@ -20,7 +20,7 @@ Implemented feature areas found in the repo:
 - Goals with status, priority, progress, target dates, numeric tracking, reminders, and linked tasks.
 - Nuke goal page for one large goal with milestones and reminders.
 - Calendar page with local events and Google Calendar integration/sync routes.
-- Notes page with CRUD and local search/filter UI.
+- Notes page with CRUD, folders, tags, pinned notes, local search/filter UI, and autosave-style editing.
 - Links page with folders, subfolders, URL previews, image upload via base64, and share links.
 - Public share page at `app/share/[token]/page.tsx`.
 - Wishlist with price, URL, image, priority, category, purchased state, preview fetching, and conversion to investment.
@@ -88,7 +88,7 @@ Major tables in the current schema baseline:
 - `users`, `sessions`, `password_reset_tokens`
 - `goals`, `tasks`, `nuke_goals`
 - `calendar_events`, `calendar_integrations`
-- `notes`
+- `note_folders`, `notes`
 - `link_folders`, `user_links`
 - `wishlist_items`, `investments`, `income_sources`
 - `budget_categories`, `budget_transactions`, `budget_goals`
@@ -105,7 +105,7 @@ Backend code lives in `app/api/**/route.ts`. It uses Next route handlers with di
 Representative API areas:
 
 - Auth: `app/api/auth/*`
-- CRUD: `tasks`, `goals`, `notes`, `links`, `link-folders`, `wishlist`, `investments`, `income`, `budget`, `calendar-events`, `nuke-goal`, `custom-sections`
+- CRUD: `tasks`, `goals`, `notes`, `note-folders`, `links`, `link-folders`, `wishlist`, `investments`, `income`, `budget`, `calendar-events`, `nuke-goal`, `custom-sections`
 - User/profile/preferences: `profile`, `onboarding`, `sidebar-preferences`, `daily-content`
 - Integrations: `calendar/google/*`, `calendar/sync`, `stock-quote`, `url-preview`
 - AI: `chat`, `daily-content/generate`, `investments/parse-screenshot`
