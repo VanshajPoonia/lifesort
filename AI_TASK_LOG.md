@@ -121,6 +121,15 @@ No active in-progress task is recorded after this documentation update.
 
 Future agents should start by reading all root memory files, then inspect the relevant code before editing. Keep changes small and update this file after every repo change.
 
+### 2026-05-16 Commit Slicing Handoff
+
+The AI memory documentation was intentionally split into eight documentation commits before pushing:
+
+- One commit each for `AGENTS.md`, `AI_PROJECT.md`, `AI_DECISIONS.md`, `AI_CHECKLIST.md`, and `AI_TASK_LOG.md`.
+- Three follow-up commits for the documentation update matrix, repo health snapshot, and this handoff note.
+
+If continuing from this point, inspect the pushed branch history before adding more commits.
+
 ## Future Feature Ideas
 
 Only implement feature ideas when explicitly requested. Possible future ideas inferred from existing scope:
