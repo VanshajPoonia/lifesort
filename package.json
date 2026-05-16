@@ -9,6 +9,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@ai-sdk/groq": "^3.0.39",
     "@ai-sdk/react": "3.0.51",
     "@hookform/resolvers": "^3.10.0",
     "@neondatabase/serverless": "1.0.2",

@@ -1,10 +1,11 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth-provider"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { useChat } from "@ai-sdk/react"
+import { DefaultChatTransport } from "ai"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,15 +17,16 @@ export default function AIChatPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
   const scrollRef = useRef<HTMLDivElement>(null)
-  
-  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
-    api: '/api/chat',
+  const [input, setInput] = useState("")
+
+  const { messages, sendMessage, status } = useChat({
+    transport: new DefaultChatTransport({ api: "/api/chat" }),
   })
 
+  const isLoading = status === "submitted" || status === "streaming"
+
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/login')
-    }
+    if (!loading && !user) router.push("/login")
   }, [user, loading, router])
 
   useEffect(() => {
@@ -33,16 +35,21 @@ export default function AIChatPage() {
     }
   }, [messages])
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const text = input.trim()
+    if (!text || isLoading) return
+    sendMessage({ role: "user", parts: [{ type: "text", text }] })
+    setInput("")
+  }
+
   const firstName = user?.name?.split(" ")[0] || ""
 
   if (loading || !user) {
     return (
       <DashboardLayout title="AI Assistant" subtitle="Your personal productivity coach">
-        <div className="flex h-screen items-center justify-center bg-background">
-          <div className="text-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto" />
-            <p className="mt-4 text-muted-foreground">Loading...</p>
-          </div>
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       </DashboardLayout>
     )
@@ -51,7 +58,7 @@ export default function AIChatPage() {
   return (
     <DashboardLayout title="AI Assistant" subtitle={`Hey ${firstName}, how can I help you today?`}>
       <div className="flex min-h-[600px] h-[calc(100vh-12rem)] flex-col">
-        {/* Chat Messages */}
+        {/* Messages */}
         <ScrollArea className="flex-1 pr-4" ref={scrollRef}>
           <div className="space-y-4">
             {messages.length === 0 && (
@@ -59,9 +66,9 @@ export default function AIChatPage() {
                 <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
                   <Sparkles className="h-8 w-8 text-primary" />
                 </div>
-                <h2 className="mb-2 text-xl font-semibold text-foreground">How can I help you today?</h2>
+                <h2 className="mb-2 text-xl font-semibold">How can I help you today?</h2>
                 <p className="text-sm text-muted-foreground max-w-md">
-                  Ask me about productivity tips, goal setting, time management, or anything related to organizing your life.
+                  Ask me about productivity tips, goal setting, time management, or anything about organising your life.
                 </p>
               </div>
             )}
@@ -69,28 +76,26 @@ export default function AIChatPage() {
             {messages.map((message) => (
               <div
                 key={message.id}
-                className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}
               >
-                {message.role === 'assistant' && (
+                {message.role === "assistant" && (
                   <Avatar className="h-8 w-8 shrink-0">
                     <AvatarFallback className="bg-primary text-primary-foreground">
                       <Sparkles className="h-4 w-4" />
                     </AvatarFallback>
                   </Avatar>
                 )}
-                
-                <Card className={`max-w-[80%] p-3 ${
-                  message.role === 'user' 
-                    ? 'bg-primary text-primary-foreground' 
-                    : 'bg-card'
-                }`}>
-                  <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+
+                <Card className={`max-w-[80%] p-3 ${message.role === "user" ? "bg-primary text-primary-foreground" : "bg-card"}`}>
+                  <p className="whitespace-pre-wrap text-sm">
+                    {message.parts.filter(p => p.type === "text").map(p => p.text).join("")}
+                  </p>
                 </Card>
 
-                {message.role === 'user' && (
+                {message.role === "user" && (
                   <Avatar className="h-8 w-8 shrink-0">
                     <AvatarFallback className="bg-secondary text-secondary-foreground">
-                      {user.name?.charAt(0).toUpperCase() || 'U'}
+                      {user.name?.charAt(0).toUpperCase() || "U"}
                     </AvatarFallback>
                   </Avatar>
                 )}
@@ -107,7 +112,7 @@ export default function AIChatPage() {
                 <Card className="p-3 bg-card">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Thinking...
+                    Thinking…
                   </div>
                 </Card>
               </div>
@@ -116,20 +121,18 @@ export default function AIChatPage() {
         </ScrollArea>
 
         {/* Input */}
-        <div className="border-t border-border bg-card p-4 mt-4">
-          <form onSubmit={handleSubmit}>
-            <div className="flex gap-2">
-              <Input
-                value={input}
-                onChange={handleInputChange}
-                placeholder="Ask me anything about productivity..."
-                className="flex-1"
-                disabled={isLoading}
-              />
-              <Button type="submit" disabled={isLoading || !input || !input.trim()}>
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
+        <div className="mt-4 border-t border-border bg-card p-4">
+          <form onSubmit={handleSubmit} className="flex gap-2">
+            <Input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Ask me anything about productivity…"
+              className="flex-1"
+              disabled={isLoading}
+            />
+            <Button type="submit" disabled={isLoading || !input.trim()}>
+              <Send className="h-4 w-4" />
+            </Button>
           </form>
         </div>
       </div>
