@@ -27,13 +27,15 @@ Without one of those signals, prefer review and planning over edits.
 
 ## Workflow When Claude Acts as the Coding Agent
 
-When implementing directly, Claude Code must follow the same workflow as Codex:
+When implementing directly, Claude Code must follow the same workflow as Codex. The five memory files are the source of truth — read them all before starting and consult them during work:
 
-- Use `AGENTS.md` as the shared workflow source.
-- Use `AI_PROJECT.md` for project context.
-- Use `AI_TASK_LOG.md` for current work and handoff history.
-- Use `AI_DECISIONS.md` for architecture decisions.
-- Use `AI_CHECKLIST.md` for commands and verification.
+| File | When to use it |
+|---|---|
+| `AI_TASK_LOG.md` | Before starting: read recent entries and known issues. During work: check if a migration or fix was already attempted. After work: write the new entry. |
+| `AI_DECISIONS.md` | Before introducing any pattern, library, or architecture change: confirm it aligns with recorded decisions. |
+| `AI_CHECKLIST.md` | Before running commands or touching env vars: verify the correct command and variable names. |
+| `AI_PROJECT.md` | When scope is unclear: confirm whether a feature is already implemented or planned. |
+| `AGENTS.md` | When unsure about conventions or workflow: this file is the rule set. |
 
 Implementation expectations:
 
@@ -41,6 +43,7 @@ Implementation expectations:
 - Avoid unrelated refactors.
 - Preserve existing architecture unless there is a documented reason in `AI_DECISIONS.md` to change it.
 - Follow the coding conventions and architecture conventions described in `AGENTS.md`.
+- If a decision conflicts with the chat history, follow the memory file and flag it to the user.
 
 ## Documentation Updates — Mandatory After Every Code Change
 

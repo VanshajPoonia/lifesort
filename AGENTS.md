@@ -10,15 +10,40 @@ This repository appears to be generated/synced from v0 and deployed on Vercel. K
 
 ## Required Reading Before Any Task
 
-Before starting any task, every AI agent must read:
+Before starting any task, every AI agent must read all five memory files:
 
-- `AGENTS.md`
-- `AI_PROJECT.md`
-- `AI_TASK_LOG.md`
-- `AI_DECISIONS.md`
-- `AI_CHECKLIST.md`
+- `AGENTS.md` — workflow rules and conventions (this file)
+- `AI_PROJECT.md` — current product scope and feature list
+- `AI_TASK_LOG.md` — recent work, known issues, and handoff notes
+- `AI_DECISIONS.md` — architecture decisions and patterns to preserve
+- `AI_CHECKLIST.md` — commands, env vars, and verification steps
 
-Do not rely on chat history as the source of truth. These files are the durable project memory.
+**Do not rely on chat history.** These files are the single source of truth. If the chat says one thing and a memory file says another, trust the memory file and flag the conflict.
+
+## Memory Reference Guide
+
+Use the right file for the right question. Consult these files during work, not just at the start.
+
+| Question | Where to look |
+|---|---|
+| What has already been built or changed? | `AI_TASK_LOG.md` → Completed Work |
+| What are the known bugs or open issues? | `AI_TASK_LOG.md` → Active Bugs / Issues |
+| What did the previous agent recommend doing next? | `AI_TASK_LOG.md` → latest entry's Suggested Next Steps |
+| What features exist and what is the current product scope? | `AI_PROJECT.md` |
+| Is there a pattern I should follow for this type of code? | `AI_DECISIONS.md` → Patterns Agents Should Preserve |
+| Was this architecture decision already made? | `AI_DECISIONS.md` → Current Architecture Decisions |
+| What commands do I use to install, build, or verify? | `AI_CHECKLIST.md` → Commands |
+| What environment variables are required? | `AI_CHECKLIST.md` → Environment Setup |
+| Has a migration already been written for this table? | `AI_TASK_LOG.md` + `scripts/` directory |
+| What changed in the last session? | `AI_TASK_LOG.md` → most recent dated entry |
+
+### When to re-consult memory during a task
+
+- **Before introducing a new pattern** — check `AI_DECISIONS.md` to see if an approach was already chosen.
+- **Before writing a migration** — check `AI_TASK_LOG.md` to see if one was already written but not run.
+- **Before adding a dependency** — check `AI_CHECKLIST.md` and `AI_TASK_LOG.md` for any existing package decisions.
+- **Before touching auth, sessions, or database access** — check `AI_DECISIONS.md` for the established patterns.
+- **When hitting an unexpected error** — check `AI_TASK_LOG.md` Active Bugs to see if it was already identified.
 
 ## Repository Structure
 
