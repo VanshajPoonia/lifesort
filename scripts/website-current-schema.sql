@@ -140,11 +140,22 @@ CREATE TABLE IF NOT EXISTS calendar_integrations (
   UNIQUE(user_id, provider)
 );
 
+CREATE TABLE IF NOT EXISTS note_folders (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS notes (
   id SERIAL PRIMARY KEY,
   user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   title VARCHAR(255) DEFAULT 'Untitled',
   content TEXT DEFAULT '',
+  folder_id INTEGER REFERENCES note_folders(id) ON DELETE SET NULL,
+  tags TEXT[] DEFAULT '{}',
+  is_pinned BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -343,7 +354,11 @@ CREATE INDEX IF NOT EXISTS idx_tasks_category ON tasks(category);
 CREATE INDEX IF NOT EXISTS idx_tasks_reminder_at ON tasks(reminder_at);
 CREATE INDEX IF NOT EXISTS idx_tasks_goal_id ON tasks(goal_id);
 CREATE INDEX IF NOT EXISTS idx_calendar_events_user_date ON calendar_events(user_id, event_date);
+CREATE INDEX IF NOT EXISTS idx_note_folders_user_name ON note_folders(user_id, name);
 CREATE INDEX IF NOT EXISTS idx_notes_user_updated ON notes(user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notes_folder_id ON notes(folder_id);
+CREATE INDEX IF NOT EXISTS idx_notes_user_pinned ON notes(user_id, is_pinned, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notes_tags ON notes USING GIN(tags);
 CREATE INDEX IF NOT EXISTS idx_user_links_user_id ON user_links(user_id);
 CREATE INDEX IF NOT EXISTS idx_link_folders_user_id ON link_folders(user_id);
 CREATE INDEX IF NOT EXISTS idx_wishlist_user_id ON wishlist_items(user_id);
