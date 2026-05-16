@@ -158,6 +158,7 @@ function toMonthly(src: IncomeSource): number {
 // ── Page ───────────────────────────────────────────────────────────────────────
 
 export default function BudgetPage() {
+  const [mounted, setMounted] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [goals, setGoals] = useState<BudgetGoal[]>([])
@@ -203,6 +204,7 @@ export default function BudgetPage() {
   // ── Fetchers ─────────────────────────────────────────────────────────────────
 
   useEffect(() => {
+    setMounted(true)
     fetchBudgetData()
     fetchIncomeData()
     fetchWishlistData()
@@ -664,7 +666,7 @@ export default function BudgetPage() {
                       <EmptyDescription>Add categories and log transactions to see spending.</EmptyDescription>
                     </EmptyHeader>
                   </Empty>
-                ) : (
+                ) : mounted ? (
                   <ChartContainer config={{}} className="h-56">
                     <BarChart data={categoryChartData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -679,6 +681,8 @@ export default function BudgetPage() {
                       <Bar dataKey="Budget" fill="#e5e7eb" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ChartContainer>
+                ) : (
+                  <div className="h-56 animate-pulse rounded-lg bg-muted" />
                 )}
               </CardContent>
             </Card>
@@ -698,7 +702,7 @@ export default function BudgetPage() {
                       <EmptyDescription>Log expense transactions to see your spending breakdown.</EmptyDescription>
                     </EmptyHeader>
                   </Empty>
-                ) : (
+                ) : mounted ? (
                   <ChartContainer config={{}} className="h-56">
                     <PieChart>
                       <Pie
@@ -720,6 +724,8 @@ export default function BudgetPage() {
                       <Tooltip formatter={(value: number) => [`$${fmt(value)}`]} />
                     </PieChart>
                   </ChartContainer>
+                ) : (
+                  <div className="h-56 animate-pulse rounded-lg bg-muted" />
                 )}
               </CardContent>
             </Card>
