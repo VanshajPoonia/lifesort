@@ -61,19 +61,33 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const notes = await sql`
-      SELECT
-        notes.*,
-        note_folders.name AS folder_name
-      FROM notes
-      LEFT JOIN note_folders
-        ON notes.folder_id = note_folders.id
-        AND note_folders.user_id = ${user.id}
-      WHERE notes.user_id = ${user.id}
-      ORDER BY notes.is_pinned DESC, notes.updated_at DESC
-    `
-
-    return NextResponse.json(notes)
+    try {
+      const notes = await sql`
+        SELECT
+          notes.*,
+          note_folders.name AS folder_name
+        FROM notes
+        LEFT JOIN note_folders
+          ON notes.folder_id = note_folders.id
+          AND note_folders.user_id = ${user.id}
+        WHERE notes.user_id = ${user.id}
+        ORDER BY notes.is_pinned DESC, notes.updated_at DESC
+      `
+      return NextResponse.json(notes)
+    } catch (innerError) {
+      // Schema drift fallback: if note_folders / folder_id / is_pinned / tags
+      // columns are missing, return notes without the join so the page still works.
+      const msg = innerError instanceof Error ? innerError.message : String(innerError)
+      if (msg.includes('note_folders') || msg.includes('folder_id') || msg.includes('is_pinned') || msg.includes('tags') || msg.includes('does not exist')) {
+        const notes = await sql`
+          SELECT * FROM notes
+          WHERE user_id = ${user.id}
+          ORDER BY updated_at DESC
+        `
+        return NextResponse.json(notes)
+      }
+      throw innerError
+    }
   } catch (error) {
     console.error('Get notes error:', error)
     return NextResponse.json({ error: 'Failed to fetch notes' }, { status: 500 })

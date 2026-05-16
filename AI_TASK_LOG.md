@@ -271,6 +271,58 @@ Both have graceful degradation in the API routes so missing tables return empty 
 - Remaining issues: pre-existing TS errors, ESLint config missing, metadata viewport warnings, two pending migrations not run against production DB.
 - Suggested next steps: (1) Run the two migrations against Neon, (2) Fix pre-existing TS errors, (3) Add ESLint flat config, (4) Move metadata viewport exports.
 
+### 2026-05-17 - Schema Drift Response from Regression Checkpoint
+
+- Agent/tool used: Claude Code (Opus 4.7).
+- Task: Respond to schema-drift 500s found in the latest regression checkpoint. Make notes degrade gracefully and consolidate every pending migration into one runnable file.
+- Files changed:
+  - `app/api/notes/route.ts` — GET now falls back to a plain notes query when `note_folders`/`folder_id`/`tags`/`is_pinned` are missing
+  - `scripts/run-pending-migrations.sql` (new) — idempotent consolidated migration
+  - `AI_TASK_LOG.md` (this entry)
+
+**Schema drift identified by checkpoint (live DB behind code):**
+
+| Object | Status | Code expects it for |
+|---|---|---|
+| `tasks.due_time` | missing | task scheduling |
+| `tasks.priority` | missing | task priority filter |
+| `goals.priority` | missing | goal sorting/filter |
+| `note_folders` table | missing | Notes folders feature |
+| `notes.folder_id` | missing | Notes folder assignment |
+| `notes.tags` | missing | Notes tag filter |
+| `notes.is_pinned` | missing | Pinned notes |
+| `custom_sections.description` | missing | Custom Sections builder |
+| `custom_sections.fields` | missing | Custom Sections field definitions |
+| `custom_section_records` table | missing | Custom Sections records |
+| `calendar_events.event_date` | missing | Calendar listing/filtering |
+| `nuke_goals.deadline` | missing | Nuke goal deadline tracking |
+
+**Resolution:**
+
+1. `scripts/run-pending-migrations.sql` — single transactional, idempotent SQL file. Adds every missing column with `ADD COLUMN IF NOT EXISTS`, creates missing tables with `CREATE TABLE IF NOT EXISTS`, creates indexes with `IF NOT EXISTS`. Safe to run multiple times.
+2. `/api/notes` GET — wrapped the LEFT JOIN query in an inner try/catch. If the join fails because of missing columns/tables, falls back to a plain `SELECT * FROM notes` so the page still loads (no folders / pins / tags shown, but notes themselves work).
+
+**User action required:**
+
+Open Neon SQL editor → paste `scripts/run-pending-migrations.sql` → run.
+
+After that, re-run the regression checkpoint and the schema-drift 500s should disappear.
+
+**Pre-existing TypeScript errors (still unchanged, not in scope):**
+
+- `app/api/cron/deadline-reminders/route.ts` — ReminderItem type mismatch (3 errors)
+- `app/api/wishlist/convert-to-investment/route.ts` — QueryResult indexing (2 errors)
+- `app/calendar/page.tsx` — Event category type widening (1 error)
+- `components/games/snake-game.tsx` — wrong argument count (1 error)
+
+**Manual verification gaps from checkpoint (not addressable in this pass):**
+
+- Sidebar click navigation, Quick Add UI, empty-state visuals, browser console — require browser automation or human testing. Documented as outstanding.
+
+- Commands run: `npx tsc --noEmit` (no new errors in changed files).
+- Suggested next steps: (1) Run `scripts/run-pending-migrations.sql` against Neon, (2) re-run regression checkpoint to confirm 500s are gone, (3) browser-test the four UI gaps, (4) fix pre-existing TS errors.
+- Handoff prompt: "Pending: user must run `scripts/run-pending-migrations.sql` against Neon. After that, re-run the regression checkpoint prompt in `AI_CHECKLIST.md`. All schema-drift fixes are in that one SQL file."
+
 ## Proposed Next Work
 
 - Add an ESLint flat config compatible with the installed ESLint version.
