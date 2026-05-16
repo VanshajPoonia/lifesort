@@ -1,46 +1,148 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
-import { useAuth } from "@/components/auth-provider"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import type { ReactNode } from "react"
 import { useRouter } from "next/navigation"
-import { DashboardLayout } from "@/components/dashboard-layout"
 import {
-  Plus,
-  Trash2,
-  Search,
+  AlertCircle,
+  CheckCircle2,
+  ChevronLeft,
+  Clock,
   FileText,
+  Folder,
   Loader2,
   MoreVertical,
-  Clock,
-  ChevronLeft,
+  Pencil,
+  Pin,
+  Plus,
+  Search,
+  Tag,
+  Trash2,
+  X,
 } from "lucide-react"
-import { Card, CardContent } from "@/components/ui/card"
+
+import { DashboardLayout } from "@/components/dashboard-layout"
+import { useAuth } from "@/components/auth-provider"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { Card, CardContent } from "@/components/ui/card"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty"
+import { Input } from "@/components/ui/input"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
+
+interface NoteFolder {
+  id: string
+  name: string
+  created_at: string
+  updated_at: string
+}
 
 interface Note {
   id: string
   title: string
   content: string
+  folder_id: string | null
+  folder_name: string | null
+  tags: string[]
+  is_pinned: boolean
   created_at: string
   updated_at: string
-  is_pinned?: boolean
-  is_completed?: boolean
+}
+
+type ActiveFilter =
+  | { type: "all" }
+  | { type: "pinned" }
+  | { type: "recent" }
+  | { type: "folder"; value: string }
+  | { type: "tag"; value: string }
+
+type SaveState = "idle" | "saving" | "saved" | "error"
+
+const RECENT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
+
+function normalizeTags(tags: unknown): string[] {
+  if (!Array.isArray(tags)) return []
+
+  return Array.from(
+    new Set(
+      tags
+        .filter((tag): tag is string => typeof tag === "string")
+        .flatMap((tag) => tag.split(","))
+        .map((tag) => tag.trim().replace(/^#+/, "").toLowerCase())
+        .filter(Boolean)
+    )
+  )
+}
+
+function normalizeNote(raw: Partial<Note> & Record<string, unknown>): Note {
+  return {
+    id: String(raw.id),
+    title: typeof raw.title === "string" ? raw.title : "Untitled",
+    content: typeof raw.content === "string" ? raw.content : "",
+    folder_id: raw.folder_id ? String(raw.folder_id) : null,
+    folder_name: typeof raw.folder_name === "string" ? raw.folder_name : null,
+    tags: normalizeTags(raw.tags),
+    is_pinned: Boolean(raw.is_pinned),
+    created_at: typeof raw.created_at === "string" ? raw.created_at : new Date().toISOString(),
+    updated_at: typeof raw.updated_at === "string" ? raw.updated_at : new Date().toISOString(),
+  }
+}
+
+function normalizeFolder(raw: Partial<NoteFolder> & Record<string, unknown>): NoteFolder {
+  return {
+    id: String(raw.id),
+    name: typeof raw.name === "string" ? raw.name : "Untitled folder",
+    created_at: typeof raw.created_at === "string" ? raw.created_at : new Date().toISOString(),
+    updated_at: typeof raw.updated_at === "string" ? raw.updated_at : new Date().toISOString(),
+  }
+}
+
+function sortFolders(folders: NoteFolder[]) {
+  return [...folders].sort((a, b) => a.name.localeCompare(b.name))
+}
+
+function noteMatchesSearch(note: Note, query: string) {
+  if (!query) return true
+
+  const haystack = [
+    note.title,
+    note.content,
+    note.folder_name || "",
+    ...note.tags,
+  ].join(" ").toLowerCase()
+
+  return haystack.includes(query.toLowerCase())
 }
 
 export default function NotesPage() {
   const [notes, setNotes] = useState<Note[]>([])
+  const [folders, setFolders] = useState<NoteFolder[]>([])
   const [selectedNote, setSelectedNote] = useState<Note | null>(null)
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
+  const [loadError, setLoadError] = useState("")
+  const [creatingNote, setCreatingNote] = useState(false)
+  const [saveState, setSaveState] = useState<SaveState>("idle")
   const [searchQuery, setSearchQuery] = useState("")
   const [showSidebar, setShowSidebar] = useState(true)
   const { user, loading: authLoading } = useAuth()
