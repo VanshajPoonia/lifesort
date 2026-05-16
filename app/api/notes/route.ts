@@ -118,17 +118,45 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { id, title, content } = await request.json()
+    const body = await request.json()
+    const { id, title, content } = body
 
     if (!id) {
       return NextResponse.json({ error: 'Note ID is required' }, { status: 400 })
     }
 
+    const existingNotes = await sql`
+      SELECT * FROM notes
+      WHERE id = ${id} AND user_id = ${user.id}
+      LIMIT 1
+    `
+
+    if (existingNotes.length === 0) {
+      return NextResponse.json({ error: 'Note not found' }, { status: 404 })
+    }
+
+    const existing = existingNotes[0]
+    const hasFolderUpdate = Object.prototype.hasOwnProperty.call(body, 'folder_id')
+    const nextFolderId = hasFolderUpdate ? normalizeFolderId(body.folder_id) : existing.folder_id
+    const hasFolder = await assertFolderOwnership(nextFolderId, user.id)
+
+    if (!hasFolder) {
+      return NextResponse.json({ error: 'Folder not found' }, { status: 400 })
+    }
+
+    const hasTagsUpdate = Object.prototype.hasOwnProperty.call(body, 'tags')
+    const hasPinnedUpdate = Object.prototype.hasOwnProperty.call(body, 'is_pinned')
+    const nextTags = hasTagsUpdate ? normalizeTags(body.tags) : normalizeTags(existing.tags)
+    const nextPinned = hasPinnedUpdate ? Boolean(body.is_pinned) : Boolean(existing.is_pinned)
+
     const result = await sql`
       UPDATE notes 
       SET 
-        title = COALESCE(${title}, title),
-        content = COALESCE(${content}, content),
+        title = ${typeof title === 'string' ? title : existing.title},
+        content = ${typeof content === 'string' ? content : existing.content},
+        folder_id = ${nextFolderId},
+        tags = ${nextTags}::text[],
+        is_pinned = ${nextPinned},
         updated_at = NOW()
       WHERE id = ${id} AND user_id = ${user.id}
       RETURNING *
@@ -138,7 +166,9 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Note not found' }, { status: 404 })
     }
 
-    return NextResponse.json(result[0])
+    const note = await getNoteWithFolder(result[0].id, user.id)
+
+    return NextResponse.json(note)
   } catch (error) {
     console.error('Update note error:', error)
     return NextResponse.json({ error: 'Failed to update note' }, { status: 500 })
