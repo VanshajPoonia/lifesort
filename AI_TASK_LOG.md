@@ -99,9 +99,56 @@ Current verification state:
 - Next recommended task: Continue with the previously proposed cleanup (ESLint flat config and a `typecheck` script).
 - Handoff prompt for next agent: "Codex remains the primary coding agent. Claude Code now has `CLAUDE.md` and may implement directly only when the user signals Codex is unavailable or asks Claude to do it."
 
+### 2026-05-16 23:15 IST - Notes Knowledge Area Upgrade
+
+- Agent/tool used: Codex.
+- Task summary: Improved the website Notes feature into a more useful personal knowledge area with folders, tags, pinned notes, richer search, filters, and cleaner states.
+- Files changed:
+  - `app/notes/page.tsx`
+  - `app/api/notes/route.ts`
+  - `app/api/note-folders/route.ts`
+  - `app/api/search/route.ts`
+  - `scripts/add-notes-knowledge-fields.sql`
+  - `scripts/website-current-schema.sql`
+  - `AI_PROJECT.md`
+  - `AI_DECISIONS.md`
+  - `AI_TASK_LOG.md`
+- What changed:
+  - Added note folders through a new `note_folders` table and `/api/note-folders` CRUD route.
+  - Added `notes.folder_id`, `notes.tags TEXT[]`, and `notes.is_pinned`.
+  - Expanded `/api/notes` to return folder names, preserve user ownership checks, validate folder ownership, and save folder/tag/pinned metadata.
+  - Reworked `/notes` with All, Pinned, Recently updated, folder, and tag filters; folder management; tag editing; pinned controls; empty states; loading; and save/saved/error states.
+  - Expanded global search so notes match title, content, folder name, and tags.
+- Commands run:
+  - `git status --short`
+  - `npx tsc --noEmit`
+  - `npm run lint`
+  - `npm run build`
+  - `git diff --check`
+  - `git diff --stat`
+  - Targeted `sed` and `rg` inspections of Notes, search, schema, and AI memory docs.
+- Verification results:
+  - `npx tsc --noEmit` failed on pre-existing unrelated type errors in `app/ai-chat/page.tsx`, `app/api/chat/route.ts`, `app/api/cron/deadline-reminders/route.ts`, `app/api/wishlist/convert-to-investment/route.ts`, `app/calendar/page.tsx`, and `components/games/snake-game.tsx`. No Notes-related type errors were reported.
+  - `npm run lint` failed before source linting due to the known missing `eslint.config.(js|mjs|cjs)` file for ESLint 10.3.0.
+  - `npm run build` passed, skipped type validation and linting, generated 66 routes, and emitted the known unsupported metadata `themeColor`/`viewport` warnings.
+  - `git diff --check` passed.
+- Bugs found or fixed:
+  - Preserved notes when folders are deleted by clearing `folder_id` instead of deleting notes.
+  - Added folder ownership validation before assigning notes to folders.
+- Remaining issues:
+  - The new SQL migration has not been run against any database.
+  - Existing global TypeScript failures remain outside the Notes scope.
+  - Existing ESLint flat-config blocker remains.
+  - Existing Next metadata warnings remain.
+- Suggested next steps:
+  - Confirm target database and run `scripts/add-notes-knowledge-fields.sql`.
+  - Add an ESLint flat config and fix existing typecheck blockers.
+  - Manually verify Notes CRUD, folders, tags, pinned state, filters, and search against a database with the migration applied.
+- Handoff prompt for next agent: "The Notes code expects `note_folders` plus `notes.folder_id`, `notes.tags`, and `notes.is_pinned` to exist. Run the migration only after confirming the target database, then manually verify the Notes workflows. Do not chase the unrelated typecheck/lint blockers unless explicitly requested."
+
 ## Current Work
 
-No active in-progress task is recorded after this documentation update.
+No active in-progress task is recorded after the Notes knowledge area upgrade.
 
 ## Proposed Next Work
 
