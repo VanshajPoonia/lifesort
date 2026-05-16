@@ -31,6 +31,7 @@ import {
   Sparkles,
   Shield,
   LayoutDashboard,
+  Network,
   CalendarDays,
   Link,
   FolderPlus,
@@ -99,6 +100,7 @@ export default function SettingsPage() {
 
   const [sidebarPrefs, setSidebarPrefs] = useState({
     dashboard: true,
+    life_areas: true,
     calendar: true,
     goals: true,
     tasks: true,
@@ -457,6 +459,7 @@ export default function SettingsPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 {[
                   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, description: "Main dashboard view" },
+                  { id: "life_areas", label: "Life Areas", icon: Network, description: "Life area organization" },
                   { id: "calendar", label: "Calendar", icon: CalendarDays, description: "Calendar and events" },
                   { id: "goals", label: "Goals", icon: Target, description: "Goal tracking" },
                   { id: "tasks", label: "Daily Tasks", icon: CheckSquare, description: "To-do lists" },

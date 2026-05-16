@@ -204,6 +204,7 @@ Known as of 2026-05-16:
 5. Verify auth-sensitive routes still use the expected `session` cookie flow.
 6. Verify any new database columns/tables have explicit migration instructions.
 7. Verify external API changes have failure handling.
+8. For schema-spanning features, update the standalone migration, `scripts/website-current-schema.sql`, and `scripts/run-pending-migrations.sql` together, and document that migrations were not run automatically.
 
 ## Common Failure Points
 

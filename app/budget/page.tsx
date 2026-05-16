@@ -14,6 +14,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
+import { LifeAreaBadge, LifeAreaSelect } from "@/components/life-area-controls"
+import type { LifeArea } from "@/lib/life-areas"
+import { normalizeLifeArea } from "@/lib/life-areas"
 import type { CategoryChartItem, PieChartItem } from "./charts"
 import {
   Empty,
@@ -67,6 +70,7 @@ interface Category {
   color: string
   icon: string
   budget_limit: number
+  life_area_id?: string | number | null
 }
 
 interface Transaction {
@@ -161,6 +165,7 @@ function toMonthly(src: IncomeSource): number {
 
 export default function BudgetPage() {
   const [categories, setCategories] = useState<Category[]>([])
+  const [lifeAreas, setLifeAreas] = useState<LifeArea[]>([])
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [goals, setGoals] = useState<BudgetGoal[]>([])
   const [summary, setSummary] = useState<Summary>({ income: 0, expenses: 0, balance: 0 })
@@ -189,6 +194,7 @@ export default function BudgetPage() {
     color: "#3B82F6",
     icon: "other",
     budget_limit: "",
+    life_area_id: null as string | number | null,
   })
   const [goalForm, setGoalForm] = useState({
     name: "",
@@ -209,6 +215,7 @@ export default function BudgetPage() {
     fetchIncomeData()
     fetchWishlistData()
     fetchInvestmentsData()
+    fetchLifeAreas()
   }, [])
 
   const fetchBudgetData = async () => {
@@ -255,6 +262,18 @@ export default function BudgetPage() {
     }
   }
 
+  const fetchLifeAreas = async () => {
+    try {
+      const res = await fetch("/api/life-areas")
+      if (res.ok) {
+        const data = await res.json()
+        setLifeAreas((Array.isArray(data) ? data : []).map(normalizeLifeArea))
+      }
+    } catch (err) {
+      console.error("Error fetching life areas:", err)
+    }
+  }
+
   // ── Derived values ────────────────────────────────────────────────────────────
 
   const monthlyIncome = useMemo(
@@ -281,6 +300,10 @@ export default function BudgetPage() {
     () => goals.reduce((acc, g) => acc + (g.current_amount || 0), 0),
     [goals]
   )
+
+  const areaById = useMemo(() => {
+    return new Map(lifeAreas.map((area) => [String(area.id), area]))
+  }, [lifeAreas])
 
   // Net worth: investments at current value + savings goals − unpurchased wishlist
   const netWorth = investmentsTotal + goalsSaved - wishlistTotal
@@ -359,7 +382,7 @@ export default function BudgetPage() {
       })
       if (res.ok) {
         setShowCategoryDialog(false)
-        setCategoryForm({ name: "", color: "#3B82F6", icon: "other", budget_limit: "" })
+        setCategoryForm({ name: "", color: "#3B82F6", icon: "other", budget_limit: "", life_area_id: null })
         fetchBudgetData()
       }
     } catch (err) {
@@ -404,6 +427,23 @@ export default function BudgetPage() {
       fetchBudgetData()
     } catch (err) {
       console.error("Error deleting goal:", err)
+    }
+  }
+
+  const handleUpdateCategoryLifeArea = async (id: number, lifeAreaId: string | null) => {
+    try {
+      const res = await fetch("/api/budget", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "category",
+          id,
+          life_area_id: lifeAreaId,
+        }),
+      })
+      if (res.ok) fetchBudgetData()
+    } catch (err) {
+      console.error("Error updating category life area:", err)
     }
   }
 
@@ -831,6 +871,12 @@ export default function BudgetPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <CardTitle className="truncate text-base">{cat.name}</CardTitle>
+                          <div className="mt-1">
+                            <LifeAreaBadge
+                              area={cat.life_area_id ? areaById.get(String(cat.life_area_id)) : null}
+                              fallback="No area"
+                            />
+                          </div>
                         </div>
                         {over && <Badge variant="destructive" className="shrink-0 text-[10px]">Over</Badge>}
                       </div>
@@ -849,6 +895,14 @@ export default function BudgetPage() {
                       ) : (
                         <p className="text-xs text-muted-foreground">No limit set</p>
                       )}
+                      <div className="mt-4 space-y-2">
+                        <Label className="text-xs text-muted-foreground">Life Area</Label>
+                        <LifeAreaSelect
+                          areas={lifeAreas}
+                          value={cat.life_area_id ?? null}
+                          onChange={(value) => handleUpdateCategoryLifeArea(cat.id, value)}
+                        />
+                      </div>
                     </CardContent>
                   </Card>
                 )
@@ -1021,6 +1075,14 @@ export default function BudgetPage() {
                 <Input type="number" placeholder="0.00" className="pl-9" value={categoryForm.budget_limit}
                   onChange={(e) => setCategoryForm(prev => ({ ...prev, budget_limit: e.target.value }))} />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Life Area</Label>
+              <LifeAreaSelect
+                areas={lifeAreas}
+                value={categoryForm.life_area_id}
+                onChange={(value) => setCategoryForm(prev => ({ ...prev, life_area_id: value }))}
+              />
             </div>
             <Button className="w-full" onClick={handleAddCategory} disabled={!categoryForm.name}>Add Category</Button>
           </div>

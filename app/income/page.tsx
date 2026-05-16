@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth-provider"
 import { DashboardLayout } from "@/components/dashboard-layout"
@@ -22,6 +22,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { LifeAreaBadge, LifeAreaSelect } from "@/components/life-area-controls"
+import type { LifeArea } from "@/lib/life-areas"
+import { normalizeLifeArea } from "@/lib/life-areas"
 
 interface IncomeSource {
   id: string
@@ -31,6 +34,7 @@ interface IncomeSource {
   frequency: string
   active: boolean
   description?: string
+  life_area_id?: string | number | null
 }
 
 export default function IncomePage() {
@@ -38,6 +42,7 @@ export default function IncomePage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [incomeSources, setIncomeSources] = useState<IncomeSource[]>([])
+  const [lifeAreas, setLifeAreas] = useState<LifeArea[]>([])
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [sortBy, setSortBy] = useState<'name' | 'amount' | 'frequency' | 'type'>('name')
   const [newIncome, setNewIncome] = useState({
@@ -46,6 +51,7 @@ export default function IncomePage() {
     amount: "",
     frequency: "",
     description: "",
+    life_area_id: null as string | number | null,
   })
   const [editingIncome, setEditingIncome] = useState<IncomeSource | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
@@ -59,6 +65,7 @@ export default function IncomePage() {
   useEffect(() => {
     if (user) {
       fetchIncomeSources()
+      fetchLifeAreas()
     }
   }, [user])
 
@@ -74,6 +81,18 @@ export default function IncomePage() {
       console.error('[v0] Failed to fetch income sources:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchLifeAreas = async () => {
+    try {
+      const response = await fetch('/api/life-areas')
+      if (response.ok) {
+        const data = await response.json()
+        setLifeAreas((Array.isArray(data) ? data : []).map(normalizeLifeArea))
+      }
+    } catch (error) {
+      console.error('[v0] Failed to fetch life areas:', error)
     }
   }
 
@@ -103,12 +122,13 @@ export default function IncomePage() {
             frequency: newIncome.frequency,
             description: newIncome.description,
             active: true,
+            life_area_id: newIncome.life_area_id,
           }),
         })
 
         if (response.ok) {
           await fetchIncomeSources()
-          setNewIncome({ name: "", type: "", amount: "", frequency: "", description: "" })
+          setNewIncome({ name: "", type: "", amount: "", frequency: "", description: "", life_area_id: null })
           setIsAddDialogOpen(false)
         }
       } catch (error) {
@@ -255,6 +275,10 @@ export default function IncomePage() {
     if (sortBy === 'frequency') return a.frequency.localeCompare(b.frequency)
     return 0
   })
+
+  const areaById = useMemo(() => {
+    return new Map(lifeAreas.map((area) => [String(area.id), area]))
+  }, [lifeAreas])
 
   if (authLoading || loading) {
     return (
@@ -448,6 +472,14 @@ export default function IncomePage() {
                       onChange={(e) => setNewIncome({ ...newIncome, description: e.target.value })}
                     />
                   </div>
+                  <div>
+                    <Label>Life Area</Label>
+                    <LifeAreaSelect
+                      areas={lifeAreas}
+                      value={newIncome.life_area_id}
+                      onChange={(value) => setNewIncome({ ...newIncome, life_area_id: value })}
+                    />
+                  </div>
                   <div className="flex gap-2">
                     <Button onClick={handleAddIncome} className="flex-1">
                       Add Income Source
@@ -500,6 +532,10 @@ export default function IncomePage() {
                           <Badge variant={income.active ? "default" : "secondary"}>
                             {income.active ? "Active" : "Inactive"}
                           </Badge>
+                          <LifeAreaBadge
+                            area={income.life_area_id ? areaById.get(String(income.life_area_id)) : null}
+                            fallback="No area"
+                          />
                         </div>
                       </div>
                       <Button
@@ -612,6 +648,14 @@ export default function IncomePage() {
                   value={editingIncome.description || ''}
                   onChange={(e) => setEditingIncome({ ...editingIncome, description: e.target.value })}
                   className="text-foreground"
+                />
+              </div>
+              <div>
+                <Label>Life Area</Label>
+                <LifeAreaSelect
+                  areas={lifeAreas}
+                  value={editingIncome.life_area_id ?? null}
+                  onChange={(value) => setEditingIncome({ ...editingIncome, life_area_id: value })}
                 />
               </div>
               <div className="flex gap-2">

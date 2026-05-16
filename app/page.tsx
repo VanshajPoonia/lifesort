@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
@@ -27,6 +27,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
+import { LifeAreaIcon } from "@/components/life-area-controls"
+import type { LifeArea } from "@/lib/life-areas"
+import { normalizeLifeArea } from "@/lib/life-areas"
 
 type DashboardApiKey = "tasks" | "goals" | "notes" | "budget" | "investments" | "wishlist" | "income"
 
@@ -39,6 +42,7 @@ interface Task {
   due_date?: string | null
   updated_at?: string | null
   created_at?: string | null
+  life_area_id?: string | number | null
 }
 
 interface Goal {
@@ -54,6 +58,7 @@ interface Goal {
   current_value?: number | string | null
   updated_at?: string | null
   created_at?: string | null
+  life_area_id?: string | number | null
 }
 
 interface Note {
@@ -62,6 +67,13 @@ interface Note {
   content?: string | null
   updated_at?: string | null
   created_at?: string | null
+  life_area_id?: string | number | null
+}
+
+interface BudgetCategory {
+  id: number | string
+  name?: string | null
+  life_area_id?: string | number | null
 }
 
 interface BudgetTransaction {
@@ -75,7 +87,7 @@ interface BudgetTransaction {
 }
 
 interface BudgetData {
-  categories?: unknown[]
+  categories?: BudgetCategory[]
   transactions?: BudgetTransaction[]
   goals?: unknown[]
   summary?: {
@@ -94,6 +106,7 @@ interface Investment {
   current_value?: number | string | null
   updated_at?: string | null
   created_at?: string | null
+  life_area_id?: string | number | null
 }
 
 interface WishlistItem {
@@ -104,6 +117,7 @@ interface WishlistItem {
   priority?: string | null
   updated_at?: string | null
   created_at?: string | null
+  life_area_id?: string | number | null
 }
 
 interface IncomeSource {
@@ -117,6 +131,7 @@ interface IncomeSource {
   active?: boolean | null
   updated_at?: string | null
   created_at?: string | null
+  life_area_id?: string | number | null
 }
 
 interface DashboardSources {
@@ -136,6 +151,7 @@ interface ActivityItem {
   href: string
   type: string
   at: string
+  life_area_id?: string | number | null
 }
 
 const emptySources: DashboardSources = {
@@ -334,6 +350,7 @@ export default function Home() {
   const router = useRouter()
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [sources, setSources] = useState<DashboardSources>(emptySources)
+  const [lifeAreas, setLifeAreas] = useState<LifeArea[]>([])
   const [dashboardLoading, setDashboardLoading] = useState(true)
   const [errors, setErrors] = useState<Partial<Record<DashboardApiKey, string>>>({})
 
@@ -369,7 +386,7 @@ export default function Home() {
 
   const fetchDashboard = async () => {
     setDashboardLoading(true)
-    const [tasks, goals, notes, budget, investments, wishlist, income] = await Promise.all([
+    const [tasks, goals, notes, budget, investments, wishlist, income, lifeAreasResult] = await Promise.all([
       fetchJson<Task[]>(apiEndpoints.tasks),
       fetchJson<Goal[]>(apiEndpoints.goals),
       fetchJson<Note[]>(apiEndpoints.notes),
@@ -377,6 +394,7 @@ export default function Home() {
       fetchJson<Investment[]>(apiEndpoints.investments),
       fetchJson<WishlistItem[]>(apiEndpoints.wishlist),
       fetchJson<IncomeSource[]>(apiEndpoints.income),
+      fetchJson<LifeArea[]>("/api/life-areas"),
     ])
 
     setSources({
@@ -388,6 +406,7 @@ export default function Home() {
       wishlist: normalizeArray<WishlistItem>(wishlist.data),
       income: normalizeArray<IncomeSource>(income.data),
     })
+    setLifeAreas(normalizeArray<LifeArea>(lifeAreasResult.data).map((area) => normalizeLifeArea(area as unknown as Record<string, unknown>)))
     setErrors({
       ...(tasks.error ? { tasks: tasks.error } : {}),
       ...(goals.error ? { goals: goals.error } : {}),
@@ -466,7 +485,7 @@ export default function Home() {
     .sort((a, b) => new Date(getTimestamp(b)).getTime() - new Date(getTimestamp(a)).getTime())
     .slice(0, 4)
 
-  const recentActivity: ActivityItem[] = [
+  const recentActivityFull: ActivityItem[] = [
     ...sources.tasks.map((task) => ({
       id: `task-${task.id}`,
       title: task.title,
@@ -474,6 +493,7 @@ export default function Home() {
       href: "/tasks",
       type: "Task",
       at: getTimestamp(task),
+      life_area_id: task.life_area_id,
     })),
     ...sources.goals.map((goal) => ({
       id: `goal-${goal.id}`,
@@ -482,6 +502,7 @@ export default function Home() {
       href: "/goals",
       type: "Goal",
       at: getTimestamp(goal),
+      life_area_id: goal.life_area_id,
     })),
     ...sources.notes.map((note) => ({
       id: `note-${note.id}`,
@@ -490,6 +511,7 @@ export default function Home() {
       href: "/notes",
       type: "Note",
       at: getTimestamp(note),
+      life_area_id: note.life_area_id,
     })),
     ...sources.wishlist.map((item) => ({
       id: `wishlist-${item.id}`,
@@ -498,6 +520,7 @@ export default function Home() {
       href: "/wishlist",
       type: "Wishlist",
       at: getTimestamp(item),
+      life_area_id: item.life_area_id,
     })),
     ...sources.investments.map((investment) => ({
       id: `investment-${investment.id}`,
@@ -506,6 +529,7 @@ export default function Home() {
       href: "/investments",
       type: "Investment",
       at: getTimestamp(investment),
+      life_area_id: investment.life_area_id,
     })),
     ...sources.income.map((source) => ({
       id: `income-${source.id}`,
@@ -514,11 +538,59 @@ export default function Home() {
       href: "/income",
       type: "Income",
       at: getTimestamp(source),
+      life_area_id: source.life_area_id,
     })),
   ]
     .filter((activity) => activity.at)
     .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
-    .slice(0, 6)
+
+  const recentActivity = recentActivityFull.slice(0, 6)
+
+  const lifeAreaBalance = useMemo(() => {
+    const byId = new Map(lifeAreas.map((area) => [String(area.id), area]))
+    const rows = new Map<string, {
+      key: string
+      area: LifeArea | null
+      activeTasks: number
+      activeGoals: number
+      recentActivity: number
+    }>()
+
+    const ensure = (key: string) => {
+      if (!rows.has(key)) {
+        rows.set(key, {
+          key,
+          area: key === "unassigned" ? null : byId.get(key) ?? null,
+          activeTasks: 0,
+          activeGoals: 0,
+          recentActivity: 0,
+        })
+      }
+      return rows.get(key)!
+    }
+
+    const keyFor = (value?: string | number | null) => {
+      if (!value) return "unassigned"
+      const key = String(value)
+      return byId.has(key) ? key : "unassigned"
+    }
+
+    lifeAreas.forEach((area) => ensure(String(area.id)))
+    sources.tasks.filter((task) => !task.completed).forEach((task) => {
+      ensure(keyFor(task.life_area_id)).activeTasks += 1
+    })
+    sources.goals.filter((goal) => goal.status !== "completed").forEach((goal) => {
+      ensure(keyFor(goal.life_area_id)).activeGoals += 1
+    })
+    recentActivityFull.slice(0, 12).forEach((activity) => {
+      ensure(keyFor(activity.life_area_id)).recentActivity += 1
+    })
+
+    return Array.from(rows.values())
+      .filter((row) => row.activeTasks > 0 || row.activeGoals > 0 || row.recentActivity > 0)
+      .sort((a, b) => (b.activeTasks + b.activeGoals + b.recentActivity) - (a.activeTasks + a.activeGoals + a.recentActivity))
+      .slice(0, 6)
+  }, [lifeAreas, recentActivityFull, sources.goals, sources.tasks])
 
   const hasAnyErrors = Object.keys(errors).length > 0
 
@@ -656,6 +728,61 @@ export default function Home() {
             </>
           )}
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-primary" />
+              Life Area Balance
+            </CardTitle>
+            <CardDescription>Active tasks, active goals, and recent activity grouped by area.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {dashboardLoading ? (
+              <div className="grid gap-3 md:grid-cols-3">
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+              </div>
+            ) : lifeAreaBalance.length === 0 ? (
+              <EmptyState actionHref="/life-areas" actionLabel="Manage life areas">
+                Assign tasks, goals, or records to life areas to see balance here.
+              </EmptyState>
+            ) : (
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {lifeAreaBalance.map((row) => (
+                  <div key={row.key} className="rounded-md border p-3">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="flex h-8 w-8 items-center justify-center rounded-md"
+                        style={{
+                          backgroundColor: `${row.area?.color || "#64748B"}22`,
+                          color: row.area?.color || "#64748B",
+                        }}
+                      >
+                        <LifeAreaIcon name={row.area?.icon || "Circle"} className="h-4 w-4" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{row.area?.name || "Unassigned"}</p>
+                        <p className="text-xs text-muted-foreground">{row.recentActivity} recent update{row.recentActivity !== 1 ? "s" : ""}</p>
+                      </div>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                      <div className="rounded-md bg-muted/60 p-2">
+                        <p className="text-lg font-semibold">{row.activeTasks}</p>
+                        <p className="text-xs text-muted-foreground">Active tasks</p>
+                      </div>
+                      <div className="rounded-md bg-muted/60 p-2">
+                        <p className="text-lg font-semibold">{row.activeGoals}</p>
+                        <p className="text-xs text-muted-foreground">Active goals</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
           <Card>

@@ -17,6 +17,58 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-05-17 05:30 IST - Life Areas System
+
+- Agent/tool used: Codex.
+- Task summary: Implemented the website-only Life Areas organizing layer directly on `main`, after fast-forwarding `main` to include the already-pushed `codex-website-roadmap-slice` work.
+- Files changed:
+  - Added: `app/api/life-areas/route.ts`, `app/life-areas/page.tsx`, `components/life-area-controls.tsx`, `lib/life-areas.ts`, `scripts/add-life-areas.sql`.
+  - Updated: `app/page.tsx`, `app/tasks/page.tsx`, `app/goals/page.tsx`, `app/notes/page.tsx`, `app/wishlist/page.tsx`, `app/budget/page.tsx`, `app/income/page.tsx`, `app/investments/page.tsx`, `app/custom-sections/page.tsx`, related CRUD API routes, goal dialogs, sidebar/settings preferences, `lib/auth.ts`, schema scripts, and AI memory docs.
+- Summary of changes:
+  - Added user-owned `life_areas` with name, icon, color, description, sort order, and timestamps.
+  - Added default Life Area seeding for existing users in SQL and future users through registration/API code.
+  - Added optional nullable Life Area assignment to tasks, goals, notes, wishlist items, budget categories, income sources, investments, and custom sections.
+  - Intentionally left budget transactions indirectly organized through categories instead of adding `budget_transactions.life_area_id`.
+  - Added `/life-areas` management UI with create/edit/delete/reorder controls, icon choices, color swatches, loading state, and empty state.
+  - Added Life Area selectors/badges across connected modules and added a dashboard Life Area Balance card.
+  - Added Life Areas to sidebar navigation and sidebar settings defaults.
+- New note/record fields or tables:
+  - New table: `life_areas`.
+  - New nullable foreign key column: `life_area_id` on `tasks`, `goals`, `notes`, `wishlist_items`, `budget_categories`, `income_sources`, `investments`, and `custom_sections`.
+- Migration status:
+  - Created `scripts/add-life-areas.sql`.
+  - Updated `scripts/website-current-schema.sql`.
+  - Updated `scripts/run-pending-migrations.sql`.
+  - No database migrations were run automatically.
+- Commands run:
+  - `git checkout main`
+  - `git merge --ff-only origin/main`
+  - `git merge --ff-only origin/codex-website-roadmap-slice`
+  - `git status --short --branch`
+  - `git diff --stat`
+  - `npx tsc --noEmit`
+  - `npm run lint`
+  - `npm run build`
+- Verification results:
+  - `npx tsc --noEmit`: passed.
+  - `npm run lint`: failed before linting source because ESLint 10.3.0 cannot find `eslint.config.(js|mjs|cjs)`.
+  - `npm run build`: passed, generated 69 routes, skipped type validation and linting, and emitted the known unsupported `metadata.themeColor`/`metadata.viewport` warnings.
+- Bugs found or fixed:
+  - Kept budget transactions unmodified by design; budget categories carry Life Area assignment.
+  - Kept the untracked `pnpm-workspace.yaml` out of the implementation.
+- Remaining issues:
+  - Apply and verify the Life Areas migration in the target Neon environment before using the new UI against live data.
+  - Existing lint configuration blocker remains.
+  - Build still hides type and lint gates through `next.config.mjs`.
+  - No browser/manual CRUD smoke test was run after this implementation.
+- Suggested next steps:
+  - Confirm target database/environment, run the current pending migrations, then manually smoke-test Life Area create/edit/delete/reorder plus assignment/clearing across connected modules.
+  - Then fix the ESLint flat config and revisit build settings that suppress verification gates.
+- Handoff notes:
+  - The Life Areas implementation is optional and user-scoped throughout.
+  - Existing records migrate as unassigned.
+  - User A cannot assign User B Life Areas because all API writes validate Life Area ownership before storing `life_area_id`.
+
 ### 2026-05-16 12:58 IST - Initial Repo Analysis
 
 - Agent/tool used: Codex.

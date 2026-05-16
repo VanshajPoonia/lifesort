@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers'
 import { neon } from '@neondatabase/serverless'
 import bcrypt from 'bcryptjs'
+import { DEFAULT_LIFE_AREAS } from '@/lib/life-areas'
 
 const sql = neon(process.env.DATABASE_URL!)
 
@@ -146,8 +147,22 @@ export async function createUser(email: string, password: string, name: string):
     VALUES (${email.toLowerCase()}, ${hashedPassword}, ${name}, ${trialEndsAt.toISOString()}, false)
     RETURNING id, email, name, created_at, trial_ends_at, is_subscribed, subscription_ends_at, is_admin, onboarding_completed
   `
-  
-  return result[0] as User
+
+  const user = result[0] as User
+
+  try {
+    for (const [index, area] of DEFAULT_LIFE_AREAS.entries()) {
+      await sql`
+        INSERT INTO life_areas (user_id, name, icon, color, description, sort_order)
+        VALUES (${user.id}, ${area.name}, ${area.icon}, ${area.color}, ${area.description}, ${index})
+        ON CONFLICT (user_id, name) DO NOTHING
+      `
+    }
+  } catch (error) {
+    console.error('[auth] Failed to seed default life areas:', error)
+  }
+
+  return user
 }
 
 // Get user by email

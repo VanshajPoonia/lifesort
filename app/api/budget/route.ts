@@ -1,8 +1,19 @@
 import { NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
 import { getUserFromSession } from "@/lib/auth"
+import { normalizeLifeAreaId } from "@/lib/life-areas"
 
 const sql = neon(process.env.DATABASE_URL!)
+
+async function validateLifeAreaId(lifeAreaId: number | null, userId: string) {
+  if (!lifeAreaId) return null
+  const rows = await sql`
+    SELECT id FROM life_areas
+    WHERE id = ${lifeAreaId} AND user_id = ${userId}
+    LIMIT 1
+  `
+  return rows.length > 0 ? lifeAreaId : undefined
+}
 
 // GET - Fetch all budget data (categories, transactions, goals)
 export async function GET(request: Request) {
@@ -134,9 +145,14 @@ export async function POST(request: Request) {
     const { type, ...data } = body
 
     if (type === "category") {
+      const lifeAreaId = await validateLifeAreaId(normalizeLifeAreaId(data.life_area_id), user.id)
+      if (lifeAreaId === undefined) {
+        return NextResponse.json({ error: "Life area not found" }, { status: 404 })
+      }
+
       const result = await sql`
-        INSERT INTO budget_categories (user_id, name, color, icon, budget_limit)
-        VALUES (${user.id}, ${data.name}, ${data.color || '#3B82F6'}, ${data.icon || 'folder'}, ${data.budget_limit || 0})
+        INSERT INTO budget_categories (user_id, name, color, icon, budget_limit, life_area_id)
+        VALUES (${user.id}, ${data.name}, ${data.color || '#3B82F6'}, ${data.icon || 'folder'}, ${data.budget_limit || 0}, ${lifeAreaId})
         RETURNING *
       `
       return NextResponse.json({ category: result[0] })
@@ -179,9 +195,19 @@ export async function PUT(request: Request) {
     const { type, id, ...data } = body
 
     if (type === "category") {
+      const lifeAreaTouched = Object.prototype.hasOwnProperty.call(data, "life_area_id")
+      const lifeAreaId = await validateLifeAreaId(normalizeLifeAreaId(data.life_area_id), user.id)
+      if (lifeAreaId === undefined) {
+        return NextResponse.json({ error: "Life area not found" }, { status: 404 })
+      }
+
       const result = await sql`
         UPDATE budget_categories 
-        SET name = ${data.name}, color = ${data.color}, icon = ${data.icon}, budget_limit = ${data.budget_limit}
+        SET name = COALESCE(${data.name}, name),
+            color = COALESCE(${data.color}, color),
+            icon = COALESCE(${data.icon}, icon),
+            budget_limit = COALESCE(${data.budget_limit}, budget_limit),
+            life_area_id = CASE WHEN ${lifeAreaTouched} THEN ${lifeAreaId} ELSE life_area_id END
         WHERE id = ${id} AND user_id = ${user.id}
         RETURNING *
       `

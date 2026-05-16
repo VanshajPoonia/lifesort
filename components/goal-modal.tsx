@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { Calendar, Link2, Target, Trash2, Unlink, X } from "lucide-react"
 
 import { ReminderSettings } from "@/components/reminder-settings"
+import { LifeAreaBadge, LifeAreaSelect } from "@/components/life-area-controls"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
@@ -13,6 +14,7 @@ import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
+import type { LifeArea } from "@/lib/life-areas"
 
 type GoalStatus = "active" | "completed" | "paused"
 type Priority = "low" | "medium" | "high"
@@ -31,6 +33,7 @@ interface Goal {
   value_unit: string | null
   email_reminder: boolean
   reminder_days: number
+  life_area_id?: string | number | null
 }
 
 interface GoalTask {
@@ -52,6 +55,7 @@ interface GoalModalProps {
   onDelete?: (id: number) => Promise<void> | void
   onLinkTask?: (taskId: number) => Promise<void> | void
   onUnlinkTask?: (taskId: number) => Promise<void> | void
+  lifeAreas?: LifeArea[]
 }
 
 function calculateProgress(currentValue: number | null, targetValue: number | null, fallback: number) {
@@ -77,6 +81,7 @@ export function GoalModal({
   onDelete,
   onLinkTask,
   onUnlinkTask,
+  lifeAreas = [],
 }: GoalModalProps) {
   const [localGoal, setLocalGoal] = useState<Goal | null>(goal)
   const [selectedTaskId, setSelectedTaskId] = useState("")
@@ -90,6 +95,10 @@ export function GoalModal({
   const sortedAvailableTasks = useMemo(() => {
     return [...availableTasks].sort((a, b) => Number(a.completed) - Number(b.completed) || a.title.localeCompare(b.title))
   }, [availableTasks])
+
+  const areaById = useMemo(() => {
+    return new Map(lifeAreas.map((area) => [String(area.id), area]))
+  }, [lifeAreas])
 
   if (!localGoal) return null
 
@@ -137,6 +146,10 @@ export function GoalModal({
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="outline">{localGoal.category}</Badge>
+                <LifeAreaBadge
+                  area={localGoal.life_area_id ? areaById.get(String(localGoal.life_area_id)) : null}
+                  fallback="No area"
+                />
                 <Badge variant="outline">{localGoal.priority}</Badge>
                 <Badge variant="outline">{localGoal.status}</Badge>
               </div>
@@ -402,6 +415,15 @@ export function GoalModal({
                     value={localGoal.category}
                     onChange={(event) => setLocalGoal({ ...localGoal, category: event.target.value })}
                     onBlur={() => updateGoal({ category: localGoal.category || "personal" })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Life Area</Label>
+                  <LifeAreaSelect
+                    areas={lifeAreas}
+                    value={localGoal.life_area_id ?? null}
+                    onChange={(value) => updateGoal({ life_area_id: value })}
                   />
                 </div>
 

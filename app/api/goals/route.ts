@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { neon } from '@neondatabase/serverless'
 import { getUserFromSession } from '@/lib/auth'
+import { normalizeLifeAreaId } from '@/lib/life-areas'
 
 const sql = neon(process.env.DATABASE_URL!)
 
@@ -22,6 +23,7 @@ type GoalBody = {
   email_reminder?: boolean | null
   reminder_days?: number | string | null
   reminder_sent?: boolean | null
+  life_area_id?: number | string | null
 }
 
 type GoalRow = Record<string, unknown>
@@ -76,6 +78,19 @@ function cleanReminderDays(value: unknown, fallback = 3) {
   const parsed = typeof value === 'number' ? value : Number.parseInt(String(value), 10)
   if (!Number.isFinite(parsed)) return fallback
   return Math.min(365, Math.max(0, parsed))
+}
+
+async function validateLifeAreaId(lifeAreaId: number | null, userId: string) {
+  if (!lifeAreaId) return null
+
+  const rows = await sql`
+    SELECT id
+    FROM life_areas
+    WHERE id = ${lifeAreaId} AND user_id = ${userId}
+    LIMIT 1
+  `
+
+  return rows.length > 0 ? lifeAreaId : undefined
 }
 
 function cleanPriority(value: unknown, fallback = 'medium') {
@@ -155,6 +170,11 @@ export async function POST(request: Request) {
     const currentValue = cleanNumber(body.current_value, targetValue ? 0 : null)
     const progress = progressFromValues(body.progress, currentValue, targetValue)
     const emailReminder = Boolean(body.email_reminder && targetDate)
+    const lifeAreaId = await validateLifeAreaId(normalizeLifeAreaId(body.life_area_id), user.id)
+
+    if (lifeAreaId === undefined) {
+      return NextResponse.json({ error: 'Life area not found' }, { status: 404 })
+    }
 
     const result = await sql`
       INSERT INTO goals (
@@ -171,7 +191,8 @@ export async function POST(request: Request) {
         value_unit,
         email_reminder,
         reminder_days,
-        reminder_sent
+        reminder_sent,
+        life_area_id
       )
       VALUES (
         ${user.id},
@@ -187,7 +208,8 @@ export async function POST(request: Request) {
         ${cleanText(body.value_unit)},
         ${emailReminder},
         ${cleanReminderDays(body.reminder_days, 3)},
-        false
+        false,
+        ${lifeAreaId}
       )
       RETURNING *
     `
@@ -253,6 +275,13 @@ export async function PUT(request: Request) {
       : reminderTouched
         ? false
         : Boolean(existing.reminder_sent)
+    const nextLifeAreaId = hasField(body, 'life_area_id')
+      ? await validateLifeAreaId(normalizeLifeAreaId(body.life_area_id), user.id)
+      : normalizeLifeAreaId(existing.life_area_id)
+
+    if (nextLifeAreaId === undefined) {
+      return NextResponse.json({ error: 'Life area not found' }, { status: 404 })
+    }
 
     const result = await sql`
       UPDATE goals
@@ -270,6 +299,7 @@ export async function PUT(request: Request) {
         email_reminder = ${nextEmailReminder},
         reminder_days = ${nextReminderDays},
         reminder_sent = ${nextReminderSent},
+        life_area_id = ${nextLifeAreaId},
         updated_at = NOW()
       WHERE id = ${body.id} AND user_id = ${user.id}
       RETURNING *

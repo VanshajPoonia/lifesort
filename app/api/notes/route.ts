@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { neon } from '@neondatabase/serverless'
 import { getUserFromSession } from '@/lib/auth'
+import { normalizeLifeAreaId } from '@/lib/life-areas'
 
 const sql = neon(process.env.DATABASE_URL!)
 
@@ -36,6 +37,18 @@ async function assertFolderOwnership(folderId: number | null, userId: string) {
   `
 
   return folders.length > 0
+}
+
+async function assertLifeAreaOwnership(lifeAreaId: number | null, userId: string) {
+  if (!lifeAreaId) return true
+
+  const areas = await sql`
+    SELECT id FROM life_areas
+    WHERE id = ${lifeAreaId} AND user_id = ${userId}
+    LIMIT 1
+  `
+
+  return areas.length > 0
 }
 
 async function getNoteWithFolder(noteId: string | number, userId: string) {
@@ -101,18 +114,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { title, content, folder_id, tags, is_pinned } = await request.json()
+    const { title, content, folder_id, tags, is_pinned, life_area_id } = await request.json()
     const normalizedFolderId = normalizeFolderId(folder_id)
     const normalizedTags = normalizeTags(tags)
+    const normalizedLifeAreaId = normalizeLifeAreaId(life_area_id)
     const hasFolder = await assertFolderOwnership(normalizedFolderId, user.id)
+    const hasLifeArea = await assertLifeAreaOwnership(normalizedLifeAreaId, user.id)
 
     if (!hasFolder) {
       return NextResponse.json({ error: 'Folder not found' }, { status: 400 })
     }
 
+    if (!hasLifeArea) {
+      return NextResponse.json({ error: 'Life area not found' }, { status: 400 })
+    }
+
     const result = await sql`
-      INSERT INTO notes (user_id, title, content, folder_id, tags, is_pinned)
-      VALUES (${user.id}, ${title || 'Untitled'}, ${content || ''}, ${normalizedFolderId}, ${normalizedTags}::text[], ${Boolean(is_pinned)})
+      INSERT INTO notes (user_id, title, content, folder_id, tags, is_pinned, life_area_id)
+      VALUES (${user.id}, ${title || 'Untitled'}, ${content || ''}, ${normalizedFolderId}, ${normalizedTags}::text[], ${Boolean(is_pinned)}, ${normalizedLifeAreaId})
       RETURNING *
     `
 
@@ -153,9 +172,16 @@ export async function PUT(request: Request) {
     const hasFolderUpdate = Object.prototype.hasOwnProperty.call(body, 'folder_id')
     const nextFolderId = hasFolderUpdate ? normalizeFolderId(body.folder_id) : existing.folder_id
     const hasFolder = await assertFolderOwnership(nextFolderId, user.id)
+    const hasLifeAreaUpdate = Object.prototype.hasOwnProperty.call(body, 'life_area_id')
+    const nextLifeAreaId = hasLifeAreaUpdate ? normalizeLifeAreaId(body.life_area_id) : normalizeLifeAreaId(existing.life_area_id)
+    const hasLifeArea = await assertLifeAreaOwnership(nextLifeAreaId, user.id)
 
     if (!hasFolder) {
       return NextResponse.json({ error: 'Folder not found' }, { status: 400 })
+    }
+
+    if (!hasLifeArea) {
+      return NextResponse.json({ error: 'Life area not found' }, { status: 400 })
     }
 
     const hasTagsUpdate = Object.prototype.hasOwnProperty.call(body, 'tags')
@@ -171,6 +197,7 @@ export async function PUT(request: Request) {
         folder_id = ${nextFolderId},
         tags = ${nextTags}::text[],
         is_pinned = ${nextPinned},
+        life_area_id = ${nextLifeAreaId},
         updated_at = NOW()
       WHERE id = ${id} AND user_id = ${user.id}
       RETURNING *

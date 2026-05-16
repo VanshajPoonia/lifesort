@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth-provider"
 import { DashboardLayout } from "@/components/dashboard-layout"
@@ -73,6 +73,9 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
+import { LifeAreaBadge, LifeAreaSelect } from "@/components/life-area-controls"
+import type { LifeArea } from "@/lib/life-areas"
+import { normalizeLifeArea } from "@/lib/life-areas"
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -94,6 +97,7 @@ interface CustomSection {
   color: string
   fields: FieldDefinition[]
   position: number
+  life_area_id?: string | number | null
   created_at: string
   updated_at: string
 }
@@ -187,6 +191,7 @@ function normalizeSection(raw: Record<string, unknown>): CustomSection {
     color: typeof raw.color === "string" ? raw.color : "primary",
     fields,
     position: typeof raw.position === "number" ? raw.position : 0,
+    life_area_id: raw.life_area_id ? String(raw.life_area_id) : null,
     created_at: typeof raw.created_at === "string" ? raw.created_at : new Date().toISOString(),
     updated_at: typeof raw.updated_at === "string" ? raw.updated_at : new Date().toISOString(),
   }
@@ -214,15 +219,16 @@ interface SectionFormState {
   title: string
   description: string
   icon: string
+  life_area_id: string | number | null
   fields: FieldDefinition[]
 }
 
 function emptySection(): SectionFormState {
-  return { title: "", description: "", icon: "Folder", fields: [] }
+  return { title: "", description: "", icon: "Folder", life_area_id: null, fields: [] }
 }
 
 function sectionToForm(s: CustomSection): SectionFormState {
-  return { title: s.title, description: s.description ?? "", icon: s.icon, fields: s.fields }
+  return { title: s.title, description: s.description ?? "", icon: s.icon, life_area_id: s.life_area_id ?? null, fields: s.fields }
 }
 
 function SectionDialog({
@@ -230,11 +236,13 @@ function SectionDialog({
   initial,
   onClose,
   onSave,
+  lifeAreas,
 }: {
   open: boolean
   initial: SectionFormState
   onClose: () => void
   onSave: (form: SectionFormState) => Promise<void>
+  lifeAreas: LifeArea[]
 }) {
   const [form, setForm] = useState<SectionFormState>(initial)
   const [saving, setSaving] = useState(false)
@@ -362,6 +370,15 @@ function SectionDialog({
                 </button>
               ))}
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Life Area</Label>
+            <LifeAreaSelect
+              areas={lifeAreas}
+              value={form.life_area_id}
+              onChange={(value) => setForm((p) => ({ ...p, life_area_id: value }))}
+            />
           </div>
 
           {/* Fields */}
@@ -652,6 +669,7 @@ export default function CustomSectionsPage() {
   const router = useRouter()
 
   const [sections, setSections] = useState<CustomSection[]>([])
+  const [lifeAreas, setLifeAreas] = useState<LifeArea[]>([])
   const [sectionsLoading, setSectionsLoading] = useState(true)
   const [sectionsError, setSectionsError] = useState("")
 
@@ -690,9 +708,27 @@ export default function CustomSectionsPage() {
     }
   }, [])
 
+  const fetchLifeAreas = useCallback(async () => {
+    try {
+      const res = await fetch("/api/life-areas")
+      if (!res.ok) return
+      const data = await res.json()
+      setLifeAreas((Array.isArray(data) ? data : []).map(normalizeLifeArea))
+    } catch {
+      setLifeAreas([])
+    }
+  }, [])
+
   useEffect(() => {
-    if (user) fetchSections()
-  }, [fetchSections, user])
+    if (user) {
+      fetchSections()
+      fetchLifeAreas()
+    }
+  }, [fetchLifeAreas, fetchSections, user])
+
+  const areaById = useMemo(() => {
+    return new Map(lifeAreas.map((area) => [String(area.id), area]))
+  }, [lifeAreas])
 
   const fetchRecords = useCallback(async (sectionId: string) => {
     setRecordsLoading(true)
@@ -718,7 +754,13 @@ export default function CustomSectionsPage() {
     const res = await fetch("/api/custom-sections", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: form.title, description: form.description, icon: form.icon, fields: form.fields }),
+      body: JSON.stringify({
+        title: form.title,
+        description: form.description,
+        icon: form.icon,
+        fields: form.fields,
+        life_area_id: form.life_area_id,
+      }),
     })
     if (!res.ok) throw new Error("Failed")
     const created = normalizeSection(await res.json())
@@ -731,7 +773,15 @@ export default function CustomSectionsPage() {
     const res = await fetch("/api/custom-sections", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: editingSection.id, title: form.title, description: form.description, icon: form.icon, fields: form.fields, position: editingSection.position }),
+      body: JSON.stringify({
+        id: editingSection.id,
+        title: form.title,
+        description: form.description,
+        icon: form.icon,
+        fields: form.fields,
+        position: editingSection.position,
+        life_area_id: form.life_area_id,
+      }),
     })
     if (!res.ok) throw new Error("Failed")
     const updated = normalizeSection(await res.json())
@@ -853,6 +903,9 @@ export default function CustomSectionsPage() {
                       className={`h-4 w-4 shrink-0 ${selectedSection?.id === section.id ? "text-primary-foreground" : "text-muted-foreground"}`}
                     />
                     <span className="flex-1 truncate text-sm font-medium">{section.title}</span>
+                    {section.life_area_id && (
+                      <LifeAreaBadge area={areaById.get(String(section.life_area_id))} fallback="" />
+                    )}
 
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -931,6 +984,12 @@ export default function CustomSectionsPage() {
                     </div>
                     <div>
                       <h2 className="font-semibold leading-tight">{selectedSection.title}</h2>
+                      <div className="mt-1">
+                        <LifeAreaBadge
+                          area={selectedSection.life_area_id ? areaById.get(String(selectedSection.life_area_id)) : null}
+                          fallback="No area"
+                        />
+                      </div>
                       {selectedSection.description && (
                         <p className="mt-0.5 text-sm text-muted-foreground">{selectedSection.description}</p>
                       )}
@@ -1097,6 +1156,7 @@ export default function CustomSectionsPage() {
         initial={emptySection()}
         onClose={() => setShowCreateSection(false)}
         onSave={createSection}
+        lifeAreas={lifeAreas}
       />
 
       {/* Edit section dialog */}
@@ -1105,6 +1165,7 @@ export default function CustomSectionsPage() {
         initial={editingSection ? sectionToForm(editingSection) : emptySection()}
         onClose={() => setEditingSection(null)}
         onSave={updateSection}
+        lifeAreas={lifeAreas}
       />
 
       {/* Create record dialog */}

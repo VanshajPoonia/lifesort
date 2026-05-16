@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { neon } from '@neondatabase/serverless'
 import { getUserFromSession } from '@/lib/auth'
+import { normalizeLifeAreaId } from '@/lib/life-areas'
 
 const sql = neon(process.env.DATABASE_URL!)
 
@@ -20,6 +21,7 @@ type TaskBody = {
   category?: string | null
   completed?: boolean | null
   goal_id?: number | string | null
+  life_area_id?: number | string | null
 }
 
 function hasField(body: TaskBody, field: keyof TaskBody) {
@@ -104,6 +106,19 @@ async function validateGoalId(goalId: number | null, userId: string) {
   return rows.length > 0 ? goalId : undefined
 }
 
+async function validateLifeAreaId(lifeAreaId: number | null, userId: string) {
+  if (!lifeAreaId) return null
+
+  const rows = await sql`
+    SELECT id
+    FROM life_areas
+    WHERE id = ${lifeAreaId} AND user_id = ${userId}
+    LIMIT 1
+  `
+
+  return rows.length > 0 ? lifeAreaId : undefined
+}
+
 export async function GET() {
   try {
     const user = await getUserFromSession()
@@ -145,9 +160,14 @@ export async function POST(request: Request) {
     const reminderDays = cleanReminderDays(body.reminder_days, 1)
     const reminderAt = computeReminderAt(dueDate, dueTime, emailReminder, reminderDays)
     const goalId = await validateGoalId(cleanId(body.goal_id), user.id)
+    const lifeAreaId = await validateLifeAreaId(normalizeLifeAreaId(body.life_area_id), user.id)
 
     if (goalId === undefined) {
       return NextResponse.json({ error: 'Goal not found' }, { status: 404 })
+    }
+
+    if (lifeAreaId === undefined) {
+      return NextResponse.json({ error: 'Life area not found' }, { status: 404 })
     }
 
     const result = await sql`
@@ -164,7 +184,8 @@ export async function POST(request: Request) {
         reminder_sent,
         category,
         completed,
-        goal_id
+        goal_id,
+        life_area_id
       )
       VALUES (
         ${user.id},
@@ -179,7 +200,8 @@ export async function POST(request: Request) {
         ${Boolean(body.reminder_sent) && Boolean(reminderAt)},
         ${cleanText(body.category)},
         ${Boolean(body.completed)},
-        ${goalId}
+        ${goalId},
+        ${lifeAreaId}
       )
       RETURNING *
     `
@@ -226,9 +248,16 @@ export async function PUT(request: Request) {
     const nextGoalId = hasField(body, 'goal_id')
       ? await validateGoalId(cleanId(body.goal_id), user.id)
       : cleanId(existing.goal_id)
+    const nextLifeAreaId = hasField(body, 'life_area_id')
+      ? await validateLifeAreaId(normalizeLifeAreaId(body.life_area_id), user.id)
+      : normalizeLifeAreaId(existing.life_area_id)
 
     if (nextGoalId === undefined) {
       return NextResponse.json({ error: 'Goal not found' }, { status: 404 })
+    }
+
+    if (nextLifeAreaId === undefined) {
+      return NextResponse.json({ error: 'Life area not found' }, { status: 404 })
     }
 
     const nextEmailReminder = hasField(body, 'email_reminder')
@@ -265,6 +294,7 @@ export async function PUT(request: Request) {
         category = ${nextCategory},
         completed = ${nextCompleted},
         goal_id = ${nextGoalId},
+        life_area_id = ${nextLifeAreaId},
         updated_at = NOW()
       WHERE id = ${body.id} AND user_id = ${user.id}
       RETURNING *

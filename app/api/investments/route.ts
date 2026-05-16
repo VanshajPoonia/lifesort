@@ -1,8 +1,19 @@
 import { NextResponse } from 'next/server'
 import { neon } from '@neondatabase/serverless'
 import { getUserFromSession } from '@/lib/auth'
+import { normalizeLifeAreaId } from '@/lib/life-areas'
 
 const sql = neon(process.env.DATABASE_URL!)
+
+async function validateLifeAreaId(lifeAreaId: number | null, userId: string) {
+  if (!lifeAreaId) return null
+  const rows = await sql`
+    SELECT id FROM life_areas
+    WHERE id = ${lifeAreaId} AND user_id = ${userId}
+    LIMIT 1
+  `
+  return rows.length > 0 ? lifeAreaId : undefined
+}
 
 export async function GET() {
   try {
@@ -31,15 +42,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { name, type, symbol, amount, current_value, purchase_date, notes, estimated_return_rate, wishlist_item_id, quantity } = await request.json()
+    const { name, type, symbol, amount, current_value, purchase_date, notes, estimated_return_rate, wishlist_item_id, quantity, life_area_id } = await request.json()
 
     if (!name || !type) {
       return NextResponse.json({ error: 'Name and type are required' }, { status: 400 })
     }
 
+    const lifeAreaId = await validateLifeAreaId(normalizeLifeAreaId(life_area_id), user.id)
+    if (lifeAreaId === undefined) {
+      return NextResponse.json({ error: 'Life area not found' }, { status: 404 })
+    }
+
     const result = await sql`
-      INSERT INTO investments (user_id, name, type, symbol, amount, current_value, purchase_date, notes, estimated_return_rate, wishlist_item_id, quantity)
-      VALUES (${user.id}, ${name}, ${type}, ${symbol || null}, ${amount || 0}, ${current_value || amount || 0}, ${purchase_date || null}, ${notes || null}, ${estimated_return_rate || 0}, ${wishlist_item_id || null}, ${quantity || null})
+      INSERT INTO investments (user_id, name, type, symbol, amount, current_value, purchase_date, notes, estimated_return_rate, wishlist_item_id, quantity, life_area_id)
+      VALUES (${user.id}, ${name}, ${type}, ${symbol || null}, ${amount || 0}, ${current_value || amount || 0}, ${purchase_date || null}, ${notes || null}, ${estimated_return_rate || 0}, ${wishlist_item_id || null}, ${quantity || null}, ${lifeAreaId})
       RETURNING *
     `
 
@@ -57,10 +73,17 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { id, name, type, symbol, amount, current_value, purchase_date, notes, estimated_return_rate, wishlist_item_id, quantity } = await request.json()
+    const body = await request.json()
+    const { id, name, type, symbol, amount, current_value, purchase_date, notes, estimated_return_rate, wishlist_item_id, quantity, life_area_id } = body
 
     if (!id) {
       return NextResponse.json({ error: 'Investment ID is required' }, { status: 400 })
+    }
+
+    const lifeAreaTouched = Object.prototype.hasOwnProperty.call(body, 'life_area_id')
+    const lifeAreaId = await validateLifeAreaId(normalizeLifeAreaId(life_area_id), user.id)
+    if (lifeAreaId === undefined) {
+      return NextResponse.json({ error: 'Life area not found' }, { status: 404 })
     }
 
     const result = await sql`
@@ -76,6 +99,7 @@ export async function PUT(request: Request) {
         estimated_return_rate = COALESCE(${estimated_return_rate}, estimated_return_rate),
         wishlist_item_id = ${wishlist_item_id !== undefined ? wishlist_item_id : null},
         quantity = ${quantity !== undefined ? quantity : null},
+        life_area_id = CASE WHEN ${lifeAreaTouched} THEN ${lifeAreaId} ELSE life_area_id END,
         updated_at = NOW()
       WHERE id = ${id} AND user_id = ${user.id}
       RETURNING *

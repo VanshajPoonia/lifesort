@@ -24,12 +24,15 @@ import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { EditableText } from "@/components/editable-text"
 import { ReminderSettings } from "@/components/reminder-settings"
+import { LifeAreaBadge, LifeAreaSelect } from "@/components/life-area-controls"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import type { LifeArea } from "@/lib/life-areas"
+import { normalizeLifeArea } from "@/lib/life-areas"
 
 type Priority = "low" | "medium" | "high"
 type TaskView = "today" | "upcoming" | "overdue" | "completed"
@@ -49,6 +52,7 @@ interface Task {
   email_reminder?: boolean | null
   reminder_days?: number | null
   reminder_sent?: boolean | null
+  life_area_id?: string | number | null
 }
 
 interface ReminderForm {
@@ -243,6 +247,7 @@ export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState("")
+  const [lifeAreas, setLifeAreas] = useState<LifeArea[]>([])
   const [creating, setCreating] = useState(false)
   const [activeView, setActiveView] = useState<TaskView>("today")
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("all")
@@ -265,8 +270,20 @@ export default function TasksPage() {
   useEffect(() => {
     if (user) {
       fetchTasks()
+      fetchLifeAreas()
     }
   }, [user])
+
+  const fetchLifeAreas = async () => {
+    try {
+      const response = await fetch("/api/life-areas")
+      if (!response.ok) return
+      const data = await response.json()
+      setLifeAreas(Array.isArray(data) ? data.map(normalizeLifeArea) : [])
+    } catch (error) {
+      console.error("Failed to fetch life areas:", error)
+    }
+  }
 
   const fetchTasks = async () => {
     setLoading(true)
@@ -316,6 +333,7 @@ export default function TasksPage() {
           category: null,
           completed: false,
           email_reminder: false,
+          life_area_id: null,
         }),
       })
       if (response.ok) {
@@ -399,6 +417,8 @@ export default function TasksPage() {
       completionRate: tasks.length ? Math.round((completed / tasks.length) * 100) : 0,
     }
   }, [tasks])
+
+  const areaById = useMemo(() => new Map(lifeAreas.map((area) => [String(area.id), area])), [lifeAreas])
 
   const visibleTasks = useMemo(() => {
     const today = startOfToday()
@@ -623,6 +643,7 @@ export default function TasksPage() {
                               placeholder="Enter task name..."
                             />
                             <Badge className={getPriorityColor(task.priority)}>{task.priority}</Badge>
+                            <LifeAreaBadge area={task.life_area_id ? areaById.get(String(task.life_area_id)) : null} fallback="No area" />
                             {getStatusBadge(task)}
                           </div>
 
@@ -634,7 +655,7 @@ export default function TasksPage() {
                             multiline
                           />
 
-                          <div className="grid gap-3 lg:grid-cols-[180px_1fr]">
+                          <div className="grid gap-3 lg:grid-cols-[180px_220px_1fr]">
                             <div className="space-y-1.5">
                               <Label className="text-xs text-muted-foreground">Priority</Label>
                               <Select
@@ -650,6 +671,15 @@ export default function TasksPage() {
                                   <SelectItem value="low">Low</SelectItem>
                                 </SelectContent>
                               </Select>
+                            </div>
+
+                            <div className="space-y-1.5">
+                              <Label className="text-xs text-muted-foreground">Life Area</Label>
+                              <LifeAreaSelect
+                                areas={lifeAreas}
+                                value={task.life_area_id || null}
+                                onChange={(value) => handleUpdateTask(task.id, { life_area_id: value })}
+                              />
                             </div>
 
                             <div className="space-y-1.5">

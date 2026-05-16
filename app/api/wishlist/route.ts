@@ -1,8 +1,19 @@
 import { NextResponse } from 'next/server'
 import { neon } from '@neondatabase/serverless'
 import { getUserFromSession } from '@/lib/auth'
+import { normalizeLifeAreaId } from '@/lib/life-areas'
 
 const sql = neon(process.env.DATABASE_URL!)
+
+async function validateLifeAreaId(lifeAreaId: number | null, userId: string) {
+  if (!lifeAreaId) return null
+  const rows = await sql`
+    SELECT id FROM life_areas
+    WHERE id = ${lifeAreaId} AND user_id = ${userId}
+    LIMIT 1
+  `
+  return rows.length > 0 ? lifeAreaId : undefined
+}
 
 export async function GET() {
   try {
@@ -31,15 +42,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { title, description, price, link, image_url, category, priority } = await request.json()
+    const { title, description, price, link, image_url, category, priority, life_area_id } = await request.json()
 
     if (!title) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 })
     }
 
+    const lifeAreaId = await validateLifeAreaId(normalizeLifeAreaId(life_area_id), user.id)
+    if (lifeAreaId === undefined) {
+      return NextResponse.json({ error: 'Life area not found' }, { status: 404 })
+    }
+
     const result = await sql`
-      INSERT INTO wishlist_items (user_id, title, description, price, url, image_url, category, priority)
-      VALUES (${user.id}, ${title}, ${description || null}, ${price || null}, ${link || null}, ${image_url || null}, ${category || 'general'}, ${priority || 'medium'})
+      INSERT INTO wishlist_items (user_id, title, description, price, url, image_url, category, priority, life_area_id)
+      VALUES (${user.id}, ${title}, ${description || null}, ${price || null}, ${link || null}, ${image_url || null}, ${category || 'general'}, ${priority || 'medium'}, ${lifeAreaId})
       RETURNING *
     `
 
@@ -57,10 +73,17 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { id, title, description, price, link, image_url, category, priority, purchased } = await request.json()
+    const body = await request.json()
+    const { id, title, description, price, link, image_url, category, priority, purchased, life_area_id } = body
 
     if (!id) {
       return NextResponse.json({ error: 'Item ID is required' }, { status: 400 })
+    }
+
+    const lifeAreaTouched = Object.prototype.hasOwnProperty.call(body, 'life_area_id')
+    const lifeAreaId = await validateLifeAreaId(normalizeLifeAreaId(life_area_id), user.id)
+    if (lifeAreaId === undefined) {
+      return NextResponse.json({ error: 'Life area not found' }, { status: 404 })
     }
 
     const result = await sql`
@@ -74,6 +97,7 @@ export async function PUT(request: Request) {
         category = COALESCE(${category}, category),
         priority = COALESCE(${priority}, priority),
         purchased = COALESCE(${purchased}, purchased),
+        life_area_id = CASE WHEN ${lifeAreaTouched} THEN ${lifeAreaId} ELSE life_area_id END,
         updated_at = NOW()
       WHERE id = ${id} AND user_id = ${user.id}
       RETURNING *

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth-provider"
 import { DashboardLayout } from "@/components/dashboard-layout"
@@ -43,6 +43,9 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Progress } from "@/components/ui/progress"
+import { LifeAreaBadge, LifeAreaSelect } from "@/components/life-area-controls"
+import type { LifeArea } from "@/lib/life-areas"
+import { normalizeLifeArea } from "@/lib/life-areas"
 
 interface Investment {
   id: number
@@ -59,6 +62,7 @@ interface Investment {
   quantity?: number
   cached_price?: number
   last_price_fetch?: string
+  life_area_id?: string | number | null
 }
 
 interface PopularInvestment {
@@ -100,6 +104,7 @@ export default function InvestmentsPage() {
   const router = useRouter()
   const [investments, setInvestments] = useState<Investment[]>([])
   const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([])
+  const [lifeAreas, setLifeAreas] = useState<LifeArea[]>([])
   const [loading, setLoading] = useState(true)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
@@ -120,6 +125,7 @@ export default function InvestmentsPage() {
     estimated_return_rate: "",
     wishlist_item_id: "",
     quantity: "",
+    life_area_id: null as string | number | null,
   })
 
   const [stockQuotes, setStockQuotes] = useState<Record<string, StockQuote>>({})
@@ -148,6 +154,7 @@ export default function InvestmentsPage() {
   } else if (user) {
   fetchInvestments()
   fetchWishlistItems()
+  fetchLifeAreas()
   fetchPopularInvestments()
   fetchRefreshLimit()
   }
@@ -209,6 +216,18 @@ export default function InvestmentsPage() {
       }
     } catch (error) {
       console.error("Error fetching wishlist:", error)
+    }
+  }
+
+  const fetchLifeAreas = async () => {
+    try {
+      const response = await fetch("/api/life-areas")
+      if (response.ok) {
+        const data = await response.json()
+        setLifeAreas((Array.isArray(data) ? data : []).map(normalizeLifeArea))
+      }
+    } catch (error) {
+      console.error("Error fetching life areas:", error)
     }
   }
 
@@ -402,13 +421,26 @@ export default function InvestmentsPage() {
             estimated_return_rate: parseFloat(newInvestment.estimated_return_rate || "0"),
             wishlist_item_id: newInvestment.wishlist_item_id ? parseInt(newInvestment.wishlist_item_id) : null,
             quantity: newInvestment.quantity ? parseFloat(newInvestment.quantity) : null,
+            life_area_id: newInvestment.life_area_id,
           }),
         })
 
         if (response.ok) {
           await fetchInvestments()
           setIsAddDialogOpen(false)
-          setNewInvestment({ name: "", type: "Stocks", symbol: "", amount: "", current_value: "", purchase_date: "", notes: "", estimated_return_rate: "", wishlist_item_id: "", quantity: "" })
+          setNewInvestment({
+            name: "",
+            type: "Stocks",
+            symbol: "",
+            amount: "",
+            current_value: "",
+            purchase_date: "",
+            notes: "",
+            estimated_return_rate: "",
+            wishlist_item_id: "",
+            quantity: "",
+            life_area_id: null,
+          })
           setSymbolSearch("")
         }
       } catch (error) {
@@ -434,6 +466,7 @@ export default function InvestmentsPage() {
           notes: editingInvestment.notes,
           estimated_return_rate: editingInvestment.estimated_return_rate,
           wishlist_item_id: editingInvestment.wishlist_item_id || null,
+          life_area_id: editingInvestment.life_area_id ?? null,
         }),
       })
 
@@ -481,6 +514,10 @@ export default function InvestmentsPage() {
   }
 
   const getWishlistItemById = (id?: number) => wishlistItems.find(item => item.id === id)
+
+  const areaById = useMemo(() => {
+    return new Map(lifeAreas.map((area) => [String(area.id), area]))
+  }, [lifeAreas])
 
   const calculateGoalProgress = (inv: Investment) => {
     const item = getWishlistItemById(inv.wishlist_item_id)
@@ -852,6 +889,16 @@ export default function InvestmentsPage() {
                     </div>
                   </div>
                   <div>
+                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">Life Area</Label>
+                    <div className="mt-1">
+                      <LifeAreaSelect
+                        areas={lifeAreas}
+                        value={newInvestment.life_area_id}
+                        onChange={(value) => setNewInvestment({ ...newInvestment, life_area_id: value })}
+                      />
+                    </div>
+                  </div>
+                  <div>
                     <Label className="text-xs uppercase tracking-wider text-muted-foreground">Notes</Label>
                     <Textarea
                       placeholder="Investment details, strategy, etc..."
@@ -1084,6 +1131,10 @@ export default function InvestmentsPage() {
                                 Goal
                               </Badge>
                             )}
+                            <LifeAreaBadge
+                              area={inv.life_area_id ? areaById.get(String(inv.life_area_id)) : null}
+                              fallback="No area"
+                            />
                           </div>
                         </div>
                         <div className="flex gap-1">
@@ -1215,6 +1266,10 @@ export default function InvestmentsPage() {
                               {goalProgress?.toFixed(0)}%
                             </Badge>
                           )}
+                          <LifeAreaBadge
+                            area={inv.life_area_id ? areaById.get(String(inv.life_area_id)) : null}
+                            fallback="No area"
+                          />
                         </div>
                         {inv.notes && (
                           <p className="text-xs text-muted-foreground truncate mt-1">{inv.notes}</p>
@@ -1348,6 +1403,16 @@ export default function InvestmentsPage() {
                     className="mt-1 text-foreground"
                     rows={2}
                   />
+                </div>
+                <div>
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Life Area</Label>
+                  <div className="mt-1">
+                    <LifeAreaSelect
+                      areas={lifeAreas}
+                      value={editingInvestment.life_area_id ?? null}
+                      onChange={(value) => setEditingInvestment({ ...editingInvestment, life_area_id: value })}
+                    />
+                  </div>
                 </div>
                 <div className="flex gap-2 pt-2">
                   <Button onClick={handleUpdateInvestment} className="flex-1">

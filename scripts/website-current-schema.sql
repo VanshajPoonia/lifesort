@@ -50,6 +50,19 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS life_areas (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  icon VARCHAR(50) NOT NULL DEFAULT 'Target',
+  color VARCHAR(20) NOT NULL DEFAULT '#2563EB',
+  description TEXT,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(user_id, name)
+);
+
 CREATE TABLE IF NOT EXISTS goals (
   id SERIAL PRIMARY KEY,
   user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -66,6 +79,7 @@ CREATE TABLE IF NOT EXISTS goals (
   email_reminder BOOLEAN DEFAULT TRUE,
   reminder_days INTEGER DEFAULT 3,
   reminder_sent BOOLEAN DEFAULT FALSE,
+  life_area_id INTEGER REFERENCES life_areas(id) ON DELETE SET NULL,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -86,6 +100,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   reminder_days INTEGER DEFAULT 1,
   reminder_sent BOOLEAN DEFAULT FALSE,
   goal_id INTEGER REFERENCES goals(id) ON DELETE SET NULL,
+  life_area_id INTEGER REFERENCES life_areas(id) ON DELETE SET NULL,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -156,6 +171,7 @@ CREATE TABLE IF NOT EXISTS notes (
   folder_id INTEGER REFERENCES note_folders(id) ON DELETE SET NULL,
   tags TEXT[] DEFAULT '{}',
   is_pinned BOOLEAN DEFAULT FALSE,
+  life_area_id INTEGER REFERENCES life_areas(id) ON DELETE SET NULL,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -202,6 +218,7 @@ CREATE TABLE IF NOT EXISTS wishlist_items (
   priority VARCHAR(50) DEFAULT 'medium',
   category VARCHAR(100) DEFAULT 'general',
   purchased BOOLEAN DEFAULT FALSE,
+  life_area_id INTEGER REFERENCES life_areas(id) ON DELETE SET NULL,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -221,6 +238,7 @@ CREATE TABLE IF NOT EXISTS investments (
   estimated_return_rate DECIMAL(5, 2) DEFAULT 0,
   wishlist_item_id INTEGER REFERENCES wishlist_items(id) ON DELETE SET NULL,
   quantity DECIMAL(20, 8),
+  life_area_id INTEGER REFERENCES life_areas(id) ON DELETE SET NULL,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -234,6 +252,7 @@ CREATE TABLE IF NOT EXISTS income_sources (
   category VARCHAR(100),
   next_payment_date DATE,
   active BOOLEAN DEFAULT TRUE,
+  life_area_id INTEGER REFERENCES life_areas(id) ON DELETE SET NULL,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -245,6 +264,7 @@ CREATE TABLE IF NOT EXISTS budget_categories (
   color VARCHAR(20) DEFAULT '#3B82F6',
   icon VARCHAR(50) DEFAULT 'folder',
   budget_limit DECIMAL(12, 2) DEFAULT 0,
+  life_area_id INTEGER REFERENCES life_areas(id) ON DELETE SET NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -305,6 +325,7 @@ CREATE TABLE IF NOT EXISTS custom_sections (
   icon VARCHAR(50) DEFAULT 'Folder',
   color VARCHAR(50) DEFAULT 'primary',
   position INTEGER DEFAULT 0,
+  life_area_id INTEGER REFERENCES life_areas(id) ON DELETE SET NULL,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -341,11 +362,13 @@ CREATE TABLE IF NOT EXISTS popular_investments (
 );
 
 CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(session_token);
+CREATE INDEX IF NOT EXISTS idx_life_areas_user_order ON life_areas(user_id, sort_order, name);
 CREATE INDEX IF NOT EXISTS idx_goals_user_id ON goals(user_id);
 CREATE INDEX IF NOT EXISTS idx_goals_status ON goals(status);
 CREATE INDEX IF NOT EXISTS idx_goals_target_date ON goals(target_date);
 CREATE INDEX IF NOT EXISTS idx_goals_priority ON goals(priority);
 CREATE INDEX IF NOT EXISTS idx_goals_category ON goals(category);
+CREATE INDEX IF NOT EXISTS idx_goals_life_area_id ON goals(life_area_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);
 CREATE INDEX IF NOT EXISTS idx_tasks_completed ON tasks(completed);
@@ -353,17 +376,24 @@ CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority);
 CREATE INDEX IF NOT EXISTS idx_tasks_category ON tasks(category);
 CREATE INDEX IF NOT EXISTS idx_tasks_reminder_at ON tasks(reminder_at);
 CREATE INDEX IF NOT EXISTS idx_tasks_goal_id ON tasks(goal_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_life_area_id ON tasks(life_area_id);
 CREATE INDEX IF NOT EXISTS idx_calendar_events_user_date ON calendar_events(user_id, event_date);
 CREATE INDEX IF NOT EXISTS idx_note_folders_user_name ON note_folders(user_id, name);
 CREATE INDEX IF NOT EXISTS idx_notes_user_updated ON notes(user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_notes_folder_id ON notes(folder_id);
 CREATE INDEX IF NOT EXISTS idx_notes_user_pinned ON notes(user_id, is_pinned, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_notes_tags ON notes USING GIN(tags);
+CREATE INDEX IF NOT EXISTS idx_notes_life_area_id ON notes(life_area_id);
 CREATE INDEX IF NOT EXISTS idx_user_links_user_id ON user_links(user_id);
 CREATE INDEX IF NOT EXISTS idx_link_folders_user_id ON link_folders(user_id);
 CREATE INDEX IF NOT EXISTS idx_wishlist_user_id ON wishlist_items(user_id);
 CREATE INDEX IF NOT EXISTS idx_investments_user_id ON investments(user_id);
 CREATE INDEX IF NOT EXISTS idx_income_user_id ON income_sources(user_id);
+CREATE INDEX IF NOT EXISTS idx_wishlist_life_area_id ON wishlist_items(life_area_id);
+CREATE INDEX IF NOT EXISTS idx_investments_life_area_id ON investments(life_area_id);
+CREATE INDEX IF NOT EXISTS idx_income_sources_life_area_id ON income_sources(life_area_id);
+CREATE INDEX IF NOT EXISTS idx_budget_categories_life_area_id ON budget_categories(life_area_id);
+CREATE INDEX IF NOT EXISTS idx_custom_sections_life_area_id ON custom_sections(life_area_id);
 CREATE INDEX IF NOT EXISTS idx_budget_transactions_user_date ON budget_transactions(user_id, date);
 CREATE INDEX IF NOT EXISTS idx_daily_content_user_shown ON daily_content(user_id, shown_at DESC);
 CREATE INDEX IF NOT EXISTS idx_link_folders_share_token ON link_folders(share_token);

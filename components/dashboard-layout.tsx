@@ -30,6 +30,7 @@ import {
   Wallet,
   LogOut,
   Plus,
+  Network,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -47,6 +48,7 @@ interface DashboardLayoutProps {
 
 const DEFAULT_SIDEBAR_PREFS = {
   dashboard: true,
+  life_areas: true,
   calendar: true,
   links: true,
   daily_content: true,
@@ -241,6 +243,14 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
                 <Button variant={isActivePath("/") ? "secondary" : "ghost"} className={navButtonClass("/")}>
                   <LayoutGrid className={navIconClass("/")} />
                   Dashboard
+                </Button>
+              </Link>
+            )}
+            {prefs.life_areas && (
+              <Link href="/life-areas">
+                <Button variant={isActivePath("/life-areas") ? "secondary" : "ghost"} className={navButtonClass("/life-areas")}>
+                  <Network className={navIconClass("/life-areas")} />
+                  Life Areas
                 </Button>
               </Link>
             )}

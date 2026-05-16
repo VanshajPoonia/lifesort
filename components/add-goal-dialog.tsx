@@ -8,6 +8,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ReminderSettings } from "@/components/reminder-settings"
+import { LifeAreaSelect } from "@/components/life-area-controls"
+import type { LifeArea } from "@/lib/life-areas"
 
 interface AddGoalDialogProps {
   open: boolean
@@ -24,10 +26,12 @@ interface AddGoalDialogProps {
     target_value?: number | null
     current_value?: number | null
     value_unit?: string | null
+    life_area_id?: string | number | null
   }) => Promise<void>
+  lifeAreas?: LifeArea[]
 }
 
-export function AddGoalDialog({ open, onClose, onAdd }: AddGoalDialogProps) {
+export function AddGoalDialog({ open, onClose, onAdd, lifeAreas = [] }: AddGoalDialogProps) {
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -40,6 +44,7 @@ export function AddGoalDialog({ open, onClose, onAdd }: AddGoalDialogProps) {
     target_value: null as number | null,
     current_value: null as number | null,
     value_unit: "",
+    life_area_id: null as string | number | null,
   })
   const [useNumericTracking, setUseNumericTracking] = useState(false)
   const [noDeadline, setNoDeadline] = useState(false)
@@ -69,6 +74,7 @@ export function AddGoalDialog({ open, onClose, onAdd }: AddGoalDialogProps) {
         target_value: useNumericTracking ? formData.target_value : null,
         current_value: useNumericTracking ? (formData.current_value ?? 0) : null,
         value_unit: useNumericTracking ? formData.value_unit : null,
+        life_area_id: formData.life_area_id,
       })
       setFormData({
         title: "",
@@ -82,6 +88,7 @@ export function AddGoalDialog({ open, onClose, onAdd }: AddGoalDialogProps) {
         target_value: null,
         current_value: null,
         value_unit: "",
+        life_area_id: null,
       })
       setNoDeadline(false)
       setUseNumericTracking(false)
@@ -192,6 +199,14 @@ export function AddGoalDialog({ open, onClose, onAdd }: AddGoalDialogProps) {
               </div>
               {dateError && <p className="text-sm text-destructive">{dateError}</p>}
             </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Life Area</Label>
+            <LifeAreaSelect
+              areas={lifeAreas}
+              value={formData.life_area_id}
+              onChange={(value) => setFormData({ ...formData, life_area_id: value })}
+            />
           </div>
           
           {/* Numeric Tracking Option */}

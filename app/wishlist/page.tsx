@@ -2,7 +2,7 @@
 
 import React from "react"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth-provider"
 import { DashboardLayout } from "@/components/dashboard-layout"
@@ -41,6 +41,9 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Progress } from "@/components/ui/progress"
+import { LifeAreaBadge, LifeAreaSelect } from "@/components/life-area-controls"
+import type { LifeArea } from "@/lib/life-areas"
+import { normalizeLifeArea } from "@/lib/life-areas"
 
 interface WishlistItem {
   id: number
@@ -52,11 +55,13 @@ interface WishlistItem {
   url?: string
   priority: "low" | "medium" | "high"
   purchased?: boolean
+  life_area_id?: string | number | null
   created_at?: string
 }
 
 export default function WishlistPage() {
   const [items, setItems] = useState<WishlistItem[]>([])
+  const [lifeAreas, setLifeAreas] = useState<LifeArea[]>([])
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<WishlistItem | null>(null)
@@ -77,6 +82,7 @@ export default function WishlistPage() {
     image_url: "",
     url: "",
     priority: "medium" as "low" | "medium" | "high",
+    life_area_id: null as string | number | null,
   })
   
   const [fetchingPreview, setFetchingPreview] = useState(false)
@@ -151,6 +157,7 @@ export default function WishlistPage() {
   useEffect(() => {
     if (user) {
       fetchItems()
+      fetchLifeAreas()
     }
   }, [user])
 
@@ -175,6 +182,18 @@ export default function WishlistPage() {
       }
     } catch (error) {
       console.error("Failed to fetch wishlist items:", error)
+    }
+  }
+
+  const fetchLifeAreas = async () => {
+    try {
+      const response = await fetch("/api/life-areas")
+      if (response.ok) {
+        const data = await response.json()
+        setLifeAreas((Array.isArray(data) ? data : []).map(normalizeLifeArea))
+      }
+    } catch (error) {
+      console.error("Failed to fetch life areas:", error)
     }
   }
 
@@ -205,11 +224,21 @@ export default function WishlistPage() {
             image_url: newItem.image_url || null,
             link: newItem.url || null,
             priority: newItem.priority,
+            life_area_id: newItem.life_area_id,
           }),
         })
         if (response.ok) {
           fetchItems()
-          setNewItem({ title: "", description: "", category: "general", price: "", image_url: "", url: "", priority: "medium" })
+          setNewItem({
+            title: "",
+            description: "",
+            category: "general",
+            price: "",
+            image_url: "",
+            url: "",
+            priority: "medium",
+            life_area_id: null,
+          })
           setIsAddDialogOpen(false)
         }
       } catch (error) {
@@ -234,6 +263,7 @@ export default function WishlistPage() {
           link: editingItem.url,
           priority: editingItem.priority,
           purchased: editingItem.purchased,
+          life_area_id: editingItem.life_area_id ?? null,
         }),
       })
       if (response.ok) {
@@ -332,10 +362,15 @@ export default function WishlistPage() {
 
   const categories = ["general", "tech", "travel", "home", "fashion", "education", "health", "entertainment", "other"]
 
+  const areaById = useMemo(() => {
+    return new Map(lifeAreas.map((area) => [String(area.id), area]))
+  }, [lifeAreas])
+
   const filteredAndSortedItems = items
     .filter((item) => {
       const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.description?.toLowerCase().includes(searchQuery.toLowerCase())
+        item.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (item.life_area_id ? areaById.get(String(item.life_area_id))?.name.toLowerCase().includes(searchQuery.toLowerCase()) : false)
       const matchesCategory = filterCategory === "all" || item.category === filterCategory
       const matchesPriority = filterPriority === "all" || item.priority === filterPriority
       return matchesSearch && matchesCategory && matchesPriority
@@ -459,6 +494,16 @@ export default function WishlistPage() {
                       value={newItem.price}
                       onChange={(e) => setNewItem({ ...newItem, price: e.target.value })}
                       className="pl-9 text-foreground"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Life Area</Label>
+                  <div className="mt-1">
+                    <LifeAreaSelect
+                      areas={lifeAreas}
+                      value={newItem.life_area_id}
+                      onChange={(value) => setNewItem({ ...newItem, life_area_id: value })}
                     />
                   </div>
                 </div>
@@ -750,6 +795,10 @@ export default function WishlistPage() {
                           <Badge className={getPriorityColor(item.priority)} variant="outline">
                             {item.priority}
                           </Badge>
+                          <LifeAreaBadge
+                            area={item.life_area_id ? areaById.get(String(item.life_area_id)) : null}
+                            fallback="No area"
+                          />
                         </div>
                       </div>
                       <div className="flex gap-1">
@@ -838,6 +887,10 @@ export default function WishlistPage() {
                         <Badge className={getPriorityColor(item.priority)} variant="outline">
                           {item.priority}
                         </Badge>
+                        <LifeAreaBadge
+                          area={item.life_area_id ? areaById.get(String(item.life_area_id)) : null}
+                          fallback="No area"
+                        />
                       </div>
                       {item.description && (
                         <p className="text-sm text-muted-foreground truncate mt-1">{item.description}</p>
@@ -933,6 +986,16 @@ export default function WishlistPage() {
                     onChange={(e) => setEditingItem({ ...editingItem, price: e.target.value ? parseFloat(e.target.value) : undefined })}
                     className="mt-1 text-foreground"
                   />
+                </div>
+                <div>
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Life Area</Label>
+                  <div className="mt-1">
+                    <LifeAreaSelect
+                      areas={lifeAreas}
+                      value={editingItem.life_area_id ?? null}
+                      onChange={(value) => setEditingItem({ ...editingItem, life_area_id: value })}
+                    />
+                  </div>
                 </div>
                 <div>
                   <Label className="text-xs uppercase tracking-wider text-muted-foreground">Product Link</Label>

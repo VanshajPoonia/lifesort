@@ -23,6 +23,7 @@ import {
 
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { useAuth } from "@/components/auth-provider"
+import { LifeAreaBadge, LifeAreaSelect } from "@/components/life-area-controls"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -50,6 +51,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import type { LifeArea } from "@/lib/life-areas"
+import { normalizeLifeArea } from "@/lib/life-areas"
 
 interface NoteFolder {
   id: string
@@ -66,6 +69,7 @@ interface Note {
   folder_name: string | null
   tags: string[]
   is_pinned: boolean
+  life_area_id?: string | null
   created_at: string
   updated_at: string
 }
@@ -104,6 +108,7 @@ function normalizeNote(raw: Partial<Note> & Record<string, unknown>): Note {
     folder_name: typeof raw.folder_name === "string" ? raw.folder_name : null,
     tags: normalizeTags(raw.tags),
     is_pinned: Boolean(raw.is_pinned),
+    life_area_id: raw.life_area_id ? String(raw.life_area_id) : null,
     created_at: typeof raw.created_at === "string" ? raw.created_at : new Date().toISOString(),
     updated_at: typeof raw.updated_at === "string" ? raw.updated_at : new Date().toISOString(),
   }
@@ -122,13 +127,14 @@ function sortFolders(folders: NoteFolder[]) {
   return [...folders].sort((a, b) => a.name.localeCompare(b.name))
 }
 
-function noteMatchesSearch(note: Note, query: string) {
+function noteMatchesSearch(note: Note, query: string, areaName = "") {
   if (!query) return true
 
   const haystack = [
     note.title,
     note.content,
     note.folder_name || "",
+    areaName,
     ...note.tags,
   ].join(" ").toLowerCase()
 
@@ -138,6 +144,7 @@ function noteMatchesSearch(note: Note, query: string) {
 export default function NotesPage() {
   const [notes, setNotes] = useState<Note[]>([])
   const [folders, setFolders] = useState<NoteFolder[]>([])
+  const [lifeAreas, setLifeAreas] = useState<LifeArea[]>([])
   const [selectedNote, setSelectedNote] = useState<Note | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState("")
@@ -186,9 +193,10 @@ export default function NotesPage() {
     setLoadError("")
 
     try {
-      const [notesResponse, foldersResponse] = await Promise.all([
+      const [notesResponse, foldersResponse, lifeAreasResponse] = await Promise.all([
         fetch("/api/notes"),
         fetch("/api/note-folders"),
+        fetch("/api/life-areas"),
       ])
 
       if (!notesResponse.ok) {
@@ -205,8 +213,15 @@ export default function NotesPage() {
         nextFolders = Array.isArray(foldersData) ? sortFolders(foldersData.map(normalizeFolder)) : []
       }
 
+      let nextLifeAreas: LifeArea[] = []
+      if (lifeAreasResponse.ok) {
+        const lifeAreasData = await lifeAreasResponse.json()
+        nextLifeAreas = Array.isArray(lifeAreasData) ? lifeAreasData.map(normalizeLifeArea) : []
+      }
+
       setNotes(nextNotes)
       setFolders(nextFolders)
+      setLifeAreas(nextLifeAreas)
       setSelectedNote((prev) => {
         if (!prev) return nextNotes[0] || null
         return nextNotes.find((note) => note.id === prev.id) || nextNotes[0] || null
@@ -302,6 +317,10 @@ export default function NotesPage() {
     [notes]
   )
 
+  const areaById = useMemo(() => {
+    return new Map(lifeAreas.map((area) => [String(area.id), area]))
+  }, [lifeAreas])
+
   const filteredNotes = useMemo(() => {
     const now = Date.now()
 
@@ -313,9 +332,10 @@ export default function NotesPage() {
         (activeFilter.type === "folder" && note.folder_id === activeFilter.value) ||
         (activeFilter.type === "tag" && note.tags.includes(activeFilter.value))
 
-      return matchesFilter && noteMatchesSearch(note, searchQuery)
+      const areaName = note.life_area_id ? areaById.get(String(note.life_area_id))?.name : ""
+      return matchesFilter && noteMatchesSearch(note, searchQuery, areaName)
     })
-  }, [activeFilter, notes, searchQuery])
+  }, [activeFilter, areaById, notes, searchQuery])
 
   const folderCounts = useMemo(() => {
     return notes.reduce<Record<string, number>>((counts, note) => {
@@ -350,6 +370,7 @@ export default function NotesPage() {
           content: "",
           folder_id: selectedFolderId,
           tags: selectedTag ? [selectedTag] : [],
+          life_area_id: null,
         }),
       })
 
@@ -408,6 +429,13 @@ export default function NotesPage() {
       folder_name: folder?.name || null,
     })
     await saveNotePatch(selectedNote.id, { folder_id: nextFolderId })
+  }
+
+  const handleLifeAreaChange = async (lifeAreaId: string | null) => {
+    if (!selectedNote) return
+
+    updateLocalNote(selectedNote.id, { life_area_id: lifeAreaId })
+    await saveNotePatch(selectedNote.id, { life_area_id: lifeAreaId })
   }
 
   const addTagToSelectedNote = async () => {
@@ -798,6 +826,12 @@ export default function NotesPage() {
                                   ))}
                                 </div>
                               )}
+                              <div className="mt-2">
+                                <LifeAreaBadge
+                                  area={note.life_area_id ? areaById.get(String(note.life_area_id)) : null}
+                                  fallback="No area"
+                                />
+                              </div>
                             </div>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -891,7 +925,7 @@ export default function NotesPage() {
                     </div>
                   </div>
 
-                  <div className="mt-4 grid gap-3 md:grid-cols-[220px_1fr]">
+                  <div className="mt-4 grid gap-3 md:grid-cols-[220px_220px_1fr]">
                     <Select value={selectedNote.folder_id || "none"} onValueChange={handleFolderChange}>
                       <SelectTrigger>
                         <SelectValue placeholder="No folder" />
@@ -903,6 +937,12 @@ export default function NotesPage() {
                         ))}
                       </SelectContent>
                     </Select>
+
+                    <LifeAreaSelect
+                      areas={lifeAreas}
+                      value={selectedNote.life_area_id ?? null}
+                      onChange={handleLifeAreaChange}
+                    />
 
                     <div className="flex min-w-0 flex-wrap items-center gap-2">
                       {selectedNote.tags.length === 0 ? (

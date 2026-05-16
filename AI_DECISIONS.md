@@ -88,6 +88,8 @@ Open/inconsistent auth questions:
 - `scripts/website-current-schema.sql` is the closest canonical schema baseline because it says it reflects the current website API and older patch scripts contain drift.
 - Many older SQL scripts are incremental patches and should be reviewed before use.
 - There is no migration runner script in `package.json`.
+- Life Areas are modeled as a user-owned `life_areas` table with optional nullable `life_area_id` foreign keys on tasks, goals, notes, wishlist items, budget categories, income sources, investments, and custom sections. Budget transactions intentionally stay indirectly organized through their category instead of getting a direct Life Area column in the first pass.
+- Default Life Areas are seeded by SQL migrations for existing users and by registration/API code for future users; the app still treats Life Area assignment as optional everywhere.
 
 ## Deployment Decisions
 

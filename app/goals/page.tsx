@@ -9,6 +9,7 @@ import { AddGoalDialog } from "@/components/add-goal-dialog"
 import { useAuth } from "@/components/auth-provider"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { GoalModal } from "@/components/goal-modal"
+import { LifeAreaBadge } from "@/components/life-area-controls"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -22,6 +23,8 @@ import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import type { LifeArea } from "@/lib/life-areas"
+import { normalizeLifeArea } from "@/lib/life-areas"
 
 type GoalStatus = "active" | "completed" | "paused"
 type GoalFilter = GoalStatus | "overdue"
@@ -43,6 +46,7 @@ export interface Goal {
   email_reminder: boolean
   reminder_days: number
   reminder_sent?: boolean
+  life_area_id?: string | number | null
 }
 
 export interface GoalTask {
@@ -66,6 +70,7 @@ type AddGoalPayload = {
   target_value?: number | null
   current_value?: number | null
   value_unit?: string | null
+  life_area_id?: string | number | null
 }
 
 const statusTabs: Array<{ value: GoalFilter; label: string }> = [
@@ -132,6 +137,7 @@ function normalizeGoal(goal: Record<string, unknown>): Goal {
     email_reminder: Boolean(goal.email_reminder && goal.target_date),
     reminder_days: Number.isFinite(Number(goal.reminder_days)) ? Number(goal.reminder_days) : 3,
     reminder_sent: Boolean(goal.reminder_sent),
+    life_area_id: goal.life_area_id ? String(goal.life_area_id) : null,
   }
 }
 
@@ -190,6 +196,7 @@ export default function GoalsPage() {
   const router = useRouter()
   const [goals, setGoals] = useState<Goal[]>([])
   const [tasks, setTasks] = useState<GoalTask[]>([])
+  const [lifeAreas, setLifeAreas] = useState<LifeArea[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeFilter, setActiveFilter] = useState<GoalFilter>("active")
@@ -213,7 +220,11 @@ export default function GoalsPage() {
       setError(null)
 
       try {
-        const [goalsResponse, tasksResponse] = await Promise.all([fetch("/api/goals"), fetch("/api/tasks")])
+        const [goalsResponse, tasksResponse, lifeAreasResponse] = await Promise.all([
+          fetch("/api/goals"),
+          fetch("/api/tasks"),
+          fetch("/api/life-areas"),
+        ])
 
         if (!goalsResponse.ok) {
           throw new Error("Failed to load goals")
@@ -221,10 +232,12 @@ export default function GoalsPage() {
 
         const goalsData = await goalsResponse.json()
         const tasksData = tasksResponse.ok ? await tasksResponse.json() : []
+        const lifeAreasData = lifeAreasResponse.ok ? await lifeAreasResponse.json() : []
 
         if (!cancelled) {
           setGoals((Array.isArray(goalsData) ? goalsData : []).map(normalizeGoal))
           setTasks((Array.isArray(tasksData) ? tasksData : []).map(normalizeTask))
+          setLifeAreas((Array.isArray(lifeAreasData) ? lifeAreasData : []).map(normalizeLifeArea))
         }
       } catch (fetchError) {
         console.error("Failed to fetch goals:", fetchError)
@@ -273,6 +286,10 @@ export default function GoalsPage() {
         : 0,
     }
   }, [goals])
+
+  const areaById = useMemo(() => {
+    return new Map(lifeAreas.map((area) => [String(area.id), area]))
+  }, [lifeAreas])
 
   async function handleAddGoal(goalData: AddGoalPayload) {
     const response = await fetch("/api/goals", {
@@ -440,6 +457,10 @@ export default function GoalsPage() {
                         <Badge className={getPriorityColor(goal.priority)} variant="outline">
                           {goal.priority}
                         </Badge>
+                        <LifeAreaBadge
+                          area={goal.life_area_id ? areaById.get(String(goal.life_area_id)) : null}
+                          fallback="No area"
+                        />
                       </div>
                       <CardDescription className="mt-2 line-clamp-2">
                         {goal.description || "No description added."}
@@ -529,7 +550,12 @@ export default function GoalsPage() {
         )}
       </div>
 
-      <AddGoalDialog open={isAddDialogOpen} onClose={() => setIsAddDialogOpen(false)} onAdd={handleAddGoal} />
+      <AddGoalDialog
+        open={isAddDialogOpen}
+        onClose={() => setIsAddDialogOpen(false)}
+        onAdd={handleAddGoal}
+        lifeAreas={lifeAreas}
+      />
 
       <GoalModal
         goal={selectedGoal}
@@ -543,6 +569,7 @@ export default function GoalsPage() {
           if (selectedGoal) return updateTaskGoal(taskId, selectedGoal.id)
         }}
         onUnlinkTask={(taskId) => updateTaskGoal(taskId, null)}
+        lifeAreas={lifeAreas}
       />
     </DashboardLayout>
   )

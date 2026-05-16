@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
 import { getUserFromRequest } from "@/lib/auth"
+import { normalizeLifeAreaId } from "@/lib/life-areas"
 
 const sql = neon(process.env.DATABASE_URL!)
+
+async function validateLifeAreaId(lifeAreaId: number | null, userId: string) {
+  if (!lifeAreaId) return null
+  const rows = await sql`
+    SELECT id FROM life_areas
+    WHERE id = ${lifeAreaId} AND user_id = ${userId}
+    LIMIT 1
+  `
+  return rows.length > 0 ? lifeAreaId : undefined
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -32,16 +43,21 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, icon, color, description, fields, position } = body
+    const { title, icon, color, description, fields, position, life_area_id } = body
 
     if (!title || typeof title !== "string" || !title.trim()) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 })
     }
 
     const fieldsJson = JSON.stringify(Array.isArray(fields) ? fields : [])
+    const lifeAreaId = await validateLifeAreaId(normalizeLifeAreaId(life_area_id), user.id)
+
+    if (lifeAreaId === undefined) {
+      return NextResponse.json({ error: "Life area not found" }, { status: 404 })
+    }
 
     const result = await sql`
-      INSERT INTO custom_sections (user_id, title, icon, color, description, fields, position)
+      INSERT INTO custom_sections (user_id, title, icon, color, description, fields, position, life_area_id)
       VALUES (
         ${user.id},
         ${title.trim()},
@@ -49,7 +65,8 @@ export async function POST(request: NextRequest) {
         ${color || "primary"},
         ${description || null},
         ${fieldsJson}::jsonb,
-        ${position ?? 0}
+        ${position ?? 0},
+        ${lifeAreaId}
       )
       RETURNING *
     `
@@ -69,7 +86,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { id, title, icon, color, description, fields, position } = body
+    const { id, title, icon, color, description, fields, position, life_area_id } = body
 
     if (!id) {
       return NextResponse.json({ error: "ID is required" }, { status: 400 })
@@ -80,6 +97,12 @@ export async function PUT(request: NextRequest) {
     }
 
     const fieldsJson = JSON.stringify(Array.isArray(fields) ? fields : [])
+    const lifeAreaTouched = Object.prototype.hasOwnProperty.call(body, "life_area_id")
+    const lifeAreaId = await validateLifeAreaId(normalizeLifeAreaId(life_area_id), user.id)
+
+    if (lifeAreaId === undefined) {
+      return NextResponse.json({ error: "Life area not found" }, { status: 404 })
+    }
 
     const result = await sql`
       UPDATE custom_sections
@@ -90,6 +113,7 @@ export async function PUT(request: NextRequest) {
         description = ${description || null},
         fields = ${fieldsJson}::jsonb,
         position = ${position ?? 0},
+        life_area_id = CASE WHEN ${lifeAreaTouched} THEN ${lifeAreaId} ELSE life_area_id END,
         updated_at = NOW()
       WHERE id = ${id} AND user_id = ${user.id}
       RETURNING *

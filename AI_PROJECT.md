@@ -8,25 +8,26 @@ Project name: LifeSort.
 
 `package.json` currently names the package `my-v0-project`, but the app UI, metadata, README, assets, and domain language identify the product as LifeSort.
 
-LifeSort is a personal life-management application for organizing goals, tasks, calendar events, notes, links, wishlist items, investments, income, budgets, daily content, and productivity coaching.
+LifeSort is a personal life-management application for organizing life areas, goals, tasks, calendar events, notes, links, wishlist items, investments, income, budgets, daily content, and productivity coaching.
 
 ## Current Product Scope
 
 Implemented feature areas found in the repo:
 
 - Dashboard at `app/page.tsx`, aggregating tasks, goals, notes, budget, investments, wishlist, and income.
+- Life Areas at `app/life-areas/page.tsx`, providing user-owned cross-module organization with default areas, icons, colors, descriptions, and ordering.
 - Custom auth: login, register, logout, current-user check, forgot password, and reset password.
-- Tasks with priority, due date/time, reminders, completion state, category, and optional goal linking.
-- Goals with status, priority, progress, target dates, numeric tracking, reminders, and linked tasks.
+- Tasks with priority, due date/time, reminders, completion state, category, optional goal linking, and optional Life Area assignment.
+- Goals with status, priority, progress, target dates, numeric tracking, reminders, linked tasks, and optional Life Area assignment.
 - Nuke goal page for one large goal with milestones and reminders.
 - Calendar page with local events and Google Calendar integration/sync routes.
-- Notes page with CRUD, folders, tags, pinned notes, local search/filter UI, and autosave-style editing.
+- Notes page with CRUD, folders, tags, pinned notes, optional Life Area assignment, local search/filter UI, and autosave-style editing.
 - Links page with folders, subfolders, URL previews, image upload via base64, and share links.
 - Public share page at `app/share/[token]/page.tsx`.
-- Wishlist with price, URL, image, priority, category, purchased state, preview fetching, and conversion to investment.
-- Investments with symbols, quantities, estimated returns, quotes, refresh limits, popular investments, background fetch, and screenshot parsing/import.
-- Income sources with amount, frequency, category, next payment date, and active state.
-- Budget categories, transactions, goals, summary cards, and calculator UI.
+- Wishlist with price, URL, image, priority, category, optional Life Area assignment, purchased state, preview fetching, and conversion to investment.
+- Investments with symbols, quantities, estimated returns, optional Life Area assignment, quotes, refresh limits, popular investments, background fetch, and screenshot parsing/import.
+- Income sources with amount, frequency, category, optional Life Area assignment, next payment date, and active state.
+- Budget categories with optional Life Area assignment, transactions, goals, summary cards, and calculator UI.
 - Daily content with generated/static jokes, quotes, trivia, riddles, fun facts, games, and history.
 - Games: Snake and Wordle components.
 - Settings for profile, daily content preferences, and sidebar preferences.
@@ -86,6 +87,7 @@ Important database files:
 Major tables in the current schema baseline:
 
 - `users`, `sessions`, `password_reset_tokens`
+- `life_areas`
 - `goals`, `tasks`, `nuke_goals`
 - `calendar_events`, `calendar_integrations`
 - `note_folders`, `notes`
@@ -105,7 +107,7 @@ Backend code lives in `app/api/**/route.ts`. It uses Next route handlers with di
 Representative API areas:
 
 - Auth: `app/api/auth/*`
-- CRUD: `tasks`, `goals`, `notes`, `note-folders`, `links`, `link-folders`, `wishlist`, `investments`, `income`, `budget`, `calendar-events`, `nuke-goal`, `custom-sections`
+- CRUD: `life-areas`, `tasks`, `goals`, `notes`, `note-folders`, `links`, `link-folders`, `wishlist`, `investments`, `income`, `budget`, `calendar-events`, `nuke-goal`, `custom-sections`
 - User/profile/preferences: `profile`, `onboarding`, `sidebar-preferences`, `daily-content`
 - Integrations: `calendar/google/*`, `calendar/sync`, `stock-quote`, `url-preview`
 - AI: `chat`, `daily-content/generate`, `investments/parse-screenshot`
@@ -117,7 +119,8 @@ The frontend uses App Router pages under `app/`. Most feature pages are client c
 
 Important pages:
 
-- `/`: dashboard
+- `/`: dashboard with Life Area Balance
+- `/life-areas`
 - `/login`, `/register`, `/forgot-password`, `/reset-password`
 - `/tasks`, `/goals`, `/nuke`, `/calendar`, `/notes`, `/links`
 - `/wishlist`, `/investments`, `/income`, `/budget`
@@ -127,6 +130,7 @@ Important pages:
 Important shared components:
 
 - `components/dashboard-layout.tsx`: app shell/sidebar/top-level layout for signed-in app pages.
+- `components/life-area-controls.tsx`: shared Life Area icon, badge, and selector controls.
 - `components/auth-provider.tsx`: client auth context.
 - `components/subscription-checker.tsx`: subscription/trial UI state.
 - `components/theme-provider.tsx` and `components/theme-switcher.tsx`: localStorage-based theme handling.
