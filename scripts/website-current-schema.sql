@@ -63,6 +63,19 @@ CREATE TABLE IF NOT EXISTS life_areas (
   UNIQUE(user_id, name)
 );
 
+CREATE TABLE IF NOT EXISTS daily_plans (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  plan_date DATE NOT NULL,
+  focus_items JSONB NOT NULL DEFAULT '[]'::jsonb,
+  reflection_went_well TEXT,
+  reflection_did_not_go_well TEXT,
+  reflection_improve_tomorrow TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(user_id, plan_date)
+);
+
 CREATE TABLE IF NOT EXISTS goals (
   id SERIAL PRIMARY KEY,
   user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -363,6 +376,7 @@ CREATE TABLE IF NOT EXISTS popular_investments (
 
 CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(session_token);
 CREATE INDEX IF NOT EXISTS idx_life_areas_user_order ON life_areas(user_id, sort_order, name);
+CREATE INDEX IF NOT EXISTS idx_daily_plans_user_date ON daily_plans(user_id, plan_date);
 CREATE INDEX IF NOT EXISTS idx_goals_user_id ON goals(user_id);
 CREATE INDEX IF NOT EXISTS idx_goals_status ON goals(status);
 CREATE INDEX IF NOT EXISTS idx_goals_target_date ON goals(target_date);

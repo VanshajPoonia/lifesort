@@ -19,6 +19,7 @@ import {
   Bell,
   Settings,
   LayoutGrid,
+  CalendarCheck,
   Calendar as CalendarIcon,
   Zap,
   FileText,
@@ -48,6 +49,7 @@ interface DashboardLayoutProps {
 
 const DEFAULT_SIDEBAR_PREFS = {
   dashboard: true,
+  today: true,
   life_areas: true,
   calendar: true,
   links: true,
@@ -243,6 +245,14 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
                 <Button variant={isActivePath("/") ? "secondary" : "ghost"} className={navButtonClass("/")}>
                   <LayoutGrid className={navIconClass("/")} />
                   Dashboard
+                </Button>
+              </Link>
+            )}
+            {prefs.today && (
+              <Link href="/today">
+                <Button variant={isActivePath("/today") ? "secondary" : "ghost"} className={navButtonClass("/today")}>
+                  <CalendarCheck className={navIconClass("/today")} />
+                  Today Plan
                 </Button>
               </Link>
             )}

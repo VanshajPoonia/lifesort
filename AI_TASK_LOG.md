@@ -17,6 +17,52 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-05-17 03:10 IST - Today Plan Feature
+
+- Agent/tool used: Codex.
+- Task summary: Implemented the website-only Today Plan feature as a non-AI daily command center.
+- Files changed:
+  - Added: `app/api/today-plan/route.ts`, `app/today/page.tsx`, `scripts/add-today-plan.sql`.
+  - Updated: `app/page.tsx`, `components/dashboard-layout.tsx`, `app/api/sidebar-preferences/route.ts`, `app/settings/page.tsx`, `scripts/website-current-schema.sql`, `scripts/run-pending-migrations.sql`, `AI_PROJECT.md`, `AI_DECISIONS.md`, `AI_TASK_LOG.md`.
+- Summary of changes:
+  - Added `/today` with Today's Focus, suggested focus, Must Do, Should Do, Could Do, Upcoming Deadlines, Calendar Today, Quick Notes, and End of Day Reflection sections.
+  - Added 1-3 saved focus items with support for existing module references and custom focus text.
+  - Added reflection fields for what went well, what did not, and what to improve tomorrow.
+  - Added `/api/today-plan` with authenticated `GET` and `PUT`, user-scoped source queries, partial section fallback, and server-side focus item normalization/capping.
+  - Added Today Plan to sidebar navigation, sidebar preferences defaults, settings controls, and the dashboard preview card.
+- New data model:
+  - New table: `daily_plans`.
+  - Columns: `id`, `user_id`, `plan_date`, `focus_items JSONB DEFAULT '[]'`, `reflection_went_well`, `reflection_did_not_go_well`, `reflection_improve_tomorrow`, `created_at`, `updated_at`.
+  - Constraint: unique `(user_id, plan_date)`.
+- Migration status:
+  - Created `scripts/add-today-plan.sql`.
+  - Updated `scripts/website-current-schema.sql`.
+  - Updated `scripts/run-pending-migrations.sql`.
+  - No database migrations were run automatically.
+- Commands run:
+  - `git status --short --branch`
+  - `npx tsc --noEmit`
+  - `npm run lint`
+  - `npm run build`
+  - `git diff --check`
+- Verification results:
+  - `npx tsc --noEmit`: passed after fixing a dashboard error-key type. A later parallel rerun with `npm run build` produced transient missing `.next/types` errors because the build rewrote generated files while TypeScript was reading them; rerunning `npx tsc --noEmit` by itself passed.
+  - `npm run lint`: failed before linting source because ESLint 10.3.0 cannot find `eslint.config.(js|mjs|cjs)`.
+  - `npm run build`: passed, generated 71 routes, skipped type validation and linting, and emitted the known unsupported `metadata.themeColor`/`metadata.viewport` warnings.
+  - `git diff --check`: passed.
+- Remaining issues:
+  - Apply and verify the Today Plan migration in the target Neon environment before saving daily plans.
+  - Source sections that depend on unapplied module migrations can show as unavailable until schema drift is resolved.
+  - Habits/routines are intentionally omitted because no dedicated habits/routines model exists.
+  - No browser/manual smoke test was run after this implementation.
+- Suggested next steps:
+  - Confirm the target database and run pending migrations, then smoke-test `/today` with empty data and with tasks, goals, calendar events, notes, budget categories/goals, and wishlist items.
+  - Add ESLint flat config and keep `npx tsc --noEmit` green before relying on build-only confidence.
+- Handoff notes:
+  - Today Plan v1 saves only focus items and reflections; Must/Should/Could and other sections are derived live from existing user data.
+  - User isolation is enforced by `getUserFromSession()` and `user_id` filters in all Today Plan queries.
+  - Actual message generation or AI summarization was not added.
+
 ### 2026-05-17 05:30 IST - Life Areas System
 
 - Agent/tool used: Codex.

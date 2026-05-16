@@ -49,6 +49,7 @@ Architecture and product decision memory for LifeSort.
 - Tasks can link to goals through `tasks.goal_id`.
 - Investments can link to wishlist items through `investments.wishlist_item_id`.
 - Notes use a simple knowledge model: user-owned `note_folders`, optional `notes.folder_id`, inline `notes.tags` as `TEXT[]`, and `notes.is_pinned` for pinned/favorite notes.
+- Today Plan uses one `daily_plans` row per user per date, with `focus_items JSONB` for up to three saved focus items and three reflection text fields.
 - Link folders can be nested through `link_folders.parent_id`.
 - Preferences use JSON/JSONB in user-related tables, including sidebar preferences and content preferences.
 - Daily content stores generated or played content with `content_type`, `category`, `content`, and `extra_data`.
@@ -90,6 +91,7 @@ Open/inconsistent auth questions:
 - There is no migration runner script in `package.json`.
 - Life Areas are modeled as a user-owned `life_areas` table with optional nullable `life_area_id` foreign keys on tasks, goals, notes, wishlist items, budget categories, income sources, investments, and custom sections. Budget transactions intentionally stay indirectly organized through their category instead of getting a direct Life Area column in the first pass.
 - Default Life Areas are seeded by SQL migrations for existing users and by registration/API code for future users; the app still treats Life Area assignment as optional everywhere.
+- Today Plan v1 stores only focus selections and reflection fields. Must Do, Should Do, Could Do, Upcoming Deadlines, Calendar Today, and Quick Notes are derived on demand from existing user-scoped modules rather than duplicated into `daily_plans`.
 
 ## Deployment Decisions
 

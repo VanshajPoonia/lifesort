@@ -8,13 +8,14 @@ Project name: LifeSort.
 
 `package.json` currently names the package `my-v0-project`, but the app UI, metadata, README, assets, and domain language identify the product as LifeSort.
 
-LifeSort is a personal life-management application for organizing life areas, goals, tasks, calendar events, notes, links, wishlist items, investments, income, budgets, daily content, and productivity coaching.
+LifeSort is a personal life-management application for organizing today plans, life areas, goals, tasks, calendar events, notes, links, wishlist items, investments, income, budgets, daily content, and productivity coaching.
 
 ## Current Product Scope
 
 Implemented feature areas found in the repo:
 
 - Dashboard at `app/page.tsx`, aggregating tasks, goals, notes, budget, investments, wishlist, and income.
+- Today Plan at `app/today/page.tsx`, providing a non-AI daily command center with focus items, derived task/goal/calendar/note/budget/wishlist suggestions, and end-of-day reflection.
 - Life Areas at `app/life-areas/page.tsx`, providing user-owned cross-module organization with default areas, icons, colors, descriptions, and ordering.
 - Custom auth: login, register, logout, current-user check, forgot password, and reset password.
 - Tasks with priority, due date/time, reminders, completion state, category, optional goal linking, and optional Life Area assignment.
@@ -88,6 +89,7 @@ Major tables in the current schema baseline:
 
 - `users`, `sessions`, `password_reset_tokens`
 - `life_areas`
+- `daily_plans`
 - `goals`, `tasks`, `nuke_goals`
 - `calendar_events`, `calendar_integrations`
 - `note_folders`, `notes`
@@ -107,7 +109,7 @@ Backend code lives in `app/api/**/route.ts`. It uses Next route handlers with di
 Representative API areas:
 
 - Auth: `app/api/auth/*`
-- CRUD: `life-areas`, `tasks`, `goals`, `notes`, `note-folders`, `links`, `link-folders`, `wishlist`, `investments`, `income`, `budget`, `calendar-events`, `nuke-goal`, `custom-sections`
+- CRUD and planning: `today-plan`, `life-areas`, `tasks`, `goals`, `notes`, `note-folders`, `links`, `link-folders`, `wishlist`, `investments`, `income`, `budget`, `calendar-events`, `nuke-goal`, `custom-sections`
 - User/profile/preferences: `profile`, `onboarding`, `sidebar-preferences`, `daily-content`
 - Integrations: `calendar/google/*`, `calendar/sync`, `stock-quote`, `url-preview`
 - AI: `chat`, `daily-content/generate`, `investments/parse-screenshot`
@@ -119,7 +121,8 @@ The frontend uses App Router pages under `app/`. Most feature pages are client c
 
 Important pages:
 
-- `/`: dashboard with Life Area Balance
+- `/`: dashboard with Today Plan preview and Life Area Balance
+- `/today`
 - `/life-areas`
 - `/login`, `/register`, `/forgot-password`, `/reset-password`
 - `/tasks`, `/goals`, `/nuke`, `/calendar`, `/notes`, `/links`

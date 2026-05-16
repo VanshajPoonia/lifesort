@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import {
   AlertCircle,
   ArrowRight,
+  CalendarCheck,
   CheckCircle2,
   Clock,
   FileText,
@@ -32,6 +33,7 @@ import type { LifeArea } from "@/lib/life-areas"
 import { normalizeLifeArea } from "@/lib/life-areas"
 
 type DashboardApiKey = "tasks" | "goals" | "notes" | "budget" | "investments" | "wishlist" | "income"
+type DashboardErrorKey = DashboardApiKey | "today"
 
 interface Task {
   id: number | string
@@ -154,6 +156,14 @@ interface ActivityItem {
   life_area_id?: string | number | null
 }
 
+interface TodayPlanPreview {
+  summary?: {
+    focusItems?: number
+    dueOrOverdueTasks?: number
+    calendarToday?: number
+  }
+}
+
 const emptySources: DashboardSources = {
   tasks: [],
   goals: [],
@@ -222,6 +232,12 @@ function startOfToday() {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   return today
+}
+
+function localDateString() {
+  const date = new Date()
+  const offset = date.getTimezoneOffset()
+  return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 10)
 }
 
 function parseDate(value?: string | null) {
@@ -351,8 +367,9 @@ export default function Home() {
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [sources, setSources] = useState<DashboardSources>(emptySources)
   const [lifeAreas, setLifeAreas] = useState<LifeArea[]>([])
+  const [todayPreview, setTodayPreview] = useState<TodayPlanPreview | null>(null)
   const [dashboardLoading, setDashboardLoading] = useState(true)
-  const [errors, setErrors] = useState<Partial<Record<DashboardApiKey, string>>>({})
+  const [errors, setErrors] = useState<Partial<Record<DashboardErrorKey, string>>>({})
 
   useEffect(() => {
     if (!loading && !user) {
@@ -386,7 +403,8 @@ export default function Home() {
 
   const fetchDashboard = async () => {
     setDashboardLoading(true)
-    const [tasks, goals, notes, budget, investments, wishlist, income, lifeAreasResult] = await Promise.all([
+    const planDate = localDateString()
+    const [tasks, goals, notes, budget, investments, wishlist, income, lifeAreasResult, todayPlan] = await Promise.all([
       fetchJson<Task[]>(apiEndpoints.tasks),
       fetchJson<Goal[]>(apiEndpoints.goals),
       fetchJson<Note[]>(apiEndpoints.notes),
@@ -395,6 +413,7 @@ export default function Home() {
       fetchJson<WishlistItem[]>(apiEndpoints.wishlist),
       fetchJson<IncomeSource[]>(apiEndpoints.income),
       fetchJson<LifeArea[]>("/api/life-areas"),
+      fetchJson<TodayPlanPreview>(`/api/today-plan?date=${planDate}`),
     ])
 
     setSources({
@@ -407,6 +426,7 @@ export default function Home() {
       income: normalizeArray<IncomeSource>(income.data),
     })
     setLifeAreas(normalizeArray<LifeArea>(lifeAreasResult.data).map((area) => normalizeLifeArea(area as unknown as Record<string, unknown>)))
+    setTodayPreview(todayPlan.data)
     setErrors({
       ...(tasks.error ? { tasks: tasks.error } : {}),
       ...(goals.error ? { goals: goals.error } : {}),
@@ -415,6 +435,7 @@ export default function Home() {
       ...(investments.error ? { investments: investments.error } : {}),
       ...(wishlist.error ? { wishlist: wishlist.error } : {}),
       ...(income.error ? { income: income.error } : {}),
+      ...(todayPlan.error ? { today: todayPlan.error } : {}),
     })
     setDashboardLoading(false)
   }
@@ -728,6 +749,52 @@ export default function Home() {
             </>
           )}
         </div>
+
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <CalendarCheck className="h-5 w-5 text-primary" />
+                  Today Plan
+                </CardTitle>
+                <CardDescription>Your daily focus, schedule, and reflection.</CardDescription>
+              </div>
+              <Button asChild size="sm" className="gap-2">
+                <Link href="/today">
+                  Open Today
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {dashboardLoading ? (
+              <div className="grid gap-3 md:grid-cols-3">
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-16 w-full" />
+              </div>
+            ) : errors.today ? (
+              <SectionUnavailable label="Today Plan" />
+            ) : (
+              <div className="grid gap-3 md:grid-cols-3">
+                <div className="rounded-md border bg-background/70 p-3">
+                  <p className="text-2xl font-bold">{todayPreview?.summary?.focusItems || 0}/3</p>
+                  <p className="text-xs text-muted-foreground">focus items selected</p>
+                </div>
+                <div className="rounded-md border bg-background/70 p-3">
+                  <p className="text-2xl font-bold">{todayPreview?.summary?.dueOrOverdueTasks || 0}</p>
+                  <p className="text-xs text-muted-foreground">due or overdue tasks</p>
+                </div>
+                <div className="rounded-md border bg-background/70 p-3">
+                  <p className="text-2xl font-bold">{todayPreview?.summary?.calendarToday || 0}</p>
+                  <p className="text-xs text-muted-foreground">calendar events today</p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>
