@@ -343,70 +343,90 @@ export default function NotesPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: 'Untitled Note',
-          content: '',
+          title: "Untitled Note",
+          content: "",
+          folder_id: selectedFolderId,
+          tags: selectedTag ? [selectedTag] : [],
         }),
       })
 
-      if (response.ok) {
-        const newNote = await response.json()
-        setNotes([newNote, ...notes])
-        setSelectedNote(newNote)
-        // Focus title input after a short delay
-        setTimeout(() => {
-          titleInputRef.current?.focus()
-          titleInputRef.current?.select()
-        }, 100)
+      if (!response.ok) {
+        throw new Error("Failed to create note")
       }
+
+      const newNote = normalizeNote(await response.json())
+      const noteWithFolder = {
+        ...newNote,
+        folder_name: newNote.folder_name || selectedFolder?.name || null,
+      }
+
+      setNotes((prev) => [noteWithFolder, ...prev])
+      setSelectedNote(noteWithFolder)
+      setSaveState("saved")
+      setTimeout(() => {
+        titleInputRef.current?.focus()
+        titleInputRef.current?.select()
+      }, 100)
     } catch (error) {
-      console.error('[v0] Error creating note:', error)
+      console.error("[v0] Error creating note:", error)
+      setSaveState("error")
+    } finally {
+      setCreatingNote(false)
     }
   }
 
-  const autoSave = useCallback(async (noteId: string, field: 'title' | 'content', value: string) => {
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current)
-    }
-
-    saveTimeoutRef.current = setTimeout(async () => {
-      setSaving(true)
-      try {
-        const response = await fetch('/api/notes', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: noteId,
-            [field]: value,
-          }),
-        })
-
-        if (response.ok) {
-          const updated = await response.json()
-          setNotes(prev => prev.map(n => n.id === updated.id ? updated : n))
-        }
-      } catch (error) {
-        console.error('[v0] Error saving note:', error)
-      } finally {
-        setSaving(false)
-      }
-    }, 500)
-  }, [])
-
   const handleTitleChange = (title: string) => {
     if (!selectedNote) return
-    setSelectedNote({ ...selectedNote, title })
-    autoSave(selectedNote.id, 'title', title)
+
+    updateLocalNote(selectedNote.id, { title })
+    queueAutoSave(selectedNote.id, { title })
   }
 
   const handleContentChange = (content: string) => {
     if (!selectedNote) return
-    setSelectedNote({ ...selectedNote, content })
-    autoSave(selectedNote.id, 'content', content)
+
+    updateLocalNote(selectedNote.id, { content })
+    queueAutoSave(selectedNote.id, { content })
+  }
+
+  const togglePinned = async (note: Note) => {
+    const isPinned = !note.is_pinned
+    updateLocalNote(note.id, { is_pinned: isPinned })
+    await saveNotePatch(note.id, { is_pinned: isPinned })
+  }
+
+  const handleFolderChange = async (folderId: string) => {
+    if (!selectedNote) return
+
+    const nextFolderId = folderId === "none" ? null : folderId
+    const folder = folders.find((item) => item.id === nextFolderId)
+    updateLocalNote(selectedNote.id, {
+      folder_id: nextFolderId,
+      folder_name: folder?.name || null,
+    })
+    await saveNotePatch(selectedNote.id, { folder_id: nextFolderId })
+  }
+
+  const addTagToSelectedNote = async () => {
+    if (!selectedNote) return
+
+    const nextTags = normalizeTags([...selectedNote.tags, tagDraft])
+    setTagDraft("")
+    updateLocalNote(selectedNote.id, { tags: nextTags })
+    await saveNotePatch(selectedNote.id, { tags: nextTags })
+  }
+
+  const removeTagFromSelectedNote = async (tag: string) => {
+    if (!selectedNote) return
+
+    const nextTags = selectedNote.tags.filter((item) => item !== tag)
+    updateLocalNote(selectedNote.id, { tags: nextTags })
+    await saveNotePatch(selectedNote.id, { tags: nextTags })
   }
 
   const deleteNote = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this note?')) return
-    
+    if (!confirm("Are you sure you want to delete this note?")) return
+
     try {
       const response = await fetch('/api/notes', {
         method: 'DELETE',
