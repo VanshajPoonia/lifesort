@@ -24,6 +24,12 @@ export async function GET() {
 
     return NextResponse.json(folders)
   } catch (error) {
+    // If the table doesn't exist yet (migration not run), return empty array
+    // so the notes page degrades gracefully instead of erroring.
+    const msg = error instanceof Error ? error.message : String(error)
+    if (msg.includes("note_folders") || msg.includes("does not exist")) {
+      return NextResponse.json([])
+    }
     console.error("Get note folders error:", error)
     return NextResponse.json({ error: "Failed to fetch folders" }, { status: 500 })
   }

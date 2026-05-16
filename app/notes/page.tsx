@@ -191,16 +191,19 @@ export default function NotesPage() {
         fetch("/api/note-folders"),
       ])
 
-      if (!notesResponse.ok || !foldersResponse.ok) {
+      if (!notesResponse.ok) {
         throw new Error("Failed to load notes")
       }
 
-      const [notesData, foldersData] = await Promise.all([
-        notesResponse.json(),
-        foldersResponse.json(),
-      ])
+      const notesData = await notesResponse.json()
       const nextNotes = Array.isArray(notesData) ? notesData.map(normalizeNote) : []
-      const nextFolders = Array.isArray(foldersData) ? sortFolders(foldersData.map(normalizeFolder)) : []
+
+      // Folders are optional — if the table doesn't exist yet, degrade gracefully.
+      let nextFolders: NoteFolder[] = []
+      if (foldersResponse.ok) {
+        const foldersData = await foldersResponse.json()
+        nextFolders = Array.isArray(foldersData) ? sortFolders(foldersData.map(normalizeFolder)) : []
+      }
 
       setNotes(nextNotes)
       setFolders(nextFolders)
