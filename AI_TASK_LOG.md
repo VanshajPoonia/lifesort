@@ -222,6 +222,55 @@ Current verification state:
   - Consider a dedicated `/finance` summary page if budget grows further.
 - Handoff prompt: "Finance Hub improvements are in `app/budget/page.tsx`. Charts use recharts via `ChartContainer`. No API or schema changes were made — this is purely a frontend improvement."
 
+### 2026-05-17 - Regression Checkpoint
+
+- Agent/tool used: Claude Code (Sonnet 4.6).
+- Task: Full regression checkpoint after recent feature and fix work. No new features added.
+
+**Commands run and results:**
+
+| Command | Result |
+|---|---|
+| `git status` | Clean — one untracked `pnpm-workspace.yaml`, no uncommitted changes |
+| `git diff --stat` | 29 files changed vs `main` (all expected from this branch's work) |
+| `npx tsc --noEmit` | 9 pre-existing errors in 4 files not touched by this branch (see below) |
+| `npm run lint` | Fails — pre-existing: ESLint 10 has no flat config file |
+| `npm run build` | ✅ PASS — 67 routes, all static pages generated |
+
+**Route smoke-test (HTTP status, dev server on port 3001):**
+
+All 15 page routes returned **200**: `/` `/login` `/register` `/tasks` `/goals` `/notes` `/links` `/wishlist` `/investments` `/income` `/budget` `/calendar` `/custom-sections` `/settings` `/ai-chat`
+
+**API route checks:**
+
+- All protected API routes return **401** (not 500) without a session cookie: `/api/auth/me`, `/api/budget`, `/api/notes`, `/api/note-folders`, `/api/custom-sections`, `/api/daily-content`, `/api/income`, `/api/investments`, `/api/tasks` ✅
+- `/api/chat` GET returns valid JSON with 8 models and correct default ✅
+- Dev server log: no runtime errors beyond known metadata warnings ✅
+
+**Pre-existing TypeScript errors (not introduced by this branch):**
+
+- `app/api/cron/deadline-reminders/route.ts` (3 errors) — ReminderItem type mismatch
+- `app/api/wishlist/convert-to-investment/route.ts` (2 errors) — QueryResult indexing
+- `app/calendar/page.tsx` (1 error) — category type widening
+- `components/games/snake-game.tsx` (1 error) — wrong argument count
+
+None of these files were modified on this branch. All were pre-existing before any work began.
+
+**Migration files added (not yet run against production):**
+
+- `scripts/add-notes-knowledge-fields.sql` — adds `note_folders` table, `notes.folder_id`, `notes.tags`, `notes.is_pinned`
+- `scripts/add-custom-sections-fields.sql` — adds `description`/`fields` columns to `custom_sections`, creates `custom_section_records`
+
+Both have graceful degradation in the API routes so missing tables return empty arrays instead of 500s.
+
+**New env var required:**
+- `OPENROUTER_API_KEY` — needed for AI assistant. Not committed. Must be added to `.env.local` and Vercel environment.
+
+**Regression checkpoint prompt:** Added to `AI_CHECKLIST.md` under "Regression Checkpoint Prompt" for future use.
+
+- Remaining issues: pre-existing TS errors, ESLint config missing, metadata viewport warnings, two pending migrations not run against production DB.
+- Suggested next steps: (1) Run the two migrations against Neon, (2) Fix pre-existing TS errors, (3) Add ESLint flat config, (4) Move metadata viewport exports.
+
 ## Proposed Next Work
 
 - Add an ESLint flat config compatible with the installed ESLint version.

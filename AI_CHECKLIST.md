@@ -18,6 +18,41 @@ Verification and safety checklist for AI agents working on LifeSort.
 4. Confirm environment variables exist before running backend flows that need them.
 5. Do not print secret values from `.env.local`.
 
+## Regression Checkpoint Prompt
+
+Run this prompt periodically (after major feature work or before merging a branch) to verify nothing is broken. Paste it directly to Claude Code or Codex:
+
+```
+Do a regression checkpoint for the LifeSort website app.
+
+Do not add new features in this pass.
+
+Check that the recent changes did not break existing functionality.
+
+Run:
+- git status
+- git diff --stat
+- npx tsc --noEmit
+- npm run lint
+- npm run build
+
+Then smoke-test these routes (HTTP 200 expected for all):
+- / /tasks /goals /notes /links /wishlist /investments /income /budget
+- /calendar /custom-sections /settings /ai-chat /login /register
+
+Verify:
+1. All routes return 200.
+2. All protected API routes return 401 without a session (not 500).
+3. /api/chat GET returns a valid model list JSON.
+4. No new errors in the dev server log (beyond known pre-existing ones).
+5. Pre-existing TS errors (deadline-reminders, convert-to-investment, calendar/page, snake-game) are unchanged.
+6. Any new migration scripts are documented in AI_TASK_LOG.md with run status.
+
+Update AI_TASK_LOG.md with: commands run, results, issues found, remaining issues, next recommended task.
+
+Output: pass/fail summary, issues found, files that may need follow-up.
+```
+
 ## Environment Setup Checklist
 
 Observed env var names include:
@@ -30,6 +65,7 @@ Observed env var names include:
 - `GOOGLE_CLIENT_SECRET`
 - `ALPHA_VANTAGE_API_KEY`
 - `GROQ_API_KEY`
+- `OPENROUTER_API_KEY`
 - `JWT_SECRET`
 - Vercel/Neon/Postgres provisioned variables such as `POSTGRES_URL`, `POSTGRES_PRISMA_URL`, `PGHOST`, `PGUSER`, and related names.
 
