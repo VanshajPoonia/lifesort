@@ -148,7 +148,47 @@ Current verification state:
 
 ## Current Work
 
-No active in-progress task is recorded after the Notes knowledge area upgrade.
+### 2026-05-16 - Custom Sections Feature Implementation
+
+- Agent/tool used: Claude Code (Sonnet 4.6) acting as fallback coding agent.
+- Task summary: Replaced the "Coming Soon" Custom Sections page with a fully functional custom tracker feature. Users can now create, edit, and delete custom sections with flexible field definitions, and add, edit, and delete records inside each section.
+- Files changed:
+  - `scripts/add-custom-sections-fields.sql` (new migration)
+  - `app/api/custom-sections/route.ts` (updated to support `description` and `fields`)
+  - `app/api/custom-sections/records/route.ts` (new route for records CRUD)
+  - `app/custom-sections/page.tsx` (full rewrite)
+  - `AI_TASK_LOG.md` (this entry)
+- What changed:
+  - **Migration** (`scripts/add-custom-sections-fields.sql`): Adds `description TEXT` and `fields JSONB` to `custom_sections`. Creates new `custom_section_records` table with `section_id` and `data JSONB`.
+  - **Sections API** (`/api/custom-sections`): Updated POST/PUT to accept and persist `description` and `fields`. Ownership validation on all operations.
+  - **Records API** (`/api/custom-sections/records`): New GET/POST/PUT/DELETE. Ownership verified via JOIN with `custom_sections`. DELETE uses `USING` clause to prevent cross-user access.
+  - **Page** (`/custom-sections/page.tsx`): Two-panel layout (section list + records table). Section builder dialog with icon picker (24 icons), field builder supporting 7 field types. Record dialog with per-field typed inputs. Empty states for no sections and no records. Loading spinners. Dropdown menus for edit/delete on both sections and records.
+- Supported field types: `text`, `number`, `date`, `checkbox`, `select` (with configurable options), `url`, `notes` (multiline).
+- Data model:
+  - `custom_sections.fields` — JSONB array of `{id, name, type, options?, required?}` definitions.
+  - `custom_section_records.data` — JSONB map of `{fieldId: value}` for each record.
+- Commands run:
+  - `npx tsc --noEmit` — no errors in new custom-sections files (pre-existing errors in ai-chat, calendar, cron, wishlist, snake-game remain unchanged).
+  - `npm run lint` — no new errors from custom-sections files.
+  - `npm run build` — passed; `/custom-sections` built at 9.91 kB.
+- Verification results:
+  - Build passes. No new type or lint errors introduced.
+  - Pre-existing failures in other files are unchanged.
+- Bugs found or fixed:
+  - Fixed TypeScript `unknown` ReactNode error in checkbox cell rendering (used `Boolean()` cast).
+- Remaining issues / limitations:
+  - **Migration not run**: `scripts/add-custom-sections-fields.sql` must be run against the target Neon database before the feature works.
+  - Field reordering not yet supported (fields always appear in creation order).
+  - No search or filter on records.
+  - No field-level validation beyond `required` check (URL format, number bounds, etc.).
+  - `custom_section_items` table (old simple items) still exists but is unused by the new page.
+  - No bulk record operations.
+- Suggested next steps:
+  - Run the migration against the Neon database.
+  - Manually test: create a section, add fields of each type, add/edit/delete records.
+  - Optionally add record search/filter within a section.
+  - Optionally add drag-to-reorder for fields in the section builder.
+- Handoff prompt for next agent: "The Custom Sections feature is fully implemented. Before users can use it, run `scripts/add-custom-sections-fields.sql` against the Neon database. The page is at `/custom-sections`. The records API is at `/api/custom-sections/records`. Data is JSONB-based: section.fields defines schema, record.data holds values keyed by field ID."
 
 ## Proposed Next Work
 

@@ -12,14 +12,14 @@ export async function GET(request: NextRequest) {
     }
 
     const sections = await sql`
-      SELECT * FROM custom_sections 
+      SELECT * FROM custom_sections
       WHERE user_id = ${user.id}
       ORDER BY position ASC, created_at DESC
     `
 
     return NextResponse.json(sections)
   } catch (error) {
-    console.error("[v0] Error fetching custom sections:", error)
+    console.error("[custom-sections] GET error:", error)
     return NextResponse.json({ error: "Failed to fetch sections" }, { status: 500 })
   }
 }
@@ -32,17 +32,31 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, icon, color, position } = body
+    const { title, icon, color, description, fields, position } = body
+
+    if (!title || typeof title !== "string" || !title.trim()) {
+      return NextResponse.json({ error: "Title is required" }, { status: 400 })
+    }
+
+    const fieldsJson = JSON.stringify(Array.isArray(fields) ? fields : [])
 
     const result = await sql`
-      INSERT INTO custom_sections (user_id, title, icon, color, position)
-      VALUES (${user.id}, ${title}, ${icon || 'Folder'}, ${color || 'primary'}, ${position || 0})
+      INSERT INTO custom_sections (user_id, title, icon, color, description, fields, position)
+      VALUES (
+        ${user.id},
+        ${title.trim()},
+        ${icon || "Folder"},
+        ${color || "primary"},
+        ${description || null},
+        ${fieldsJson}::jsonb,
+        ${position ?? 0}
+      )
       RETURNING *
     `
 
     return NextResponse.json(result[0])
   } catch (error) {
-    console.error("[v0] Error creating custom section:", error)
+    console.error("[custom-sections] POST error:", error)
     return NextResponse.json({ error: "Failed to create section" }, { status: 500 })
   }
 }
@@ -55,11 +69,28 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { id, title, icon, color, position } = body
+    const { id, title, icon, color, description, fields, position } = body
+
+    if (!id) {
+      return NextResponse.json({ error: "ID is required" }, { status: 400 })
+    }
+
+    if (!title || typeof title !== "string" || !title.trim()) {
+      return NextResponse.json({ error: "Title is required" }, { status: 400 })
+    }
+
+    const fieldsJson = JSON.stringify(Array.isArray(fields) ? fields : [])
 
     const result = await sql`
-      UPDATE custom_sections 
-      SET title = ${title}, icon = ${icon}, color = ${color}, position = ${position}, updated_at = NOW()
+      UPDATE custom_sections
+      SET
+        title = ${title.trim()},
+        icon = ${icon || "Folder"},
+        color = ${color || "primary"},
+        description = ${description || null},
+        fields = ${fieldsJson}::jsonb,
+        position = ${position ?? 0},
+        updated_at = NOW()
       WHERE id = ${id} AND user_id = ${user.id}
       RETURNING *
     `
@@ -70,7 +101,7 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json(result[0])
   } catch (error) {
-    console.error("[v0] Error updating custom section:", error)
+    console.error("[custom-sections] PUT error:", error)
     return NextResponse.json({ error: "Failed to update section" }, { status: 500 })
   }
 }
@@ -85,14 +116,18 @@ export async function DELETE(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get("id")
 
+    if (!id) {
+      return NextResponse.json({ error: "ID is required" }, { status: 400 })
+    }
+
     await sql`
-      DELETE FROM custom_sections 
+      DELETE FROM custom_sections
       WHERE id = ${id} AND user_id = ${user.id}
     `
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error("[v0] Error deleting custom section:", error)
+    console.error("[custom-sections] DELETE error:", error)
     return NextResponse.json({ error: "Failed to delete section" }, { status: 500 })
   }
 }
