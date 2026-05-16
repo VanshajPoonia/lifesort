@@ -4,6 +4,56 @@ import { getUserFromSession } from '@/lib/auth'
 
 const sql = neon(process.env.DATABASE_URL!)
 
+function normalizeTags(tags: unknown): string[] {
+  if (!Array.isArray(tags)) return []
+
+  return Array.from(
+    new Set(
+      tags
+        .filter((tag): tag is string => typeof tag === 'string')
+        .map((tag) => tag.trim().replace(/^#+/, '').toLowerCase())
+        .filter(Boolean)
+    )
+  )
+}
+
+function normalizeFolderId(folderId: unknown): number | null {
+  if (folderId === null || folderId === undefined || folderId === '' || folderId === 'none') {
+    return null
+  }
+
+  const parsed = Number(folderId)
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null
+}
+
+async function assertFolderOwnership(folderId: number | null, userId: string) {
+  if (!folderId) return true
+
+  const folders = await sql`
+    SELECT id FROM note_folders
+    WHERE id = ${folderId} AND user_id = ${userId}
+    LIMIT 1
+  `
+
+  return folders.length > 0
+}
+
+async function getNoteWithFolder(noteId: string | number, userId: string) {
+  const notes = await sql`
+    SELECT
+      notes.*,
+      note_folders.name AS folder_name
+    FROM notes
+    LEFT JOIN note_folders
+      ON notes.folder_id = note_folders.id
+      AND note_folders.user_id = ${userId}
+    WHERE notes.id = ${noteId} AND notes.user_id = ${userId}
+    LIMIT 1
+  `
+
+  return notes[0]
+}
+
 export async function GET() {
   try {
     const user = await getUserFromSession()
@@ -12,9 +62,15 @@ export async function GET() {
     }
 
     const notes = await sql`
-      SELECT * FROM notes 
-      WHERE user_id = ${user.id}
-      ORDER BY updated_at DESC
+      SELECT
+        notes.*,
+        note_folders.name AS folder_name
+      FROM notes
+      LEFT JOIN note_folders
+        ON notes.folder_id = note_folders.id
+        AND note_folders.user_id = ${user.id}
+      WHERE notes.user_id = ${user.id}
+      ORDER BY notes.is_pinned DESC, notes.updated_at DESC
     `
 
     return NextResponse.json(notes)
