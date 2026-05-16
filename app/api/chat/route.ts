@@ -1,18 +1,35 @@
 import { streamText } from "ai"
-import { createGroq } from "@ai-sdk/groq"
+import { createOpenAI } from "@ai-sdk/openai"
+import { AVAILABLE_MODELS, DEFAULT_MODEL } from "@/lib/ai-models"
 
-export const maxDuration = 30
+export const maxDuration = 60
 
-const groq = createGroq({ apiKey: process.env.GROQ_API_KEY })
+const openrouter = createOpenAI({
+  baseURL: "https://openrouter.ai/api/v1",
+  apiKey: process.env.OPENROUTER_API_KEY ?? "",
+  headers: {
+    "HTTP-Referer": "https://lifesort.app",
+    "X-Title": "LifeSort",
+  },
+})
+
+const SYSTEM_PROMPT = `You are a helpful AI assistant for LifeSort, a personal life management app.
+Help users with productivity tips, goal setting, time management, habit building, and personal organisation.
+Be concise, encouraging, and actionable. Tailor advice to real-world situations.`
+
+export async function GET() {
+  return Response.json({ models: AVAILABLE_MODELS, default: DEFAULT_MODEL })
+}
 
 export async function POST(req: Request) {
-  const { messages } = await req.json()
+  const { messages, modelId } = await req.json()
+
+  const isValid = AVAILABLE_MODELS.some(m => m.id === modelId)
+  const model = isValid ? modelId : DEFAULT_MODEL
 
   const result = streamText({
-    model: groq("llama-3.1-8b-instant"),
-    system: `You are a helpful AI assistant for LifeSort, a life organization app.
-Help users with productivity tips, goal setting advice, time management strategies, and personal organization.
-Be concise, encouraging, and actionable in your responses.`,
+    model: openrouter(model),
+    system: SYSTEM_PROMPT,
     messages,
   })
 
