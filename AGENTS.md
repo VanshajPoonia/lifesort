@@ -108,35 +108,45 @@ Before making code changes, every agent must:
 - Do not run database scripts unless explicitly requested and the target database/environment is confirmed.
 - Do not expose secrets from `.env.local` or Vercel/Neon configuration.
 
+## Definition of Done
+
+**A task is not complete until `AI_TASK_LOG.md` is updated and committed.**
+
+No exceptions. This applies to every agent (Codex, Claude Code, or any other) on every code change, no matter how small. Skipping the log means the next agent starts blind.
+
+The documentation update must be included in the same commit as the code change — not as a separate follow-up, not deferred to later.
+
 ## Required Post-Change Workflow
 
-After completing work, every agent must update `AI_TASK_LOG.md` with:
+Immediately after finishing code changes and before considering the task done, every agent must:
 
-- Date/time of work
-- Agent/tool used, if known
-- Task completed
-- Files changed
-- Summary of changes
-- Commands run
-- Build/lint/test results
-- Bugs found or fixed
-- Remaining issues
-- Suggested next steps
-- Handoff notes for the next AI agent
+1. Run `npx tsc --noEmit` and record the result.
+2. Run `npm run build` and record the result.
+3. Update `AI_TASK_LOG.md` with a new dated section containing:
+   - Date/time of work
+   - Agent/tool used
+   - Task completed
+   - Files changed (list every file)
+   - Summary of changes and why
+   - Commands run and their results
+   - Bugs found or fixed
+   - Remaining issues or known limitations
+   - Suggested next steps
+   - Handoff notes for the next agent
+4. Update any other `AI_*.md` files that apply (see matrix below).
+5. Stage the documentation updates together with the code changes.
+6. Commit everything in a single commit.
 
-Also update:
-
-- `AI_DECISIONS.md` for major architecture decisions or changes.
-- `AI_CHECKLIST.md` for setup, command, dependency, or workflow changes.
-- `AI_PROJECT.md` for product scope, feature, structure, or deployment changes.
+**If you skip step 3, the task is incomplete regardless of whether the code works.**
 
 ## Documentation Update Matrix
 
-- Product scope changed: update `AI_PROJECT.md` and `AI_TASK_LOG.md`.
-- Architecture changed: update `AI_DECISIONS.md` and `AI_TASK_LOG.md`.
-- Commands, dependencies, env setup, or verification changed: update `AI_CHECKLIST.md` and `AI_TASK_LOG.md`.
-- Agent workflow changed: update `AGENTS.md` and `AI_TASK_LOG.md`.
-- Routine code-only change: update `AI_TASK_LOG.md` with files changed, checks, and handoff notes.
+Every code change touches `AI_TASK_LOG.md`. Additionally:
+
+- Product scope changed → also update `AI_PROJECT.md`.
+- Architecture changed → also update `AI_DECISIONS.md`.
+- Commands, dependencies, env vars, or setup changed → also update `AI_CHECKLIST.md`.
+- Agent workflow changed → also update `AGENTS.md`.
 
 ## Git Workflow Expectations
 

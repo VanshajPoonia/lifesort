@@ -42,16 +42,20 @@ Implementation expectations:
 - Preserve existing architecture unless there is a documented reason in `AI_DECISIONS.md` to change it.
 - Follow the coding conventions and architecture conventions described in `AGENTS.md`.
 
-## Documentation Updates After Claude's Implementation Work
+## Documentation Updates — Mandatory After Every Code Change
 
-After completing implementation work as the coding agent, Claude must:
+This is the most commonly skipped step. It is not optional.
 
-- Update `AI_TASK_LOG.md` with date/time, task, files changed, commands run, verification results, and handoff notes.
-- Update `AI_DECISIONS.md` only if an architecture decision changed.
-- Update `AI_CHECKLIST.md` only if commands, setup, dependencies, or workflow changed.
-- Update `AI_PROJECT.md` only if project scope, features, or structure changed.
+After any code change — no matter how small — Claude must update `AI_TASK_LOG.md` before the task is considered done. The update goes in the **same commit** as the code, not a separate one.
 
-When Claude only reviews or plans without changing code, no `AI_*.md` updates are required.
+Checklist before closing a task:
+- [ ] `npx tsc --noEmit` run and result recorded
+- [ ] `npm run build` run and result recorded
+- [ ] `AI_TASK_LOG.md` updated with a new dated section
+- [ ] Other `AI_*.md` files updated if applicable (see `AGENTS.md` matrix)
+- [ ] Documentation staged and committed together with the code
+
+When Claude only reviews or plans without changing any files, no `AI_*.md` updates are required.
 
 ## Normal Claude Code Usage
 
