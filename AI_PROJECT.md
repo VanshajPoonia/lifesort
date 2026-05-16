@@ -206,6 +206,14 @@ Never print or commit secret values.
 - Replace `resend.dev` sender defaults before production email use.
 - Move unsupported `metadata.themeColor` and `metadata.viewport` fields to the Next viewport export pattern.
 
+## Repo Health Snapshot
+
+- Worktree had no tracked modifications before the AI memory docs were created.
+- Build health: passing, but with type and lint gates disabled.
+- Lint health: blocked by missing ESLint flat config.
+- Test health: no configured automated test entrypoint.
+- Database health: schema source of truth needs confirmation against the live Neon database.
+
 ## Known Incomplete or Risky Areas
 
 - `npm run lint` fails because ESLint 10 cannot find `eslint.config.*`.
