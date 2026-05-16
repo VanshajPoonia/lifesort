@@ -130,6 +130,14 @@ Also update:
 - `AI_CHECKLIST.md` for setup, command, dependency, or workflow changes.
 - `AI_PROJECT.md` for product scope, feature, structure, or deployment changes.
 
+## Documentation Update Matrix
+
+- Product scope changed: update `AI_PROJECT.md` and `AI_TASK_LOG.md`.
+- Architecture changed: update `AI_DECISIONS.md` and `AI_TASK_LOG.md`.
+- Commands, dependencies, env setup, or verification changed: update `AI_CHECKLIST.md` and `AI_TASK_LOG.md`.
+- Agent workflow changed: update `AGENTS.md` and `AI_TASK_LOG.md`.
+- Routine code-only change: update `AI_TASK_LOG.md` with files changed, checks, and handoff notes.
+
 ## Git Workflow Expectations
 
 - Inspect the worktree before editing.
