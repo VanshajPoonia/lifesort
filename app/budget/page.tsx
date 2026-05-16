@@ -3,18 +3,7 @@
 import React, { useMemo } from "react"
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  Pie,
-  PieChart,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts"
+import dynamic from "next/dynamic"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -25,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
-import { ChartContainer } from "@/components/ui/chart"
+import type { CategoryChartItem, PieChartItem } from "./charts"
 import {
   Empty,
   EmptyContent,
@@ -56,6 +45,19 @@ import {
   Loader2,
   BarChart3,
 } from "lucide-react"
+
+// Charts are dynamically imported so recharts is never loaded on the server.
+const ChartSkeleton = () => <div className="h-56 animate-pulse rounded-lg bg-muted" />
+
+const SpendingBarChart = dynamic<{ data: CategoryChartItem[] }>(
+  () => import("./charts").then((m) => m.SpendingBarChart),
+  { ssr: false, loading: ChartSkeleton }
+)
+
+const ExpensePieChart = dynamic<{ data: PieChartItem[] }>(
+  () => import("./charts").then((m) => m.ExpensePieChart),
+  { ssr: false, loading: ChartSkeleton }
+)
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -132,7 +134,7 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   other: <Wallet className="h-4 w-4" />,
 }
 
-const PALETTE = [
+const COLOR_OPTIONS = [
   "#3B82F6", "#10B981", "#F59E0B", "#EF4444",
   "#8B5CF6", "#EC4899", "#06B6D4", "#84CC16",
 ]
@@ -158,7 +160,6 @@ function toMonthly(src: IncomeSource): number {
 // ── Page ───────────────────────────────────────────────────────────────────────
 
 export default function BudgetPage() {
-  const [mounted, setMounted] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [goals, setGoals] = useState<BudgetGoal[]>([])
@@ -204,7 +205,6 @@ export default function BudgetPage() {
   // ── Fetchers ─────────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    setMounted(true)
     fetchBudgetData()
     fetchIncomeData()
     fetchWishlistData()
@@ -666,23 +666,8 @@ export default function BudgetPage() {
                       <EmptyDescription>Add categories and log transactions to see spending.</EmptyDescription>
                     </EmptyHeader>
                   </Empty>
-                ) : mounted ? (
-                  <ChartContainer config={{}} className="h-56">
-                    <BarChart data={categoryChartData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `$${v}`} />
-                      <Tooltip formatter={(value: number) => [`$${fmt(value)}`]} />
-                      <Bar dataKey="Spent" radius={[4, 4, 0, 0]}>
-                        {categoryChartData.map((entry, index) => (
-                          <Cell key={index} fill={entry.color} />
-                        ))}
-                      </Bar>
-                      <Bar dataKey="Budget" fill="#e5e7eb" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ChartContainer>
                 ) : (
-                  <div className="h-56 animate-pulse rounded-lg bg-muted" />
+                  <SpendingBarChart data={categoryChartData} />
                 )}
               </CardContent>
             </Card>
@@ -702,30 +687,8 @@ export default function BudgetPage() {
                       <EmptyDescription>Log expense transactions to see your spending breakdown.</EmptyDescription>
                     </EmptyHeader>
                   </Empty>
-                ) : mounted ? (
-                  <ChartContainer config={{}} className="h-56">
-                    <PieChart>
-                      <Pie
-                        data={expensePieData}
-                        dataKey="value"
-                        nameKey="name"
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={80}
-                        label={({ name, percent }: { name: string; percent: number }) =>
-                          percent > 0.05 ? `${name.slice(0, 8)} ${(percent * 100).toFixed(0)}%` : ""
-                        }
-                        labelLine={false}
-                      >
-                        {expensePieData.map((_, index) => (
-                          <Cell key={index} fill={PALETTE[index % PALETTE.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value: number) => [`$${fmt(value)}`]} />
-                    </PieChart>
-                  </ChartContainer>
                 ) : (
-                  <div className="h-56 animate-pulse rounded-lg bg-muted" />
+                  <ExpensePieChart data={expensePieData} />
                 )}
               </CardContent>
             </Card>
@@ -1043,7 +1006,7 @@ export default function BudgetPage() {
             <div className="space-y-2">
               <Label>Color</Label>
               <div className="flex gap-2">
-                {PALETTE.map((color) => (
+                {COLOR_OPTIONS.map((color) => (
                   <button key={color}
                     className={`h-8 w-8 rounded-full transition-transform hover:scale-110 ${categoryForm.color === color ? "ring-2 ring-offset-2 ring-primary" : ""}`}
                     style={{ backgroundColor: color }}
