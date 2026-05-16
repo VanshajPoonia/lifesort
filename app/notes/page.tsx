@@ -428,28 +428,109 @@ export default function NotesPage() {
     if (!confirm("Are you sure you want to delete this note?")) return
 
     try {
-      const response = await fetch('/api/notes', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/notes", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       })
 
-      if (response.ok) {
-        const updatedNotes = notes.filter(n => n.id !== id)
-        setNotes(updatedNotes)
-        if (selectedNote?.id === id) {
-          setSelectedNote(updatedNotes[0] || null)
-        }
+      if (!response.ok) {
+        throw new Error("Failed to delete note")
+      }
+
+      const updatedNotes = notes.filter((note) => note.id !== id)
+      setNotes(updatedNotes)
+      if (selectedNote?.id === id) {
+        setSelectedNote(updatedNotes[0] || null)
       }
     } catch (error) {
-      console.error('[v0] Error deleting note:', error)
+      console.error("[v0] Error deleting note:", error)
     }
   }
 
-  const filteredNotes = notes.filter(note =>
-    note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    note.content.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const createFolder = async () => {
+    const name = folderDraft.trim()
+    if (!name) return
+
+    try {
+      const response = await fetch("/api/note-folders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to create folder")
+      }
+
+      const newFolder = normalizeFolder(await response.json())
+      setFolders((prev) => sortFolders([...prev, newFolder]))
+      setFolderDraft("")
+      setShowFolderInput(false)
+      setActiveFilter({ type: "folder", value: newFolder.id })
+    } catch (error) {
+      console.error("[v0] Error creating folder:", error)
+    }
+  }
+
+  const saveFolderRename = async (folderId: string) => {
+    const name = editingFolderName.trim()
+    if (!name) return
+
+    try {
+      const response = await fetch("/api/note-folders", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: folderId, name }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to rename folder")
+      }
+
+      const updatedFolder = normalizeFolder(await response.json())
+      setFolders((prev) => sortFolders(prev.map((folder) => (folder.id === updatedFolder.id ? updatedFolder : folder))))
+      setNotes((prev) =>
+        prev.map((note) => (note.folder_id === updatedFolder.id ? { ...note, folder_name: updatedFolder.name } : note))
+      )
+      setSelectedNote((prev) =>
+        prev?.folder_id === updatedFolder.id ? { ...prev, folder_name: updatedFolder.name } : prev
+      )
+      setEditingFolderId(null)
+      setEditingFolderName("")
+    } catch (error) {
+      console.error("[v0] Error renaming folder:", error)
+    }
+  }
+
+  const deleteFolder = async (folderId: string) => {
+    if (!confirm("Delete this folder? Notes in it will stay unfiled.")) return
+
+    try {
+      const response = await fetch("/api/note-folders", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: folderId }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to delete folder")
+      }
+
+      setFolders((prev) => prev.filter((folder) => folder.id !== folderId))
+      setNotes((prev) =>
+        prev.map((note) => (note.folder_id === folderId ? { ...note, folder_id: null, folder_name: null } : note))
+      )
+      setSelectedNote((prev) =>
+        prev?.folder_id === folderId ? { ...prev, folder_id: null, folder_name: null } : prev
+      )
+      if (activeFilter.type === "folder" && activeFilter.value === folderId) {
+        setActiveFilter({ type: "all" })
+      }
+    } catch (error) {
+      console.error("[v0] Error deleting folder:", error)
+    }
+  }
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
