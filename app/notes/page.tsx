@@ -144,59 +144,204 @@ export default function NotesPage() {
   const [creatingNote, setCreatingNote] = useState(false)
   const [saveState, setSaveState] = useState<SaveState>("idle")
   const [searchQuery, setSearchQuery] = useState("")
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter>({ type: "all" })
   const [showSidebar, setShowSidebar] = useState(true)
+  const [folderDraft, setFolderDraft] = useState("")
+  const [showFolderInput, setShowFolderInput] = useState(false)
+  const [editingFolderId, setEditingFolderId] = useState<string | null>(null)
+  const [editingFolderName, setEditingFolderName] = useState("")
+  const [tagDraft, setTagDraft] = useState("")
+
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const pendingPatchRef = useRef<Record<string, unknown>>({})
+  const pendingNoteIdRef = useRef<string | null>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!authLoading && !user) {
-      router.push('/login')
+      router.push("/login")
     }
   }, [user, authLoading, router])
 
-  useEffect(() => {
-    if (user) {
-      fetchNotes()
-    }
-  }, [user])
+  const applyUpdatedNote = useCallback((rawNote: Record<string, unknown>) => {
+    const updated = normalizeNote(rawNote)
 
-  const fetchNotes = async () => {
+    setNotes((prev) =>
+      prev
+        .map((note) => (note.id === updated.id ? updated : note))
+        .sort((a, b) => Number(b.is_pinned) - Number(a.is_pinned) || new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+    )
+    setSelectedNote((prev) => (prev?.id === updated.id ? updated : prev))
+  }, [])
+
+  const updateLocalNote = useCallback((id: string, patch: Partial<Note>) => {
+    setNotes((prev) => prev.map((note) => (note.id === id ? { ...note, ...patch } : note)))
+    setSelectedNote((prev) => (prev?.id === id ? { ...prev, ...patch } : prev))
+  }, [])
+
+  const fetchNotesAndFolders = useCallback(async () => {
+    setLoading(true)
+    setLoadError("")
+
     try {
-      const response = await fetch('/api/notes')
-      if (response.ok) {
-        const data = await response.json()
-        setNotes(data)
-        if (data.length > 0 && !selectedNote) {
-          setSelectedNote(data[0])
-        }
+      const [notesResponse, foldersResponse] = await Promise.all([
+        fetch("/api/notes"),
+        fetch("/api/note-folders"),
+      ])
+
+      if (!notesResponse.ok || !foldersResponse.ok) {
+        throw new Error("Failed to load notes")
       }
+
+      const [notesData, foldersData] = await Promise.all([
+        notesResponse.json(),
+        foldersResponse.json(),
+      ])
+      const nextNotes = Array.isArray(notesData) ? notesData.map(normalizeNote) : []
+      const nextFolders = Array.isArray(foldersData) ? sortFolders(foldersData.map(normalizeFolder)) : []
+
+      setNotes(nextNotes)
+      setFolders(nextFolders)
+      setSelectedNote((prev) => {
+        if (!prev) return nextNotes[0] || null
+        return nextNotes.find((note) => note.id === prev.id) || nextNotes[0] || null
+      })
     } catch (error) {
-      console.error('[v0] Error fetching notes:', error)
+      console.error("[v0] Error fetching notes:", error)
+      setLoadError("Notes could not be loaded.")
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (user) {
+      fetchNotesAndFolders()
+    }
+  }, [fetchNotesAndFolders, user])
 
   useEffect(() => {
     if (!user) return
 
     const handleQuickAdd = (event: Event) => {
       if ((event as CustomEvent).detail?.type === "note") {
-        fetchNotes()
+        fetchNotesAndFolders()
       }
     }
 
     window.addEventListener("lifesort:quick-add-created", handleQuickAdd)
     return () => window.removeEventListener("lifesort:quick-add-created", handleQuickAdd)
-  }, [user])
+  }, [fetchNotesAndFolders, user])
+
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  const saveNotePatch = useCallback(
+    async (noteId: string, patch: Record<string, unknown>) => {
+      setSaveState("saving")
+
+      try {
+        const response = await fetch("/api/notes", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: noteId, ...patch }),
+        })
+
+        if (!response.ok) {
+          throw new Error("Failed to save note")
+        }
+
+        const updated = await response.json()
+        applyUpdatedNote(updated)
+        setSaveState("saved")
+      } catch (error) {
+        console.error("[v0] Error saving note:", error)
+        setSaveState("error")
+      }
+    },
+    [applyUpdatedNote]
+  )
+
+  const queueAutoSave = useCallback(
+    (noteId: string, patch: Record<string, unknown>) => {
+      pendingNoteIdRef.current = noteId
+      pendingPatchRef.current = { ...pendingPatchRef.current, ...patch }
+      setSaveState("saving")
+
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+      }
+
+      saveTimeoutRef.current = setTimeout(() => {
+        const pendingNoteId = pendingNoteIdRef.current
+        const pendingPatch = pendingPatchRef.current
+
+        pendingNoteIdRef.current = null
+        pendingPatchRef.current = {}
+
+        if (pendingNoteId) {
+          saveNotePatch(pendingNoteId, pendingPatch)
+        }
+      }, 600)
+    },
+    [saveNotePatch]
+  )
+
+  const allTags = useMemo(
+    () => Array.from(new Set(notes.flatMap((note) => note.tags))).sort((a, b) => a.localeCompare(b)),
+    [notes]
+  )
+
+  const filteredNotes = useMemo(() => {
+    const now = Date.now()
+
+    return notes.filter((note) => {
+      const matchesFilter =
+        activeFilter.type === "all" ||
+        (activeFilter.type === "pinned" && note.is_pinned) ||
+        (activeFilter.type === "recent" && now - new Date(note.updated_at).getTime() <= RECENT_WINDOW_MS) ||
+        (activeFilter.type === "folder" && note.folder_id === activeFilter.value) ||
+        (activeFilter.type === "tag" && note.tags.includes(activeFilter.value))
+
+      return matchesFilter && noteMatchesSearch(note, searchQuery)
+    })
+  }, [activeFilter, notes, searchQuery])
+
+  const folderCounts = useMemo(() => {
+    return notes.reduce<Record<string, number>>((counts, note) => {
+      if (note.folder_id) {
+        counts[note.folder_id] = (counts[note.folder_id] || 0) + 1
+      }
+      return counts
+    }, {})
+  }, [notes])
+
+  const tagCounts = useMemo(() => {
+    return notes.reduce<Record<string, number>>((counts, note) => {
+      note.tags.forEach((tag) => {
+        counts[tag] = (counts[tag] || 0) + 1
+      })
+      return counts
+    }, {})
+  }, [notes])
 
   const createNewNote = async () => {
+    setCreatingNote(true)
+
     try {
-      const response = await fetch('/api/notes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const selectedFolderId = activeFilter.type === "folder" ? activeFilter.value : null
+      const selectedTag = activeFilter.type === "tag" ? activeFilter.value : null
+      const selectedFolder = folders.find((folder) => folder.id === selectedFolderId)
+      const response = await fetch("/api/notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: 'Untitled Note',
           content: '',
