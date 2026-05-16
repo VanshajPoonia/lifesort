@@ -190,6 +190,38 @@ Current verification state:
   - Optionally add drag-to-reorder for fields in the section builder.
 - Handoff prompt for next agent: "The Custom Sections feature is fully implemented. Before users can use it, run `scripts/add-custom-sections-fields.sql` against the Neon database. The page is at `/custom-sections`. The records API is at `/api/custom-sections/records`. Data is JSONB-based: section.fields defines schema, record.data holds values keyed by field ID."
 
+### 2026-05-16 - Finance Hub: Budget Page Improvements
+
+- Agent/tool used: Claude Code (Sonnet 4.6) acting as fallback coding agent.
+- Task summary: Improved the `/budget` page into a connected Finance Hub. Added charts, net worth estimate, quick links to Income/Wishlist/Investments, better empty states, fixed calculation bugs.
+- Files changed:
+  - `app/budget/page.tsx` (significant update)
+  - `AI_TASK_LOG.md` (this entry)
+- What changed:
+  - **Net Worth card**: New summary card showing investments (current value) + savings goal amounts − unpurchased wishlist total.
+  - **Charts**: Added a Spending vs Budget BarChart (category spending vs limit, per-category color) and an Expense Breakdown PieChart (by category, top 8). Both use the installed recharts 2.15.4 and the existing `ChartContainer` wrapper.
+  - **Quick links row**: Four cards linking to `/income`, `/investments`, `/wishlist`, and `#categories` tab, each showing live counts.
+  - **Overview tab**: New default tab containing both charts plus an Income vs Expenses progress bar summary.
+  - **Income calculation fixed**: Changed bi-weekly to `×26/12` and weekly to `×52/12` (was `×4` / `×2`, which underestimates).
+  - **Wishlist months-to-afford fixed**: Was `Math.ceil(total / (income - expenses))` which produces Infinity or NaN when surplus ≤ 0. Now returns null and shows nothing in that case.
+  - **Transaction color fixed**: `t.category_color || "#gray"` (invalid CSS) changed to fallback `"#9CA3AF"`.
+  - **Empty states**: All tabs now use the `Empty` component pattern (with icon, title, description, CTA button). Also a top-level empty state for users with no finance data at all.
+  - **Goal projections**: Each savings goal card now shows estimated months to completion based on current monthly surplus.
+  - **Surplus label**: Renamed "Net Balance" (confusing when balance from transactions differed from income-source-based surplus) to "Monthly Surplus" with explicit label "Income minus expenses".
+- Commands run:
+  - `npx tsc --noEmit` — no errors in budget files.
+  - `npm run build` — passes; `/budget` builds at 119 kB (expected, recharts bundle).
+- Remaining limitations:
+  - Charts only show current-month data (whatever is in the `transactions` state, which is the last 100 rows). No month selector.
+  - No edit/update for transactions (only add/delete). Categories also have no edit UI.
+  - Budget page fetches all four APIs independently on mount with no shared loading gate.
+  - The "months to complete goal" projection uses the income-source-derived surplus, not actual tracked transactions — labelled accordingly.
+- Suggested next steps:
+  - Add month picker to filter transactions.
+  - Add edit dialogs for transactions and categories.
+  - Consider a dedicated `/finance` summary page if budget grows further.
+- Handoff prompt: "Finance Hub improvements are in `app/budget/page.tsx`. Charts use recharts via `ChartContainer`. No API or schema changes were made — this is purely a frontend improvement."
+
 ## Proposed Next Work
 
 - Add an ESLint flat config compatible with the installed ESLint version.
