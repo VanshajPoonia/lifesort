@@ -260,6 +260,65 @@ Current verification state:
 - Integration routes rely on external services and API limits.
 - Subscription/admin behavior should be changed carefully because it affects account access.
 
+### 2026-05-17 - Recharts SSR Fix (two-stage)
+
+- Agent/tool used: Claude Code (Sonnet 4.6).
+- Task: Fix `[object Event]` and `__webpack_modules__[moduleId] is not a function` runtime errors on the `/budget` page.
+- Files changed: `app/budget/page.tsx`, `app/budget/charts.tsx` (new).
+- What changed:
+  - Stage 1: Added a `mounted` state guard so charts only render client-side. This fixed the Event error but not the module error.
+  - Stage 2: Extracted all recharts imports into `app/budget/charts.tsx` and loaded both components via `next/dynamic({ ssr: false })`. This prevents recharts from being imported on the server at all. Budget page bundle dropped from 119 kB to 11.4 kB.
+- Commands run: `npx tsc --noEmit`, `npm run build` — both passed.
+- Commits: `fed30e2`, `55381fd`.
+
+### 2026-05-17 - Daily Content NOT NULL Fix
+
+- Agent/tool used: Claude Code (Sonnet 4.6).
+- Task: Fix 500 error on login caused by the daily-content popup failing to save history.
+- Files changed: `app/api/daily-content/route.ts`, `components/daily-popup.tsx`.
+- What changed:
+  - API POST handler now validates `content_type` (returns 400 if missing) and coerces undefined `content` to `""`.
+  - Client `saveContentToHistory` skips the POST if `content_type` or content text is empty.
+- Root cause: AI generator returned undefined `type`/`content`; Neon SQL tag converts undefined → NULL; `daily_content.content_type` and `content` are both NOT NULL.
+- Commands run: `npx tsc --noEmit`, `npm run build` — passed. Commit: `91b5702`.
+
+### 2026-05-17 - Sidebar Perf: Module-Level Cache
+
+- Agent/tool used: Claude Code (Sonnet 4.6).
+- Task: Eliminate `/api/sidebar-preferences` re-fetch on every client-side navigation.
+- Files changed: `components/dashboard-layout.tsx`, `app/settings/page.tsx`, `app/budget/loading.tsx` (new), `app/settings/loading.tsx` (new).
+- What changed:
+  - Added module-level `_sidebarPrefsCache` in `DashboardLayout`. First visit fetches from API and warms both the module cache and sessionStorage. All later navigations read from the module cache instantly (zero network, zero await).
+  - Exported `clearSidebarPrefsCache()` so the settings page can invalidate it after saving preferences.
+  - Added `loading.tsx` for `/budget` and `/settings`.
+- Commands run: `npx tsc --noEmit`, `npm run build` — passed. Commit: `51150e3`.
+
+### 2026-05-17 - Notes Page Graceful Degradation
+
+- Agent/tool used: Claude Code (Sonnet 4.6).
+- Task: Fix notes page crashing when `note_folders` table doesn't exist.
+- Files changed: `app/notes/page.tsx`, `app/api/note-folders/route.ts`.
+- What changed:
+  - API GET returns `[]` instead of 500 when the table is missing (detected by error message containing `note_folders` or `does not exist`).
+  - Page fetch no longer treats a folder failure as fatal — loads notes with empty folders instead.
+- Root cause: `scripts/add-notes-knowledge-fields.sql` migration was never run against the live database.
+- Commands run: `npx tsc --noEmit`, `npm run build` — passed. Commit: `8493ffd`.
+
+### 2026-05-17 - AI Assistant: Groq → OpenRouter Multi-Model
+
+- Agent/tool used: Claude Code (Sonnet 4.6).
+- Task: Fix broken AI chat and upgrade to multiple selectable AI models via OpenRouter.
+- Files changed: `app/api/chat/route.ts`, `app/ai-chat/page.tsx`, `lib/ai-models.ts` (new), `package.json`, `pnpm-lock.yaml`.
+- What changed:
+  - Installed `@ai-sdk/openai` and `@ai-sdk/groq`. Diagnosed full `@ai-sdk/react@3.x` + `ai@6.x` API breakage: `useChat` no longer accepts `{ api }`, returns `sendMessage`/`status` not `handleSubmit`/`isLoading`; `message.content` removed in favour of `message.parts[].text`; `toDataStreamResponse` renamed to `toUIMessageStreamResponse`.
+  - Stage 1 (Groq): Fixed route and page to use correct v6 API with Groq.
+  - Stage 2 (OpenRouter): Switched to OpenRouter (OpenAI-compatible baseURL) with 8 selectable models. Created `lib/ai-models.ts` as shared model registry. Route GET returns model list; POST accepts `modelId` in body.
+  - UI: model selector dropdown, provider badge, free/paid labels, clear conversation button, model name in loading state.
+- Available models (free): Gemini 2.0 Flash (default), Llama 3.3 70B, DeepSeek R1, Mistral Small 3.1.
+- Available models (paid via OpenRouter): GPT-4o Mini, GPT-4o, Claude 3.5 Haiku, Claude Sonnet 4.5.
+- Required env var: `OPENROUTER_API_KEY` in `.env.local` (not committed).
+- Commands run: `npx tsc --noEmit`, `npm run build` — passed. Commits: `3a4afcc`, `bdf11d5`.
+
 ## AI Handoff Summaries
 
 Future agents should start by reading all root memory files, then inspect the relevant code before editing. Keep changes small and update this file after every repo change.
