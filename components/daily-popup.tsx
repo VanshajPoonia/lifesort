@@ -306,13 +306,16 @@ export function DailyPopup() {
   }
 
   const saveContentToHistory = async (contentItem: DailyContent) => {
+    const safeContent = contentItem.content || contentItem.extra_data?.fact || ""
+    if (!contentItem.content_type || !safeContent) return
+
     try {
       await fetch("/api/daily-content", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           content_type: contentItem.content_type,
-          content: contentItem.content || contentItem.extra_data?.fact || "",
+          content: safeContent,
           extra_data: contentItem.extra_data
         })
       })
