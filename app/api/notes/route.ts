@@ -87,15 +87,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { title, content } = await request.json()
+    const { title, content, folder_id, tags, is_pinned } = await request.json()
+    const normalizedFolderId = normalizeFolderId(folder_id)
+    const normalizedTags = normalizeTags(tags)
+    const hasFolder = await assertFolderOwnership(normalizedFolderId, user.id)
+
+    if (!hasFolder) {
+      return NextResponse.json({ error: 'Folder not found' }, { status: 400 })
+    }
 
     const result = await sql`
-      INSERT INTO notes (user_id, title, content)
-      VALUES (${user.id}, ${title || 'Untitled'}, ${content || ''})
+      INSERT INTO notes (user_id, title, content, folder_id, tags, is_pinned)
+      VALUES (${user.id}, ${title || 'Untitled'}, ${content || ''}, ${normalizedFolderId}, ${normalizedTags}::text[], ${Boolean(is_pinned)})
       RETURNING *
     `
 
-    return NextResponse.json(result[0])
+    const note = await getNoteWithFolder(result[0].id, user.id)
+
+    return NextResponse.json(note)
   } catch (error) {
     console.error('Create note error:', error)
     return NextResponse.json({ error: 'Failed to create note' }, { status: 500 })
