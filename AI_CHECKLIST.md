@@ -18,6 +18,40 @@ Verification and safety checklist for AI agents working on LifeSort.
 4. Confirm environment variables exist before running backend flows that need them.
 5. Do not print secret values from `.env.local`.
 
+## Codex Kickoff Prompt
+
+Paste this at the start of every Codex task, followed by your actual request:
+
+```
+Before starting, read these files in order:
+1. AGENTS.md
+2. AI_PROJECT.md
+3. AI_TASK_LOG.md — read the most recent entry carefully
+4. AI_DECISIONS.md
+5. AI_CHECKLIST.md
+
+These are the project memory. Do not rely on chat history.
+If anything in the chat conflicts with these files, trust the files.
+
+After completing the task:
+- Run npx tsc --noEmit and npm run build
+- Update AI_TASK_LOG.md with: date, task, files changed, commands run, results, remaining issues, next steps
+- Include the AI_TASK_LOG.md update in the same commit as the code
+
+Task:
+[your task here]
+```
+
+## Codex Handoff Prompt
+
+Paste this when handing work from Codex to Claude Code or vice versa:
+
+```
+Read AI_TASK_LOG.md — the most recent entry has the handoff notes.
+Read AI_DECISIONS.md and AI_CHECKLIST.md before making any changes.
+Continue from where the last agent left off.
+```
+
 ## Regression Checkpoint Prompt
 
 Run this prompt periodically (after major feature work or before merging a branch) to verify nothing is broken. Paste it directly to Claude Code or Codex:
