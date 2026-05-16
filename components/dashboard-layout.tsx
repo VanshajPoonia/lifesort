@@ -64,6 +64,14 @@ const DEFAULT_SIDEBAR_PREFS = {
   ai_assistant: true,
 }
 
+// Module-level cache — persists across client-side navigations so the
+// sidebar never re-fetches after the first successful load.
+let _sidebarPrefsCache: Record<string, boolean> | null = null
+
+export function clearSidebarPrefsCache() {
+  _sidebarPrefsCache = null
+}
+
 export function DashboardLayout({ children, title, subtitle, showGreeting = false }: DashboardLayoutProps) {
   const getGreeting = () => {
     const hour = new Date().getHours()
@@ -92,29 +100,41 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
   }, [])
   
   const fetchSidebarPrefs = async () => {
+    // 1. Module-level cache hit — instant, no network, no await.
+    //    This is the common case after the first page load.
+    if (_sidebarPrefsCache) {
+      setSidebarPrefs(_sidebarPrefsCache)
+      setPrefsLoaded(true)
+      return
+    }
+
+    // 2. sessionStorage hit — instant on first page load after a hard refresh.
     try {
-      // Check sessionStorage cache first for instant load
-      const cached = sessionStorage.getItem("sidebar_prefs")
-      if (cached) {
-        try {
-          const cachedPrefs = JSON.parse(cached)
-          setSidebarPrefs({ ...DEFAULT_SIDEBAR_PREFS, ...cachedPrefs })
-          setPrefsLoaded(true)
-        } catch (e) {
-          // Invalid cache, continue to fetch
-        }
+      const stored = sessionStorage.getItem("sidebar_prefs")
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        const prefs = { ...DEFAULT_SIDEBAR_PREFS, ...parsed }
+        _sidebarPrefsCache = prefs
+        setSidebarPrefs(prefs)
+        setPrefsLoaded(true)
+        return
       }
-      
+    } catch {
+      // Corrupt cache — fall through to network.
+    }
+
+    // 3. First ever load — fetch from the API and warm both caches.
+    try {
       const response = await fetch("/api/sidebar-preferences")
       if (response.ok) {
         const data = await response.json()
-        if (data.preferences && typeof data.preferences === 'object') {
-          // Merge with defaults to ensure all keys exist
-          const finalPrefs = { ...DEFAULT_SIDEBAR_PREFS, ...data.preferences }
-          setSidebarPrefs(finalPrefs)
-          // Cache in sessionStorage for faster loads on navigation
+        if (data.preferences && typeof data.preferences === "object") {
+          const prefs = { ...DEFAULT_SIDEBAR_PREFS, ...data.preferences }
+          _sidebarPrefsCache = prefs
           sessionStorage.setItem("sidebar_prefs", JSON.stringify(data.preferences))
+          setSidebarPrefs(prefs)
         } else {
+          _sidebarPrefsCache = DEFAULT_SIDEBAR_PREFS
           setSidebarPrefs(DEFAULT_SIDEBAR_PREFS)
         }
       } else {

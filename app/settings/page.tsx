@@ -4,7 +4,7 @@ import React from "react"
 
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { DashboardLayout } from "@/components/dashboard-layout"
+import { DashboardLayout, clearSidebarPrefsCache } from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -231,8 +231,9 @@ export default function SettingsPage() {
       })
 
       if (response.ok) {
-        // Clear sessionStorage cache so sidebar reloads with new prefs
+        // Clear both caches so the sidebar picks up new prefs on next render.
         sessionStorage.removeItem("sidebar_prefs")
+        clearSidebarPrefsCache()
         alert("Sidebar preferences saved!")
         window.location.reload()
       }
