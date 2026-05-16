@@ -180,16 +180,21 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { content_type, content, extra_data } = body
 
-    // Save game result to history
+    if (typeof content_type !== "string" || !content_type.trim()) {
+      return NextResponse.json({ error: "content_type is required" }, { status: 400 })
+    }
+
+    const safeContent = typeof content === "string" ? content : ""
+
     const saved = await sql`
       INSERT INTO daily_content (user_id, content_type, category, content, extra_data)
-      VALUES (${user.id}, ${content_type}, ${content_type}, ${content}, ${JSON.stringify(extra_data || {})})
+      VALUES (${user.id}, ${content_type}, ${content_type}, ${safeContent}, ${JSON.stringify(extra_data || {})})
       RETURNING *
     `
 
     return NextResponse.json({ success: true, content: saved[0] })
   } catch (error) {
-    console.error("[v0] Save game error:", error)
+    console.error("[daily-content] Save error:", error)
     return NextResponse.json({ error: "Failed to save game" }, { status: 500 })
   }
 }

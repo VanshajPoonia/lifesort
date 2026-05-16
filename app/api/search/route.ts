@@ -119,11 +119,23 @@ export async function GET(request: Request) {
       LIMIT 5
     `),
     safeRows("notes", sql`
-      SELECT id, title, content as subtitle, '/notes' as href, updated_at, created_at
+      SELECT notes.id, notes.title, notes.content as subtitle, '/notes' as href, notes.updated_at, notes.created_at
       FROM notes
-      WHERE user_id = ${user.id}
-      AND (title ILIKE ${pattern} OR COALESCE(content, '') ILIKE ${pattern})
-      ORDER BY updated_at DESC, created_at DESC
+      LEFT JOIN note_folders
+        ON notes.folder_id = note_folders.id
+        AND note_folders.user_id = ${user.id}
+      WHERE notes.user_id = ${user.id}
+      AND (
+        notes.title ILIKE ${pattern}
+        OR COALESCE(notes.content, '') ILIKE ${pattern}
+        OR COALESCE(note_folders.name, '') ILIKE ${pattern}
+        OR EXISTS (
+          SELECT 1
+          FROM unnest(COALESCE(notes.tags, ARRAY[]::text[])) AS tag
+          WHERE tag ILIKE ${pattern}
+        )
+      )
+      ORDER BY notes.updated_at DESC, notes.created_at DESC
       LIMIT 5
     `),
     safeRows("links", sql`

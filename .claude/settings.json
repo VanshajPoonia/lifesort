@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "code_changes=$(git status --short 2>/dev/null | grep -Ev '\\.md$|^\\?\\?' | wc -l | tr -d ' '); log_ok=$(git status --short 2>/dev/null | grep 'AI_TASK_LOG' | wc -l | tr -d ' '); if [ \"$code_changes\" -gt 0 ] && [ \"$log_ok\" -eq 0 ]; then printf '{\"systemMessage\":\"\\u26a0 Task log reminder: code files were changed but AI_TASK_LOG.md has not been updated. Update it and include it in the same commit.\"}'; fi",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
