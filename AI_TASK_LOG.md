@@ -368,6 +368,80 @@ Both have graceful degradation in the API routes so missing tables return empty 
 - Required env var: `OPENROUTER_API_KEY` in `.env.local` (not committed).
 - Commands run: `npx tsc --noEmit`, `npm run build` — passed. Commits: `3a4afcc`, `bdf11d5`.
 
+### 2026-05-17 02:20 IST - Regression Checkpoint Follow-up
+
+- Agent/tool used: Codex.
+- Task summary: Implemented the LifeSort website regression checkpoint plan without adding features.
+- Files changed:
+  - `AI_TASK_LOG.md`
+  - `AI_CHECKLIST.md`
+- What changed:
+  - Recorded fresh command results, route smoke results, authenticated API smoke findings, migration/backfill assessment, and follow-up recommendations.
+  - Expanded the recurring regression checklist to include clean dev-server restart, disposable-user smoke checks, and schema-drift reporting.
+- Commands run:
+  - `git status`
+  - `git diff --stat`
+  - `lsof -nP -iTCP:3000 -sTCP:LISTEN`
+  - `kill 21798`
+  - `npm run dev`
+  - `curl` smoke checks for `/`, `/tasks`, `/goals`, `/notes`, `/links`, `/wishlist`, `/investments`, `/income`, `/budget`, `/calendar`, `/custom-sections`, `/settings`, `/ai-chat`, `/login`, and `/register`
+  - `curl` API checks for auth, protected routes, dashboard, global search, notes, note folders, custom sections, links, wishlist, investments, income, budget, and calendar events
+  - `npx tsc --noEmit`
+  - `npm run lint`
+  - `npm run build`
+- Command results:
+  - `git status`: branch `codex-website-roadmap-slice`, up to date with origin; one untracked file remains: `pnpm-workspace.yaml`.
+  - `git diff --stat`: empty before documentation updates.
+  - `npm run dev`: started cleanly after killing stale PID `21798`; `/login` returned `200` twice using `127.0.0.1:3000`. `localhost` had intermittent immediate connection failures in this shell, so route tests used `127.0.0.1`.
+  - Route smoke test: all requested page routes returned `200`.
+  - `npx tsc --noEmit`: failed on existing errors in `app/api/cron/deadline-reminders/route.ts`, `app/api/wishlist/convert-to-investment/route.ts`, `app/calendar/page.tsx`, and `components/games/snake-game.tsx`. Prior AI chat TypeScript errors are not present.
+  - `npm run lint`: failed before linting source because ESLint 10.3.0 cannot find `eslint.config.(js|mjs|cjs)`.
+  - `npm run build`: passed, generated 67 routes, skipped type validation and linting, and emitted the known unsupported metadata `themeColor`/`viewport` warnings.
+- Route smoke results:
+  - `200`: `/`, `/tasks`, `/goals`, `/notes`, `/links`, `/wishlist`, `/investments`, `/income`, `/budget`, `/calendar`, `/custom-sections`, `/settings`, `/ai-chat`, `/login`, `/register`.
+  - The earlier transient `/login` 500 / dev bundler issue was not reproduced after the clean restart.
+- Auth and user-isolation results:
+  - Registered two disposable users: `regression-a-1778964374@example.invalid` and `regression-b-1778964374@example.invalid`.
+  - Auth register, logout, login, and `/api/auth/me` worked for User A; `/api/auth/me` worked for User B.
+  - Protected routes checked without cookies returned `401` instead of `500`: `/api/auth/me`, `/api/budget`, `/api/notes`, `/api/note-folders`, `/api/custom-sections`, `/api/daily-content`, `/api/income`, `/api/investments`, `/api/tasks`.
+  - User A-created link, wishlist, investment, income, and budget category appeared in User A global search/dashboard and did not appear in User B global search/dashboard.
+  - Created User A records were deleted through their APIs. The disposable users themselves remain because there is no user-delete API and no direct database cleanup was run.
+- CRUD smoke results:
+  - Passed create/edit/delete smoke: links, wishlist, investments, income, budget category.
+  - Passed read-only/empty checks: User A tasks list returned `[]`, note folders returned `[]` when `note_folders` was missing, custom sections returned `[]`.
+  - Failed due to local database schema drift:
+    - `/api/tasks` POST 500: `tasks.due_time` column missing.
+    - `/api/goals` POST 500: `goals.priority` column missing.
+    - `/api/notes` GET 500: `note_folders` relation missing.
+    - `/api/notes` POST 500: `notes.folder_id` column missing.
+    - `/api/note-folders` POST 500: `note_folders` relation missing.
+    - `/api/custom-sections` POST 500: `custom_sections.description` column missing.
+    - `/api/calendar-events` POST 500: `calendar_events.event_date` column missing.
+  - Dashboard returned `200`, but server logs showed safe-fallback query failures for missing `calendar_events.event_date` and missing `nuke_goals.deadline`.
+- API, migration, and code review findings:
+  - Reviewed recent API areas: `/api/notes`, `/api/note-folders`, `/api/search`, `/api/custom-sections`, `/api/custom-sections/records`, `/api/chat`, `lib/ai-models.ts`, plus dashboard/budget/sidebar/daily-content related changes from recent commits.
+  - `scripts/add-notes-knowledge-fields.sql` is documented and not run automatically; it creates `note_folders`, adds `notes.folder_id`, `notes.tags TEXT[] DEFAULT '{}'`, `notes.is_pinned BOOLEAN DEFAULT FALSE`, and backfills null tags/pinned values.
+  - `scripts/add-custom-sections-fields.sql` is documented and not run automatically; it adds `custom_sections.description`, `custom_sections.fields JSONB NOT NULL DEFAULT '[]'`, and `custom_section_records.data JSONB NOT NULL DEFAULT '{}'`.
+  - Current local database has not received at least the Notes and Custom Sections migrations. It also appears behind other schema expectations for tasks, goals, calendar events, and nuke goals.
+  - `/api/search` catches the missing notes query and returns partial results, but `/api/notes` GET still 500s when `note_folders` is absent.
+  - `next.config.mjs` still hides TypeScript and lint failures during build through `typescript.ignoreBuildErrors` and `eslint.ignoreDuringBuilds`.
+  - Repeated raw SQL/auth/CRUD patterns remain existing architecture debt; no new duplication was added in this pass.
+- Manual/UI verification limitations:
+  - Browser automation was not available in this environment, so sidebar click navigation, Quick Add UI interactions, empty-state visuals, and browser console errors were not fully verified.
+  - HTTP route loads, auth APIs, dashboard/search APIs, model-list rendering data, and several CRUD API paths were verified.
+  - `/api/chat` GET returned 8 models and default `google/gemini-2.0-flash-exp:free`; actual message generation still depends on `OPENROUTER_API_KEY`.
+- Remaining issues:
+  - Apply/verify pending database migrations before accepting Notes folders/tags and Custom Sections records.
+  - Bring the local/live database schema up to the current API expectations for tasks, goals, calendar events, and nuke goals.
+  - Add ESLint flat config.
+  - Fix the remaining `npx tsc --noEmit` errors.
+  - Revisit `next.config.mjs` build settings that skip type and lint failures.
+  - Move unsupported metadata fields to Next viewport exports.
+- Suggested next steps:
+  - Confirm the target Neon environment and run/verify the current schema migrations, starting with Notes, Custom Sections, task reminder fields, goal reminder/progress fields, calendar event fields, and nuke goal deadline fields.
+  - Then rerun this regression checkpoint with browser automation available for Quick Add, sidebar navigation, empty states, and console-error checks.
+- Handoff prompt for next agent: "The app shell and build pass, but authenticated CRUD exposed database schema drift. Do not treat build success as enough. First confirm and migrate the target DB schema, then rerun `npx tsc --noEmit`, `npm run lint`, `npm run build`, route smoke tests, and authenticated CRUD/user-isolation checks."
+
 ## AI Handoff Summaries
 
 Future agents should start by reading all root memory files, then inspect the relevant code before editing. Keep changes small and update this file after every repo change.

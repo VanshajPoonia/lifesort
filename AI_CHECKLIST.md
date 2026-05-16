@@ -87,6 +87,21 @@ Update AI_TASK_LOG.md with: commands run, results, issues found, remaining issue
 Output: pass/fail summary, issues found, files that may need follow-up.
 ```
 
+## Regression Checkpoint Execution Notes
+
+Use this checklist when implementing the regression prompt:
+
+1. Restart the dev server from a clean port before route testing.
+2. Confirm `/login` returns `200` twice before continuing.
+3. Prefer `127.0.0.1:3000` if `localhost` has shell-level connection issues.
+4. Use disposable users for auth and user-isolation checks.
+5. Verify protected APIs return `401` without cookies.
+6. Smoke create/edit/delete paths through APIs when browser automation is unavailable.
+7. Record browser-automation gaps separately from API/HTTP failures.
+8. Treat 500s from missing columns/tables as schema drift and list exact missing objects.
+9. Do not run migrations or direct database cleanup without explicit target confirmation.
+10. After testing, delete temporary records through app APIs when possible and document anything left behind.
+
 ## Environment Setup Checklist
 
 Observed env var names include:
