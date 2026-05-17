@@ -11,8 +11,10 @@ import {
   Link2,
   Loader2,
   Search,
+  Shield,
   Target,
   TrendingUp,
+  Users,
   Wallet,
 } from "lucide-react"
 
@@ -31,6 +33,8 @@ type SearchType =
   | "goals"
   | "notes"
   | "projects"
+  | "people"
+  | "vault"
   | "links"
   | "wishlist"
   | "investments"
@@ -62,6 +66,8 @@ const groupIcons = {
   goals: Target,
   notes: FileText,
   projects: FolderPlus,
+  people: Users,
+  vault: Shield,
   links: Link2,
   wishlist: Heart,
   investments: TrendingUp,

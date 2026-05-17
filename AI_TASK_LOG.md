@@ -17,6 +17,100 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-05-17 - Life Vault Feature
+
+- Agent/tool used: Claude Code (coding agent mode).
+- Task summary: Implemented Life Vault / Important Info feature — a structured, non-sensitive reference store for documents, subscriptions, warranties, insurance, and other life information.
+- Files added:
+  - `scripts/add-vault.sql` — idempotent migration for `vault_items` table.
+  - `app/api/vault/route.ts` — CRUD (GET/POST/PUT/DELETE). GET supports optional `?category=` filter. URL coerced to https if no protocol. Tags as `text[]`.
+  - `app/vault/page.tsx` — full UI: permanent privacy warning banner, summary stats (total/expired/expiring/renewals), client-side search filter, 4-tab view (All/Expiring/Renewals/By category), Dialog-based add/edit form (10+ fields), color-coded expiry badges per card.
+- Files modified:
+  - `app/page.tsx` — `vaultWidget` state, non-blocking fetch of `/api/vault`, widget card (items stored / expiring ≤30d). Added `Shield` import.
+  - `app/api/search/route.ts` — Added `vault` to `SearchType`, `groupLabels`, parallel query against `vault_items` (title/description/notes/category/tags), `rowsByType` map.
+  - `components/global-search.tsx` — Added `vault` to `SearchType` union and `vault: Shield` to `groupIcons`.
+  - `components/quick-add-modal.tsx` — Added `vault-item` type, config (title/category/expiry_date fields), `defaultValues` entry, `Shield` import.
+  - `components/dashboard-layout.tsx` — Added `vault: true` to `DEFAULT_SIDEBAR_PREFS`, `Shield` import, Life Vault nav link after People.
+  - `app/api/sidebar-preferences/route.ts` — Added `vault: true` to defaults.
+  - `app/settings/page.tsx` — Added `vault: true` to state, Life Vault entry in sidebar section list (Shield icon already imported).
+  - `AI_PROJECT.md` — Updated product scope.
+- New data model:
+  - `vault_items`: id, user_id, title, category (documents/subscriptions/warranty/insurance/vehicle/home/medical/education/work/other), description, notes, start_date, expiry_date, renewal_date, reminder_date, url, life_area_id, tags (text[]), created_at, updated_at.
+  - Indexes on user_id, (user_id, category), (user_id, expiry_date) WHERE NOT NULL, (user_id, renewal_date) WHERE NOT NULL, life_area_id.
+- Privacy choices:
+  - No password or secret fields in the schema by design.
+  - No application-level encryption (none exists in the repo).
+  - No file upload (no S3/blob infrastructure).
+  - Permanent amber warning banner in the UI: "Do not save passwords, PINs, or sensitive secrets here."
+  - All API routes enforce `user_id` scope. No public endpoint.
+- Reminder behavior:
+  - `reminder_date` is stored as a DATE field but not acted on by any cron job in this pass.
+  - Expiry/renewal urgency (expired / <7d / <30d / <60d) is computed client-side from stored dates.
+  - The existing `/api/cron/deadline-reminders` cron could be extended in a future pass.
+- Commands run:
+  - `npx tsc --noEmit` → 0 errors.
+  - `npm run build` → passed, `/vault` and `/api/vault` appear in route list.
+- Remaining limitations:
+  - Run `scripts/add-vault.sql` against Neon before the feature works at runtime.
+  - No cron-based reminders for `reminder_date` yet.
+  - No file attachment — placeholder is a URL field only.
+  - No browser/manual smoke test run.
+- Suggested next steps:
+  - Run `scripts/add-vault.sql` against Neon and smoke-test all four tabs, add/edit/delete, search, quick-add, and dashboard widget.
+  - Extend the deadline-reminders cron to include vault `reminder_date` alerts.
+- Handoff notes:
+  - Privacy warning is a permanent in-page element, not dismissible.
+  - The `url` field accepts any domain and normalizes to `https://` if no protocol is given.
+  - The dashboard widget only shows if the API call succeeds — silently absent if vault tables don't exist yet.
+
+### 2026-05-17 - People / Relationships Feature
+
+- Agent/tool used: Claude Code (coding agent mode).
+- Task summary: Implemented the People / Relationships tracker with CRUD, reminders, item linking, four views, dashboard widget, global search, and quick-add support.
+- Files added:
+  - `scripts/add-people.sql` — idempotent migration for `people`, `people_reminders`, `people_links` tables.
+  - `app/api/people/route.ts` — CRUD (GET/POST/PUT/DELETE). GET supports optional `?relationship=` filter. Tags stored as `text[]`. Color validated against allowed palette.
+  - `app/api/people/reminders/route.ts` — CRUD. GET supports `?person_id=N` for a single person or `?upcoming=true` for all unsent reminders in the next 30 days across all people. POST validates person ownership before inserting.
+  - `app/api/people/links/route.ts` — Polymorphic link/unlink for tasks, notes, projects, calendar_events. GET returns item titles resolved via per-type subquery.
+  - `app/people/page.tsx` — Full people UI: summary stats, search filter, 4-tab view (All/Birthdays/Follow-ups/By type), person cards with initials avatar, contact info, birthday countdown, reminders preview, tags, slide-out detail drawer with reminder CRUD and linked items.
+- Files modified:
+  - `app/page.tsx` — Added `peopleWidget` state, fetches `/api/people` and `/api/people/reminders?upcoming=true` after main dashboard data, renders People widget card with total/birthdays/follow-ups counts. Added `Cake`, `Users` imports.
+  - `app/api/search/route.ts` — Added `people` to `SearchType`, `groupLabels`, query (name, email, phone, location, notes, relationship_type, tags), and result map.
+  - `components/global-search.tsx` — Added `people` to `SearchType` union and `groupIcons` map with `Users` icon.
+  - `components/quick-add-modal.tsx` — Added `person` to `QuickAddType`, `defaultValues`, and `quickAddConfigs` (name, relationship_type, email fields).
+  - `components/dashboard-layout.tsx` — Added `people: true` to `DEFAULT_SIDEBAR_PREFS`, added People nav link with `Users` icon after Projects.
+  - `app/api/sidebar-preferences/route.ts` — Added `people: true` to defaults.
+  - `app/settings/page.tsx` — Added `people: true` to state, added People entry to sidebar section list.
+  - `AI_PROJECT.md` — Updated product scope.
+- New data model:
+  - `people`: id, user_id, name, relationship_type (family/friend/work/school/client/mentor/other), email, phone, birthday (DATE), location, notes, life_area_id, tags (text[]), avatar_color, sort_order, created_at, updated_at.
+  - `people_reminders`: id, person_id, user_id, reminder_type (birthday/follow_up/custom), title, remind_at, is_recurring, recur_interval (yearly/monthly/weekly), is_sent, note, created_at, updated_at.
+  - `people_links`: id, person_id, user_id, item_type (task/note/project/calendar_event), item_id, created_at. Unique (person_id, item_type, item_id).
+- Reminder behavior:
+  - Reminders are stored in `people_reminders` and displayed in the detail drawer per person.
+  - The dashboard widget and `/api/people/reminders?upcoming=true` surface reminders due in the next 30 days that have `is_sent = FALSE`.
+  - `is_recurring` and `recur_interval` are stored for future cron-based re-scheduling. No cron job advances recurring reminders automatically yet — that is future work.
+  - Birthday countdowns in the UI are computed client-side from the `birthday` DATE field; they are not stored in `people_reminders` unless the user adds a birthday reminder manually.
+- Linked modules: tasks, notes, projects, calendar_events (polymorphic via `people_links`). Item ownership is validated server-side before linking. Deleted source items leave links as stale (title shows "(deleted)") until the user unlinks them.
+- Privacy: all API routes call `getUserFromSession()` and filter every query by `user_id`. People data is not exposed to any public share endpoint. The `/api/people/links` GET verifies person ownership before resolving linked titles.
+- Migration status: `scripts/add-people.sql` created. Not run against any database yet.
+- Commands run:
+  - `npx tsc --noEmit` → 0 errors.
+  - `npm run build` → passed, 82 routes (up from 75 before this session).
+- Remaining risks:
+  - Run `scripts/add-people.sql` against the Neon database before the feature works at runtime.
+  - Birthday reminders in `people_reminders` are not auto-created from the `birthday` field; users must add them manually. Could auto-seed a yearly reminder on person creation in a future pass.
+  - Recurring reminder advancement (re-scheduling after `is_sent = TRUE`) is not implemented; cron job would need to advance `remind_at` by `recur_interval` and reset `is_sent = FALSE`.
+  - `people_links` to `calendar_events` depends on the `calendar_events` table existing (it is in the main schema).
+  - No browser/manual smoke test run.
+- Suggested next steps:
+  - Run `scripts/add-people.sql` against Neon and smoke-test all four tabs, reminders, and linking.
+  - Add people to the global search results in the `/api/search` route — done in this pass.
+  - Optionally add a cron step to advance recurring reminders and auto-seed birthday reminders.
+- Handoff notes:
+  - The detail drawer is a fixed-position overlay rendered at the page level, not a Next.js route — no URL change on open.
+  - The `people_reminders.is_sent` flag is set only by future cron logic; the UI never sets it.
+
 ### 2026-05-17 11:57 IST - Life Projects Feature
 
 - Agent/tool used: Codex.

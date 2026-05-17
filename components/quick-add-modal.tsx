@@ -10,8 +10,10 @@ import {
   FolderPlus,
   Heart,
   Link2,
+  Shield,
   Target,
   TrendingUp,
+  Users,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -27,6 +29,8 @@ type QuickAddType =
   | "goal"
   | "note"
   | "project"
+  | "person"
+  | "vault-item"
   | "wishlist"
   | "link"
   | "income"
@@ -175,6 +179,61 @@ const quickAddConfigs: QuickAddConfig[] = [
     }),
   },
   {
+    type: "person",
+    label: "Person",
+    description: "Add a contact",
+    endpoint: "/api/people",
+    eventType: "person",
+    icon: Users,
+    fields: [
+      { name: "name", label: "Name", type: "text", required: true, placeholder: "Alice Kim" },
+      { name: "relationship_type", label: "Relationship", type: "select", options: [
+        { value: "family", label: "Family" },
+        { value: "friend", label: "Friend" },
+        { value: "work", label: "Work" },
+        { value: "school", label: "School" },
+        { value: "client", label: "Client" },
+        { value: "mentor", label: "Mentor" },
+        { value: "other", label: "Other" },
+      ]},
+      { name: "email", label: "Email", type: "text", placeholder: "alice@example.com" },
+    ],
+    buildPayload: (values) => ({
+      name: values.name,
+      relationship_type: values.relationship_type || "friend",
+      email: values.email || null,
+    }),
+  },
+  {
+    type: "vault-item",
+    label: "Vault Item",
+    description: "Store important info",
+    endpoint: "/api/vault",
+    eventType: "vault-item",
+    icon: Shield,
+    fields: [
+      { name: "title", label: "Title", type: "text", required: true, placeholder: "Car Insurance Policy" },
+      { name: "category", label: "Category", type: "select", options: [
+        { value: "documents", label: "Documents" },
+        { value: "subscriptions", label: "Subscriptions" },
+        { value: "warranty", label: "Warranty" },
+        { value: "insurance", label: "Insurance" },
+        { value: "vehicle", label: "Vehicle" },
+        { value: "home", label: "Home" },
+        { value: "medical", label: "Medical" },
+        { value: "education", label: "Education" },
+        { value: "work", label: "Work" },
+        { value: "other", label: "Other" },
+      ]},
+      { name: "expiry_date", label: "Expiry date", type: "date" },
+    ],
+    buildPayload: (values) => ({
+      title: values.title,
+      category: values.category || "other",
+      expiry_date: values.expiry_date || null,
+    }),
+  },
+  {
     type: "wishlist",
     label: "Wishlist",
     description: "Save something to buy",
@@ -275,6 +334,8 @@ const defaultValues: Record<QuickAddType, Record<string, string>> = {
   goal: { category: "personal", priority: "medium" },
   note: {},
   project: { priority: "medium" },
+  person: { relationship_type: "friend" },
+  "vault-item": { category: "other" },
   wishlist: {},
   link: {},
   income: { type: "salary", frequency: "monthly" },

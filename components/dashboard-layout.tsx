@@ -16,6 +16,7 @@ import {
   TrendingUp,
   DollarSign,
   Flame,
+  Shield,
   Menu,
   Bell,
   Settings,
@@ -33,6 +34,7 @@ import {
   LogOut,
   Plus,
   Network,
+  Users,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -53,6 +55,8 @@ const DEFAULT_SIDEBAR_PREFS = {
   today: true,
   life_areas: true,
   projects: true,
+  people: true,
+  vault: true,
   calendar: true,
   links: true,
   daily_content: true,
@@ -272,6 +276,22 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
                 <Button variant={isActivePath("/projects") ? "secondary" : "ghost"} className={navButtonClass("/projects")}>
                   <FolderPlus className={navIconClass("/projects")} />
                   Projects
+                </Button>
+              </Link>
+            )}
+            {prefs.people && (
+              <Link href="/people">
+                <Button variant={isActivePath("/people") ? "secondary" : "ghost"} className={navButtonClass("/people")}>
+                  <Users className={navIconClass("/people")} />
+                  People
+                </Button>
+              </Link>
+            )}
+            {prefs.vault && (
+              <Link href="/vault">
+                <Button variant={isActivePath("/vault") ? "secondary" : "ghost"} className={navButtonClass("/vault")}>
+                  <Shield className={navIconClass("/vault")} />
+                  Life Vault
                 </Button>
               </Link>
             )}

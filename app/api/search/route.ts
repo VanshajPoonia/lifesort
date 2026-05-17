@@ -8,6 +8,8 @@ type SearchType =
   | "goals"
   | "notes"
   | "projects"
+  | "people"
+  | "vault"
   | "links"
   | "wishlist"
   | "investments"
@@ -37,6 +39,8 @@ const groupLabels: Record<SearchType, string> = {
   goals: "Goals",
   notes: "Notes",
   projects: "Projects",
+  people: "People",
+  vault: "Vault",
   links: "Links",
   wishlist: "Wishlist",
   investments: "Investments",
@@ -97,6 +101,8 @@ export async function GET(request: Request) {
     goals,
     notes,
     projects,
+    people,
+    vault,
     links,
     wishlist,
     investments,
@@ -162,6 +168,46 @@ export async function GET(request: Request) {
         OR COALESCE(life_areas.name, '') ILIKE ${pattern}
       )
       ORDER BY projects.updated_at DESC, projects.created_at DESC
+      LIMIT 5
+    `),
+    safeRows("people", sql`
+      SELECT id, name as title,
+        COALESCE(relationship_type, 'other') || CASE WHEN email IS NOT NULL THEN ' · ' || email ELSE '' END as subtitle,
+        '/people' as href, updated_at, created_at
+      FROM people
+      WHERE user_id = ${user.id}
+      AND (
+        name ILIKE ${pattern}
+        OR COALESCE(email, '') ILIKE ${pattern}
+        OR COALESCE(phone, '') ILIKE ${pattern}
+        OR COALESCE(location, '') ILIKE ${pattern}
+        OR COALESCE(notes, '') ILIKE ${pattern}
+        OR relationship_type ILIKE ${pattern}
+        OR EXISTS (
+          SELECT 1 FROM unnest(COALESCE(tags, ARRAY[]::text[])) AS tag
+          WHERE tag ILIKE ${pattern}
+        )
+      )
+      ORDER BY updated_at DESC, created_at DESC
+      LIMIT 5
+    `),
+    safeRows("vault", sql`
+      SELECT id, title,
+        COALESCE(description, category) as subtitle,
+        '/vault' as href, updated_at, created_at
+      FROM vault_items
+      WHERE user_id = ${user.id}
+      AND (
+        title ILIKE ${pattern}
+        OR COALESCE(description, '') ILIKE ${pattern}
+        OR COALESCE(notes, '') ILIKE ${pattern}
+        OR category ILIKE ${pattern}
+        OR EXISTS (
+          SELECT 1 FROM unnest(COALESCE(tags, ARRAY[]::text[])) AS tag
+          WHERE tag ILIKE ${pattern}
+        )
+      )
+      ORDER BY updated_at DESC, created_at DESC
       LIMIT 5
     `),
     safeRows("links", sql`
@@ -230,6 +276,8 @@ export async function GET(request: Request) {
       goals,
       notes,
       projects,
+      people,
+      vault,
       links,
       wishlist,
       investments,

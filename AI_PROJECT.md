@@ -19,6 +19,8 @@ Implemented feature areas found in the repo:
 - Today Plan at `app/today/page.tsx`, providing a non-AI daily command center with focus items, habits due today (with check-off), derived task/goal/calendar/note/budget/wishlist suggestions, and end-of-day reflection.
 - Life Areas at `app/life-areas/page.tsx`, providing user-owned cross-module organization with default areas, icons, colors, descriptions, and ordering.
 - Life Projects at `app/projects/page.tsx` and `app/projects/[id]/page.tsx`, providing larger project containers with status, priority, progress, optional Life Area assignment, templates, linked existing records, and activity.
+- Life Vault at `app/vault/page.tsx`, with structured storage for important life info (documents, subscriptions, warranties, insurance, vehicle, home, medical, education, work), expiry/renewal/reminder date tracking, four views (All/Expiring/Renewals/By category), color-coded urgency badges, dashboard widget, global search, and quick-add support.
+- People / Relationships at `app/people/page.tsx`, with contact CRUD (name, relationship type, email, phone, birthday, location, notes, tags, life area), per-person reminders (birthday/follow-up/custom, recurring), item linking (tasks/notes/projects/calendar events), four views (All/Birthdays/Follow-ups/By type), and dashboard widget.
 - Custom auth: login, register, logout, current-user check, forgot password, and reset password.
 - Tasks with priority, due date/time, reminders, completion state, category, optional goal linking, and optional Life Area assignment.
 - Goals with status, priority, progress, target dates, numeric tracking, reminders, linked tasks, and optional Life Area assignment.

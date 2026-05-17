@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import {
   AlertCircle,
   ArrowRight,
+  Cake,
   CalendarCheck,
   CheckCircle2,
   Clock,
@@ -17,8 +18,10 @@ import {
   NotebookText,
   PiggyBank,
   Plus,
+  Shield,
   Target,
   TrendingUp,
+  Users,
   Wallet,
   Zap,
 } from "lucide-react"
@@ -390,6 +393,8 @@ export default function Home() {
   const [lifeAreas, setLifeAreas] = useState<LifeArea[]>([])
   const [todayPreview, setTodayPreview] = useState<TodayPlanPreview | null>(null)
   const [habitsToday, setHabitsToday] = useState<{ total: number; done: number; streak: number } | null>(null)
+  const [peopleWidget, setPeopleWidget] = useState<{ birthdays: number; followUps: number; total: number } | null>(null)
+  const [vaultWidget, setVaultWidget] = useState<{ expiringSoon: number; total: number } | null>(null)
   const [dashboardLoading, setDashboardLoading] = useState(true)
   const [errors, setErrors] = useState<Partial<Record<DashboardErrorKey, string>>>({})
 
@@ -467,6 +472,53 @@ export default function Home() {
       }
     } catch {
       // Habits widget failure is non-fatal
+    }
+
+    // People widget — fetch independently, fails silently
+    try {
+      const [peopleRes, remindersRes] = await Promise.all([
+        fetch("/api/people"),
+        fetch("/api/people/reminders?upcoming=true"),
+      ])
+      if (peopleRes.ok && remindersRes.ok) {
+        type RawPerson = { birthday: string | null }
+        type RawReminder = { reminder_type: string }
+        const peopleData: RawPerson[] = await peopleRes.json()
+        const remindersData: RawReminder[] = await remindersRes.json()
+        const today2 = new Date()
+        today2.setHours(0, 0, 0, 0)
+        const birthdays = peopleData.filter((p) => {
+          if (!p.birthday) return false
+          const bday = new Date(p.birthday)
+          const next = new Date(today2.getFullYear(), bday.getMonth(), bday.getDate())
+          if (next < today2) next.setFullYear(today2.getFullYear() + 1)
+          const days = Math.ceil((next.getTime() - today2.getTime()) / 86400000)
+          return days <= 30
+        }).length
+        const followUps = remindersData.filter((r) => r.reminder_type === "follow_up").length
+        setPeopleWidget({ birthdays, followUps, total: peopleData.length })
+      }
+    } catch {
+      // People widget failure is non-fatal
+    }
+
+    // Vault widget — fetch independently, fails silently
+    try {
+      const vaultRes = await fetch("/api/vault")
+      if (vaultRes.ok) {
+        type RawVaultItem = { expiry_date: string | null }
+        const vaultData: RawVaultItem[] = await vaultRes.json()
+        const todayMs = new Date().setHours(0, 0, 0, 0)
+        const expiringSoon = vaultData.filter((item) => {
+          if (!item.expiry_date) return false
+          const d = new Date(item.expiry_date + "T00:00:00")
+          const days = Math.ceil((d.getTime() - todayMs) / 86400000)
+          return days >= 0 && days <= 30
+        }).length
+        setVaultWidget({ expiringSoon, total: vaultData.length })
+      }
+    } catch {
+      // Vault widget failure is non-fatal
     }
 
     setSources({
@@ -963,6 +1015,83 @@ export default function Home() {
                     {habitsToday.total > 0 ? Math.round((habitsToday.done / habitsToday.total) * 100) : 0}%
                   </p>
                   <p className="text-xs text-muted-foreground">Complete</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {peopleWidget !== null && (
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-primary" />
+                    People
+                  </CardTitle>
+                  <CardDescription>Upcoming birthdays and follow-up reminders.</CardDescription>
+                </div>
+                <Button asChild size="sm" variant="outline" className="gap-2">
+                  <Link href="/people">
+                    View people
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="rounded-md border bg-muted/40 p-3 text-center">
+                  <p className="text-2xl font-bold">{peopleWidget.total}</p>
+                  <p className="text-xs text-muted-foreground">People tracked</p>
+                </div>
+                <div className="rounded-md border bg-muted/40 p-3 text-center">
+                  <p className="text-2xl font-bold text-pink-500 flex items-center justify-center gap-1">
+                    <Cake className="h-5 w-5" />
+                    {peopleWidget.birthdays}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Birthdays this month</p>
+                </div>
+                <div className="rounded-md border bg-muted/40 p-3 text-center">
+                  <p className="text-2xl font-bold text-amber-500">{peopleWidget.followUps}</p>
+                  <p className="text-xs text-muted-foreground">Follow-ups due</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {vaultWidget !== null && (
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Shield className="h-5 w-5 text-primary" />
+                    Life Vault
+                  </CardTitle>
+                  <CardDescription>Important documents, subscriptions, and upcoming expirations.</CardDescription>
+                </div>
+                <Button asChild size="sm" variant="outline" className="gap-2">
+                  <Link href="/vault">
+                    View vault
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-md border bg-muted/40 p-3 text-center">
+                  <p className="text-2xl font-bold">{vaultWidget.total}</p>
+                  <p className="text-xs text-muted-foreground">Items stored</p>
+                </div>
+                <div className="rounded-md border bg-muted/40 p-3 text-center">
+                  <p className={`text-2xl font-bold ${vaultWidget.expiringSoon > 0 ? "text-orange-500" : ""}`}>
+                    {vaultWidget.expiringSoon}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Expiring ≤30d</p>
                 </div>
               </div>
             </CardContent>
