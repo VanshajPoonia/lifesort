@@ -105,6 +105,7 @@ Major tables in the current schema baseline:
 - `life_areas`
 - `daily_plans`
 - `weekly_reviews`
+- `inbox_items`
 - `projects`, `project_items`, `project_activity`
 - `goals`, `tasks`, `nuke_goals`
 - `calendar_events`, `calendar_integrations`
@@ -126,6 +127,7 @@ Representative API areas:
 
 - Auth: `app/api/auth/*`
 - CRUD and planning: `today-plan`, `weekly-review`, `life-areas`, `projects`, `projects/items`, `projects/activity`, `tasks`, `goals`, `notes`, `note-folders`, `links`, `link-folders`, `wishlist`, `investments`, `income`, `budget`, `calendar-events`, `nuke-goal`, `custom-sections`
+- Capture and sorting: `inbox`, `inbox/convert`
 - User/profile/preferences: `profile`, `onboarding`, `sidebar-preferences`, `daily-content`
 - Integrations: `calendar/google/*`, `calendar/sync`, `stock-quote`, `url-preview`
 - AI: `chat`, `daily-content/generate`, `investments/parse-screenshot`, `ai/weekly-summary`, `ai/today-plan`, `ai/capture`, `ai/life-balance`; these routes use main session auth and provider-specific env vars.
@@ -140,6 +142,7 @@ Important pages:
 - `/`: dashboard with Today Plan preview and Life Balance entry point
 - `/today`
 - `/review`
+- `/inbox`
 - `/insights`
 - `/life-areas`
 - `/projects`, `/projects/[id]`
