@@ -3,6 +3,7 @@ import { createOpenAI } from "@ai-sdk/openai"
 import { NextResponse } from "next/server"
 import { getUserFromSession } from "@/lib/auth"
 import { checkAiUsageLimit, createAiUsageEvent, updateAiUsageEvent } from "@/lib/ai-usage"
+import { getPersonalRulesContext } from "@/lib/personal-rules"
 
 const TODAY_PLAN_MODEL = "google/gemini-2.0-flash-exp:free"
 
@@ -49,7 +50,7 @@ function formatItem(item: InputItem): string {
   return `- [${id}] ${title}${subtitle}${date}`
 }
 
-function buildPrompt(planDate: string, data: TodayPlanInput): string {
+function buildPrompt(planDate: string, data: TodayPlanInput, rulesContextPreview: string, maxFocusItems: number): string {
   const date = new Date(`${planDate}T00:00:00`)
   const dow = Number.isNaN(date.getTime()) ? planDate : date.toLocaleDateString("en-US", { weekday: "long" })
 
@@ -72,6 +73,9 @@ function buildPrompt(planDate: string, data: TodayPlanInput): string {
 
   return `You are a concise day planner for LifeSort, a personal life-management app.
 Today: ${planDate} (${dow})
+
+VISIBLE PERSONAL OPERATING RULES AND PREFERENCES:
+${rulesContextPreview}
 
 MUST DO — overdue or high-priority items due today:
 ${mustDoLines}
@@ -109,11 +113,13 @@ Return ONLY valid JSON. No markdown, no code fences:
 }
 
 Rules:
-- top_priorities: 1–3 items only. Prioritise MUST DO first, then CALENDAR. Use the exact bracket IDs from the input.
+- top_priorities: 1–${maxFocusItems} items only. Prioritise MUST DO first, then CALENDAR. Use the exact bracket IDs from the input.
 - schedule_blocks: exactly 3 (Morning, Afternoon, Evening). Name specific items in each suggestion.
 - defer: 0–3 items the user should skip today. Exact IDs from input. Empty array if none.
 - risks: 0–3 short warnings. Empty array if no concerns.
 - small_win: one concrete sentence. May suggest a new action not in the input.
+- Respect the visible personal operating rules and preferences above.
+- Do NOT create or change personal rules.
 - Do NOT fabricate item IDs. Only use IDs exactly as shown in the brackets above.`
 }
 
@@ -215,7 +221,9 @@ export async function POST(req: Request) {
   })
 
   try {
-    const prompt = buildPrompt(plan_date, data)
+    const rulesContext = await getPersonalRulesContext(user.id)
+    const maxFocusItems = Math.min(3, Math.max(1, rulesContext.preferences.max_daily_focus_items))
+    const prompt = buildPrompt(plan_date, data, rulesContext.preview, maxFocusItems)
 
     const { text } = await generateText({
       model: openrouter(TODAY_PLAN_MODEL),
@@ -227,6 +235,7 @@ export async function POST(req: Request) {
       await updateAiUsageEvent(usageEventId, "provider_error", "Failed to parse structured JSON response")
       return NextResponse.json({ error: "The AI returned an unexpected format. Please try again." }, { status: 502 })
     }
+    result.top_priorities = result.top_priorities.slice(0, maxFocusItems)
 
     await updateAiUsageEvent(usageEventId, "success")
     return NextResponse.json({ result, remaining: Math.max(0, limit.remaining - 1) })

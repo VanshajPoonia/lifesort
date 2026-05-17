@@ -4,6 +4,7 @@ import { NextResponse } from "next/server"
 
 import { getUserFromSession } from "@/lib/auth"
 import { checkAiUsageLimit, createAiUsageEvent, updateAiUsageEvent } from "@/lib/ai-usage"
+import { getPersonalRulesContext } from "@/lib/personal-rules"
 import { getResetData, type ResetActionType, type ResetItem } from "@/lib/reset"
 
 const RESET_MODEL = "google/gemini-2.0-flash-exp:free"
@@ -26,7 +27,7 @@ type ResetSuggestion = {
   reason: string
 }
 
-function buildPrompt(items: ResetItem[]) {
+function buildPrompt(items: ResetItem[], rulesContextPreview: string) {
   const payload = items.slice(0, 80).map((item) => ({
     id: item.id,
     item_type: item.type,
@@ -41,10 +42,15 @@ function buildPrompt(items: ResetItem[]) {
 
   return `You are helping a LifeSort user recover from an overwhelming personal system.
 
+Visible Personal Operating Rules and Preferences:
+${rulesContextPreview}
+
 Rules:
 - Read-only analysis only. Do not claim anything has been changed.
 - Recommend only actions listed in allowed_actions.
 - Prefer tiny, conservative suggestions.
+- Respect the visible personal operating rules and preferences above.
+- Do not create, modify, or invent personal rules.
 - "prioritize" should use action "reschedule" only when a date change is needed, otherwise explain why to keep it for today.
 - "defer" should use "reschedule" when possible.
 - "archive" should use "archive".
@@ -163,9 +169,10 @@ export async function POST() {
   })
 
   try {
+    const rulesContext = await getPersonalRulesContext(user.id)
     const { text } = await generateText({
       model: openrouter(RESET_MODEL),
-      prompt: buildPrompt(items),
+      prompt: buildPrompt(items, rulesContext.preview),
       temperature: 0.2,
     })
     const analysis = parseResult(text, items)

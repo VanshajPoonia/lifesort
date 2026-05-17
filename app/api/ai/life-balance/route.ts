@@ -4,6 +4,7 @@ import { neon } from "@neondatabase/serverless"
 import { NextResponse } from "next/server"
 import { getUserFromSession } from "@/lib/auth"
 import { checkAiUsageLimit, createAiUsageEvent, updateAiUsageEvent } from "@/lib/ai-usage"
+import { getPersonalRulesContext } from "@/lib/personal-rules"
 
 const sql = neon(process.env.DATABASE_URL!)
 const LIFE_BALANCE_MODEL = "google/gemini-2.0-flash-exp:free"
@@ -330,9 +331,10 @@ async function buildLifeBalanceMetrics(userId: string): Promise<LifeBalanceMetri
   }
 }
 
-function buildPrompt(metrics: LifeBalanceMetrics) {
+function buildPrompt(metrics: LifeBalanceMetrics, rulesContextPreview: string) {
   const payload = {
     instructions: "Use only these aggregate LifeSort metrics and short weekly review reflections. Do not assume diagnoses. Be concrete, kind, and concise.",
+    visible_personal_operating_rules: rulesContextPreview,
     areas: metrics.areas.map((area) => ({
       id: area.life_area_id,
       name: area.name,
@@ -354,6 +356,8 @@ Privacy rules:
 - You are receiving aggregate counts and short weekly review reflections only.
 - The analysis is read-only. Do not claim you created, changed, or scheduled anything.
 - Do not mention medical, financial, or legal certainty. Use "may", "could", and practical next steps.
+- Respect the visible personal operating rules in the input when suggesting actions.
+- Do not create, modify, or invent personal rules.
 
 Return ONLY valid JSON, no markdown:
 {
@@ -469,7 +473,7 @@ export async function POST() {
   try {
     const { text } = await generateText({
       model: openrouter(LIFE_BALANCE_MODEL),
-      prompt: buildPrompt(metrics),
+      prompt: buildPrompt(metrics, (await getPersonalRulesContext(user.id)).preview),
       temperature: 0.3,
     })
 

@@ -3,6 +3,7 @@ import { createOpenAI } from "@ai-sdk/openai"
 import { NextResponse } from "next/server"
 import { getUserFromSession } from "@/lib/auth"
 import { checkAiUsageLimit, createAiUsageEvent, updateAiUsageEvent } from "@/lib/ai-usage"
+import { getPersonalRulesContext } from "@/lib/personal-rules"
 
 const WEEKLY_SUMMARY_MODEL = "google/gemini-2.0-flash-exp:free"
 
@@ -54,7 +55,7 @@ function formatCurrency(value: number) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value)
 }
 
-function buildPrompt(weekStart: string, weekEnd: string, data: WeeklySummaryInput): string {
+function buildPrompt(weekStart: string, weekEnd: string, data: WeeklySummaryInput, rulesContextPreview: string): string {
   const tasks = data.tasks ?? {}
   const goals = data.goals ?? {}
   const habits = data.habits ?? {}
@@ -75,6 +76,9 @@ function buildPrompt(weekStart: string, weekEnd: string, data: WeeklySummaryInpu
 
 Week: ${weekStart} to ${weekEnd}
 
+Visible Personal Operating Rules and Preferences:
+${rulesContextPreview}
+
 Activity (numbers only — no personal names or content):
 - Tasks: ${n(tasks.completed)} completed, ${n(tasks.overdue)} overdue, ${n(tasks.created_updated)} touched this week
 - Goals: ${n(goals.progressed)} progressed, ${n(goals.upcoming_deadlines)} with upcoming deadlines
@@ -92,6 +96,8 @@ Instructions:
 - ignored_areas: list life area names or modules (tasks/habits/notes/finance) with zero activity; empty array if none.
 - next_week_focus: one clear sentence based on the data.
 - next_actions: exactly 3 practical items.
+- Respect the visible personal operating rules and preferences when shaping next-week focus and actions.
+- Do not create, modify, or invent personal rules.
 
 Respond with ONLY valid JSON. No markdown, no code fences, no preamble:
 {
@@ -188,7 +194,8 @@ export async function POST(req: Request) {
   })
 
   try {
-    const prompt = buildPrompt(week_start, weekEnd, data)
+    const rulesContext = await getPersonalRulesContext(user.id)
+    const prompt = buildPrompt(week_start, weekEnd, data, rulesContext.preview)
 
     const { text } = await generateText({
       model: openrouter(WEEKLY_SUMMARY_MODEL),
