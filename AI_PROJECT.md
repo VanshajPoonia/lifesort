@@ -40,6 +40,7 @@ Implemented feature areas found in the repo:
 - Admin subscription management.
 - AI chat page and authenticated `/api/chat` route for productivity coaching, with model allowlisting, request validation, and conservative usage caps.
 - AI Weekly Summary at `/api/ai/weekly-summary`: authenticated POST that takes the already-loaded week summary (numeric counts only, no PII) and calls OpenRouter to return structured output (summary, wins, risks, ignored areas, next-week focus, 3 next actions). Rate-limited to 5/day. Result is displayed on `/review` and optionally applied to reflection fields; AI never writes to any user table.
+- AI Today Planner at `/api/ai/today-plan`: authenticated POST that takes the already-loaded candidates and habits from `/today` (actual item titles + IDs) and calls OpenRouter to return a structured day plan (top 3 priorities, schedule blocks, items to defer, risks, one small win). Rate-limited to 3/day. Every write action (add to focus, create task) requires explicit user confirmation — nothing is applied automatically.
 - Global search across tasks, goals, notes, links, wishlist, investments, income, and budget.
 - Global search also includes projects.
 

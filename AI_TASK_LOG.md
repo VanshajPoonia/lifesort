@@ -17,6 +17,45 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-05-17 - AI Today Planner Feature
+
+- Agent/tool used: Claude Code (coding agent mode).
+- Task summary: Added an AI-powered "Plan My Day with AI" button to `/today`. Clicking it POSTs the already-loaded candidate items and habits to a new `/api/ai/today-plan` endpoint, which builds a structured day plan and returns it for user review. Every write action (add to focus, create task) requires explicit user confirmation — AI never writes automatically.
+- Files added:
+  - `app/api/ai/today-plan/route.ts` — authenticated POST endpoint. Accepts `{ plan_date, must_do, should_do, could_do, calendar_today, habits_today, upcoming_deadlines }` from client. Rate-limited to 3/day via `ai_usage_events`. Builds a prompt with item titles + IDs, calls `generateText` via OpenRouter (`google/gemini-2.0-flash-exp:free`), parses and validates structured JSON, returns `{ result, remaining }`. Result shape: `top_priorities[]`, `schedule_blocks[]`, `defer[]`, `risks[]`, `small_win`.
+- Files modified:
+  - `lib/ai-usage.ts` — Added `"today_plan"` to `AiUsageRoute` union type and `today_plan: 3` to `DAILY_LIMITS`.
+  - `app/today/page.tsx` — Added `AiTodayPlanResult` type; `aiPlan`, `generatingAi`, `aiError`, `createTaskTitle`, `creatingTask` state; `generateAiPlan()` function; `addPriorityToFocus()` function (finds TodayItem by ID from candidates and calls existing `addFocus`); `createTaskFromSmallWin()` function (POSTs to `/api/tasks` after explicit user confirmation). Added "Plan My Day with AI" button in focus card header. Added conditional AI Day Plan card (shown after focus card, before must-do/should-do/could-do grid) with: top priorities + "Add to Focus" buttons, schedule blocks (3 columns), defer list, risks, small win + inline "Create Task" form.
+- Data sent to AI:
+  - Actual item titles and IDs from `candidates.mustDo`, `.shouldDo`, `.couldDo`, `.calendarToday`, `.upcomingDeadlines` (already loaded on page), plus habit names and done-status from `habitsToday`.
+  - Unlike the weekly summary (numbers only), this feature sends actual titles because the AI needs them to make meaningful prioritization suggestions.
+  - Subtitles are truncated to 80 chars; item lists capped before sending (must_do ≤12, calendar ≤8, should/could ≤6/5, deadlines ≤6, habits ≤10).
+- User-confirmed actions:
+  - "Add to Focus" button on each top_priority item: calls existing `addFocus(item)` → calls `PUT /api/today-plan`. User must click.
+  - "Create Task from this" on small_win: sets `createTaskTitle` state, shows inline editable input + Create/Cancel buttons. User edits title and clicks Create → `POST /api/tasks`. Zero auto-writes.
+  - "Dismiss" button clears AI plan result from view.
+- Privacy safeguards:
+  - UI disclosure: "Your task titles are shared with AI. Nothing applies automatically — every action requires your confirmation."
+  - Prompt caps item list lengths and subtitle lengths to limit data sent.
+  - Rate limit: 3/day per user (stored in `ai_usage_events`).
+  - Endpoint returns 503 if `OPENROUTER_API_KEY` is not configured.
+  - AI-suggested IDs that don't match any TodayItem are silently ignored in `addPriorityToFocus`.
+- Commands run:
+  - `npx tsc --noEmit` → failed once (implicit `any` in filter type guards), fixed by adding explicit typed intermediary arrays. Clean on second run.
+  - `npm run build` → passed. `/api/ai/today-plan` appears in route list (89 routes total).
+- Remaining limitations:
+  - No browser/manual smoke test — requires live OpenRouter key.
+  - AI returns IDs from the prompt; if the model hallucinates an ID, `addPriorityToFocus` silently skips it (no error shown to user).
+  - "Create Task" does not refresh the task list on the page; user must navigate to /tasks to confirm creation.
+  - 3/day limit means users planning a complex day may exhaust the limit quickly. Can be raised in `DAILY_LIMITS` in `lib/ai-usage.ts`.
+- Suggested next steps:
+  - Smoke-test with a live OpenRouter key: click "Plan My Day with AI", check all sections render, test "Add to Focus" and "Create Task" flows.
+  - Consider adding a "Refresh plan" button that doesn't consume a new limit slot (re-uses the last result from state).
+  - Consider fetching the most recent `reflection_next_week_focus` from `/api/weekly-review` to include in the AI prompt as weekly context.
+- Handoff notes:
+  - The AI card appears between the Focus card and the Must Do/Should Do/Could Do grid. Dismiss clears `aiPlan` state only (doesn't decrement the usage count).
+  - `addPriorityToFocus` searches across all candidate lists to find the matching `TodayItem` by ID. If IDs change between page load and AI response (e.g., due to a re-fetch), the lookup will fail silently.
+
 ### 2026-05-17 - AI Weekly Summary Feature
 
 - Agent/tool used: Claude Code (coding agent mode).

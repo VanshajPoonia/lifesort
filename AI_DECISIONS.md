@@ -66,7 +66,9 @@ Architecture and product decision memory for LifeSort.
 - Dashboard aggregation exists both on the client dashboard page and in `/api/dashboard`.
 - AI text routes use OpenRouter through `@ai-sdk/openai` with explicit model allowlists and main `getUserFromSession()` auth. Groq remains limited to investment screenshot parsing.
 - AI Weekly Summary (`/api/ai/weekly-summary`) uses a client-sends-data pattern: the review page loads week metrics from `/api/weekly-review` and POSTs the already-loaded `summary` object to the AI endpoint. This avoids a second DB query and follows the same trust model as `/api/chat` (client sends messages). Since the endpoint is read-only (no DB writes), there is no security concern from client-provided data. Future AI features that are read-only can follow this pattern.
+- AI Today Planner (`/api/ai/today-plan`) uses the same client-sends-data pattern: the today page already has candidates (mustDo, shouldDo, couldDo, calendarToday, upcomingDeadlines) and habitsToday loaded; these are POSTed to the AI endpoint. Unlike the weekly summary (numbers only), the today planner sends actual item titles because the AI needs them to prioritize. Item lists are capped client-side before sending. The endpoint does not perform DB writes; all write actions (add to focus, create task) are user-initiated on the client.
 - New AI endpoints live under `app/api/ai/` to separate them from CRUD routes. Each must require session auth, check `OPENROUTER_API_KEY`, and use `checkAiUsageLimit`/`createAiUsageEvent`/`updateAiUsageEvent` from `lib/ai-usage.ts`.
+- AI write-action safety: no AI feature in this codebase applies changes automatically. Every action that modifies data (focus items, task creation) is triggered by an explicit user button click after seeing the AI suggestion. This is the enforced pattern for all future AI features.
 
 ## UI and Component Decisions
 

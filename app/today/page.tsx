@@ -35,6 +35,14 @@ import { Textarea } from "@/components/ui/textarea"
 
 type SaveState = "idle" | "saving" | "saved" | "error"
 
+type AiTodayPlanResult = {
+  top_priorities: Array<{ id: string; title: string; reason: string }>
+  schedule_blocks: Array<{ label: string; suggestion: string }>
+  defer: Array<{ id: string; title: string; reason: string }>
+  risks: string[]
+  small_win: string
+}
+
 type HabitToday = {
   id: number
   name: string
@@ -144,6 +152,11 @@ export default function TodayPage() {
   })
   const [habitsToday, setHabitsToday] = useState<HabitToday[]>([])
   const [habitsLoaded, setHabitsLoaded] = useState(false)
+  const [aiPlan, setAiPlan] = useState<AiTodayPlanResult | null>(null)
+  const [generatingAi, setGeneratingAi] = useState(false)
+  const [aiError, setAiError] = useState("")
+  const [createTaskTitle, setCreateTaskTitle] = useState("")
+  const [creatingTask, setCreatingTask] = useState(false)
 
   useEffect(() => {
     if (!authLoading && !user) router.push("/login")
@@ -301,6 +314,73 @@ export default function TodayPage() {
     await savePlan(focusItems, reflection)
   }
 
+  const generateAiPlan = async () => {
+    if (loading || generatingAi) return
+    setGeneratingAi(true)
+    setAiError("")
+    setAiPlan(null)
+
+    const simplify = (item: TodayItem) => ({
+      id: item.id,
+      title: item.title,
+      subtitle: item.subtitle ? item.subtitle.slice(0, 80) : undefined,
+      date: item.date ?? undefined,
+    })
+
+    try {
+      const response = await fetch("/api/ai/today-plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          plan_date: planDate,
+          must_do: candidates.mustDo.map(simplify),
+          should_do: candidates.shouldDo.map(simplify),
+          could_do: candidates.couldDo.map(simplify),
+          calendar_today: candidates.calendarToday.map(simplify),
+          habits_today: habitsToday.map((h) => ({ id: h.id, name: h.name, done: h.done })),
+          upcoming_deadlines: candidates.upcomingDeadlines.map(simplify),
+        }),
+      })
+      const data = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(data?.error || "AI plan generation failed")
+      setAiPlan(data.result)
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : "AI plan generation failed")
+    } finally {
+      setGeneratingAi(false)
+    }
+  }
+
+  const addPriorityToFocus = async (priorityId: string) => {
+    const allItems = [
+      ...candidates.mustDo,
+      ...candidates.shouldDo,
+      ...candidates.couldDo,
+      ...candidates.upcomingDeadlines,
+      ...candidates.calendarToday,
+    ]
+    const item = allItems.find((i) => i.id === priorityId)
+    if (item) await addFocus(item)
+  }
+
+  const createTaskFromSmallWin = async () => {
+    const title = createTaskTitle.trim()
+    if (!title || creatingTask) return
+    setCreatingTask(true)
+    try {
+      await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, priority: "medium" }),
+      })
+      setCreateTaskTitle("")
+    } catch {
+      // non-fatal; task creation is optional
+    } finally {
+      setCreatingTask(false)
+    }
+  }
+
   if (authLoading || loading) {
     return (
       <DashboardLayout title="Today Plan" subtitle="Know what to focus on today">
@@ -349,7 +429,21 @@ export default function TodayPage() {
                     </CardTitle>
                     <CardDescription>Pick 1-3 items that would make today feel successful.</CardDescription>
                   </div>
-                  <SaveStatus state={saveState} />
+                  <div className="flex items-center gap-3">
+                    <SaveStatus state={saveState} />
+                    <Button
+                      onClick={generateAiPlan}
+                      disabled={generatingAi || loading}
+                      variant="outline"
+                      size="sm"
+                      className="gap-2"
+                    >
+                      {generatingAi
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        : <Sparkles className="h-3.5 w-3.5" />}
+                      Plan My Day with AI
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -419,6 +513,166 @@ export default function TodayPage() {
                 />
               </CardContent>
             </Card>
+
+            {(generatingAi || aiPlan || aiError) && (
+              <Card>
+                <CardHeader>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Sparkles className="h-5 w-5 text-primary" />
+                        AI Day Plan
+                      </CardTitle>
+                      <CardDescription>
+                        Suggestions based on your tasks, habits, and calendar. Your task titles are shared with AI.
+                        Nothing applies automatically — every action requires your confirmation.
+                      </CardDescription>
+                    </div>
+                    {aiPlan && !generatingAi && (
+                      <Button variant="ghost" size="sm" className="shrink-0" onClick={() => setAiPlan(null)}>
+                        Dismiss
+                      </Button>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {generatingAi && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Planning your day...
+                    </div>
+                  )}
+                  {aiError && !generatingAi && (
+                    <p className="text-sm text-destructive">{aiError}</p>
+                  )}
+                  {aiPlan && !generatingAi && (
+                    <>
+                      {aiPlan.top_priorities.length > 0 && (
+                        <div>
+                          <p className="mb-3 flex items-center gap-2 text-sm font-medium">
+                            <Star className="h-4 w-4 text-primary" />
+                            Suggested Top Priorities
+                          </p>
+                          <div className="space-y-2">
+                            {aiPlan.top_priorities.map((priority, i) => (
+                              <div
+                                key={priority.id || i}
+                                className="flex items-start justify-between gap-3 rounded-md border p-3"
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-medium">{priority.title}</p>
+                                  <p className="mt-0.5 text-xs text-muted-foreground">{priority.reason}</p>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant={focusIds.has(priority.id) ? "secondary" : "outline"}
+                                  disabled={focusIds.has(priority.id) || focusItems.length >= 3}
+                                  onClick={() => addPriorityToFocus(priority.id)}
+                                >
+                                  {focusIds.has(priority.id) ? "Added" : "Add to Focus"}
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {aiPlan.schedule_blocks.length > 0 && (
+                        <div>
+                          <p className="mb-3 flex items-center gap-2 text-sm font-medium">
+                            <Clock className="h-4 w-4 text-primary" />
+                            Suggested Schedule
+                          </p>
+                          <div className="grid gap-3 sm:grid-cols-3">
+                            {aiPlan.schedule_blocks.map((block, i) => (
+                              <div key={i} className="rounded-md border p-3">
+                                <p className="text-sm font-medium">{block.label}</p>
+                                <p className="mt-1 text-xs text-muted-foreground">{block.suggestion}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {aiPlan.defer.length > 0 && (
+                        <div>
+                          <p className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                            <X className="h-4 w-4" />
+                            Consider Deferring
+                          </p>
+                          <div className="space-y-2">
+                            {aiPlan.defer.map((item, i) => (
+                              <div
+                                key={item.id || i}
+                                className="rounded-md border border-dashed p-3"
+                              >
+                                <p className="text-sm">{item.title}</p>
+                                <p className="mt-0.5 text-xs text-muted-foreground">{item.reason}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {aiPlan.risks.length > 0 && (
+                        <div>
+                          <p className="mb-2 flex items-center gap-2 text-sm font-medium text-destructive">
+                            <AlertCircle className="h-4 w-4" />
+                            Risk
+                          </p>
+                          <ul className="space-y-1">
+                            {aiPlan.risks.map((risk, i) => (
+                              <li key={i} className="text-sm text-muted-foreground">{risk}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      <div>
+                        <p className="mb-2 flex items-center gap-2 text-sm font-medium">
+                          <Lightbulb className="h-4 w-4 text-yellow-500" />
+                          Small Win for Today
+                        </p>
+                        <p className="text-sm text-muted-foreground">{aiPlan.small_win}</p>
+                        {!createTaskTitle && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="mt-2 gap-2"
+                            onClick={() => setCreateTaskTitle(aiPlan.small_win)}
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                            Create Task from this
+                          </Button>
+                        )}
+                        {createTaskTitle && (
+                          <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                            <Input
+                              value={createTaskTitle}
+                              onChange={(e) => setCreateTaskTitle(e.target.value)}
+                              placeholder="Task title"
+                              onKeyDown={(e) => { if (e.key === "Enter") createTaskFromSmallWin() }}
+                            />
+                            <Button
+                              onClick={createTaskFromSmallWin}
+                              disabled={creatingTask || !createTaskTitle.trim()}
+                              size="sm"
+                              className="gap-2"
+                            >
+                              {creatingTask && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                              Create Task
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => setCreateTaskTitle("")}>
+                              Cancel
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             <div className="grid gap-4 xl:grid-cols-3">
               <SectionCard

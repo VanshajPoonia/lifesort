@@ -2,7 +2,7 @@ import { neon } from "@neondatabase/serverless"
 
 const sql = neon(process.env.DATABASE_URL!)
 
-export type AiUsageRoute = "chat" | "daily_content_generate" | "investment_screenshot_parse" | "weekly_summary"
+export type AiUsageRoute = "chat" | "daily_content_generate" | "investment_screenshot_parse" | "weekly_summary" | "today_plan"
 export type AiUsageStatus = "accepted" | "success" | "provider_error" | "rate_limited" | "rejected"
 
 const DAILY_LIMITS: Record<AiUsageRoute, number> = {
@@ -10,6 +10,7 @@ const DAILY_LIMITS: Record<AiUsageRoute, number> = {
   daily_content_generate: 15,
   investment_screenshot_parse: 10,
   weekly_summary: 5,
+  today_plan: 3,
 }
 
 const COUNTED_STATUSES: AiUsageStatus[] = ["accepted", "success", "provider_error"]
