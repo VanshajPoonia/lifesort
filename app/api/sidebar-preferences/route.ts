@@ -9,6 +9,7 @@ const DEFAULT_SIDEBAR_SECTIONS = {
   inbox: true,
   waiting: true,
   commitments: true,
+  maintenance: true,
   today: true,
   review: true,
   insights: true,
