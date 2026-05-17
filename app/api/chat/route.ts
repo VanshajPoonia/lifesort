@@ -10,6 +10,11 @@ import {
 } from "@/lib/ai-usage"
 import { AVAILABLE_MODELS, DEFAULT_MODEL } from "@/lib/ai-models"
 import { getPersonalRulesContext } from "@/lib/personal-rules"
+import {
+  COACH_CONTEXT_MODES,
+  getLifeSortCoachContext,
+  normalizeCoachContextMode,
+} from "@/lib/lifesort-coach-context"
 
 export const maxDuration = 60
 
@@ -25,9 +30,22 @@ const openrouter = createOpenAI({
   },
 })
 
-const SYSTEM_PROMPT = `You are a helpful AI assistant for LifeSort, a personal life management app.
-Help users with productivity tips, goal setting, time management, habit building, and personal organisation.
-Be concise, encouraging, and actionable. Tailor advice to real-world situations.`
+const SYSTEM_PROMPT = `You are LifeSort Coach, a helpful AI coach inside LifeSort, a personal life-management app.
+Answer using the logged-in user's provided LifeSort context when it is relevant.
+Be concise, encouraging, and actionable. Tailor advice to the user's real tasks, goals, projects, habits, calendar, reviews, and life areas.
+You are read-only: do not claim you changed, created, deleted, completed, rescheduled, or archived anything.`
+
+const ACTION_INSTRUCTIONS = `If you suggest creating tasks, include them at the very end in this exact optional block:
+\`\`\`lifesort-actions
+{"tasks":[{"title":"Short task title","description":"Why this helps","priority":"medium","life_area_id":null}]}
+\`\`\`
+
+Rules for the actions block:
+- Include at most 3 tasks.
+- priority must be low, medium, or high.
+- life_area_id must be a cited Life Area id only when clearly relevant, otherwise null.
+- Do not include the block if there are no useful task drafts.
+- The user must confirm drafts before anything is created.`
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null
@@ -105,6 +123,7 @@ export async function GET() {
   return NextResponse.json({
     models: AVAILABLE_MODELS,
     default: DEFAULT_MODEL,
+    contextModes: COACH_CONTEXT_MODES,
     dailyLimit: getAiDailyLimit("chat"),
     available: Boolean(process.env.OPENROUTER_API_KEY),
   })
@@ -136,6 +155,8 @@ export async function POST(req: Request) {
   if (!selectedModel) {
     return NextResponse.json({ error: "Invalid modelId" }, { status: 400 })
   }
+
+  const contextMode = normalizeCoachContextMode(body.contextMode)
 
   const validatedMessages = validateMessages(body.messages)
   if (!validatedMessages.ok) {
@@ -172,6 +193,7 @@ export async function POST(req: Request) {
   try {
     const modelMessages = await convertToModelMessages(validatedMessages.messages)
     const rulesContext = await getPersonalRulesContext(user.id)
+    const coachContext = await getLifeSortCoachContext(user.id, contextMode)
 
     const result = streamText({
       model: openrouter(selectedModel.id),
@@ -180,7 +202,17 @@ export async function POST(req: Request) {
 Visible Personal Operating Rules and Preferences:
 ${rulesContext.preview}
 
-Respect these visible rules when suggesting plans. Do not claim hidden rules exist, and do not create or change rules.`,
+Respect these visible rules when suggesting plans. Do not claim hidden rules exist, and do not create or change rules.
+
+LifeSort app context:
+${coachContext.prompt}
+
+Citation rules:
+- When you use a LifeSort item, cite it inline with the exact citation id from the context, such as [task:123].
+- Do not cite ids that are not present in the context.
+- If the user asks about something outside the selected context mode, answer from what is available and say what context might be better.
+
+${ACTION_INSTRUCTIONS}`,
       messages: modelMessages,
       onFinish: async () => {
         await updateAiUsageEvent(usageEventId, "success")
