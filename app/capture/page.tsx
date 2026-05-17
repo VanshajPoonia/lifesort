@@ -475,12 +475,18 @@ export default function CapturePage() {
               />
               <div className="flex items-center justify-between gap-3">
                 <span className="text-xs text-muted-foreground">
-                  {text.length}/1000 · Your text is sent to AI for parsing. Nothing saves until you confirm.
+                  {inboxSaved ? "Saved to Inbox." : `${text.length}/1000 · Your text is sent to AI for parsing. Nothing saves until you confirm.`}
                 </span>
-                <Button onClick={parse} disabled={!text.trim() || parsing} className="gap-2">
-                  {parsing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                  Parse with AI
-                </Button>
+                <div className="flex flex-wrap justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={saveToInbox} disabled={!text.trim() || savingInbox} className="gap-2">
+                    {savingInbox ? <Loader2 className="h-4 w-4 animate-spin" /> : <Inbox className="h-4 w-4" />}
+                    Save to Inbox
+                  </Button>
+                  <Button onClick={parse} disabled={!text.trim() || parsing} className="gap-2">
+                    {parsing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                    Parse with AI
+                  </Button>
+                </div>
               </div>
             </div>
 
