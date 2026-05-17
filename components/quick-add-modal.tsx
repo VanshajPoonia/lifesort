@@ -9,6 +9,7 @@ import {
   FileText,
   FolderPlus,
   Heart,
+  Inbox,
   Link2,
   Shield,
   Target,
@@ -25,6 +26,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 
 type QuickAddType =
+  | "inbox"
   | "task"
   | "goal"
   | "note"
@@ -104,6 +106,34 @@ function numericValue(value: string) {
 }
 
 const quickAddConfigs: QuickAddConfig[] = [
+  {
+    type: "inbox",
+    label: "Inbox",
+    description: "Capture a messy thought",
+    endpoint: "/api/inbox",
+    eventType: "inbox",
+    icon: Inbox,
+    fields: [
+      { name: "title", label: "Title", type: "text", placeholder: "Optional short label" },
+      { name: "raw_text", label: "Thought", type: "textarea", required: true, placeholder: "Drop the reminder, idea, worry, or responsibility here..." },
+      { name: "suggested_type", label: "Suggested type", type: "select", options: [
+        { value: "task", label: "Task" },
+        { value: "goal", label: "Goal" },
+        { value: "note", label: "Note" },
+        { value: "project", label: "Project" },
+        { value: "habit", label: "Habit" },
+        { value: "wishlist_item", label: "Wishlist item" },
+        { value: "vault_item", label: "Vault item" },
+        { value: "calendar_event", label: "Calendar event" },
+      ]},
+    ],
+    buildPayload: (values) => ({
+      title: values.title || values.raw_text?.split(/\r?\n/)[0]?.slice(0, 255) || "Inbox item",
+      raw_text: values.raw_text || "",
+      suggested_type: values.suggested_type || null,
+      source: "quick_add",
+    }),
+  },
   {
     type: "task",
     label: "Task",
@@ -330,6 +360,7 @@ const quickAddConfigs: QuickAddConfig[] = [
 ]
 
 const defaultValues: Record<QuickAddType, Record<string, string>> = {
+  inbox: {},
   task: { priority: "medium" },
   goal: { category: "personal", priority: "medium" },
   note: {},
