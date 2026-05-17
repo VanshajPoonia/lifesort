@@ -362,6 +362,31 @@ export default function CapturePage() {
 
   const selectedDrafts = drafts.filter((d) => d.selected)
 
+  const saveToInbox = async () => {
+    if (!text.trim() || savingInbox) return
+    setSavingInbox(true)
+    setParseError("")
+    setInboxSaved(false)
+    try {
+      const res = await fetch("/api/inbox", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: text.trim().split(/\r?\n/)[0]?.slice(0, 255) || "AI capture",
+          raw_text: text.trim(),
+          source: "ai_capture",
+        }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.error || "Failed to save to Inbox")
+      setInboxSaved(true)
+    } catch (err) {
+      setParseError(err instanceof Error ? err.message : "Failed to save to Inbox")
+    } finally {
+      setSavingInbox(false)
+    }
+  }
+
   const submit = async () => {
     if (selectedDrafts.length === 0 || submitting) return
     setSubmitting(true)
