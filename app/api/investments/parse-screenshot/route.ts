@@ -281,7 +281,7 @@ export async function PUT(request: Request) {
       investments: imported
     })
   } catch (error) {
-    console.error("Import error:", error)
+    console.error("Import error:", error instanceof Error ? error.message : error)
     return NextResponse.json({ error: "Failed to import investments" }, { status: 500 })
   }
 }

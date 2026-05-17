@@ -17,6 +17,67 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-05-17 - AI Safety and Regression Checkpoint
+
+- Agent/tool used: Claude Code (reviewer + coding agent mode).
+- Task summary: Static security audit of all AI-related routes. Verified 8 safety requirements. Applied one minor fix. No regressions found.
+
+#### Routes Audited (7 routes + shared lib)
+
+| Route | Feature |
+|---|---|
+| `app/api/chat/route.ts` | AI Chat |
+| `app/api/ai/weekly-summary/route.ts` | AI Weekly Summary |
+| `app/api/ai/today-plan/route.ts` | AI Today Planner |
+| `app/api/ai/capture/route.ts` | AI Natural Language Capture |
+| `app/api/ai/life-balance/route.ts` | AI Life Balance Insights |
+| `app/api/daily-content/generate/route.ts` | Daily Content AI generation |
+| `app/api/investments/parse-screenshot/route.ts` | Investment screenshot parse (Groq) |
+| `lib/ai-usage.ts` | Shared rate-limit and usage-tracking helpers |
+
+#### Safety Requirement Results
+
+1. **Auth (every AI route requires session auth)** — PASS. All routes call `getUserFromSession()` before any processing. `life-balance` gates both `GET` and `POST` separately (lines 427 and 437).
+2. **User-scoped data (AI only accesses the logged-in user's data)** — PASS. All DB queries in AI routes are parameterized with `user.id` from the session object.
+3. **AI cannot directly modify data without user confirmation** — PASS. All five AI features are read-only at the API layer. Weekly summary: user clicks "Apply to Reflections" → then "Save Review". Today planner: user clicks "Add to Focus" or "Create Task" per suggestion. Capture: user clicks "Create selected items". Life balance: endpoint returns JSON only, suggested actions become tasks only after user confirmation in the UI. Chat: coaching only.
+4. **Rate limiting / usage tracking** — PASS (with known deployment risk). All routes call `checkAiUsageLimit` → `createAiUsageEvent` → `updateAiUsageEvent`. Limits: chat=50, weekly_summary=5, today_plan=3, capture=10, life_balance_insights=10, daily_content_generate=15, investment_screenshot_parse=10. **Deployment risk**: if the `ai_usage_events` table does not exist (migration not yet applied), `lib/ai-usage.ts:81-84` catches the missing-table error and returns `{ allowed: true, disabled: true }`. Route handlers check `limit.allowed` (which is `true`) and proceed — all rate limits are silently bypassed until the migration runs. This is intentional graceful degradation for cold deploys. No code fix is appropriate; it is a deployment concern. Documented below.
+5. **API keys server-side only** — PASS. `OPENROUTER_API_KEY` and `GROQ_API_KEY` are accessed only in `app/api/**` files. No `NEXT_PUBLIC_*` variants exist. Client `.tsx` pages call relative API paths and never touch keys directly.
+6. **Error states don't leak secrets** — PASS. Client-facing messages are generic. Minor fix applied (see below).
+7. **Prompts don't include unnecessary sensitive data** — PASS (documented notes). Weekly summary: numeric counts only, no PII. Today planner: item titles + IDs by design (disclosed to user, documented in AI_DECISIONS.md). Capture: raw user text by design (user sees disclosure before clicking Parse). Life balance: aggregate metrics + weekly review reflections (wins/challenges/lessons/focus), each truncated to 280 chars by `safeText`. Reflections are user-written and may contain personal context — this is by design and acknowledged in the prompt ("short weekly review reflections only").
+8. **TypeScript, lint, and build** — PASS/KNOWN. tsc → 0 errors. Build → passes (91 routes). Lint → fails on missing ESLint flat config (pre-existing known issue, not introduced by this work).
+
+#### Fix Applied
+
+- **File**: `app/api/investments/parse-screenshot/route.ts`, line 284
+- **Before**: `console.error("Import error:", error)` — logged raw Error object, which could include provider stack traces in server logs.
+- **After**: `console.error("Import error:", error instanceof Error ? error.message : error)` — matches the safer pattern already used at line 222.
+- This is server-side logging only; no user-facing exposure. Fix is defensive hygiene.
+
+#### Commands Run
+
+- `npx tsc --noEmit` → 0 errors
+- `npm run lint` → fails, ESLint cannot find `eslint.config.*` (pre-existing)
+- `npm run build` → passed, 91 routes
+
+#### Known Deployment Risk (Rate Limiting)
+
+Before enabling AI features in production, confirm the `ai_usage_events` table exists in the live database. If the migration has not been applied, ALL per-user AI rate limits are silently bypassed — the code will allow unlimited calls without returning 429. This is intentional graceful degradation so that deploys don't fail before migrations, but it must not remain in this state in production.
+
+To verify the migration is applied: check that `SELECT COUNT(*) FROM ai_usage_events` succeeds on the live Neon database.
+
+#### Remaining AI Safety Concerns
+
+- The `ai_usage_events` migration state in production is unconfirmed (see above).
+- Life balance sends weekly review reflections (free text) to AI — by design, disclosed in the feature.
+- Today planner sends actual task/goal/habit titles to AI — by design, disclosed to user.
+- No automated test validates that AI endpoints return 401 without a session (manual or HTTP-based test needed).
+
+#### Suggested Next Steps
+
+- Confirm `ai_usage_events` table exists in the live Neon database and rate limits are active.
+- Add HTTP-level smoke tests (curl/fetch) that verify each AI route returns 401 without a session cookie.
+- Add ESLint flat config to unblock `npm run lint`.
+
 ### 2026-05-17 - AI Natural Language Capture Feature
 
 - Agent/tool used: Claude Code (coding agent mode).

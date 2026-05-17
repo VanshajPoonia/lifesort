@@ -149,7 +149,7 @@ Database scripts:
 
 ## Current Command Behavior
 
-Known as of 2026-05-16:
+Known as of 2026-05-17:
 
 - `npm run build` passes.
 - `npm run build` skips TypeScript validation and linting because of `next.config.mjs`.
@@ -211,6 +211,7 @@ Known as of 2026-05-16:
 6. Verify any new database columns/tables have explicit migration instructions.
 7. Verify external API changes have failure handling.
 8. For AI routes, verify unauthenticated calls return `401`, missing provider keys return a clear `503`, malformed payloads return `400`, and rate-limited calls return `429`.
+9. **Confirm `ai_usage_events` table exists in the live database before enabling AI features.** If the table is missing, all per-user AI rate limits are silently bypassed — `lib/ai-usage.ts` catches the missing-table error and returns `allowed: true` so that deploys don't fail before migrations, but this means unlimited AI calls until the migration runs. Run `SELECT COUNT(*) FROM ai_usage_events` on the live Neon database to verify.
 9. For schema-spanning features, update the standalone migration, `scripts/website-current-schema.sql`, and `scripts/run-pending-migrations.sql` together, and document that migrations were not run automatically.
 
 ## Common Failure Points
