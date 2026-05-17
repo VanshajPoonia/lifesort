@@ -43,7 +43,15 @@ export async function GET(request: Request) {
     const tokens = await tokenResponse.json()
 
     if (!tokenResponse.ok) {
-      console.error("Google token error:", tokens)
+      // Log only the standard OAuth error fields. Avoid logging the full
+      // response body — even on error, Google has historically included
+      // unexpected fields, and the variable is named `tokens` for the
+      // success branch.
+      console.error("Google token error:", {
+        status: tokenResponse.status,
+        error: tokens?.error,
+        error_description: tokens?.error_description,
+      })
       return NextResponse.redirect(new URL("/calendar?error=token_error", request.url))
     }
 

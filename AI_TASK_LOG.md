@@ -17,6 +17,59 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-05-17 - Pre-Agents Database & API Integration Audit
+
+- Agent/tool used: Claude Code (review mode).
+- Task: Complete audit of schema, APIs, auth, integrations, security, data integrity, and agent-readiness before building the LifeSort Agents feature. Apply only the two pre-authorized safety fixes.
+- Full deliverable: **[AI_AUDIT.md](AI_AUDIT.md)** — 18 sections (A–R + appendix) with table-by-table schema audit, route-by-route API audit, severity-tagged risk findings, recommended canonical migration plan, recommended API hardening plan, recommended agent-readiness changes, and ordered next 5 implementation tasks.
+
+#### Headline Findings
+1. **CRITICAL — CRON_SECRET fall-through bug** in `app/api/cron/deadline-reminders/route.ts:29-34`. When `CRON_SECRET` is set in production and a request arrives with the wrong header, no 401 is returned and the cron logic executes anyway. Not fixed in this pass — see AI_AUDIT.md §N1.
+2. **HIGH — OAuth callback uses unvalidated `state` as user_id** in `app/api/calendar/google/callback/route.ts:27`. Attackers who complete Google OAuth can write `calendar_integrations` rows under any user_id. Not fixed in this pass — see AI_AUDIT.md §N2.
+3. **HIGH — URL preview open SSRF** in `app/api/url-preview/route.ts`. Fetches any URL incl. localhost/metadata IPs. Not fixed in this pass — see AI_AUDIT.md §N3.
+4. **HIGH — 13 production tables missing from canonical schema** baseline. Fresh-DB setup is broken. Not fixed in this pass — see AI_AUDIT.md §H, §O.
+5. **MEDIUM — 1 of 81 routes uses Zod**. Rest rely on ad-hoc `typeof` checks; `/api/share` POST and `/api/admin/update-subscription` POST have no validation.
+
+#### Two Safety Fixes Applied
+- `app/api/calendar/sync/route.ts` — Switched to `getUserFromSession()`. Was reading cookie `session_id` and querying `sessions.id` (wrong on both counts vs. main auth pattern), so the route always returned 401. Now matches the standard auth pattern used by every other protected route.
+- `app/api/calendar/google/callback/route.ts:46` — Narrowed the OAuth error log from `console.error("Google token error:", tokens)` to `console.error("Google token error:", { status, error, error_description })`. The `tokens` variable in the !ok branch is the OAuth error response body, which can contain unexpected fields — defensive narrowing.
+
+#### Files Created
+- `AI_AUDIT.md` — full audit report (root of repo)
+
+#### Files Modified
+- `app/api/calendar/sync/route.ts` — Fix 1
+- `app/api/calendar/google/callback/route.ts` — Fix 2
+- `AI_TASK_LOG.md` — this entry
+- `AI_DECISIONS.md` — see "Pre-Agents Audit Decisions" section
+- `AI_CHECKLIST.md` — see "Recurring DB/API Safety Checks" section
+
+#### Commands Run
+- `git status --short` → clean baseline, then 5 files modified after this commit
+- `npx tsc --noEmit` → passes both before and after fixes
+- `npm run lint` → fails (pre-existing ESLint flat-config issue)
+- `npm run build` → passes both before and after fixes
+
+#### Health Scores (from AI_AUDIT.md §B–E)
+- Database health: 6.5/10
+- API health: 7/10
+- Integration health: 7.5/10
+- Security health: 6/10 (capped by CRON, OAuth, SSRF; otherwise reasonable)
+
+#### Next 5 Implementation Tasks (from AI_AUDIT.md §R)
+1. R1 — Fix CRON_SECRET fall-through (~15 min)
+2. R2 — Validate OAuth state in Google callback (~20 min)
+3. R3 — Block SSRF in `/api/url-preview` via `lib/safe-fetch.ts` (~2 hrs)
+4. R4 — Consolidate canonical schema (`scripts/schema.sql` + the 13 missing tables) (~3 hrs)
+5. R5 — Create `agent_action_events` table + draft `/api/agent/execute` route stub (~1 day)
+
+After R1–R5 ship, the Agents tab can begin development safely.
+
+#### Handoff Notes
+- Do NOT begin Agents-tab implementation until R1–R3 are merged. Those are real production risks regardless of Agents.
+- The Phase 1 explore agents reported "console.log of full tokens at line 46" — this was slightly imprecise. The actual log was `console.error("Google token error:", tokens)` inside the `!tokenResponse.ok` branch, so `tokens` was the OAuth error response (typically just `{error, error_description}`). The fix still narrows it defensively.
+- `npm run lint` is still broken (no ESLint flat config). This is pre-existing and out of audit scope.
+
 ### 2026-05-17 23:39 IST - Explainable LifeScore
 
 - Agent/tool used: Codex (GPT-5 coding agent).

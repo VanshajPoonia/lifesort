@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
-import { cookies } from "next/headers"
 import { neon } from "@neondatabase/serverless"
+import { getUserFromSession } from "@/lib/auth"
 
 const sql = neon(process.env.DATABASE_URL!)
 
@@ -59,19 +59,16 @@ async function fetchGoogleEvents(accessToken: string, timeMin: string, timeMax: 
 }
 
 export async function GET(request: Request) {
-  const cookieStore = await cookies()
-  const sessionId = cookieStore.get("session_id")?.value
-
-  if (!sessionId) {
+  // Use the same auth pattern as every other protected route. The previous
+  // implementation read a `session_id` cookie and queried `sessions.id` — but
+  // the main auth system in `lib/auth.ts` sets a `session` cookie containing
+  // the session_token. The mismatch caused this route to always 401.
+  const user = await getUserFromSession()
+  if (!user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   }
 
-  const session = await sql`SELECT user_id FROM sessions WHERE id = ${sessionId}`
-  if (session.length === 0) {
-    return NextResponse.json({ error: "Invalid session" }, { status: 401 })
-  }
-
-  const userId = session[0].user_id
+  const userId = user.id
   const { searchParams } = new URL(request.url)
   
   // Default to current month

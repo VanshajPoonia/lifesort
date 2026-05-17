@@ -152,6 +152,38 @@ Open/inconsistent auth questions:
 - `next.config.mjs` currently disables TypeScript and ESLint build failures.
 - Images are set to unoptimized.
 
+## Pre-Agents Audit Decisions (2026-05-17)
+
+Decisions recorded from the pre-Agents audit (`AI_AUDIT.md`). These shape the next 5 implementation tasks before the Agents feature begins.
+
+- **Decision: Consolidate to a single canonical schema file.**
+  - Rationale: 13 production tables are missing from `scripts/website-current-schema.sql` and `setup-database.sql` uses incompatible `SERIAL` user_id types. Fresh-DB setup is currently broken.
+  - Plan: Rename `website-current-schema.sql` → `schema.sql`, include all 51 tables, move legacy/feature-specific SQL files into `scripts/legacy/`, and use a new `scripts/migrations/` directory for forward-only ALTER TABLE migrations.
+  - See AI_AUDIT.md §O.
+
+- **Decision: Add an `agent_action_events` audit table before Agents ship.**
+  - Rationale: Agents will autonomously trigger writes on the user's behalf. We need a row-per-action audit trail with status tracking (pending → confirmed → executed) so users can review and undo agent activity.
+  - Schema: see AI_AUDIT.md §Q1.
+
+- **Decision: Adopt the "draft → confirm → execute" pattern for all Agent writes.**
+  - Rationale: AI Capture, AI Today Plan, AI Life Balance already use this pattern. Agents must use it too. No agent action mutates user data without explicit user confirmation.
+  - Implementation: Agent proposes `agent_action_events` rows with `status='pending'`. UI shows the diff. A new `/api/agent/execute` route flips to `status='executed'` and calls the underlying CRUD endpoint.
+  - See AI_AUDIT.md §Q2.
+
+- **Decision: Explicit tool registry in `lib/agent-tools.ts` — do not let agents call arbitrary routes.**
+  - Rationale: Bounded surface area. Each tool is `{ name, description, schema, handler }` with a Zod schema for inputs and outputs.
+  - Initial tool set: read-only (list_tasks, list_goals, list_today, list_inbox, list_notifications). Write tools added one-by-one with confirmation.
+  - See AI_AUDIT.md §Q3.
+
+- **Decision: Adopt Zod for body validation, starting with `/api/admin/*` and `/api/share` POST.**
+  - Rationale: Only `/api/ai/capture` uses Zod today. Agents will rely on predictable 400 responses with structured error codes. Manual `typeof` checks are not sufficient.
+  - Implementation: per-module Zod schemas in `lib/schemas/<module>.ts`. Share schemas between CRUD routes and AI Capture parsing.
+  - See AI_AUDIT.md §P.
+
+- **Decision: Three pre-existing security issues block the Agents feature**: CRON_SECRET fall-through, OAuth state validation, URL preview SSRF.
+  - These are not Agents-specific but the Agents feature will increase attack surface. Fix before adding agent capabilities.
+  - See AI_AUDIT.md §N1–N3, §R1–R3.
+
 ## Performance Considerations
 
 - Many feature pages fetch data on the client after auth state is known.

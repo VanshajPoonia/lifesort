@@ -243,6 +243,79 @@ Known as of 2026-05-17:
 - If the failure is pre-existing and outside scope, document it clearly and do not bury it.
 - If a command needs network or external credentials, say what is missing and avoid printing secrets.
 
+## Recurring DB/API Safety Checks
+
+Run periodically (before major releases, after schema/migration changes, and as part of any future pre-Agents-style audit). Each check below maps to a finding from `AI_AUDIT.md` (2026-05-17). Re-running these catches regressions and confirms drift is being closed.
+
+### Schema drift checks
+```bash
+# 1. Every table CREATE used by code must exist in at least one SQL file.
+grep -rhoE 'FROM [a-z_]+|INTO [a-z_]+|UPDATE [a-z_]+|JOIN [a-z_]+' app/api/**/*.ts \
+  | awk '{print $2}' | sort -u > /tmp/code-tables.txt
+grep -hE 'CREATE TABLE( IF NOT EXISTS)? [a-z_]+' scripts/*.sql \
+  | sed -E 's/.*CREATE TABLE( IF NOT EXISTS)? ([a-z_]+).*/\2/' | sort -u > /tmp/sql-tables.txt
+# Any line in /tmp/code-tables.txt missing from /tmp/sql-tables.txt is a schema gap.
+
+# 2. user_id type consistency — all user-owned tables should use VARCHAR(255).
+grep -E 'user_id (INTEGER|SERIAL|UUID)' scripts/*.sql
+# Any hit (other than setup-database.sql, which is now legacy) is a drift.
+```
+
+### API auth/scoping checks
+```bash
+# 3. Every protected route should import getUserFromSession or check session somehow.
+for f in $(find app/api -name route.ts); do
+  if ! grep -q 'getUserFromSession\|cron\|share\|stock-quote\|investments/popular' "$f"; then
+    echo "Route may be unprotected: $f"
+  fi
+done
+
+# 4. SELECT/UPDATE/DELETE on user-owned tables must have user_id filter.
+# Inspect manually for any sql template that touches tasks/goals/notes/etc.
+# without `WHERE ... user_id = ${user.id}`.
+```
+
+### Security regression checks
+```bash
+# 5. Cookie name must be 'session' everywhere except (intentionally) legacy code.
+grep -rn 'session_id\|cookies().get("session_id")' app/api/
+
+# 6. No console.log/error should print full `tokens` or full request bodies.
+grep -rn 'console\.\(log\|error\).*\(tokens\|password\|secret\|body\)' app/
+
+# 7. CRON_SECRET check should use timing-safe equality.
+grep -rn 'CRON_SECRET' app/api/cron/
+
+# 8. URL preview must block private IPs / loopback (look for safeFetchUrl or equivalent).
+grep -rn 'safeFetchUrl\|private.*ip\|loopback\|169\.254' app/api/url-preview/
+```
+
+### Integration health checks
+```bash
+# 9. AI routes must call checkAiUsageLimit before invoking model.
+for f in $(find app/api/ai app/api/chat app/api/daily-content/generate -name route.ts); do
+  if ! grep -q 'checkAiUsageLimit' "$f"; then
+    echo "AI route missing rate-limit guard: $f"
+  fi
+done
+
+# 10. No hardcoded provider URLs that bypass env-var config.
+grep -rn 'api\.openai\.com\|api\.groq\.com\|openrouter\.ai' app/ lib/
+```
+
+### Pre-Agents go/no-go check
+Run before any Agents feature work:
+- ☐ `AI_AUDIT.md` §N1 (CRON_SECRET fall-through) — fixed
+- ☐ `AI_AUDIT.md` §N2 (OAuth state validation) — fixed
+- ☐ `AI_AUDIT.md` §N3 (URL preview SSRF) — fixed
+- ☐ `AI_AUDIT.md` §N4 (canonical schema consolidation) — fixed
+- ☐ `AI_AUDIT.md` §N5 (`agent_action_events` table) — created
+- ☐ `npx tsc --noEmit` passes
+- ☐ `npm run build` passes
+- ☐ Manual smoke test of every feature page (HTTP 200 expected)
+
+All five Ns must be checked before Agents UI work begins.
+
 ## General Verification Flow
 
 Before changes:
