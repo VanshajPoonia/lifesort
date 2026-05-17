@@ -27,6 +27,7 @@ import {
   TrendingUp,
   Users,
   Wallet,
+  Wrench,
   Zap,
   History,
 } from "lucide-react"
@@ -191,6 +192,16 @@ interface CommitmentItem {
   created_at?: string | null
 }
 
+interface MaintenanceItem {
+  id: number | string
+  title: string
+  status?: string | null
+  next_due_date?: string | null
+  category?: string | null
+  updated_at?: string | null
+  created_at?: string | null
+}
+
 interface DashboardSources {
   tasks: Task[]
   goals: Goal[]
@@ -261,6 +272,7 @@ const quickActions = [
   { title: "Capture inbox", href: "/inbox", icon: Inbox },
   { title: "Track waiting", href: "/waiting", icon: Clock },
   { title: "Add commitment", href: "/commitments", icon: ClipboardCheck },
+  { title: "Add maintenance", href: "/maintenance", icon: Wrench },
   { title: "Add task", href: "/tasks", icon: ListTodo },
   { title: "Add goal", href: "/goals", icon: Target },
   { title: "Add project", href: "/projects", icon: FolderPlus },
@@ -359,6 +371,24 @@ function commitmentDueSoon(item: CommitmentItem) {
   const limit = new Date(today)
   limit.setDate(limit.getDate() + 7)
   return date >= today && date <= limit
+}
+
+function maintenanceIsActive(item: MaintenanceItem) {
+  return item.status === "active"
+}
+
+function maintenanceUpcoming(item: MaintenanceItem) {
+  const date = parseDate(item.next_due_date)
+  if (!maintenanceIsActive(item) || !date) return false
+  const today = startOfToday()
+  const limit = new Date(today)
+  limit.setDate(limit.getDate() + 30)
+  return date >= today && date <= limit
+}
+
+function maintenanceOverdue(item: MaintenanceItem) {
+  const date = parseDate(item.next_due_date)
+  return maintenanceIsActive(item) && Boolean(date && date < startOfToday())
 }
 
 function sortByDueDate<T extends { date: string }>(items: T[]) {
@@ -479,6 +509,7 @@ export default function Home() {
   const [inboxWidget, setInboxWidget] = useState<{ total: number; recent: InboxItem[] } | null>(null)
   const [waitingWidget, setWaitingWidget] = useState<{ followUpsDue: number; overdue: number; recent: WaitingItem[] } | null>(null)
   const [commitmentsWidget, setCommitmentsWidget] = useState<{ dueSoon: number; atRisk: number; recent: CommitmentItem[] } | null>(null)
+  const [maintenanceWidget, setMaintenanceWidget] = useState<{ upcoming: number; overdue: number; recent: MaintenanceItem[] } | null>(null)
   const [dashboardLoading, setDashboardLoading] = useState(true)
   const [errors, setErrors] = useState<Partial<Record<DashboardErrorKey, string>>>({})
   const [milestones, setMilestones] = useState<Array<{ id: string; label: string; title: string; occurred_at: string }>>([])
@@ -654,6 +685,22 @@ export default function Home() {
       }
     } catch {
       // Commitments widget failure is non-fatal
+    }
+
+    // Maintenance widget — fetch independently, fails silently
+    try {
+      const maintenanceRes = await fetch("/api/maintenance?view=all&limit=100")
+      if (maintenanceRes.ok) {
+        const maintenanceData: MaintenanceItem[] = await maintenanceRes.json()
+        const activeMaintenance = maintenanceData.filter(maintenanceIsActive)
+        setMaintenanceWidget({
+          upcoming: maintenanceData.filter(maintenanceUpcoming).length,
+          overdue: maintenanceData.filter(maintenanceOverdue).length,
+          recent: activeMaintenance.slice(0, 3),
+        })
+      }
+    } catch {
+      // Maintenance widget failure is non-fatal
     }
 
     setSources({
@@ -1248,6 +1295,75 @@ export default function Home() {
                             </span>
                           </span>
                           <span className="shrink-0 text-xs text-muted-foreground">{formatDate(item.due_date || item.updated_at || item.created_at)}</span>
+                        </Link>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {maintenanceWidget !== null && (
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Wrench className="h-5 w-5 text-primary" />
+                    Life Maintenance
+                  </CardTitle>
+                  <CardDescription>Recurring checkups, repairs, renewals, reviews, and admin.</CardDescription>
+                </div>
+                <Button asChild size="sm" variant="outline" className="gap-2">
+                  <Link href="/maintenance">
+                    Open Maintenance
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {dashboardLoading ? (
+                <div className="grid gap-3 md:grid-cols-3">
+                  <Skeleton className="h-20 w-full" />
+                  <Skeleton className="h-20 w-full" />
+                  <Skeleton className="h-20 w-full" />
+                </div>
+              ) : maintenanceWidget.upcoming === 0 && maintenanceWidget.overdue === 0 && maintenanceWidget.recent.length === 0 ? (
+                <EmptyState actionHref="/maintenance" actionLabel="Add maintenance">
+                  No active maintenance items are due soon.
+                </EmptyState>
+              ) : (
+                <div className="grid gap-3 lg:grid-cols-[160px_160px_minmax(0,1fr)]">
+                  <div className="rounded-md border bg-muted/40 p-3">
+                    <p className="text-2xl font-bold">{maintenanceWidget.upcoming}</p>
+                    <p className="text-xs text-muted-foreground">upcoming</p>
+                  </div>
+                  <div className="rounded-md border bg-muted/40 p-3">
+                    <p className={`text-2xl font-bold ${maintenanceWidget.overdue > 0 ? "text-destructive" : ""}`}>
+                      {maintenanceWidget.overdue}
+                    </p>
+                    <p className="text-xs text-muted-foreground">overdue</p>
+                  </div>
+                  <div className="space-y-2">
+                    {maintenanceWidget.recent.length === 0 ? (
+                      <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">No active maintenance items.</p>
+                    ) : (
+                      maintenanceWidget.recent.map((item) => (
+                        <Link
+                          key={item.id}
+                          href="/maintenance"
+                          className="flex items-center justify-between gap-3 rounded-md border p-3 text-sm hover:bg-secondary"
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate font-medium">{item.title}</span>
+                            <span className="block truncate text-xs text-muted-foreground">
+                              {item.category || "maintenance"}
+                            </span>
+                          </span>
+                          <span className="shrink-0 text-xs text-muted-foreground">{formatDate(item.next_due_date || item.updated_at || item.created_at)}</span>
                         </Link>
                       ))
                     )}
