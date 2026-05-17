@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   FileText,
   FolderPlus,
+  Inbox,
   Loader2,
   Shield,
   ShoppingCart,
@@ -310,6 +311,8 @@ export default function CapturePage() {
   const [drafts, setDrafts] = useState<DraftWithMeta[]>([])
   const [parsed, setParsed] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [savingInbox, setSavingInbox] = useState(false)
+  const [inboxSaved, setInboxSaved] = useState(false)
   const [results, setResults] = useState<ResultMap>({})
   const [doneCount, setDoneCount] = useState(0)
 
