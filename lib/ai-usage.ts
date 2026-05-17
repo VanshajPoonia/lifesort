@@ -10,6 +10,7 @@ export type AiUsageRoute =
   | "today_plan"
   | "capture"
   | "life_balance_insights"
+  | "ignoring_insights"
   | "reset_suggestions"
 export type AiUsageStatus = "accepted" | "success" | "provider_error" | "rate_limited" | "rejected"
 
@@ -21,6 +22,7 @@ const DAILY_LIMITS: Record<AiUsageRoute, number> = {
   today_plan: 3,
   capture: 10,
   life_balance_insights: 10,
+  ignoring_insights: 5,
   reset_suggestions: 5,
 }
 
