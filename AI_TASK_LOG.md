@@ -17,6 +17,56 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-05-17 - AI Natural Language Capture Feature
+
+- Agent/tool used: Claude Code (coding agent mode).
+- Task summary: Added `/capture` page and `/api/ai/capture` endpoint. Users type messy natural language and AI parses it into structured draft actions (task, goal, habit, note, project, vault_item, wishlist_item, calendar_event). Each draft is fully editable before the user explicitly clicks "Create selected items." Nothing writes to the database until that confirmation.
+- Files added:
+  - `app/api/ai/capture/route.ts` — POST endpoint. Validates input with Zod (`text` string, 1–1000 chars). Rate-limited to 10/day via `ai_usage_events`. Builds a prompt with today's date (for resolving relative dates like "Friday", "next month"). Calls `generateText` via OpenRouter (`google/gemini-2.0-flash-exp:free`). Validates each parsed action's payload with per-type Zod schemas (8 schemas total) — invalid or unknown types are dropped. Returns `{ actions: DraftAction[], remaining: number }`.
+  - `app/capture/page.tsx` — Full capture page with `DashboardLayout` wrapper. Sections: header with 3 example pills, textarea (1000-char limit, Ctrl+Enter shortcut), "Parse with AI" button, draft action cards (editable inline fields per type, checkbox to include/exclude, remove button), action bar with "Create N selected items" button, per-card status after submission ("Created" / "Failed" / spinner).
+- Files modified:
+  - `lib/ai-usage.ts` — Added `"capture"` to `AiUsageRoute` union type and `capture: 10` to `DAILY_LIMITS`.
+  - `components/dashboard-layout.tsx` — Added `Wand2` to lucide imports, `capture: true` to `DEFAULT_SIDEBAR_PREFS`, "AI Capture" nav link after AI Assistant.
+  - `app/api/sidebar-preferences/route.ts` — Added `capture: true` to `DEFAULT_SIDEBAR_SECTIONS`.
+  - `app/settings/page.tsx` — Added `capture: true` to `sidebarPrefs` state, `Wand2` to lucide imports, "AI Capture" entry to sidebar section list.
+- Supported draft action types (8):
+  - `task` → POST `/api/tasks` (title, due_date, priority)
+  - `goal` → POST `/api/goals` (title, target_date, priority)
+  - `habit` → POST `/api/habits` (name, frequency, custom_days, target_count)
+  - `note` → POST `/api/notes` (title, content)
+  - `project` → POST `/api/projects` (title, description, due_date, priority)
+  - `vault_item` → POST `/api/vault` (title, category, expiry_date, renewal_date)
+  - `wishlist_item` → POST `/api/wishlist` (title, price, priority)
+  - `calendar_event` → POST `/api/calendar-events` (title, event_date, start_time, end_time)
+- Validation approach:
+  - Input validation: Zod `inputSchema` — `text` must be 1–1000 chars string.
+  - Output validation: per-type Zod schemas in the endpoint validate AI response before returning to client. Actions with invalid payloads are silently dropped.
+  - Existing APIs provide their own validation when the client submits confirmed actions.
+- Confirmation flow:
+  - User types → clicks "Parse with AI" → sees draft cards (all selected by default)
+  - User edits fields inline, unchecks unwanted items, removes drafts with X
+  - User clicks "Create N selected items" → client iterates selected drafts, POSTs each to its endpoint sequentially
+  - Per-card status shown: spinner → "Created" (green) or "Failed" (red)
+  - "Parse another" button resets state without navigating away
+- Privacy: user's raw text is sent to the AI — disclosed in the UI ("Your text is sent to AI for parsing. Nothing saves until you confirm.")
+- Rate limit: 10/day per user (generous since parsing precedes any DB writes)
+- Commands run:
+  - `npx tsc --noEmit` → 0 errors (first attempt clean).
+  - `npm run build` → passed, 91 routes. `/capture` and `/api/ai/capture` confirmed in output.
+- Remaining limitations:
+  - No browser/manual smoke test — requires live OpenRouter key.
+  - Relative date resolution ("Friday", "next month") depends on AI following the prompt's instructions. May occasionally produce incorrect dates — user can edit on the draft card.
+  - `calendar_event` requires `event_date` but not `start_time`/`end_time` — if AI omits them, the card shows empty time fields; existing `/api/calendar-events` may accept null times (not confirmed without testing).
+  - Habit `custom_days` (the array of weekday integers) is shown as frequency + count fields in the UI — the specific days are not editable in the draft card. User can edit after creation in `/habits`.
+  - Sequential submission means a slow network can make creation of multiple items feel slow.
+- Suggested next steps:
+  - Smoke-test with a live OpenRouter key against all 8 action types.
+  - Consider adding more example pills covering all 8 types.
+  - Consider adding a "Select All / Deselect All" toggle when there are many drafts.
+- Handoff notes:
+  - The capture page imports `DraftAction` type from the API route file (`@/app/api/ai/capture/route`). This is an unusual import direction — normally pages don't import from API routes. It's done to share the type without a third shared-lib file. If this causes build issues in future, extract the type to `lib/capture.ts`.
+  - `DEFAULT_SIDEBAR_PREFS` in `components/dashboard-layout.tsx` and `DEFAULT_SIDEBAR_SECTIONS` in `app/api/sidebar-preferences/route.ts` must stay in sync — both now include `capture: true`.
+
 ### 2026-05-17 - AI Today Planner Feature
 
 - Agent/tool used: Claude Code (coding agent mode).

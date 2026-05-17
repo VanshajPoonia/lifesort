@@ -39,6 +39,7 @@ import {
   FileText,
   CheckSquare,
   Target,
+  Wand2,
   Bookmark,
   Heart,
   HelpCircle,
@@ -122,6 +123,7 @@ export default function SettingsPage() {
     custom_sections: true,
     daily_content: true,
     ai_assistant: true,
+    capture: true,
   })
 
   useEffect(() => {
@@ -487,6 +489,7 @@ export default function SettingsPage() {
                   { id: "custom_sections", label: "Custom Sections", icon: FolderPlus, description: "Your custom sections" },
                   { id: "daily_content", label: "Daily Quotes & Games", icon: Sparkles, description: "Daily quotes, jokes, games" },
                   { id: "ai_assistant", label: "AI Assistant", icon: Sparkles, description: "AI chat assistant" },
+                  { id: "capture", label: "AI Capture", icon: Wand2, description: "Parse natural language into tasks, goals, habits, and more" },
                 ].map(({ id, label, icon: Icon, description }) => (
                   <div
                     key={id}

@@ -27,6 +27,7 @@ const DEFAULT_SIDEBAR_SECTIONS = {
   daily_content: true,
   custom_sections: true,
   ai_assistant: true,
+  capture: true,
 }
 
 export async function GET() {

@@ -35,6 +35,7 @@ import {
   Plus,
   Network,
   Users,
+  Wand2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -74,6 +75,7 @@ const DEFAULT_SIDEBAR_PREFS = {
   income: true,
   ai_assistant: true,
   habits: true,
+  capture: true,
 }
 
 // Module-level cache — persists across client-side navigations so the
@@ -422,6 +424,14 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
                 <Button variant={isActivePath("/ai-chat") ? "secondary" : "ghost"} className={navButtonClass("/ai-chat")}>
                   <Sparkles className={navIconClass("/ai-chat")} />
                   AI Assistant
+                </Button>
+              </Link>
+            )}
+            {prefs.capture && (
+              <Link href="/capture">
+                <Button variant={isActivePath("/capture") ? "secondary" : "ghost"} className={navButtonClass("/capture")}>
+                  <Wand2 className={navIconClass("/capture")} />
+                  AI Capture
                 </Button>
               </Link>
             )}
