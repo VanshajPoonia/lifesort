@@ -17,6 +17,54 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-05-17 - Life Timeline Feature
+
+- Agent/tool used: Claude Code (coding agent mode).
+- Task summary: Added `/timeline` page showing a chronological, filterable record of meaningful life activity derived entirely from existing tables — no new database schema.
+
+#### Files Created
+- `app/api/timeline/route.ts` — GET endpoint. Runs 9 parallel per-source queries (tasks completed, goals completed, projects completed, notes created, weekly reviews, wishlist purchased, investments added, budget categories created, habit_checkins for milestone computation). Each query is wrapped in `safe()` to handle missing tables gracefully. Habit check-in milestones (7/14/21/30/50/100 unique check-ins per habit) are computed in JavaScript. All events are merged, filtered by type/life_area/search in JS, sorted by `occurred_at` DESC, and sliced to limit (default 200). Exports `EventType`, `TimelineEvent`, `LifeAreaRow` types for page and widget use.
+- `app/timeline/page.tsx` — Client page with DashboardLayout. Filter bar: search input, event type Select (9 types), life area Select (populated from API), month/week grouping toggle. Timeline renders events grouped by period with a left-border connector line. Each event shows: colored dot, type badge with icon, title, life area badge, date + time-ago. Loading: Skeleton cards. Empty state: two variants (filtered empty vs. all-time empty). Habit streak events show a flame emoji + check-in count.
+
+#### Files Modified
+- `components/dashboard-layout.tsx` — Added `History` import; `timeline: true` to `DEFAULT_SIDEBAR_PREFS`; "Life Timeline" nav link (History icon) placed after "Insights".
+- `app/api/sidebar-preferences/route.ts` — Added `timeline: true` to `DEFAULT_SIDEBAR_SECTIONS`.
+- `app/settings/page.tsx` — Added `History` import; `timeline: true` to state; added timeline to sidebar items list.
+- `app/page.tsx` — Added `History` import; `milestones`/`milestonesLoading` state; independent `fetch("/api/timeline?limit=5")` in the auth-gated `useEffect`; "Recent Milestones" widget card placed before "Recent Activity" widget.
+
+#### Event Sources
+| Type | Table | Condition |
+|---|---|---|
+| task_completed | tasks | completed = TRUE |
+| goal_completed | goals | status = 'completed' |
+| project_completed | projects | status = 'completed' |
+| note_created | notes | always |
+| weekly_review | weekly_reviews | always |
+| habit_streak | habit_checkins + habits | 7/14/21/30/50/100 unique check-ins per habit |
+| wishlist_purchased | wishlist_items | purchased = TRUE |
+| investment_added | investments | always |
+| budget_milestone | budget_categories | always ("Started budgeting for X") |
+
+#### TypeScript Errors Fixed
+- Line 231 in route.ts: `as Promise<LifeAreaRow[]>` incompatible with neon's `NeonQueryPromise` type → changed to `as unknown as Promise<LifeAreaRow[]>`.
+- Line 355 in page.tsx: `event.meta.milestone &&` renders `unknown` as ReactNode → changed to `Boolean(event.meta.milestone) &&`.
+
+#### Commands Run
+- `npx tsc --noEmit` → 0 errors (after fixing 2 errors above)
+- `npm run build` → passed, `/timeline` (3.56 kB) and `/api/timeline` confirmed in output (94 routes total)
+
+#### Remaining Limitations
+- `occurred_at` for completed tasks and goals uses `updated_at` — there is no `completed_at` column. If a task was edited after being marked complete, the timeline date reflects the edit, not the completion.
+- Timeline shows all notes created (not just "meaningful" notes). Noisy if user has hundreds of quick notes.
+- No pagination — fetches up to 200 events per request. For users with very large histories, consider cursor-based pagination in the future.
+- Habit streak milestones require the `habit_checkins` table to exist (from the habits migration). If missing, the `safe()` helper returns empty and no habit events appear — no error.
+- No browser/manual smoke test — requires live DB data.
+
+#### Suggested Next Steps
+- Smoke-test with live data: navigate to /timeline → verify events appear grouped by month → filter by "Goal Achieved" → verify only goal events → switch to week view → verify week groupings.
+- Consider adding a "Click to navigate" link on each event card (to the relevant page for that item).
+- Consider filtering out "Untitled" notes from the timeline to reduce noise.
+
 ### 2026-05-17 - Smart Templates Feature
 
 - Agent/tool used: Claude Code (coding agent mode).

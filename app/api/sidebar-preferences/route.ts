@@ -30,6 +30,7 @@ const DEFAULT_SIDEBAR_SECTIONS = {
   ai_assistant: true,
   capture: true,
   templates: true,
+  timeline: true,
 }
 
 export async function GET() {

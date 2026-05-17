@@ -45,6 +45,7 @@ import {
   HelpCircle,
   ChevronDown,
   Activity,
+  History,
 } from "lucide-react"
 import {
   Accordion,
@@ -127,6 +128,7 @@ export default function SettingsPage() {
     ai_assistant: true,
     capture: true,
     templates: true,
+    timeline: true,
   })
 
   useEffect(() => {
@@ -495,6 +497,7 @@ export default function SettingsPage() {
                   { id: "ai_assistant", label: "AI Assistant", icon: Sparkles, description: "AI chat assistant" },
                   { id: "capture", label: "AI Capture", icon: Wand2, description: "Parse natural language into tasks, goals, habits, and more" },
                   { id: "templates", label: "Smart Templates", icon: Sparkles, description: "Ready-made life systems you can apply in one click" },
+                  { id: "timeline", label: "Life Timeline", icon: History, description: "Chronological record of completed tasks, goals, habits, and milestones" },
                 ].map(({ id, label, icon: Icon, description }) => (
                   <div
                     key={id}

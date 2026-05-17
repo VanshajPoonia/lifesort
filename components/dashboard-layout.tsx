@@ -37,6 +37,7 @@ import {
   Users,
   Wand2,
   Activity,
+  History,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -79,6 +80,7 @@ const DEFAULT_SIDEBAR_PREFS = {
   habits: true,
   capture: true,
   templates: true,
+  timeline: true,
 }
 
 // Module-level cache — persists across client-side navigations so the
@@ -282,6 +284,14 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
                 <Button variant={isActivePath("/insights") ? "secondary" : "ghost"} className={navButtonClass("/insights")}>
                   <Activity className={navIconClass("/insights")} />
                   Insights
+                </Button>
+              </Link>
+            )}
+            {prefs.timeline && (
+              <Link href="/timeline">
+                <Button variant={isActivePath("/timeline") ? "secondary" : "ghost"} className={navButtonClass("/timeline")}>
+                  <History className={navIconClass("/timeline")} />
+                  Life Timeline
                 </Button>
               </Link>
             )}

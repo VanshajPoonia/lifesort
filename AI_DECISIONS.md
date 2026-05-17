@@ -73,6 +73,14 @@ Architecture and product decision memory for LifeSort.
 - Zod (`"zod": "3.25.76"`) is available in the repo and is now used in the capture endpoint. Future AI endpoints that need structured output validation should use Zod rather than manual type checks.
 - AI Life Balance Insights (`/api/ai/life-balance`) differs from the client-sends-data pattern: GET and POST both derive user-scoped aggregate metrics server-side from Life Areas, tasks, goals, habits, projects, notes, budget, and recent weekly review reflections. The AI prompt receives aggregate counts plus short reflection snippets, not task titles or note content. The endpoint is read-only; suggested actions are returned as draft task suggestions and are only created by the `/insights` client after the user confirms.
 
+## Timeline and Multi-Source Aggregation Decisions
+
+- The Life Timeline derives events from 8 existing source tables (tasks, goals, projects, notes, weekly_reviews, wishlist_items, investments, budget_categories) plus habit_checkins for milestone computation. No new database tables were added.
+- The timeline API (`/api/timeline`) runs one query per source in parallel via `Promise.all`. Each source query is wrapped in a `safe()` helper that catches missing-table errors (PostgreSQL error codes 42P01/42703) and returns an empty array, allowing partial results when a migration hasn't been applied. This is the same resilience pattern used in `lib/ai-usage.ts`.
+- Habit streak milestones are computed in JavaScript inside the API route: habit_checkins are fetched and grouped by habit_id, deduplicated by date, sorted chronologically, and milestone events are emitted at the 7th, 14th, 21st, 30th, 50th, and 100th unique check-in date per habit. This approach is simpler than a SQL window function and handles weekly/daily habits the same way.
+- Timeline filtering (event type, life area, text search) happens in JavaScript after all sources are merged, not in SQL. This is acceptable for a personal app where total event count is bounded (< 1000 events per user). If scaling becomes a concern, move filters into individual SQL WHERE clauses.
+- The `/api/timeline` GET response includes `life_areas` for the filter dropdown, avoiding a second client fetch.
+
 ## Template and Static Data Decisions
 
 - Smart Templates are defined as static TypeScript data in `lib/templates.ts`, not as database rows. There is no `templates` database table. Templates are arrays of `TemplateItem` union types with a `buildPayload()` helper that maps each item type to the correct API payload shape.

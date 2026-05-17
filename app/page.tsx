@@ -26,6 +26,7 @@ import {
   Users,
   Wallet,
   Zap,
+  History,
 } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { OnboardingModal } from "@/components/onboarding-modal"
@@ -415,6 +416,8 @@ export default function Home() {
   const [vaultWidget, setVaultWidget] = useState<{ expiringSoon: number; total: number } | null>(null)
   const [dashboardLoading, setDashboardLoading] = useState(true)
   const [errors, setErrors] = useState<Partial<Record<DashboardErrorKey, string>>>({})
+  const [milestones, setMilestones] = useState<Array<{ id: string; label: string; title: string; occurred_at: string }>>([])
+  const [milestonesLoading, setMilestonesLoading] = useState(true)
 
   useEffect(() => {
     if (!loading && !user) {
@@ -425,6 +428,11 @@ export default function Home() {
     if (user) {
       checkOnboarding()
       fetchDashboard()
+      fetch("/api/timeline?limit=5")
+        .then((r) => r.ok ? r.json() : { events: [] })
+        .then((d) => setMilestones(d.events ?? []))
+        .catch(() => {})
+        .finally(() => setMilestonesLoading(false))
     }
   }, [user, loading, router])
 
@@ -1477,6 +1485,44 @@ export default function Home() {
                   </Link>
                 ))
               )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <History className="h-5 w-5 text-primary" />
+                Recent Milestones
+              </CardTitle>
+              <CardDescription>Your latest life achievements and activity.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {milestonesLoading ? (
+                <>
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                </>
+              ) : milestones.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Complete tasks and goals to see milestones here.</p>
+              ) : (
+                milestones.map((m) => (
+                  <div key={m.id} className="flex items-center justify-between gap-3 rounded-md border p-2.5">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{m.title}</p>
+                      <p className="text-xs text-muted-foreground">{m.label}</p>
+                    </div>
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      {new Date(m.occurred_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    </span>
+                  </div>
+                ))
+              )}
+              <Link href="/timeline" className="block pt-1">
+                <Button variant="ghost" size="sm" className="w-full text-muted-foreground">
+                  View Full Timeline →
+                </Button>
+              </Link>
             </CardContent>
           </Card>
 
