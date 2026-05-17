@@ -34,6 +34,32 @@ Current verification state:
 #### Notes
 - The pre-existing working-tree change in `saveContentToHistory` (inline expression replacing `safeContent` + guard) was reverted to HEAD's safer pattern. If that removal was intentional, it can be re-applied — but the guard is genuinely useful and there's no comment explaining why it was dropped.
 
+### 2026-05-18 - Migration File for New Indexes + Run Book
+
+- Agent/tool used: Claude Code (coding agent mode).
+- Task: Close the migration paper-trail gap. The three indexes added in the earlier "API Body Validation + Missing Schema Indexes" pass were only in `scripts/schema.sql` with no `scripts/migrations/` file, violating the workflow documented in `scripts/README.md`. Also added a run book so the user has a concrete procedure for applying any migration against Neon.
+
+#### Files Created
+- `scripts/migrations/2026-05-18-add-indexes.sql` — the three indexes with `CREATE INDEX CONCURRENTLY IF NOT EXISTS`. No `BEGIN/COMMIT` because `CREATE INDEX CONCURRENTLY` can't run inside a transaction block.
+
+#### Files Modified
+- `scripts/README.md` — appended "Running a migration against Neon" section with three options (Neon SQL Editor, `psql`, one-off Node script) plus verification queries and a one-time sanity check that confirms the 10 legacy tables are already in prod.
+
+#### Re-check Findings (verification of all migrations through today)
+- 10 of 11 tables added to `scripts/schema.sql` in the N4 consolidation already have legacy `add-*.sql` files (habits, habit_checkins, routines, routine_steps, people, people_reminders, people_links, vault_items, notifications, custom_section_records) — assumed already applied to prod.
+- `agent_action_events` (the 11th) is new today and has `scripts/migrations/2026-05-18-agent-action-events.sql`.
+- The 3 indexes now have `scripts/migrations/2026-05-18-add-indexes.sql` (this entry).
+- Net: every change to `schema.sql` since the N4 consolidation has a matching forward migration file.
+
+#### Pending Production Migrations (in date order)
+1. `scripts/migrations/2026-05-18-agent-action-events.sql` — creates `agent_action_events` table + 3 indexes.
+2. `scripts/migrations/2026-05-18-add-indexes.sql` — creates 3 additive indexes on existing tables.
+
+Both are idempotent. Recommended run path: Neon SQL Editor (Option A in `scripts/README.md`).
+
+#### Commands Run
+- `npx tsc --noEmit` → passes (no TS changes)
+
 ### 2026-05-18 - API Body Validation + Missing Schema Indexes
 
 - Agent/tool used: Claude Code (coding agent mode).
