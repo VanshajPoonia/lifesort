@@ -218,6 +218,7 @@ Known as of 2026-05-17:
 11. For date-based tracker features, verify dashboard counts and filters exclude closed statuses, all optional linked IDs are ownership-validated, Global Search remains user-scoped, Quick Add posts a minimal valid payload, and AI Capture only creates editable drafts before confirmation. For recurring trackers, verify completion advances the next due date from the completion date.
 12. For derived timeline/search features, verify no duplicate timeline table is introduced unless manual events are explicitly requested, every source query is user-scoped, missing source tables fail softly, and Global Search uses the same derivation path as the timeline API.
 13. For reset/bulk-cleanup features, verify every bulk action is explicitly confirmed, each item is rechecked by `user_id` at write time, destructive deletes are called out separately, AI suggestions are read-only until selected by the user, and recovery-plan writes reuse Today Plan focus items instead of duplicating plan data.
+14. For user preference/rules features used by AI, verify the rules are visible/editable by the user, scoped by `user_id`, included in the schema baseline and pending migration script, and only read by AI routes unless the user explicitly confirms a write.
 
 ## Common Failure Points
 

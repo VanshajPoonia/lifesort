@@ -1823,6 +1823,59 @@ After that, re-run the regression checkpoint and the schema-drift 500s should di
   - Someday / Maybe is intentionally separate from Reset's existing "move to someday" mapping; this feature adds a standalone `someday_items` table.
   - AI Capture only creates editable `someday_item` drafts; it does not auto-classify or write anything without the user's existing confirmation flow.
 
+### 2026-05-17 22:46 IST - Personal Operating Rules
+
+- Agent/tool used: Codex.
+- Task summary: Added website-only Personal Operating Rules so users can define visible preferences and constraints that LifeSort AI planning features can read when suggesting plans.
+- Files changed:
+  - `app/rules/page.tsx`
+  - `app/rules/loading.tsx`
+  - `app/api/personal-rules/route.ts`
+  - `lib/personal-rules.ts`
+  - `scripts/add-personal-rules.sql`
+  - `scripts/website-current-schema.sql`
+  - `scripts/run-pending-migrations.sql`
+  - `components/dashboard-layout.tsx`
+  - `app/settings/page.tsx`
+  - `app/api/sidebar-preferences/route.ts`
+  - `app/api/chat/route.ts`
+  - `app/api/ai/today-plan/route.ts`
+  - `app/api/ai/weekly-summary/route.ts`
+  - `app/api/ai/life-balance/route.ts`
+  - `app/api/ai/reset-suggestions/route.ts`
+  - `app/api/ai/capture/route.ts`
+  - `AI_PROJECT.md`
+  - `AI_DECISIONS.md`
+  - `AI_CHECKLIST.md`
+  - `AI_TASK_LOG.md`
+- Summary of changes:
+  - Added `personal_rules` with user ownership, active/inactive user rules, category enum, and one visible `rule_type = 'preferences'` row for structured planning preferences.
+  - Added `/api/personal-rules` with authenticated CRUD for normal rules and authenticated preference upsert. Every read/write is scoped by `user_id`.
+  - Added `/rules` with structured preferences, operating rule CRUD, active/inactive states, loading/error/empty states, and an AI planning context preview showing the exact visible context.
+  - Added Operating Rules to sidebar defaults and Settings sidebar customization.
+  - Added `lib/personal-rules.ts` helper that normalizes preferences, builds the preview, and lets AI routes read active user rules. The helper falls back to defaults if the table is missing so deployments do not hard-fail before migration.
+  - Wired visible rule context into `/api/chat`, AI Today Plan, AI Weekly Summary, AI Life Balance, AI Reset Suggestions, and AI Capture. AI routes read rules only and are instructed not to create, infer, or mutate personal rules.
+  - Updated schema baseline and consolidated pending migration; no database scripts were run.
+- Commands run:
+  - `git status --short` - reviewed; showed Personal Operating Rules files pending after implementation.
+  - `npx tsc --noEmit` - passed.
+  - `npm run lint` - failed before source linting because ESLint 10.3.0 cannot find `eslint.config.(js|mjs|cjs)`.
+  - `npm run build` - passed; generated 120 routes including `/rules` and `/api/personal-rules`; still skips type/lint validation through `next.config.mjs` and emits known metadata `themeColor`/`viewport` warnings, including `/rules`.
+- Bugs found or fixed:
+  - No new TypeScript or build failures found.
+- Remaining issues and limitations:
+  - `scripts/add-personal-rules.sql` or the consolidated pending migration must be applied before live `/rules` CRUD works against the target database.
+  - Browser/manual smoke testing was not run in this pass.
+  - `npm run lint` remains blocked by the missing ESLint flat config.
+  - `npm run build` still hides TypeScript and lint failures through `next.config.mjs`.
+  - Daily content generation and investment screenshot parsing do not use operating rules because they are not planning-context features.
+- Suggested next steps:
+  - Apply the Personal Operating Rules migration to the confirmed target database, then smoke-test `/rules` CRUD, preference save/reload, sidebar/settings visibility, and AI prompt behavior for two users.
+  - Add ESLint flat config and revisit build settings that skip type/lint validation.
+- Handoff notes:
+  - The structured preferences row is not hidden: it is represented by the `/rules` preference UI and included in the preview.
+  - AI routes can read the preview but there is no AI endpoint that writes to `personal_rules`.
+
 ## AI Handoff Summaries
 
 Future agents should start by reading all root memory files, then inspect the relevant code before editing. Keep changes small and update this file after every repo change.

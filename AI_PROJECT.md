@@ -51,6 +51,7 @@ Implemented feature areas found in the repo:
 - Waiting For tracker at `/waiting` and `/api/waiting`: user-scoped tracking for external dependencies such as replies, approvals, deliveries, refunds, school/company/bank/government follow-ups, job applications, and other things the user is waiting on. Items support status, expected/follow-up dates, optional Life Area, Project, and Person links, dashboard follow-up/overdue widget, Quick Add support, Global Search, and AI Capture draft creation.
 - Commitments tracker at `/commitments` and `/api/commitments`: user-scoped tracking for promises and obligations made to oneself or others. Commitments support type/status, due dates, optional Life Area/Project/Person/Task links, dashboard due-soon/at-risk widget, Quick Add, Global Search, and explicit conversion to a linked task through `/api/commitments/convert-to-task`.
 - Life Maintenance at `/maintenance` and `/api/maintenance`: user-scoped recurring maintenance tracker for renewals, checkups, repairs, reviews, and admin responsibilities. Items support category, recurrence, custom interval days, next due date, last completed date, reminder lead time, optional Life Area/Vault links, templates, dashboard upcoming/overdue widget, Quick Add, Global Search, mark-complete date advancement, and explicit task creation through `/api/maintenance/create-task`.
+- Personal Operating Rules at `/rules` and `/api/personal-rules`: user-scoped visible preferences and constraints that LifeSort AI planning features can read. Users can CRUD active/inactive rules, set structured planning preferences (working hours, max daily focus items, reminder timing, heavy/light days, planning style), and preview the exact AI planning context. AI routes read active rules but do not create or change rules.
 - Smart Templates at `/templates`: 10 pre-designed life systems (student semester, fitness transformation, job search, business launch, budget reset, travel plan, learning roadmap, content creator planner, home management, reading list). Each template is a static code definition in `lib/templates.ts`. Users preview all items before anything is created. "Create this system" applies each item sequentially via existing CRUD APIs (projects, tasks, goals, habits, notes, custom sections, budget categories, vault items). Nothing writes to the database until the user explicitly confirms. Template-created items appear in existing global search automatically.
 - Global search across Timeline, Someday / Maybe, Inbox, Waiting For, Commitments, Maintenance, tasks, goals, notes, links, wishlist, investments, income, and budget.
 - Global search also includes projects.
@@ -110,6 +111,7 @@ Major tables in the current schema baseline:
 - `life_areas`
 - `daily_plans`
 - `weekly_reviews`
+- `personal_rules`
 - `someday_items`
 - `inbox_items`
 - `waiting_items`
@@ -139,7 +141,7 @@ Representative API areas:
 - Capture and sorting: `someday`, `someday/promote`, `inbox`, `inbox/convert`, `waiting`, `commitments`, `commitments/convert-to-task`, `maintenance`, `maintenance/complete`, `maintenance/create-task`
 - User/profile/preferences: `profile`, `onboarding`, `sidebar-preferences`, `daily-content`
 - Integrations: `calendar/google/*`, `calendar/sync`, `stock-quote`, `url-preview`
-- AI: `chat`, `daily-content/generate`, `investments/parse-screenshot`, `ai/weekly-summary`, `ai/today-plan`, `ai/capture`, `ai/life-balance`, `ai/reset-suggestions`; these routes use main session auth and provider-specific env vars.
+- AI: `chat`, `daily-content/generate`, `investments/parse-screenshot`, `ai/weekly-summary`, `ai/today-plan`, `ai/capture`, `ai/life-balance`, `ai/reset-suggestions`; these routes use main session auth and provider-specific env vars. Planning-oriented AI routes read visible Personal Operating Rules through `lib/personal-rules.ts`.
 - Operational: `cron/deadline-reminders`, `admin/update-subscription`, `dashboard`, `search`, `share`
 
 ## Frontend Structure
@@ -157,6 +159,7 @@ Important pages:
 - `/commitments`
 - `/maintenance`
 - `/reset`
+- `/rules`
 - `/insights`
 - `/life-areas`
 - `/projects`, `/projects/[id]`
