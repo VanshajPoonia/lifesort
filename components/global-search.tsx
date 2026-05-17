@@ -10,6 +10,7 @@ import {
   FileText,
   FolderPlus,
   Heart,
+  History,
   Inbox,
   Link2,
   Loader2,
@@ -37,6 +38,7 @@ type SearchType =
   | "waiting"
   | "commitments"
   | "maintenance"
+  | "timeline"
   | "tasks"
   | "goals"
   | "notes"
@@ -74,6 +76,7 @@ const groupIcons = {
   waiting: Clock,
   commitments: ClipboardCheck,
   maintenance: Wrench,
+  timeline: History,
   tasks: CheckSquare,
   goals: Target,
   notes: FileText,
@@ -193,7 +196,7 @@ export function GlobalSearch() {
       </Button>
 
       <CommandDialog open={open} onOpenChange={setOpen}>
-        <CommandInput placeholder="Search inbox, maintenance, commitments, tasks..." value={query} onValueChange={setQuery} />
+        <CommandInput placeholder="Search timeline, inbox, maintenance, commitments..." value={query} onValueChange={setQuery} />
         <CommandList className="max-h-[420px]">
           {!hasQuery ? (
             <div className="px-4 py-8 text-center text-sm text-muted-foreground">

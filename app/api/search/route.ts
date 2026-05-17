@@ -2,12 +2,14 @@ import { NextResponse } from "next/server"
 
 import { getUserFromSession } from "@/lib/auth"
 import { sql } from "@/lib/db"
+import { getTimelineData } from "@/lib/timeline"
 
 type SearchType =
   | "inbox"
   | "waiting"
   | "commitments"
   | "maintenance"
+  | "timeline"
   | "tasks"
   | "goals"
   | "notes"
@@ -43,6 +45,7 @@ const groupLabels: Record<SearchType, string> = {
   waiting: "Waiting For",
   commitments: "Commitments",
   maintenance: "Maintenance",
+  timeline: "Timeline",
   tasks: "Tasks",
   goals: "Goals",
   notes: "Notes",
@@ -109,6 +112,7 @@ export async function GET(request: Request) {
     waiting,
     commitments,
     maintenance,
+    timeline,
     tasks,
     goals,
     notes,
@@ -244,6 +248,15 @@ export async function GET(request: Request) {
       ORDER BY mi.updated_at DESC, mi.created_at DESC
       LIMIT 5
     `),
+    getTimelineData(user.id, { search: query, limit: 5 })
+      .then((data) => data.events.map((event) => ({
+        id: event.id,
+        title: event.title,
+        subtitle: event.label,
+        href: "/timeline",
+        updated_at: event.occurred_at,
+        created_at: event.occurred_at,
+      }))),
     safeRows("tasks", sql`
       SELECT id, title, COALESCE(description, category, priority) as subtitle, '/tasks' as href, updated_at, created_at
       FROM tasks
@@ -409,6 +422,7 @@ export async function GET(request: Request) {
       waiting,
       commitments,
       maintenance,
+      timeline,
       tasks,
       goals,
       notes,
