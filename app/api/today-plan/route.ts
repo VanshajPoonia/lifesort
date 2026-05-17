@@ -14,7 +14,21 @@ type FocusItem = {
   custom: boolean
 }
 
-const sourceTypes = new Set(["task", "goal", "calendar", "note", "budget", "wishlist", "custom"])
+const sourceTypes = new Set([
+  "task",
+  "goal",
+  "calendar",
+  "note",
+  "budget",
+  "wishlist",
+  "project",
+  "habit",
+  "inbox",
+  "waiting",
+  "commitment",
+  "maintenance",
+  "custom",
+])
 
 function isValidDate(value: string | null) {
   return Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value))

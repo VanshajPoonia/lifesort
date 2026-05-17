@@ -51,6 +51,7 @@ import {
   Activity,
   History,
   Inbox,
+  RefreshCcw,
 } from "lucide-react"
 import {
   Accordion,
@@ -109,6 +110,7 @@ export default function SettingsPage() {
 
   const [sidebarPrefs, setSidebarPrefs] = useState({
     dashboard: true,
+    reset: true,
     inbox: true,
     waiting: true,
     commitments: true,
@@ -483,6 +485,7 @@ export default function SettingsPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 {[
                   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, description: "Main dashboard view" },
+                  { id: "reset", label: "Reset My Life", icon: RefreshCcw, description: "Overwhelm recovery and safe bulk triage" },
                   { id: "inbox", label: "Inbox", icon: Inbox, description: "Universal capture queue for unsorted thoughts" },
                   { id: "waiting", label: "Waiting For", icon: Clock, description: "Follow-ups, approvals, refunds, deliveries, and replies" },
                   { id: "commitments", label: "Commitments", icon: ClipboardCheck, description: "Promises and obligations you made" },

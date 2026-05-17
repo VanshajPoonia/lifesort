@@ -30,6 +30,7 @@ import {
   Wrench,
   Zap,
   History,
+  RefreshCcw,
 } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { OnboardingModal } from "@/components/onboarding-modal"
@@ -202,6 +203,15 @@ interface MaintenanceItem {
   created_at?: string | null
 }
 
+interface ResetWidget {
+  counts?: {
+    total?: number
+    urgent?: number
+    upcoming?: number
+    unavailable?: number
+  }
+}
+
 interface DashboardSources {
   tasks: Task[]
   goals: Goal[]
@@ -269,6 +279,7 @@ const apiEndpoints: Record<DashboardApiKey, string> = {
 }
 
 const quickActions = [
+  { title: "Reset my life", href: "/reset", icon: RefreshCcw },
   { title: "Capture inbox", href: "/inbox", icon: Inbox },
   { title: "Track waiting", href: "/waiting", icon: Clock },
   { title: "Add commitment", href: "/commitments", icon: ClipboardCheck },
@@ -510,6 +521,7 @@ export default function Home() {
   const [waitingWidget, setWaitingWidget] = useState<{ followUpsDue: number; overdue: number; recent: WaitingItem[] } | null>(null)
   const [commitmentsWidget, setCommitmentsWidget] = useState<{ dueSoon: number; atRisk: number; recent: CommitmentItem[] } | null>(null)
   const [maintenanceWidget, setMaintenanceWidget] = useState<{ upcoming: number; overdue: number; recent: MaintenanceItem[] } | null>(null)
+  const [resetWidget, setResetWidget] = useState<ResetWidget | null>(null)
   const [dashboardLoading, setDashboardLoading] = useState(true)
   const [errors, setErrors] = useState<Partial<Record<DashboardErrorKey, string>>>({})
   const [milestones, setMilestones] = useState<Array<{ id: string; label: string; title: string; occurred_at: string }>>([])
@@ -701,6 +713,16 @@ export default function Home() {
       }
     } catch {
       // Maintenance widget failure is non-fatal
+    }
+
+    // Reset widget — fetch independently, fails silently
+    try {
+      const resetRes = await fetch("/api/reset")
+      if (resetRes.ok) {
+        setResetWidget(await resetRes.json())
+      }
+    } catch {
+      // Reset widget failure is non-fatal
     }
 
     setSources({
@@ -1367,6 +1389,56 @@ export default function Home() {
                         </Link>
                       ))
                     )}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {resetWidget !== null && (
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <RefreshCcw className="h-5 w-5 text-primary" />
+                    Reset My Life
+                  </CardTitle>
+                  <CardDescription>Triage overdue, stale, unsorted, and missed items safely.</CardDescription>
+                </div>
+                <Button asChild size="sm" variant="outline" className="gap-2">
+                  <Link href="/reset">
+                    Open Reset
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {dashboardLoading ? (
+                <div className="grid gap-3 md:grid-cols-3">
+                  <Skeleton className="h-20 w-full" />
+                  <Skeleton className="h-20 w-full" />
+                  <Skeleton className="h-20 w-full" />
+                </div>
+              ) : (resetWidget.counts?.total || 0) === 0 ? (
+                <EmptyState actionHref="/reset" actionLabel="Review reset dashboard">
+                  Nothing is asking for a reset right now.
+                </EmptyState>
+              ) : (
+                <div className="grid gap-3 md:grid-cols-3">
+                  <div className="rounded-md border bg-muted/40 p-3">
+                    <p className="text-2xl font-bold">{resetWidget.counts?.urgent || 0}</p>
+                    <p className="text-xs text-muted-foreground">need attention</p>
+                  </div>
+                  <div className="rounded-md border bg-muted/40 p-3">
+                    <p className="text-2xl font-bold">{resetWidget.counts?.upcoming || 0}</p>
+                    <p className="text-xs text-muted-foreground">upcoming</p>
+                  </div>
+                  <div className="rounded-md border bg-muted/40 p-3">
+                    <p className="text-2xl font-bold">{resetWidget.counts?.unavailable || 0}</p>
+                    <p className="text-xs text-muted-foreground">unavailable sources</p>
                   </div>
                 </div>
               )}

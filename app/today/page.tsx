@@ -119,6 +119,12 @@ function sourceLabel(sourceType: string) {
     note: "Note",
     budget: "Budget",
     wishlist: "Wishlist",
+    project: "Project",
+    habit: "Habit",
+    inbox: "Inbox",
+    waiting: "Waiting For",
+    commitment: "Commitment",
+    maintenance: "Maintenance",
     custom: "Custom",
   }
   return labels[sourceType] || sourceType
