@@ -91,6 +91,43 @@ CREATE TABLE IF NOT EXISTS weekly_reviews (
   UNIQUE(user_id, week_start)
 );
 
+CREATE TABLE IF NOT EXISTS inbox_items (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title VARCHAR(255) NOT NULL,
+  raw_text TEXT NOT NULL DEFAULT '',
+  suggested_type VARCHAR(50) CHECK (
+    suggested_type IS NULL OR suggested_type IN (
+      'task',
+      'goal',
+      'note',
+      'project',
+      'habit',
+      'wishlist_item',
+      'vault_item',
+      'calendar_event'
+    )
+  ),
+  status VARCHAR(30) NOT NULL DEFAULT 'unsorted' CHECK (status IN ('unsorted', 'converted', 'archived')),
+  life_area_id INTEGER REFERENCES life_areas(id) ON DELETE SET NULL,
+  source VARCHAR(30) NOT NULL DEFAULT 'manual' CHECK (source IN ('manual', 'quick_add', 'ai_capture')),
+  converted_type VARCHAR(50) CHECK (
+    converted_type IS NULL OR converted_type IN (
+      'task',
+      'goal',
+      'note',
+      'project',
+      'habit',
+      'wishlist_item',
+      'vault_item',
+      'calendar_event'
+    )
+  ),
+  converted_id INTEGER,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS projects (
   id SERIAL PRIMARY KEY,
   user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -450,6 +487,9 @@ CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(session_token);
 CREATE INDEX IF NOT EXISTS idx_life_areas_user_order ON life_areas(user_id, sort_order, name);
 CREATE INDEX IF NOT EXISTS idx_daily_plans_user_date ON daily_plans(user_id, plan_date);
 CREATE INDEX IF NOT EXISTS idx_weekly_reviews_user_week ON weekly_reviews(user_id, week_start DESC);
+CREATE INDEX IF NOT EXISTS idx_inbox_items_user_status_updated ON inbox_items(user_id, status, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_inbox_items_life_area_id ON inbox_items(life_area_id);
+CREATE INDEX IF NOT EXISTS idx_inbox_items_user_converted ON inbox_items(user_id, converted_type, converted_id);
 CREATE INDEX IF NOT EXISTS idx_projects_user_status ON projects(user_id, status, due_date);
 CREATE INDEX IF NOT EXISTS idx_projects_life_area_id ON projects(life_area_id);
 CREATE INDEX IF NOT EXISTS idx_project_items_project_id ON project_items(project_id);
