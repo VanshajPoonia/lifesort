@@ -219,6 +219,9 @@ Known as of 2026-05-17:
 12. For derived timeline/search features, verify no duplicate timeline table is introduced unless manual events are explicitly requested, every source query is user-scoped, missing source tables fail softly, and Global Search uses the same derivation path as the timeline API.
 13. For reset/bulk-cleanup features, verify every bulk action is explicitly confirmed, each item is rechecked by `user_id` at write time, destructive deletes are called out separately, AI suggestions are read-only until selected by the user, and recovery-plan writes reuse Today Plan focus items instead of duplicating plan data.
 14. For user preference/rules features used by AI, verify the rules are visible/editable by the user, scoped by `user_id`, included in the schema baseline and pending migration script, and only read by AI routes unless the user explicitly confirms a write.
+15. For read-only AI insight features, derive source signals server-side with `user_id` filters, tolerate missing newer tables with partial results, rate-limit through `ai_usage_events`, and keep all suggested writes behind explicit user confirmation.
+16. For app-aware AI chat features, gather context server-side with `user_id` filters, cap the prompt context, avoid sending sensitive long-form content unless explicitly approved, expose citations for items used, and keep generated actions as confirmed drafts.
+17. For capacity or wellness-adjacent planning features, keep language practical and non-medical, store only user-entered planning labels, and verify AI prompts do not make health claims.
 
 ## Common Failure Points
 
