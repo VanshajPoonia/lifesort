@@ -4,6 +4,7 @@ import { getUserFromSession } from "@/lib/auth"
 import { sql } from "@/lib/db"
 
 type SearchType =
+  | "inbox"
   | "tasks"
   | "goals"
   | "notes"
@@ -35,6 +36,7 @@ type SearchResult = {
 }
 
 const groupLabels: Record<SearchType, string> = {
+  inbox: "Inbox",
   tasks: "Tasks",
   goals: "Goals",
   notes: "Notes",
@@ -97,6 +99,7 @@ export async function GET(request: Request) {
   const pattern = `%${query}%`
 
   const [
+    inbox,
     tasks,
     goals,
     notes,
@@ -111,6 +114,30 @@ export async function GET(request: Request) {
     budgetCategories,
     budgetGoals,
   ] = await Promise.all([
+    safeRows("inbox", sql`
+      SELECT
+        inbox_items.id,
+        inbox_items.title,
+        COALESCE(life_areas.name, inbox_items.suggested_type, inbox_items.status) as subtitle,
+        '/inbox' as href,
+        inbox_items.updated_at,
+        inbox_items.created_at
+      FROM inbox_items
+      LEFT JOIN life_areas
+        ON inbox_items.life_area_id = life_areas.id
+        AND life_areas.user_id = ${user.id}
+      WHERE inbox_items.user_id = ${user.id}
+      AND (
+        inbox_items.title ILIKE ${pattern}
+        OR inbox_items.raw_text ILIKE ${pattern}
+        OR COALESCE(inbox_items.suggested_type, '') ILIKE ${pattern}
+        OR COALESCE(inbox_items.status, '') ILIKE ${pattern}
+        OR COALESCE(inbox_items.source, '') ILIKE ${pattern}
+        OR COALESCE(life_areas.name, '') ILIKE ${pattern}
+      )
+      ORDER BY inbox_items.updated_at DESC, inbox_items.created_at DESC
+      LIMIT 5
+    `),
     safeRows("tasks", sql`
       SELECT id, title, COALESCE(description, category, priority) as subtitle, '/tasks' as href, updated_at, created_at
       FROM tasks
@@ -272,6 +299,7 @@ export async function GET(request: Request) {
 
   const groups = emptyGroups().map((group) => {
     const rowsByType: Record<SearchType, SearchRow[]> = {
+      inbox,
       tasks,
       goals,
       notes,
