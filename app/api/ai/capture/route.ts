@@ -87,6 +87,15 @@ const calendarEventPayloadSchema = z.object({
   description: z.string().max(2000).optional(),
 })
 
+const waitingItemPayloadSchema = z.object({
+  title: z.string().min(1).max(255),
+  waiting_on_name: z.string().min(1).max(255),
+  waiting_on_type: z.enum(["person", "company", "school", "bank", "government", "delivery", "refund", "job", "other"]).default("other"),
+  expected_date: z.string().regex(dateRe).nullable().optional(),
+  follow_up_date: z.string().regex(dateRe).nullable().optional(),
+  description: z.string().max(2000).optional(),
+})
+
 // ─── Exported types ──────────────────────────────────────────────────────────
 
 export type TaskPayload = z.infer<typeof taskPayloadSchema>
@@ -97,9 +106,11 @@ export type ProjectPayload = z.infer<typeof projectPayloadSchema>
 export type VaultItemPayload = z.infer<typeof vaultItemPayloadSchema>
 export type WishlistPayload = z.infer<typeof wishlistPayloadSchema>
 export type CalendarEventPayload = z.infer<typeof calendarEventPayloadSchema>
+export type WaitingItemPayload = z.infer<typeof waitingItemPayloadSchema>
 
 export type DraftActionType =
   | "task"
+  | "waiting_item"
   | "goal"
   | "habit"
   | "note"
@@ -110,6 +121,7 @@ export type DraftActionType =
 
 export type DraftAction =
   | { type: "task"; description: string; payload: TaskPayload }
+  | { type: "waiting_item"; description: string; payload: WaitingItemPayload }
   | { type: "goal"; description: string; payload: GoalPayload }
   | { type: "habit"; description: string; payload: HabitPayload }
   | { type: "note"; description: string; payload: NotePayload }
@@ -128,6 +140,7 @@ Parse the user's natural language input into structured LifeSort actions.
 
 Supported action types and their fields:
 - task: { title (required, string), due_date (YYYY-MM-DD or null), priority (low/medium/high, default medium), description (optional) }
+- waiting_item: { title (required), waiting_on_name (required), waiting_on_type (person/company/school/bank/government/delivery/refund/job/other, default other), expected_date (YYYY-MM-DD or null), follow_up_date (YYYY-MM-DD or null), description (optional) }
 - goal: { title (required), target_date (YYYY-MM-DD or null), priority (low/medium/high, default medium) }
 - habit: { name (required), frequency (daily/weekly/custom, default daily), custom_days (array of 0=Sun 1=Mon 2=Tue 3=Wed 4=Thu 5=Fri 6=Sat for custom frequency), target_count (int, default 1) }
 - note: { title (optional), content (optional) }
@@ -155,6 +168,11 @@ Output: [
   { "type": "goal", "description": "Goal: Save $800 for laptop by August", "payload": { "title": "Save $800 for a laptop", "target_date": "<August 1>", "priority": "medium" } }
 ]
 
+Input: "Waiting for my bank to approve the credit card by next Friday, follow up Wednesday"
+Output: [
+  { "type": "waiting_item", "description": "Waiting for bank credit card approval", "payload": { "title": "Credit card approval", "waiting_on_name": "Bank", "waiting_on_type": "bank", "expected_date": "<next Friday>", "follow_up_date": "<Wednesday>", "description": "Waiting for my bank to approve the credit card." } }
+]
+
 Rules:
 - Parse ALL mentioned items. One input may produce multiple actions.
 - Return 1–8 actions maximum.
@@ -174,6 +192,7 @@ function validatePayload(type: string, payload: unknown): DraftAction["payload"]
   try {
     switch (type) {
       case "task":          return taskPayloadSchema.parse(payload)
+      case "waiting_item":  return waitingItemPayloadSchema.parse(payload)
       case "goal":          return goalPayloadSchema.parse(payload)
       case "habit":         return habitPayloadSchema.parse(payload)
       case "note":          return notePayloadSchema.parse(payload)
@@ -189,7 +208,7 @@ function validatePayload(type: string, payload: unknown): DraftAction["payload"]
 }
 
 const VALID_TYPES = new Set<DraftActionType>([
-  "task", "goal", "habit", "note", "project", "vault_item", "wishlist_item", "calendar_event",
+  "task", "waiting_item", "goal", "habit", "note", "project", "vault_item", "wishlist_item", "calendar_event",
 ])
 
 function parseAiResult(text: string): DraftAction[] {

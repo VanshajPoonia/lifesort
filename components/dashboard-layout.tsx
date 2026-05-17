@@ -23,6 +23,7 @@ import {
   LayoutGrid,
   CalendarCheck,
   Calendar as CalendarIcon,
+  Clock,
   Zap,
   FileText,
   Sparkles,
@@ -58,6 +59,7 @@ interface DashboardLayoutProps {
 const DEFAULT_SIDEBAR_PREFS = {
   dashboard: true,
   inbox: true,
+  waiting: true,
   today: true,
   review: true,
   insights: true,
@@ -272,6 +274,14 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
                 <Button variant={isActivePath("/inbox") ? "secondary" : "ghost"} className={navButtonClass("/inbox")}>
                   <Inbox className={navIconClass("/inbox")} />
                   Inbox
+                </Button>
+              </Link>
+            )}
+            {prefs.waiting && (
+              <Link href="/waiting">
+                <Button variant={isActivePath("/waiting") ? "secondary" : "ghost"} className={navButtonClass("/waiting")}>
+                  <Clock className={navIconClass("/waiting")} />
+                  Waiting For
                 </Button>
               </Link>
             )}

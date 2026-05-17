@@ -6,6 +6,7 @@ import {
   AlertCircle,
   CalendarDays,
   CheckCircle2,
+  Clock,
   FileText,
   FolderPlus,
   Inbox,
@@ -49,10 +50,12 @@ const EXAMPLES = [
   "Create a project for learning DSA and add tasks for arrays, strings, and recursion.",
   "Add a note that I liked the NSOC website.",
   "I need to renew my insurance next month.",
+  "Waiting for my bank to approve the credit card by next Friday.",
 ]
 
 const TYPE_META: Record<DraftActionType, { label: string; color: string; icon: React.ElementType }> = {
   task:          { label: "Task",          color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",     icon: CheckCircle2 },
+  waiting_item:  { label: "Waiting For",   color: "bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300",         icon: Clock },
   goal:          { label: "Goal",          color: "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300", icon: Target },
   habit:         { label: "Habit",         color: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300", icon: Sparkles },
   note:          { label: "Note",          color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",   icon: FileText },
@@ -63,9 +66,11 @@ const TYPE_META: Record<DraftActionType, { label: string; color: string; icon: R
 }
 
 const VAULT_CATEGORIES = ["documents", "subscriptions", "warranty", "insurance", "vehicle", "home", "medical", "education", "work", "other"] as const
+const WAITING_ON_TYPES = ["person", "company", "school", "bank", "government", "delivery", "refund", "job", "other"] as const
 
 const ENDPOINT_MAP: Record<DraftActionType, string> = {
   task:           "/api/tasks",
+  waiting_item:   "/api/waiting",
   goal:           "/api/goals",
   habit:          "/api/habits",
   note:           "/api/notes",
@@ -137,6 +142,44 @@ function DraftFields({
               <SelectItem value="high">High</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+      </div>
+    )
+  }
+
+  if (action.type === "waiting_item") {
+    return (
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="sm:col-span-2 space-y-1">
+          <Label className="text-xs">Title</Label>
+          <Input value={String(p.title ?? "")} onChange={(e) => updatePayload({ title: e.target.value })} />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Waiting on</Label>
+          <Input value={String(p.waiting_on_name ?? "")} onChange={(e) => updatePayload({ waiting_on_name: e.target.value })} />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Type</Label>
+          <Select value={String(p.waiting_on_type ?? "other")} onValueChange={(v) => updatePayload({ waiting_on_type: v })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {WAITING_ON_TYPES.map((type) => (
+                <SelectItem key={type} value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Expected Date</Label>
+          <Input type="date" value={String(p.expected_date ?? "")} onChange={(e) => updatePayload({ expected_date: e.target.value || null })} />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Follow-up Date</Label>
+          <Input type="date" value={String(p.follow_up_date ?? "")} onChange={(e) => updatePayload({ follow_up_date: e.target.value || null })} />
+        </div>
+        <div className="sm:col-span-2 space-y-1">
+          <Label className="text-xs">Description</Label>
+          <Textarea rows={3} value={String(p.description ?? "")} onChange={(e) => updatePayload({ description: e.target.value })} />
         </div>
       </div>
     )
@@ -441,7 +484,7 @@ export default function CapturePage() {
               Natural Language Capture
             </CardTitle>
             <CardDescription>
-              Type anything — tasks, goals, habits, notes, projects, vault items, wishlist items, or events.
+              Type anything — tasks, waiting items, goals, habits, notes, projects, vault items, wishlist items, or events.
               AI parses your text into structured drafts. Nothing saves until you confirm.
             </CardDescription>
           </CardHeader>

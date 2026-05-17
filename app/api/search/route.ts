@@ -5,6 +5,7 @@ import { sql } from "@/lib/db"
 
 type SearchType =
   | "inbox"
+  | "waiting"
   | "tasks"
   | "goals"
   | "notes"
@@ -37,6 +38,7 @@ type SearchResult = {
 
 const groupLabels: Record<SearchType, string> = {
   inbox: "Inbox",
+  waiting: "Waiting For",
   tasks: "Tasks",
   goals: "Goals",
   notes: "Notes",
@@ -100,6 +102,7 @@ export async function GET(request: Request) {
 
   const [
     inbox,
+    waiting,
     tasks,
     goals,
     notes,
@@ -136,6 +139,39 @@ export async function GET(request: Request) {
         OR COALESCE(life_areas.name, '') ILIKE ${pattern}
       )
       ORDER BY inbox_items.updated_at DESC, inbox_items.created_at DESC
+      LIMIT 5
+    `),
+    safeRows("waiting", sql`
+      SELECT
+        wi.id,
+        wi.title,
+        COALESCE(la.name, p.title, pe.name, wi.waiting_on_name, wi.status) as subtitle,
+        '/waiting' as href,
+        wi.updated_at,
+        wi.created_at
+      FROM waiting_items wi
+      LEFT JOIN life_areas la
+        ON wi.life_area_id = la.id
+        AND la.user_id = ${user.id}
+      LEFT JOIN projects p
+        ON wi.project_id = p.id
+        AND p.user_id = ${user.id}
+      LEFT JOIN people pe
+        ON wi.person_id = pe.id
+        AND pe.user_id = ${user.id}
+      WHERE wi.user_id = ${user.id}
+      AND (
+        wi.title ILIKE ${pattern}
+        OR COALESCE(wi.description, '') ILIKE ${pattern}
+        OR wi.waiting_on_name ILIKE ${pattern}
+        OR wi.waiting_on_type ILIKE ${pattern}
+        OR wi.status ILIKE ${pattern}
+        OR COALESCE(wi.notes, '') ILIKE ${pattern}
+        OR COALESCE(la.name, '') ILIKE ${pattern}
+        OR COALESCE(p.title, '') ILIKE ${pattern}
+        OR COALESCE(pe.name, '') ILIKE ${pattern}
+      )
+      ORDER BY wi.updated_at DESC, wi.created_at DESC
       LIMIT 5
     `),
     safeRows("tasks", sql`
@@ -300,6 +336,7 @@ export async function GET(request: Request) {
   const groups = emptyGroups().map((group) => {
     const rowsByType: Record<SearchType, SearchRow[]> = {
       inbox,
+      waiting,
       tasks,
       goals,
       notes,

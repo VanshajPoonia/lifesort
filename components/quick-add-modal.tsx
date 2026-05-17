@@ -5,6 +5,7 @@ import type { ElementType } from "react"
 import {
   Calendar,
   CheckSquare,
+  Clock,
   DollarSign,
   FileText,
   FolderPlus,
@@ -27,6 +28,7 @@ import { useToast } from "@/hooks/use-toast"
 
 type QuickAddType =
   | "inbox"
+  | "waiting"
   | "task"
   | "goal"
   | "note"
@@ -99,6 +101,18 @@ const investmentTypeOptions = [
   { value: "other", label: "Other" },
 ]
 
+const waitingOnTypeOptions = [
+  { value: "person", label: "Person" },
+  { value: "company", label: "Company" },
+  { value: "school", label: "School" },
+  { value: "bank", label: "Bank" },
+  { value: "government", label: "Government" },
+  { value: "delivery", label: "Delivery" },
+  { value: "refund", label: "Refund" },
+  { value: "job", label: "Job" },
+  { value: "other", label: "Other" },
+]
+
 function numericValue(value: string) {
   if (!value.trim()) return null
   const parsed = Number.parseFloat(value)
@@ -132,6 +146,29 @@ const quickAddConfigs: QuickAddConfig[] = [
       raw_text: values.raw_text || "",
       suggested_type: values.suggested_type || null,
       source: "quick_add",
+    }),
+  },
+  {
+    type: "waiting",
+    label: "Waiting For",
+    description: "Track a follow-up",
+    endpoint: "/api/waiting",
+    eventType: "waiting",
+    icon: Clock,
+    fields: [
+      { name: "title", label: "Title", type: "text", required: true, placeholder: "Refund from airline" },
+      { name: "waiting_on_name", label: "Waiting on", type: "text", required: true, placeholder: "Airline support" },
+      { name: "waiting_on_type", label: "Type", type: "select", options: waitingOnTypeOptions },
+      { name: "expected_date", label: "Expected date", type: "date" },
+      { name: "follow_up_date", label: "Follow-up date", type: "date" },
+    ],
+    buildPayload: (values) => ({
+      title: values.title,
+      waiting_on_name: values.waiting_on_name,
+      waiting_on_type: values.waiting_on_type || "other",
+      expected_date: values.expected_date || null,
+      follow_up_date: values.follow_up_date || null,
+      status: "waiting",
     }),
   },
   {
@@ -361,6 +398,7 @@ const quickAddConfigs: QuickAddConfig[] = [
 
 const defaultValues: Record<QuickAddType, Record<string, string>> = {
   inbox: {},
+  waiting: { waiting_on_type: "person" },
   task: { priority: "medium" },
   goal: { category: "personal", priority: "medium" },
   note: {},

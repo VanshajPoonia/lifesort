@@ -169,6 +169,17 @@ interface InboxItem {
   created_at?: string | null
 }
 
+interface WaitingItem {
+  id: number | string
+  title: string
+  waiting_on_name?: string | null
+  status?: string | null
+  expected_date?: string | null
+  follow_up_date?: string | null
+  updated_at?: string | null
+  created_at?: string | null
+}
+
 interface DashboardSources {
   tasks: Task[]
   goals: Goal[]
@@ -237,6 +248,7 @@ const apiEndpoints: Record<DashboardApiKey, string> = {
 
 const quickActions = [
   { title: "Capture inbox", href: "/inbox", icon: Inbox },
+  { title: "Track waiting", href: "/waiting", icon: Clock },
   { title: "Add task", href: "/tasks", icon: ListTodo },
   { title: "Add goal", href: "/goals", icon: Target },
   { title: "Add project", href: "/projects", icon: FolderPlus },
@@ -308,6 +320,20 @@ function isDueWithinDays(task: Task, days: number) {
   const limit = new Date(today)
   limit.setDate(limit.getDate() + days)
   return date <= limit && (!task.completed || date >= today)
+}
+
+function waitingItemIsActive(item: WaitingItem) {
+  return item.status === "waiting" || item.status === "follow_up_needed"
+}
+
+function waitingFollowUpDue(item: WaitingItem) {
+  const date = parseDate(item.follow_up_date)
+  return waitingItemIsActive(item) && Boolean(date && date <= startOfToday())
+}
+
+function waitingOverdue(item: WaitingItem) {
+  const date = parseDate(item.expected_date)
+  return waitingItemIsActive(item) && Boolean(date && date < startOfToday())
 }
 
 function sortByDueDate<T extends { date: string }>(items: T[]) {
@@ -426,6 +452,7 @@ export default function Home() {
   const [peopleWidget, setPeopleWidget] = useState<{ birthdays: number; followUps: number; total: number } | null>(null)
   const [vaultWidget, setVaultWidget] = useState<{ expiringSoon: number; total: number } | null>(null)
   const [inboxWidget, setInboxWidget] = useState<{ total: number; recent: InboxItem[] } | null>(null)
+  const [waitingWidget, setWaitingWidget] = useState<{ followUpsDue: number; overdue: number; recent: WaitingItem[] } | null>(null)
   const [dashboardLoading, setDashboardLoading] = useState(true)
   const [errors, setErrors] = useState<Partial<Record<DashboardErrorKey, string>>>({})
   const [milestones, setMilestones] = useState<Array<{ id: string; label: string; title: string; occurred_at: string }>>([])
@@ -569,6 +596,22 @@ export default function Home() {
       }
     } catch {
       // Inbox widget failure is non-fatal
+    }
+
+    // Waiting For widget — fetch independently, fails silently
+    try {
+      const waitingRes = await fetch("/api/waiting?view=all&limit=100")
+      if (waitingRes.ok) {
+        const waitingData: WaitingItem[] = await waitingRes.json()
+        const activeWaiting = waitingData.filter(waitingItemIsActive)
+        setWaitingWidget({
+          followUpsDue: waitingData.filter(waitingFollowUpDue).length,
+          overdue: waitingData.filter(waitingOverdue).length,
+          recent: activeWaiting.slice(0, 3),
+        })
+      }
+    } catch {
+      // Waiting For widget failure is non-fatal
     }
 
     setSources({
@@ -1032,6 +1075,73 @@ export default function Home() {
                         <span className="shrink-0 text-xs text-muted-foreground">{formatDate(item.updated_at || item.created_at)}</span>
                       </Link>
                     ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {waitingWidget !== null && (
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Clock className="h-5 w-5 text-primary" />
+                    Waiting For
+                  </CardTitle>
+                  <CardDescription>Follow-ups, overdue replies, approvals, deliveries, and refunds.</CardDescription>
+                </div>
+                <Button asChild size="sm" variant="outline" className="gap-2">
+                  <Link href="/waiting">
+                    Open Waiting
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {dashboardLoading ? (
+                <div className="grid gap-3 md:grid-cols-3">
+                  <Skeleton className="h-20 w-full" />
+                  <Skeleton className="h-20 w-full" />
+                  <Skeleton className="h-20 w-full" />
+                </div>
+              ) : waitingWidget.followUpsDue === 0 && waitingWidget.overdue === 0 && waitingWidget.recent.length === 0 ? (
+                <EmptyState actionHref="/waiting" actionLabel="Track something">
+                  Nothing is waiting on your attention.
+                </EmptyState>
+              ) : (
+                <div className="grid gap-3 lg:grid-cols-[160px_160px_minmax(0,1fr)]">
+                  <div className="rounded-md border bg-muted/40 p-3">
+                    <p className="text-2xl font-bold">{waitingWidget.followUpsDue}</p>
+                    <p className="text-xs text-muted-foreground">follow-ups due</p>
+                  </div>
+                  <div className="rounded-md border bg-muted/40 p-3">
+                    <p className="text-2xl font-bold">{waitingWidget.overdue}</p>
+                    <p className="text-xs text-muted-foreground">overdue items</p>
+                  </div>
+                  <div className="space-y-2">
+                    {waitingWidget.recent.length === 0 ? (
+                      <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">No active waiting items.</p>
+                    ) : (
+                      waitingWidget.recent.map((item) => (
+                        <Link
+                          key={item.id}
+                          href="/waiting"
+                          className="flex items-center justify-between gap-3 rounded-md border p-3 text-sm hover:bg-secondary"
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate font-medium">{item.title}</span>
+                            <span className="block truncate text-xs text-muted-foreground">
+                              Waiting on {item.waiting_on_name || "someone"}
+                            </span>
+                          </span>
+                          <span className="shrink-0 text-xs text-muted-foreground">{formatDate(item.follow_up_date || item.expected_date || item.updated_at || item.created_at)}</span>
+                        </Link>
+                      ))
+                    )}
                   </div>
                 </div>
               )}

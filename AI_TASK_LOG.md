@@ -1451,6 +1451,61 @@ After that, re-run the regression checkpoint and the schema-drift 500s should di
   - Inbox conversion follows the same explicit-confirmation safety pattern used by AI Capture and Smart Templates.
   - The new conversion endpoint validates optional `life_area_id` ownership itself because not every existing target route currently performs that validation consistently.
 
+### 2026-05-17 21:02 IST - Waiting For Tracker
+
+- Agent/tool used: Codex.
+- Task summary: Added a website-only Waiting For tracker for external dependencies, follow-ups, approvals, deliveries, refunds, applications, and replies.
+- Files changed:
+  - `app/waiting/page.tsx`
+  - `app/waiting/loading.tsx`
+  - `app/api/waiting/route.ts`
+  - `app/api/ai/capture/route.ts`
+  - `app/api/search/route.ts`
+  - `app/api/sidebar-preferences/route.ts`
+  - `app/capture/page.tsx`
+  - `app/page.tsx`
+  - `app/settings/page.tsx`
+  - `components/dashboard-layout.tsx`
+  - `components/global-search.tsx`
+  - `components/quick-add-modal.tsx`
+  - `scripts/add-waiting-items.sql`
+  - `scripts/website-current-schema.sql`
+  - `scripts/run-pending-migrations.sql`
+  - `AI_PROJECT.md`
+  - `AI_DECISIONS.md`
+  - `AI_CHECKLIST.md`
+  - `AI_TASK_LOG.md`
+- What changed:
+  - Added `waiting_items` as a user-owned table with title, description, waiting-on name/type, status, expected/follow-up dates, optional Life Area/Project/Person links, notes, and timestamps.
+  - Added authenticated `/api/waiting` CRUD with `user_id` filters, enum/date normalization, and ownership validation for optional Life Area, Project, and Person links.
+  - Added `/waiting` with create/edit/delete, quick status changes, filters for All/Follow up today/Overdue/Resolved/By life area, search, badges, linked Project/Person display, and loading/error/empty states.
+  - Added Waiting For to sidebar defaults, sidebar settings, dashboard widget, Quick Add, Global Search, and AI Capture draft parsing.
+  - Added standalone and consolidated SQL migration updates. No database scripts were run.
+- Data model added:
+  - `waiting_items.waiting_on_type`: `person`, `company`, `school`, `bank`, `government`, `delivery`, `refund`, `job`, `other`.
+  - `waiting_items.status`: `waiting`, `follow_up_needed`, `resolved`, `cancelled`.
+  - Optional `life_area_id`, `project_id`, and `person_id` links. The migration uses `ON DELETE SET NULL` for Life Areas directly and conditionally adds Project/Person foreign keys when those tables exist, while the API always validates ownership before saving linked IDs.
+  - Indexes: `user_id`, `(user_id, status)`, `(user_id, follow_up_date)`, `(user_id, expected_date)`, `life_area_id`, `project_id`, and `person_id`.
+- Commands run:
+  - `git status --short --branch` - clean at task start on `main...origin/main`.
+  - `npx tsc --noEmit` - passed.
+  - `git diff --check` - passed.
+  - `npm run lint` - failed before source linting because ESLint 10.3.0 cannot find `eslint.config.(js|mjs|cjs)`.
+  - `npm run build` - passed; generated 103 routes including `/waiting` and `/api/waiting`; still skips type/lint validation because of `next.config.mjs` and emits known metadata `themeColor`/`viewport` warnings, including the new `/waiting` route.
+- Remaining issues and limitations:
+  - `scripts/add-waiting-items.sql` or the consolidated migration must be applied to the target database before `/waiting`, dashboard Waiting widget, Quick Add Waiting, Global Search Waiting, and AI Capture Waiting drafts can save or load live data.
+  - No browser/manual smoke test was run in this pass.
+  - No notification delivery was added for waiting follow-up dates; v1 exposes follow-up and overdue state in `/waiting` and the dashboard only.
+  - `npm run lint` remains blocked by the missing ESLint flat config.
+  - `npm run build` still hides TypeScript and lint failures through `next.config.mjs`.
+- Suggested next steps:
+  - Confirm the target Neon environment and apply `scripts/add-waiting-items.sql` or the consolidated pending migration, then smoke-test Waiting For CRUD, date filters, Quick Add, Global Search, dashboard counts, AI Capture drafts, and two-user isolation.
+  - Add ESLint flat config and consider re-enabling build type/lint gates.
+- Handoff notes:
+  - Follow-up due means active `waiting`/`follow_up_needed` items with `follow_up_date <= CURRENT_DATE`.
+  - Overdue means active `waiting`/`follow_up_needed` items with `expected_date < CURRENT_DATE`.
+  - Resolved and cancelled items stay searchable/history-visible but are excluded from active dashboard counts.
+
 ## AI Handoff Summaries
 
 Future agents should start by reading all root memory files, then inspect the relevant code before editing. Keep changes small and update this file after every repo change.

@@ -28,6 +28,7 @@ import {
   Gamepad2,
   Crown,
   Calendar,
+  Clock,
   Sparkles,
   Shield,
   LayoutDashboard,
@@ -107,6 +108,7 @@ export default function SettingsPage() {
   const [sidebarPrefs, setSidebarPrefs] = useState({
     dashboard: true,
     inbox: true,
+    waiting: true,
     today: true,
     review: true,
     insights: true,
@@ -478,6 +480,7 @@ export default function SettingsPage() {
                 {[
                   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, description: "Main dashboard view" },
                   { id: "inbox", label: "Inbox", icon: Inbox, description: "Universal capture queue for unsorted thoughts" },
+                  { id: "waiting", label: "Waiting For", icon: Clock, description: "Follow-ups, approvals, refunds, deliveries, and replies" },
                   { id: "today", label: "Today Plan", icon: CalendarCheck, description: "Daily focus and reflection" },
                   { id: "review", label: "Weekly Review", icon: CheckSquare, description: "Weekly summary and reflection" },
                   { id: "insights", label: "Insights", icon: Activity, description: "Life balance metrics and AI analysis" },
