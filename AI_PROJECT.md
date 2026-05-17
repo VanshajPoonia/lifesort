@@ -18,6 +18,7 @@ Implemented feature areas found in the repo:
 - Habits & Routines at `app/habits/page.tsx`, with per-habit CRUD, daily check-ins, streak tracking (current/best), weekly/monthly completion %, and routine builder with ordered steps.
 - Today Plan at `app/today/page.tsx`, providing a non-AI daily command center with focus items, habits due today (with check-off), derived task/goal/calendar/note/budget/wishlist suggestions, and end-of-day reflection.
 - Weekly Review at `app/review/page.tsx`, providing a non-AI Monday-Sunday review across tasks, goals, habits, projects, notes, finance, and Life Areas with saved reflections and previous-review history.
+- Life Balance Insights at `app/insights/page.tsx`, showing non-AI Life Area balance metrics across tasks, goals, habits, projects, notes, budget, and weekly review context, plus optional read-only AI analysis.
 - Life Areas at `app/life-areas/page.tsx`, providing user-owned cross-module organization with default areas, icons, colors, descriptions, and ordering.
 - Life Projects at `app/projects/page.tsx` and `app/projects/[id]/page.tsx`, providing larger project containers with status, priority, progress, optional Life Area assignment, templates, linked existing records, and activity.
 - Life Vault at `app/vault/page.tsx`, with structured storage for important life info (documents, subscriptions, warranties, insurance, vehicle, home, medical, education, work), expiry/renewal/reminder date tracking, four views (All/Expiring/Renewals/By category), color-coded urgency badges, dashboard widget, global search, and quick-add support.
@@ -42,6 +43,7 @@ Implemented feature areas found in the repo:
 - AI Weekly Summary at `/api/ai/weekly-summary`: authenticated POST that takes the already-loaded week summary (numeric counts only, no PII) and calls OpenRouter to return structured output (summary, wins, risks, ignored areas, next-week focus, 3 next actions). Rate-limited to 5/day. Result is displayed on `/review` and optionally applied to reflection fields; AI never writes to any user table.
 - AI Today Planner at `/api/ai/today-plan`: authenticated POST that takes the already-loaded candidates and habits from `/today` (actual item titles + IDs) and calls OpenRouter to return a structured day plan (top 3 priorities, schedule blocks, items to defer, risks, one small win). Rate-limited to 3/day. Every write action (add to focus, create task) requires explicit user confirmation — nothing is applied automatically.
 - AI Natural Language Capture at `/capture` and `/api/ai/capture`: users type messy natural language and AI parses it into structured draft actions for 8 types (task, goal, habit, note, project, vault_item, wishlist_item, calendar_event). Input validated with Zod (1–1000 chars). AI output validated per-type with Zod schemas. Drafts are fully editable before the user confirms creation. Rate-limited to 10/day. Nothing writes to the database until explicit user confirmation. Accessible from the sidebar as "AI Capture".
+- AI Life Balance Insights at `/insights` and `/api/ai/life-balance`: authenticated GET returns aggregate Life Area balance metrics; authenticated POST calls OpenRouter for read-only analysis of over-focused areas, ignored areas, stress points, small suggested actions, and next-week balance. Rate-limited to 10/day. Suggested actions become tasks only after explicit user confirmation.
 - Global search across tasks, goals, notes, links, wishlist, investments, income, and budget.
 - Global search also includes projects.
 
@@ -122,7 +124,7 @@ Representative API areas:
 - CRUD and planning: `today-plan`, `weekly-review`, `life-areas`, `projects`, `projects/items`, `projects/activity`, `tasks`, `goals`, `notes`, `note-folders`, `links`, `link-folders`, `wishlist`, `investments`, `income`, `budget`, `calendar-events`, `nuke-goal`, `custom-sections`
 - User/profile/preferences: `profile`, `onboarding`, `sidebar-preferences`, `daily-content`
 - Integrations: `calendar/google/*`, `calendar/sync`, `stock-quote`, `url-preview`
-- AI: `chat`, `daily-content/generate`, `investments/parse-screenshot`; these routes use main session auth and provider-specific env vars.
+- AI: `chat`, `daily-content/generate`, `investments/parse-screenshot`, `ai/weekly-summary`, `ai/today-plan`, `ai/capture`, `ai/life-balance`; these routes use main session auth and provider-specific env vars.
 - Operational: `cron/deadline-reminders`, `admin/update-subscription`, `dashboard`, `search`, `share`
 
 ## Frontend Structure
@@ -131,9 +133,10 @@ The frontend uses App Router pages under `app/`. Most feature pages are client c
 
 Important pages:
 
-- `/`: dashboard with Today Plan preview and Life Area Balance
+- `/`: dashboard with Today Plan preview and Life Balance entry point
 - `/today`
 - `/review`
+- `/insights`
 - `/life-areas`
 - `/projects`, `/projects/[id]`
 - `/login`, `/register`, `/forgot-password`, `/reset-password`

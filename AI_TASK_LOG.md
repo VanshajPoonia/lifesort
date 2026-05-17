@@ -1147,6 +1147,57 @@ After that, re-run the regression checkpoint and the schema-drift 500s should di
   - AI product scope did not change; this was a security, validation, provider, and usage-tracking stabilization pass.
   - Future AI feature work should reuse `lib/ai-usage.ts`, main `getUserFromSession()` auth, explicit provider env checks, and model/type allowlists.
 
+### 2026-05-17 18:23 IST - AI Life Balance Insights
+
+- Agent/tool used: Codex.
+- Task summary: Added website-only AI Life Balance Insights so users can see Life Area balance metrics first, then optionally request a read-only AI analysis.
+- Files changed:
+  - `app/insights/page.tsx`
+  - `app/api/ai/life-balance/route.ts`
+  - `app/page.tsx`
+  - `components/dashboard-layout.tsx`
+  - `app/api/sidebar-preferences/route.ts`
+  - `app/settings/page.tsx`
+  - `lib/ai-usage.ts`
+  - `AI_PROJECT.md`
+  - `AI_DECISIONS.md`
+  - `AI_TASK_LOG.md`
+- What changed:
+  - Added `/insights` with non-AI balance metrics by Life Area across active tasks, active goals, active habits, active projects, recent notes, budget categories/spend, and recent weekly review context.
+  - Added `GET /api/ai/life-balance` to derive user-scoped aggregate metrics server-side with safe per-source fallback if optional tables/columns are missing.
+  - Added `POST /api/ai/life-balance` for optional OpenRouter analysis. It is read-only and returns over-focused areas, ignored areas, potential stress points, suggested small actions, and suggested next-week balance.
+  - Added a 10/day `life_balance_insights` AI usage cap in `lib/ai-usage.ts`.
+  - Added explicit user-confirmed task creation for suggested small actions on `/insights`; the AI endpoint itself does not write to user data.
+  - Added Insights to the sidebar, sidebar defaults, sidebar settings, and dashboard Life Balance card.
+- Metrics added:
+  - Tasks by Life Area: active, completed, overdue, recent updates.
+  - Goals by Life Area: active, completed, overdue, recent updates.
+  - Habits by Life Area: active, total, last-7-day check-ins, last-7-day completed check-ins.
+  - Projects by Life Area: active, completed, overdue, recent updates.
+  - Notes by Life Area: total and recent updates.
+  - Budget by Life Area: categories, 30-day income, and 30-day expenses through budget categories.
+  - Weekly reviews: latest two review reflections are shown and optionally included as limited AI context.
+- AI inputs and privacy safeguards:
+  - AI receives aggregate counts by Life Area plus short weekly review reflection snippets.
+  - AI does not receive task titles, note content, project names, budget transaction descriptions, or raw records.
+  - AI analysis is read-only; suggested actions are drafts, and task creation requires an explicit user click/confirmation.
+  - All API reads are scoped through `getUserFromSession()` and `user_id` filters.
+- Commands run:
+  - `npx tsc --noEmit` — passed.
+  - `npm run lint` — failed before source linting because ESLint 10.3.0 cannot find `eslint.config.(js|mjs|cjs)`.
+  - `npm run build` — passed; generated 93 routes including `/insights` and `/api/ai/life-balance`, still skips type/lint validation because of `next.config.mjs`, and still emits known unsupported metadata `themeColor`/`viewport` warnings.
+- Remaining issues and limitations:
+  - No live AI provider smoke test was run because it would consume external quota and depends on `OPENROUTER_API_KEY`.
+  - No browser automation smoke test was run in this pass.
+  - The metrics route tolerates schema drift, but missing migrations will make affected metric sections unavailable or zero.
+  - Suggested action creation depends on `/api/tasks` and therefore on the tasks schema being current in the target database.
+  - `npm run lint` remains blocked by missing ESLint flat config.
+- Suggested next steps:
+  - Apply/verify pending database migrations, including `ai_usage_events`, then smoke-test `/insights` with two users to confirm user isolation and suggested task creation.
+  - Add ESLint flat config and consider re-enabling build type/lint gates.
+- Handoff notes:
+  - Future AI insight features should keep the same pattern: server-derived user-scoped aggregates, minimal personal text sent to provider, read-only AI response, and explicit confirmation before any write.
+
 ## AI Handoff Summaries
 
 Future agents should start by reading all root memory files, then inspect the relevant code before editing. Keep changes small and update this file after every repo change.

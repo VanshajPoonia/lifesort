@@ -36,6 +36,7 @@ import {
   Network,
   Users,
   Wand2,
+  Activity,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -55,6 +56,7 @@ const DEFAULT_SIDEBAR_PREFS = {
   dashboard: true,
   today: true,
   review: true,
+  insights: true,
   life_areas: true,
   projects: true,
   people: true,
@@ -271,6 +273,14 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
                 <Button variant={isActivePath("/review") ? "secondary" : "ghost"} className={navButtonClass("/review")}>
                   <CheckSquare className={navIconClass("/review")} />
                   Weekly Review
+                </Button>
+              </Link>
+            )}
+            {prefs.insights && (
+              <Link href="/insights">
+                <Button variant={isActivePath("/insights") ? "secondary" : "ghost"} className={navButtonClass("/insights")}>
+                  <Activity className={navIconClass("/insights")} />
+                  Insights
                 </Button>
               </Link>
             )}

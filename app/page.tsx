@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
+  Activity,
   AlertCircle,
   ArrowRight,
   Cake,
@@ -1172,11 +1173,21 @@ export default function Home() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5 text-primary" />
-              Life Area Balance
-            </CardTitle>
-            <CardDescription>Active tasks, active goals, and recent activity grouped by area.</CardDescription>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="h-5 w-5 text-primary" />
+                  Life Balance
+                </CardTitle>
+                <CardDescription>Active tasks, active goals, and recent activity grouped by area.</CardDescription>
+              </div>
+              <Button asChild size="sm" variant="outline" className="gap-2">
+                <Link href="/insights">
+                  Open insights
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {dashboardLoading ? (
