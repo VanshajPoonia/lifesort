@@ -424,6 +424,17 @@ CREATE TABLE IF NOT EXISTS api_usage (
   UNIQUE(api_name, date)
 );
 
+CREATE TABLE IF NOT EXISTS ai_usage_events (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  route VARCHAR(100) NOT NULL,
+  provider VARCHAR(100) NOT NULL,
+  model VARCHAR(255) NOT NULL,
+  status VARCHAR(50) NOT NULL DEFAULT 'accepted',
+  error_message TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS popular_investments (
   id SERIAL PRIMARY KEY,
   symbol VARCHAR(20) NOT NULL UNIQUE,
@@ -445,6 +456,8 @@ CREATE INDEX IF NOT EXISTS idx_project_items_project_id ON project_items(project
 CREATE INDEX IF NOT EXISTS idx_project_items_user_type_item ON project_items(user_id, item_type, item_id);
 CREATE INDEX IF NOT EXISTS idx_project_activity_project_created ON project_activity(project_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_project_activity_user_created ON project_activity(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_usage_events_user_route_created ON ai_usage_events(user_id, route, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_usage_events_route_created ON ai_usage_events(route, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_goals_user_id ON goals(user_id);
 CREATE INDEX IF NOT EXISTS idx_goals_status ON goals(status);
 CREATE INDEX IF NOT EXISTS idx_goals_target_date ON goals(target_date);

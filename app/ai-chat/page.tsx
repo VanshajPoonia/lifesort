@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth-provider"
 import { DashboardLayout } from "@/components/dashboard-layout"
@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Send, Sparkles, Loader2, Trash2, Bot } from "lucide-react"
+import { AlertCircle, Send, Sparkles, Loader2, Trash2, Bot } from "lucide-react"
 import type { ModelInfo } from "@/lib/ai-models"
 
 const DEFAULT_MODEL = "google/gemini-2.0-flash-exp:free"
@@ -42,15 +42,21 @@ export default function AIChatPage() {
   const [input, setInput] = useState("")
   const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL)
   const [models, setModels] = useState<ModelInfo[]>([])
+  const [modelsLoading, setModelsLoading] = useState(false)
+  const [modelError, setModelError] = useState("")
+  const [providerAvailable, setProviderAvailable] = useState(true)
 
-  // Build a new transport whenever the model changes so each conversation
-  // can carry the model selection in the request body.
-  const transport = new DefaultChatTransport({
-    api: "/api/chat",
-    body: { modelId: selectedModel },
+  const transport = useMemo(() => {
+    return new DefaultChatTransport({
+      api: "/api/chat",
+      body: { modelId: selectedModel },
+    })
+  }, [selectedModel])
+
+  const { messages, sendMessage, status, setMessages, error, clearError } = useChat({
+    id: selectedModel,
+    transport,
   })
-
-  const { messages, sendMessage, status, setMessages } = useChat({ transport })
 
   const isLoading = status === "submitted" || status === "streaming"
 
@@ -59,11 +65,48 @@ export default function AIChatPage() {
   }, [user, loading, router])
 
   useEffect(() => {
+    if (!user) return
+
+    let cancelled = false
+    setModelsLoading(true)
+    setModelError("")
+
     fetch("/api/chat")
-      .then(r => r.json())
-      .then(d => setModels(d.models ?? []))
-      .catch(() => {})
-  }, [])
+      .then(async (response) => {
+        if (response.status === 401) {
+          router.push("/login")
+          return null
+        }
+
+        const data = await response.json().catch(() => null)
+        if (!response.ok) {
+          throw new Error(data?.error || "Could not load AI models")
+        }
+        return data
+      })
+      .then((data) => {
+        if (!data || cancelled) return
+        setModels(data.models ?? [])
+        setProviderAvailable(data.available !== false)
+        if (data.default && typeof data.default === "string") {
+          setSelectedModel(data.default)
+        }
+        if (data.available === false) {
+          setModelError("AI chat is not configured yet. Add OPENROUTER_API_KEY to enable responses.")
+        }
+      })
+      .catch((err) => {
+        if (cancelled) return
+        setModelError(err instanceof Error ? err.message : "Could not load AI models")
+      })
+      .finally(() => {
+        if (!cancelled) setModelsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [router, user])
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -74,7 +117,8 @@ export default function AIChatPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const text = input.trim()
-    if (!text || isLoading) return
+    if (!text || isLoading || !providerAvailable) return
+    clearError()
     sendMessage({ role: "user", parts: [{ type: "text", text }] })
     setInput("")
   }
@@ -107,13 +151,15 @@ export default function AIChatPage() {
 
           <Select
             value={selectedModel}
+            disabled={modelsLoading || models.length === 0}
             onValueChange={(val) => {
               setSelectedModel(val)
+              clearError()
               setMessages([])   // clear history when switching models
             }}
           >
             <SelectTrigger className="h-8 w-64 text-sm">
-              <SelectValue />
+              <SelectValue placeholder={modelsLoading ? "Loading models..." : "Select model"} />
             </SelectTrigger>
             <SelectContent>
               {models.map(m => (
@@ -155,6 +201,26 @@ export default function AIChatPage() {
             </Button>
           )}
         </div>
+
+        {(modelError || error) && (
+          <div className="flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div className="flex-1">
+              {error?.message || modelError}
+            </div>
+            {error && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-destructive hover:text-destructive"
+                onClick={clearError}
+              >
+                Dismiss
+              </Button>
+            )}
+          </div>
+        )}
 
         {/* Messages */}
         <Card className="flex-1 overflow-hidden">
@@ -237,7 +303,7 @@ export default function AIChatPage() {
             onChange={(e) => setInput(e.target.value)}
             placeholder={`Message ${activeModel?.name ?? "AI"}…`}
             className="flex-1"
-            disabled={isLoading}
+            disabled={isLoading || !providerAvailable}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault()
@@ -245,7 +311,7 @@ export default function AIChatPage() {
               }
             }}
           />
-          <Button type="submit" disabled={isLoading || !input.trim()} className="gap-2">
+          <Button type="submit" disabled={isLoading || !input.trim() || !providerAvailable} className="gap-2">
             {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             <span className="hidden sm:inline">Send</span>
           </Button>

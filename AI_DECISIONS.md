@@ -55,6 +55,7 @@ Architecture and product decision memory for LifeSort.
 - Link folders can be nested through `link_folders.parent_id`.
 - Preferences use JSON/JSONB in user-related tables, including sidebar preferences and content preferences.
 - Daily content stores generated or played content with `content_type`, `category`, `content`, and `extra_data`.
+- AI usage events are stored in a user-owned `ai_usage_events` table with route, provider, model, status, optional error message, and timestamp. Route handlers enforce conservative per-user daily caps in code so provider usage is scoped before making external AI calls.
 
 ## API Design Decisions
 
@@ -63,6 +64,7 @@ Architecture and product decision memory for LifeSort.
 - Client pages call relative API paths with `fetch`.
 - Global search intentionally catches per-source query failures and returns partial results.
 - Dashboard aggregation exists both on the client dashboard page and in `/api/dashboard`.
+- AI text routes use OpenRouter through `@ai-sdk/openai` with explicit model allowlists and main `getUserFromSession()` auth. Groq remains limited to investment screenshot parsing.
 
 ## UI and Component Decisions
 
@@ -84,7 +86,6 @@ Architecture and product decision memory for LifeSort.
 Open/inconsistent auth questions:
 
 - `app/api/calendar/sync/route.ts` uses `session_id`, not the main `session` cookie.
-- `app/api/investments/parse-screenshot/route.ts` verifies the `session` cookie as JWT with fallback `JWT_SECRET`, which does not match main session-token auth.
 
 ## Database Decisions
 
@@ -114,11 +115,10 @@ Open/inconsistent auth questions:
 
 - Never expose `.env.local` values.
 - URL preview fetches arbitrary user-provided URLs and should be hardened against SSRF before relying on it in production.
-- The screenshot parsing route has a fallback JWT secret string and auth flow mismatch.
 - Calendar integration stores access and refresh tokens in the database.
 - Reminder emails use `resend.dev` sender defaults in current code.
 - Cron route checks `CRON_SECRET`, but its unauthorized logic should be reviewed before production hardening.
-- AI and external API routes depend on provider keys and should avoid logging sensitive responses.
+- AI and external API routes depend on provider keys and should avoid logging sensitive responses. Current AI routes require session auth, validate inputs, and use user-scoped usage events when the `ai_usage_events` migration has been applied.
 
 ## Future Migration Considerations
 
@@ -134,4 +134,4 @@ Open/inconsistent auth questions:
 - Which SQL scripts have been applied to the live database?
 - Which deployment environment variables are required versus leftover from Vercel/Neon provisioning?
 - Should the project standardize on pnpm commands for all workflows?
-- Is the AI SDK model string `openai/gpt-4o-mini` backed by Vercel AI Gateway or another provider configuration?
+- Are `jose` and `jsonwebtoken` still needed now that the known AI JWT helper has been removed?

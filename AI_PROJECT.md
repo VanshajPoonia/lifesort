@@ -34,11 +34,11 @@ Implemented feature areas found in the repo:
 - Investments with symbols, quantities, estimated returns, optional Life Area assignment, quotes, refresh limits, popular investments, background fetch, and screenshot parsing/import.
 - Income sources with amount, frequency, category, optional Life Area assignment, next payment date, and active state.
 - Budget categories with optional Life Area assignment, transactions, goals, summary cards, and calculator UI.
-- Daily content with generated/static jokes, quotes, trivia, riddles, fun facts, games, and history.
+- Daily content with authenticated OpenRouter-generated/static jokes, quotes, trivia, riddles, fun facts, games, and history.
 - Games: Snake and Wordle components.
 - Settings for profile, daily content preferences, and sidebar preferences.
 - Admin subscription management.
-- AI chat page and `/api/chat` route for productivity coaching.
+- AI chat page and authenticated `/api/chat` route for productivity coaching, with model allowlisting, request validation, and conservative usage caps.
 - Global search across tasks, goals, notes, links, wishlist, investments, income, and budget.
 - Global search also includes projects.
 
@@ -53,10 +53,10 @@ Implemented feature areas found in the repo:
 - Neon Postgres via `@neondatabase/serverless`
 - bcryptjs for password hashing
 - `jose` and `jsonwebtoken` dependencies are present; most auth uses opaque session tokens, not JWT.
-- AI SDK: `ai` and `@ai-sdk/react`
+- AI SDK: `ai`, `@ai-sdk/react`, and `@ai-sdk/openai` for OpenRouter-compatible text generation.
 - Resend for transactional/reminder emails
 - Alpha Vantage external API for quotes and symbol search
-- Groq OpenAI-compatible vision API for portfolio screenshot parsing
+- Groq OpenAI-compatible vision API for authenticated portfolio screenshot parsing.
 - Vercel deployment, analytics dependency, and cron configuration
 
 ## Package Manager
@@ -78,7 +78,6 @@ Auth is custom and stored in the database:
 Known inconsistency:
 
 - `app/api/calendar/sync/route.ts` reads a `session_id` cookie and queries `sessions.id`, while the main auth system sets a `session` cookie containing `sessions.session_token`.
-- `app/api/investments/parse-screenshot/route.ts` defines a local JWT-based `getUserFromSession()` with fallback secret `"your-secret-key"`, which does not match the main opaque session-token auth flow.
 
 ## Database Setup
 
@@ -106,7 +105,7 @@ Major tables in the current schema baseline:
 - `budget_categories`, `budget_transactions`, `budget_goals`
 - `user_content_preferences`, `daily_content`
 - `custom_sections`, `custom_section_items`
-- `api_usage`, `popular_investments`
+- `api_usage`, `ai_usage_events`, `popular_investments`
 
 There is no automated migration runner in `package.json`.
 
@@ -120,7 +119,7 @@ Representative API areas:
 - CRUD and planning: `today-plan`, `weekly-review`, `life-areas`, `projects`, `projects/items`, `projects/activity`, `tasks`, `goals`, `notes`, `note-folders`, `links`, `link-folders`, `wishlist`, `investments`, `income`, `budget`, `calendar-events`, `nuke-goal`, `custom-sections`
 - User/profile/preferences: `profile`, `onboarding`, `sidebar-preferences`, `daily-content`
 - Integrations: `calendar/google/*`, `calendar/sync`, `stock-quote`, `url-preview`
-- AI: `chat`, `daily-content/generate`, `investments/parse-screenshot`
+- AI: `chat`, `daily-content/generate`, `investments/parse-screenshot`; these routes use main session auth and provider-specific env vars.
 - Operational: `cron/deadline-reminders`, `admin/update-subscription`, `dashboard`, `search`, `share`
 
 ## Frontend Structure
@@ -207,7 +206,7 @@ Environment variable names observed in code and `.env.local` key names:
 - `GOOGLE_CLIENT_SECRET`
 - `ALPHA_VANTAGE_API_KEY`
 - `GROQ_API_KEY`
-- `JWT_SECRET`
+- `OPENROUTER_API_KEY`
 - `VERCEL_OIDC_TOKEN`
 
 Never print or commit secret values.

@@ -213,6 +213,25 @@ CREATE INDEX IF NOT EXISTS idx_budget_categories_life_area_id ON budget_categori
 CREATE INDEX IF NOT EXISTS idx_income_sources_life_area_id ON income_sources(life_area_id);
 CREATE INDEX IF NOT EXISTS idx_investments_life_area_id ON investments(life_area_id);
 
+-- ── AI usage events ──────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS ai_usage_events (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  route VARCHAR(100) NOT NULL,
+  provider VARCHAR(100) NOT NULL,
+  model VARCHAR(255) NOT NULL,
+  status VARCHAR(50) NOT NULL DEFAULT 'accepted',
+  error_message TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_usage_events_user_route_created
+  ON ai_usage_events(user_id, route, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_ai_usage_events_route_created
+  ON ai_usage_events(route, created_at DESC);
+
 COMMIT;
 
 -- Verify with:

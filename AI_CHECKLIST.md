@@ -115,10 +115,16 @@ Observed env var names include:
 - `ALPHA_VANTAGE_API_KEY`
 - `GROQ_API_KEY`
 - `OPENROUTER_API_KEY`
-- `JWT_SECRET`
 - Vercel/Neon/Postgres provisioned variables such as `POSTGRES_URL`, `POSTGRES_PRISMA_URL`, `PGHOST`, `PGUSER`, and related names.
 
 Check only names/presence unless explicitly authorized to inspect values.
+
+AI route env notes:
+
+- `OPENROUTER_API_KEY` powers `/api/chat` and `/api/daily-content/generate`.
+- `GROQ_API_KEY` powers `/api/investments/parse-screenshot`.
+- AI routes should use the main opaque `session` cookie via `getUserFromSession()`, not JWT auth.
+- The `ai_usage_events` migration must be applied before conservative per-user AI caps are enforced; code tolerates the table being absent so deploys do not fail before migration.
 
 ## Commands
 
@@ -204,7 +210,8 @@ Known as of 2026-05-16:
 5. Verify auth-sensitive routes still use the expected `session` cookie flow.
 6. Verify any new database columns/tables have explicit migration instructions.
 7. Verify external API changes have failure handling.
-8. For schema-spanning features, update the standalone migration, `scripts/website-current-schema.sql`, and `scripts/run-pending-migrations.sql` together, and document that migrations were not run automatically.
+8. For AI routes, verify unauthenticated calls return `401`, missing provider keys return a clear `503`, malformed payloads return `400`, and rate-limited calls return `429`.
+9. For schema-spanning features, update the standalone migration, `scripts/website-current-schema.sql`, and `scripts/run-pending-migrations.sql` together, and document that migrations were not run automatically.
 
 ## Common Failure Points
 

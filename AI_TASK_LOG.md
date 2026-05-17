@@ -967,6 +967,59 @@ After that, re-run the regression checkpoint and the schema-drift 500s should di
   - Then rerun this regression checkpoint with browser automation available for Quick Add, sidebar navigation, empty states, and console-error checks.
 - Handoff prompt for next agent: "The app shell and build pass, but authenticated CRUD exposed database schema drift. Do not treat build success as enough. First confirm and migrate the target DB schema, then rerun `npx tsc --noEmit`, `npm run lint`, `npm run build`, route smoke tests, and authenticated CRUD/user-isolation checks."
 
+### 2026-05-17 13:30 IST - AI Foundation Stabilization
+
+- Agent/tool used: Codex.
+- Task summary: Audited and hardened the existing LifeSort website AI foundation without adding new AI product features or redesigning `/ai-chat`.
+- Files changed:
+  - `app/api/chat/route.ts`
+  - `app/ai-chat/page.tsx`
+  - `app/api/daily-content/generate/route.ts`
+  - `app/api/investments/parse-screenshot/route.ts`
+  - `lib/ai-usage.ts`
+  - `scripts/add-ai-usage-events.sql`
+  - `scripts/website-current-schema.sql`
+  - `scripts/run-pending-migrations.sql`
+  - `AI_PROJECT.md`
+  - `AI_DECISIONS.md`
+  - `AI_CHECKLIST.md`
+  - `AI_TASK_LOG.md`
+- What changed:
+  - `/api/chat` now requires the main `getUserFromSession()` auth path for model list and chat streaming, validates `modelId` against `lib/ai-models.ts`, validates AI SDK v6 UI messages, caps message count and total text, and returns clear `400`/`401`/`429`/`503`/`502` errors.
+  - `/ai-chat` keeps the same layout and model selector but now waits for an authenticated user before loading models, shows provider/model loading errors, disables input when OpenRouter is unavailable, and displays AI SDK stream errors.
+  - `/api/daily-content/generate` now requires auth, ignores client-provided user IDs, uses OpenRouter through `OPENROUTER_API_KEY`, validates content type/category allowlists, and parses generated JSON defensively.
+  - `/api/investments/parse-screenshot` now uses the main opaque `session` cookie auth helper instead of local JWT verification, validates image type/count/size, handles missing `GROQ_API_KEY`, avoids returning raw provider text, caps bulk imports, and scopes imported investments to the authenticated user.
+  - Added user-scoped `ai_usage_events` usage tracking with conservative daily caps: chat 50, daily content generation 15, screenshot parsing 10. The helper tolerates the table being missing so code deployment does not fail before the migration is applied.
+  - Added `scripts/add-ai-usage-events.sql` and updated the schema baseline plus consolidated pending migration script. No database scripts were run.
+  - Updated project memory to document AI providers, env vars, auth normalization, and AI route verification expectations.
+- Commands run:
+  - `git status --short --branch` — clean before changes on `main...origin/main`.
+  - `npx tsc --noEmit` — passed.
+  - `npm run lint` — failed before source linting because ESLint 10.3.0 cannot find `eslint.config.(js|mjs|cjs)`.
+  - `npm run build` — passed; still skips TypeScript validation and linting because of `next.config.mjs`, and still emits known unsupported metadata `themeColor`/`viewport` warnings.
+- AI routes checked:
+  - `/api/chat`
+  - `/ai-chat`
+  - `/api/daily-content/generate`
+  - `/api/investments/parse-screenshot`
+  - AI SDK usage in `@ai-sdk/react` `useChat`, `DefaultChatTransport`, `streamText`, `generateText`, and `convertToModelMessages`.
+- Environment variables required:
+  - `OPENROUTER_API_KEY` for `/api/chat` and `/api/daily-content/generate`.
+  - `GROQ_API_KEY` for `/api/investments/parse-screenshot`.
+  - `JWT_SECRET` is no longer used by the AI routes after removing the screenshot parser's local JWT helper.
+- Remaining issues and limitations:
+  - `ai_usage_events` must be applied to the target database before daily caps are actually enforced; until then the helper logs a warning and allows AI calls.
+  - No provider calls were smoke-tested because that would require live credentials and would consume external AI quota.
+  - `npm run lint` is still blocked by the missing ESLint flat config.
+  - `npm run build` still hides type/lint failures via `next.config.mjs`.
+  - Existing metadata warnings remain outside this task's scope.
+- Suggested next steps:
+  - Confirm the target Neon environment and apply `scripts/add-ai-usage-events.sql` or the consolidated pending migration, then smoke-test authenticated/unauthenticated AI route behavior and rate limits.
+  - Add ESLint flat config and revisit build settings that skip type/lint checks.
+- Handoff notes:
+  - AI product scope did not change; this was a security, validation, provider, and usage-tracking stabilization pass.
+  - Future AI feature work should reuse `lib/ai-usage.ts`, main `getUserFromSession()` auth, explicit provider env checks, and model/type allowlists.
+
 ## AI Handoff Summaries
 
 Future agents should start by reading all root memory files, then inspect the relevant code before editing. Keep changes small and update this file after every repo change.
