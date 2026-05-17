@@ -1662,6 +1662,114 @@ After that, re-run the regression checkpoint and the schema-drift 500s should di
   - `lib/timeline.ts` catches missing source table/column errors per source and returns partial timelines rather than failing the whole endpoint.
   - Global Search calls `getTimelineData(user.id, { search, limit: 5 })` and links timeline results to `/timeline`.
 
+### 2026-05-17 22:00 IST - Full LifeSort Website Regression Check
+
+- Agent/tool used: Codex.
+- Task summary: Ran a review-only regression checkpoint across auth, dashboard, navigation, Quick Add/search surfaces, core CRUD APIs, Today Plan, Weekly Review, AI auth protection, schema/migration state, user scoping, loading/error states, mobile layout patterns, and duplication risks.
+- Files changed:
+  - `AI_TASK_LOG.md`
+- Commands run:
+  - `git status --short --branch` - clean on `main...origin/main` before checks and after smoke testing.
+  - `git diff --stat` - empty.
+  - `npx tsc --noEmit` - passed.
+  - `npm run lint` - failed before source linting because ESLint 10.3.0 cannot find `eslint.config.(js|mjs|cjs)`.
+  - `npm run build` - passed; generated 110 routes, still skips type/lint validation through `next.config.mjs`, and still emits known metadata `themeColor`/`viewport` warnings across many routes.
+  - `npm run dev` - started successfully on `http://localhost:3000`.
+- Route/page smoke results:
+  - `/`, `/tasks`, `/goals`, `/notes`, `/projects`, `/habits`, `/today`, `/review`, `/settings`, `/ai-chat`, `/login`, and `/register` returned HTTP 200 with a User A session.
+  - `agent-browser` and Playwright were not installed, so browser interaction, true console-error capture, and visual mobile verification could not be completed. HTTP checks and static layout inspection were used instead.
+- Flow pass/fail:
+  - Login/register/logout: partial pass. API register and login worked for disposable users; logout invalidated the copied session cookie. Registration logged a schema-drift warning because `life_areas` is missing, so default Life Area seeding failed after user creation.
+  - Dashboard loads: HTTP page load passed, but dashboard-backed widgets that query newer tables are expected to degrade/fail until migrations are applied.
+  - Navigation/sidebar: static inspection passed; sidebar links/defaults include current feature pages and use responsive mobile drawer classes.
+  - Quick Add: not manually completed because target CRUD APIs failed from schema drift.
+  - Global Search: API returned 200 and no cross-user results for User B, but server logs show many missing-table errors are caught and hidden as empty groups.
+  - Task CRUD: failed. `POST /api/tasks` returned 500 because live `tasks` is missing `due_time`.
+  - Goal CRUD: failed. `POST /api/goals` returned 500 because live `goals` is missing `priority`.
+  - Note CRUD: failed. `POST /api/notes` returned 500 because live `notes` is missing `folder_id`.
+  - Project CRUD: failed. `GET/POST /api/projects` returned 500 because `projects` is missing.
+  - Habit CRUD: failed. `GET/POST /api/habits` returned 500 because `habits` is missing.
+  - Today Plan loads: API returned 200 with useful empty data, but marked `calendar today` and `upcoming goals` unavailable; logs also show `daily_plans` is missing.
+  - Weekly Review loads: API returned 200 with empty/partial data, but marked projects, project activity, life area balance, habits, and saved review unavailable; logs show `weekly_reviews`, `projects`, `project_activity`, `habit_checkins`, and some Life Area columns are missing.
+  - AI routes require auth: passed for unauthenticated `/api/chat`, `/api/ai/today-plan`, `/api/ai/weekly-summary`, `/api/ai/life-balance`, `/api/ai/capture`, `/api/daily-content/generate`, and `/api/investments/parse-screenshot` returning 401.
+  - User data leaks across accounts: no leak observed in the limited check; User B saw empty tasks/goals/notes/search results. Full isolation CRUD could not be proven because creates failed.
+  - Empty states: static inspection found empty/loading/error states on tasks, goals, notes, projects, habits, Today Plan, and Weekly Review. Runtime empty states are partially masked by schema-drift errors.
+  - Console errors on main routes: not fully verified because browser automation is unavailable; dev server logs do show schema errors and known metadata warnings during normal API/page smoke.
+- Database and migration findings:
+  - The repo has migration/baseline coverage for the newer app schema in `scripts/run-pending-migrations.sql` and `scripts/website-current-schema.sql`.
+  - The configured database is materially behind the app: missing observed objects include `life_areas`, `daily_plans`, `weekly_reviews`, `inbox_items`, `waiting_items`, `commitments`, `maintenance_items`, `projects`, `project_activity`, `habits`, `habit_checkins`, `note_folders`, `vault_items`, and `people`.
+  - Missing observed columns include `tasks.due_time`, `goals.priority`, `notes.folder_id`, `calendar_events.event_date`, and some `life_area_id` columns.
+  - No database scripts were run.
+- API/user-scope inspection:
+  - Static `rg` review confirmed the checked routes use `getUserFromSession()` and `user_id` filters in the core CRUD/search/planning/AI paths reviewed.
+  - Known schema drift causes some routes to return 500 instead of graceful empty/unavailable states, especially core CRUD routes for tasks/goals/notes/projects/habits.
+- Mobile/layout and duplication findings:
+  - Static inspection shows responsive sidebar drawer behavior in `components/dashboard-layout.tsx` and responsive grid/flex classes across core pages.
+  - Duplicate raw SQL/auth/CRUD patterns remain a broad architecture debt across route handlers; no new duplication was introduced during this review.
+- Remaining issues:
+  - Regression checkpoint fails overall because core CRUD and several newer modules cannot run against the configured database until migrations are applied.
+  - Lint remains blocked by missing ESLint flat config.
+  - Build remains a weak gate because type/lint validation is skipped in `next.config.mjs`.
+  - Disposable users `regression-direct@example.invalid` and `regression-direct-b@example.invalid` were created during smoke testing; there is no user-delete API to clean them up.
+- Next recommended task:
+  - Confirm the intended Neon/local database target, apply the consolidated pending migrations or the required standalone migrations, then rerun this regression checkpoint. After schema parity, fix the ESLint flat config and re-enable type/lint build gates.
+
+### 2026-05-17 22:11 IST - Reset My Life Mode
+
+- Agent/tool used: Codex.
+- Task summary: Added a website-only Reset My Life recovery area that derives overwhelm signals from existing LifeSort data, supports confirmed cleanup actions, saves a Today Plan recovery focus, and offers read-only AI suggestions.
+- Files changed:
+  - `app/reset/page.tsx`
+  - `app/reset/loading.tsx`
+  - `app/api/reset/route.ts`
+  - `app/api/reset/actions/route.ts`
+  - `app/api/reset/recovery-plan/route.ts`
+  - `app/api/ai/reset-suggestions/route.ts`
+  - `lib/reset.ts`
+  - `lib/ai-usage.ts`
+  - `app/page.tsx`
+  - `components/dashboard-layout.tsx`
+  - `app/settings/page.tsx`
+  - `app/api/sidebar-preferences/route.ts`
+  - `app/api/today-plan/route.ts`
+  - `app/today/page.tsx`
+  - `AI_PROJECT.md`
+  - `AI_DECISIONS.md`
+  - `AI_CHECKLIST.md`
+  - `AI_TASK_LOG.md`
+- Summary of changes:
+  - Added `/reset` with recovery sections for overdue tasks, stale goals, inactive projects, missed habits, unsorted inbox items, overdue waiting items, overdue commitments, overdue maintenance, and upcoming deadlines.
+  - Added authenticated Reset APIs for derived recovery data, confirmed bulk actions, Today Plan recovery focus saving, and optional read-only AI reset suggestions.
+  - Added ownership-scoped action handling for reschedule, complete, archive/cancel/pause, move to someday, and delete where each source module supports it.
+  - Added a recovery plan flow that saves 1-3 selected items into today’s `daily_plans.focus_items` and can defer the remaining selected items.
+  - Added Reset My Life to sidebar defaults, Settings sidebar customization, and the dashboard quick actions/card.
+  - Extended Today Plan focus item source labels to support reset-derived project, habit, inbox, waiting, commitment, and maintenance focus items.
+  - Added a conservative `reset_suggestions` AI usage route cap.
+  - No database migration was added or run; Reset derives from existing module tables and reuses `daily_plans`.
+- Commands run:
+  - `npx tsc --noEmit` - passed.
+  - `npm run lint` - failed before source linting because ESLint 10.3.0 cannot find `eslint.config.(js|mjs|cjs)`.
+  - `npm run build` - passed; generated 115 routes including `/reset`, `/api/reset`, `/api/reset/actions`, `/api/reset/recovery-plan`, and `/api/ai/reset-suggestions`; still skips type/lint validation through `next.config.mjs` and emits known metadata `themeColor`/`viewport` warnings.
+  - `git status --short --branch` - shows Reset implementation files and memory updates pending commit on `main...origin/main`.
+  - `git diff --stat` - reviewed.
+  - `git diff --check` - passed with no whitespace errors.
+- Bugs found or fixed:
+  - Fixed Today Plan source-type validation so Reset recovery focus items from projects, habits, inbox, waiting, commitments, and maintenance can be saved and rendered.
+- Remaining issues and limitations:
+  - Browser/manual smoke testing was not run in this pass.
+  - Reset runtime behavior depends on the target database having the referenced feature tables and columns. The previous regression checkpoint found the configured database is materially behind the app schema.
+  - The recovery-plan API requires `daily_plans`; if that migration is missing, focus saving will fail until the schema is updated.
+  - Optional AI suggestions require `OPENROUTER_API_KEY` and the `ai_usage_events` migration for usage tracking.
+  - `npm run lint` remains blocked by the missing ESLint flat config.
+  - `npm run build` still hides TypeScript and lint failures through `next.config.mjs`.
+- Suggested next steps:
+  - Apply the consolidated pending migrations to the confirmed target database, then smoke-test `/reset` data derivation, each bulk action type, the recovery plan flow, dashboard card, sidebar/settings visibility, and two-user isolation.
+  - Add ESLint flat config and revisit build settings that skip type/lint validation.
+- Handoff notes:
+  - Reset does not add a `timeline_events`-style table or store its own source data; all recovery items are derived live from existing tables.
+  - `/api/ai/reset-suggestions` is read-only and only returns recommended actions. Actual writes still go through `/api/reset/actions` after user confirmation.
+  - Missing source tables are reported as unavailable where derivation supports graceful fallback; action endpoints still require the relevant table/column to exist.
+
 ## AI Handoff Summaries
 
 Future agents should start by reading all root memory files, then inspect the relevant code before editing. Keep changes small and update this file after every repo change.

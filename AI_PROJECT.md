@@ -44,6 +44,7 @@ Implemented feature areas found in the repo:
 - AI Today Planner at `/api/ai/today-plan`: authenticated POST that takes the already-loaded candidates and habits from `/today` (actual item titles + IDs) and calls OpenRouter to return a structured day plan (top 3 priorities, schedule blocks, items to defer, risks, one small win). Rate-limited to 3/day. Every write action (add to focus, create task) requires explicit user confirmation — nothing is applied automatically.
 - AI Natural Language Capture at `/capture` and `/api/ai/capture`: users type messy natural language and AI parses it into structured draft actions for 9 types (task, waiting_item, goal, habit, note, project, vault_item, wishlist_item, calendar_event). Input validated with Zod (1–1000 chars). AI output validated per-type with Zod schemas. Drafts are fully editable before the user confirms creation. Rate-limited to 10/day. Nothing writes to the database until explicit user confirmation. Accessible from the sidebar as "AI Capture".
 - AI Life Balance Insights at `/insights` and `/api/ai/life-balance`: authenticated GET returns aggregate Life Area balance metrics; authenticated POST calls OpenRouter for read-only analysis of over-focused areas, ignored areas, stress points, small suggested actions, and next-week balance. Rate-limited to 10/day. Suggested actions become tasks only after explicit user confirmation.
+- Reset My Life at `/reset`, `/api/reset`, `/api/reset/actions`, `/api/reset/recovery-plan`, and `/api/ai/reset-suggestions`: recovery dashboard for overwhelm triage across overdue tasks, stale goals, inactive projects, missed habits, unsorted inbox items, overdue waiting items, overdue commitments, overdue maintenance, and upcoming deadlines. Bulk cleanup actions require confirmation, recovery plans reuse Today Plan focus items, and AI suggestions are read-only until the user explicitly applies selected actions. No new core data table is used.
 - Life Timeline at `/timeline` and `/api/timeline`: chronological view of meaningful life activity derived from existing tables (no new schema). Sources: completed tasks, completed goals, completed projects, project activity milestones, notes created, weekly reviews, habit check-in milestones (7/14/21/30/50/100 check-ins), wishlist items purchased, investments added, budget categories/goals, maintenance completions, Vault renewals represented by Vault-linked maintenance completions, People follow-ups where reminders are marked sent, and completed commitments. Timeline logic lives in `lib/timeline.ts` and is shared by the API and Global Search. Filters by event type, life area, date range, and text search. Client groups events by month or week. Dashboard widget shows 5 most recent milestones. Sidebar nav under "Insights".
 - Universal Life Inbox at `/inbox` and `/api/inbox`: user-scoped capture queue for messy thoughts, reminders, ideas, and responsibilities before the user decides where they belong. Items can be unsorted, archived, or converted after explicit confirmation into tasks, goals, notes, projects, habits, wishlist items, vault items, or calendar events. Conversion records `converted_type` and `converted_id` on the original inbox item. Quick Add can capture to Inbox, AI Capture can save raw text to Inbox, the dashboard shows unsorted items, and Global Search includes Inbox items.
 - Waiting For tracker at `/waiting` and `/api/waiting`: user-scoped tracking for external dependencies such as replies, approvals, deliveries, refunds, school/company/bank/government follow-ups, job applications, and other things the user is waiting on. Items support status, expected/follow-up dates, optional Life Area, Project, and Person links, dashboard follow-up/overdue widget, Quick Add support, Global Search, and AI Capture draft creation.
@@ -136,7 +137,7 @@ Representative API areas:
 - Capture and sorting: `inbox`, `inbox/convert`, `waiting`, `commitments`, `commitments/convert-to-task`, `maintenance`, `maintenance/complete`, `maintenance/create-task`
 - User/profile/preferences: `profile`, `onboarding`, `sidebar-preferences`, `daily-content`
 - Integrations: `calendar/google/*`, `calendar/sync`, `stock-quote`, `url-preview`
-- AI: `chat`, `daily-content/generate`, `investments/parse-screenshot`, `ai/weekly-summary`, `ai/today-plan`, `ai/capture`, `ai/life-balance`; these routes use main session auth and provider-specific env vars.
+- AI: `chat`, `daily-content/generate`, `investments/parse-screenshot`, `ai/weekly-summary`, `ai/today-plan`, `ai/capture`, `ai/life-balance`, `ai/reset-suggestions`; these routes use main session auth and provider-specific env vars.
 - Operational: `cron/deadline-reminders`, `admin/update-subscription`, `dashboard`, `search`, `share`
 
 ## Frontend Structure
@@ -152,6 +153,7 @@ Important pages:
 - `/waiting`
 - `/commitments`
 - `/maintenance`
+- `/reset`
 - `/insights`
 - `/life-areas`
 - `/projects`, `/projects/[id]`
