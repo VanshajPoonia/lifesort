@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
+import { getUserFromSession } from "@/lib/auth"
 
 const sql = neon(process.env.DATABASE_URL!)
 
@@ -23,8 +24,18 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/calendar?error=invalid_request", request.url))
   }
 
-  // state is the user_id
-  const userId = state
+  // Validate the OAuth state parameter against the current session. Previously
+  // the route trusted `state` directly as the user_id, which allowed a logged-in
+  // attacker who completed Google OAuth to write `calendar_integrations` rows
+  // under any user's account by passing the target user_id as `state`.
+  const sessionUser = await getUserFromSession()
+  if (!sessionUser) {
+    return NextResponse.redirect(new URL("/login?error=session_required", request.url))
+  }
+  if (sessionUser.id !== state) {
+    return NextResponse.redirect(new URL("/calendar?error=state_mismatch", request.url))
+  }
+  const userId = sessionUser.id
 
   try {
     // Exchange code for tokens
