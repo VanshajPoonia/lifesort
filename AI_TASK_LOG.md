@@ -17,6 +17,36 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-05-18 02:21 IST - Daily Popup Duplicate Close Button Fix
+
+- Agent/tool used: Codex (GPT-5 coding agent).
+- Task completed: Removed the duplicate cross/close button from the daily popup.
+
+#### Files Modified
+- `components/daily-popup.tsx` — Added the existing dialog-close hide selector (`[&>button]:hidden`) to the custom-styled `DialogContent` so Radix/shadcn's injected default close button is hidden and only the in-card close button remains.
+- `AI_TASK_LOG.md` — Added this handoff entry.
+
+#### Summary
+- The shared `DialogContent` automatically renders a top-right close button.
+- `DailyPopup` also renders its own close button inside the card, which caused two visible X buttons.
+- The popup keeps the custom close button and hides only the default injected close button for that popup instance.
+
+#### Commands Run
+- `npx tsc --noEmit` -> passed.
+- `npm run build` -> passed. Build still skips type/lint validation and emits the known unsupported `metadata.themeColor` / `metadata.viewport` warnings.
+- `git diff --check` -> passed.
+
+#### Remaining Issues / Known Limitations
+- `npm run lint` was not rerun for this one-line UI fix; it remains blocked by the known missing ESLint flat config.
+- No browser smoke test was run in this pass.
+
+#### Suggested Next Steps
+- Open the daily content popup in the app and confirm only one close button appears.
+- If duplicate X buttons are seen in another specific modal, inspect whether that modal renders a custom close button without hiding `DialogContent`'s default close.
+
+#### Handoff Notes
+- `components/goal-modal.tsx` already uses `[&>button]:hidden`, so its custom close button should not duplicate the shared close button.
+
 ### 2026-05-18 - DailyPopup Bug Fixes
 
 - Agent/tool used: Claude Code (coding agent mode).

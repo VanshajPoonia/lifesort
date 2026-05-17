@@ -742,7 +742,7 @@ export function DailyPopup() {
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="sm:max-w-md p-0 overflow-hidden bg-transparent border-0 shadow-none">
+      <DialogContent className="sm:max-w-md p-0 overflow-hidden bg-transparent border-0 shadow-none [&>button]:hidden">
         <Card className="relative overflow-hidden border-2 border-primary/20">
           <Button
             variant="ghost"
