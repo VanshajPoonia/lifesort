@@ -47,6 +47,7 @@ import {
   ChevronDown,
   Activity,
   History,
+  Inbox,
 } from "lucide-react"
 import {
   Accordion,
@@ -105,6 +106,7 @@ export default function SettingsPage() {
 
   const [sidebarPrefs, setSidebarPrefs] = useState({
     dashboard: true,
+    inbox: true,
     today: true,
     review: true,
     insights: true,
@@ -475,6 +477,7 @@ export default function SettingsPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 {[
                   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, description: "Main dashboard view" },
+                  { id: "inbox", label: "Inbox", icon: Inbox, description: "Universal capture queue for unsorted thoughts" },
                   { id: "today", label: "Today Plan", icon: CalendarCheck, description: "Daily focus and reflection" },
                   { id: "review", label: "Weekly Review", icon: CheckSquare, description: "Weekly summary and reflection" },
                   { id: "insights", label: "Insights", icon: Activity, description: "Life balance metrics and AI analysis" },
