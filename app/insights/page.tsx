@@ -13,6 +13,8 @@ import {
   FolderPlus,
   Loader2,
   Plus,
+  Search,
+  ShieldAlert,
   Sparkles,
   Target,
   Wallet,
@@ -77,6 +79,62 @@ type AiLifeBalanceResult = {
   suggested_next_week_balance: Array<{ area: string; focus: string }>
 }
 
+type IgnoringSignalSource =
+  | "life_area"
+  | "goal"
+  | "project"
+  | "waiting"
+  | "commitment"
+  | "habit"
+  | "maintenance"
+  | "vault"
+  | "finance"
+
+type IgnoringSignal = {
+  id: string
+  source: IgnoringSignalSource
+  title: string
+  description: string
+  evidence: string
+  href: string
+  date: string | null
+  days_inactive: number | null
+  severity: "low" | "medium" | "high"
+  life_area_id: string | null
+  life_area_name: string | null
+  life_area_color: string | null
+}
+
+type IgnoringInsightsData = {
+  generated_at: string
+  signals: IgnoringSignal[]
+  summary: {
+    total: number
+    high: number
+    medium: number
+    low: number
+    life_areas_quiet_14d: number
+    life_areas_quiet_30d: number
+    stale_goals: number
+    stale_projects: number
+    hidden_risks: number
+  }
+  unavailable: string[]
+}
+
+type AiIgnoringResult = {
+  summary: string
+  ignored_items: Array<{ title: string; why_it_may_matter: string; evidence: string }>
+  hidden_risks: Array<{ title: string; why_it_matters: string; severity: "low" | "medium" | "high" }>
+  suggested_actions: Array<{
+    title: string
+    description: string
+    priority: "low" | "medium" | "high"
+    life_area_id: string | null
+    life_area_name: string | null
+  }>
+}
+
 function toNumber(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0
 }
@@ -109,24 +167,54 @@ function MetricPill({ icon: Icon, label, value }: { icon: typeof Activity; label
   )
 }
 
+const IGNORING_SOURCE_LABELS: Record<IgnoringSignalSource, string> = {
+  life_area: "Quiet Life Areas",
+  goal: "Stale Goals",
+  project: "Stale Projects",
+  waiting: "Waiting For",
+  commitment: "Commitments",
+  habit: "Missed Habits",
+  maintenance: "Maintenance",
+  vault: "Vault Renewals",
+  finance: "Finance Review",
+}
+
+function formatDateLabel(value: string | null) {
+  if (!value) return "No date"
+  const date = new Date(`${value}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+}
+
 export default function InsightsPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
   const [metrics, setMetrics] = useState<LifeBalanceMetrics | null>(null)
   const [analysis, setAnalysis] = useState<AiLifeBalanceResult | null>(null)
+  const [ignoringInsights, setIgnoringInsights] = useState<IgnoringInsightsData | null>(null)
+  const [ignoringAnalysis, setIgnoringAnalysis] = useState<AiIgnoringResult | null>(null)
   const [loadingMetrics, setLoadingMetrics] = useState(true)
+  const [loadingIgnoring, setLoadingIgnoring] = useState(true)
   const [analyzing, setAnalyzing] = useState(false)
+  const [analyzingIgnoring, setAnalyzingIgnoring] = useState(false)
   const [error, setError] = useState("")
   const [analysisError, setAnalysisError] = useState("")
+  const [ignoringError, setIgnoringError] = useState("")
+  const [ignoringAnalysisError, setIgnoringAnalysisError] = useState("")
   const [createdActions, setCreatedActions] = useState<Set<number>>(new Set())
+  const [createdIgnoringActions, setCreatedIgnoringActions] = useState<Set<number>>(new Set())
   const [creatingAction, setCreatingAction] = useState<number | null>(null)
+  const [creatingIgnoringAction, setCreatingIgnoringAction] = useState<number | null>(null)
 
   useEffect(() => {
     if (!loading && !user) {
       router.push("/login")
       return
     }
-    if (user) fetchMetrics()
+    if (user) {
+      fetchMetrics()
+      fetchIgnoringSignals()
+    }
   }, [loading, router, user])
 
   const fetchMetrics = async () => {
@@ -148,6 +236,25 @@ export default function InsightsPage() {
     }
   }
 
+  const fetchIgnoringSignals = async () => {
+    setLoadingIgnoring(true)
+    setIgnoringError("")
+    try {
+      const response = await fetch("/api/ai/what-am-i-ignoring")
+      if (response.status === 401) {
+        router.push("/login")
+        return
+      }
+      const data = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(data?.error || "Could not load ignored-life signals")
+      setIgnoringInsights(data.insights)
+    } catch (err) {
+      setIgnoringError(err instanceof Error ? err.message : "Could not load ignored-life signals")
+    } finally {
+      setLoadingIgnoring(false)
+    }
+  }
+
   const analyzeBalance = async () => {
     setAnalyzing(true)
     setAnalysisError("")
@@ -161,6 +268,22 @@ export default function InsightsPage() {
       setAnalysisError(err instanceof Error ? err.message : "Could not analyze your balance")
     } finally {
       setAnalyzing(false)
+    }
+  }
+
+  const analyzeIgnoring = async () => {
+    setAnalyzingIgnoring(true)
+    setIgnoringAnalysisError("")
+    try {
+      const response = await fetch("/api/ai/what-am-i-ignoring", { method: "POST" })
+      const data = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(data?.error || "Could not analyze ignored-life signals")
+      setIgnoringAnalysis(data.analysis)
+      if (data.insights) setIgnoringInsights(data.insights)
+    } catch (err) {
+      setIgnoringAnalysisError(err instanceof Error ? err.message : "Could not analyze ignored-life signals")
+    } finally {
+      setAnalyzingIgnoring(false)
     }
   }
 
@@ -192,6 +315,34 @@ export default function InsightsPage() {
     }
   }
 
+  const createIgnoringSuggestedTask = async (action: AiIgnoringResult["suggested_actions"][number], index: number) => {
+    if (createdIgnoringActions.has(index)) return
+    const confirmed = window.confirm(`Create this task?\n\n${action.title}`)
+    if (!confirmed) return
+
+    setCreatingIgnoringAction(index)
+    try {
+      const response = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: action.title,
+          description: action.description,
+          priority: action.priority,
+          life_area_id: action.life_area_id,
+        }),
+      })
+      const data = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(data?.error || "Could not create task")
+      setCreatedIgnoringActions((prev) => new Set(prev).add(index))
+      await Promise.all([fetchIgnoringSignals(), fetchMetrics()])
+    } catch (err) {
+      setIgnoringAnalysisError(err instanceof Error ? err.message : "Could not create task")
+    } finally {
+      setCreatingIgnoringAction(null)
+    }
+  }
+
   const visibleAreas = useMemo(() => {
     if (!metrics) return []
     return [...metrics.areas].sort((a, b) => b.score - a.score)
@@ -211,6 +362,16 @@ export default function InsightsPage() {
       { tasks: 0, goals: 0, habits: 0, projects: 0, notes: 0 },
     )
   }, [visibleAreas])
+
+  const ignoringGroups = useMemo(() => {
+    const groups = new Map<IgnoringSignalSource, IgnoringSignal[]>()
+    for (const signal of ignoringInsights?.signals ?? []) {
+      const group = groups.get(signal.source) ?? []
+      group.push(signal)
+      groups.set(signal.source, group)
+    }
+    return Array.from(groups.entries())
+  }, [ignoringInsights])
 
   if (loading || !user) {
     return (
@@ -381,6 +542,164 @@ export default function InsightsPage() {
             </div>
           </>
         ) : null}
+
+        <Card className="border-primary/20">
+          <CardHeader>
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Search className="h-5 w-5 text-primary" />
+                  What Am I Ignoring?
+                </CardTitle>
+                <CardDescription>
+                  Non-AI signals for quiet life areas, stale work, overdue follow-ups, missed habits, renewals, and finance review gaps.
+                </CardDescription>
+              </div>
+              <Button onClick={analyzeIgnoring} disabled={analyzingIgnoring || loadingIgnoring} className="gap-2">
+                {analyzingIgnoring ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                Analyze what I&apos;m ignoring
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            {ignoringError && (
+              <div className="rounded-md border border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive">
+                {ignoringError}
+              </div>
+            )}
+
+            {loadingIgnoring ? (
+              <div className="grid gap-4 md:grid-cols-4">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <Skeleton key={index} className="h-24 w-full" />
+                ))}
+              </div>
+            ) : ignoringInsights ? (
+              <>
+                {ignoringInsights.unavailable.length > 0 && (
+                  <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4" />
+                      Some ignored-life sources are unavailable: {ignoringInsights.unavailable.join(", ")}.
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid gap-4 md:grid-cols-4">
+                  <MetricPill icon={ShieldAlert} label="Signals found" value={ignoringInsights.summary.total} />
+                  <MetricPill icon={AlertCircle} label="High attention" value={ignoringInsights.summary.high} />
+                  <MetricPill icon={Target} label="Stale goals" value={ignoringInsights.summary.stale_goals} />
+                  <MetricPill icon={FolderPlus} label="Stale projects" value={ignoringInsights.summary.stale_projects} />
+                </div>
+
+                {ignoringInsights.signals.length === 0 ? (
+                  <EmptyState>
+                    Nothing looks ignored right now. Keep using Today Plan, Weekly Review, and Life Areas so future signals stay useful.
+                  </EmptyState>
+                ) : (
+                  <div className="space-y-4">
+                    {ignoringGroups.map(([source, signals]) => (
+                      <div key={source} className="rounded-md border p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <h3 className="font-semibold">{IGNORING_SOURCE_LABELS[source]}</h3>
+                          <Badge variant="secondary">{signals.length}</Badge>
+                        </div>
+                        <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                          {signals.slice(0, 6).map((signal) => (
+                            <div key={signal.id} className="rounded-md bg-muted/40 p-3">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p className="font-medium">{signal.title}</p>
+                                  <p className="mt-1 text-sm text-muted-foreground">{signal.description}</p>
+                                  <p className="mt-1 text-xs text-muted-foreground">{signal.evidence}</p>
+                                </div>
+                                <Badge
+                                  variant={signal.severity === "high" ? "destructive" : signal.severity === "medium" ? "default" : "outline"}
+                                >
+                                  {signal.severity}
+                                </Badge>
+                              </div>
+                              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                {signal.life_area_name && <Badge variant="outline">{signal.life_area_name}</Badge>}
+                                <span>{formatDateLabel(signal.date)}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <EmptyState>Ignored-life signals are not available yet.</EmptyState>
+            )}
+
+            {(ignoringAnalysisError || ignoringAnalysis) && (
+              <div className="rounded-lg border border-primary/20 p-4">
+                <div className="mb-4">
+                  <h3 className="flex items-center gap-2 font-semibold">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    AI Ignored-Life Explanation
+                  </h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Read-only analysis. Suggested tasks are not created unless you confirm them.
+                  </p>
+                </div>
+
+                {ignoringAnalysisError && (
+                  <div className="mb-4 rounded-md border border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive">
+                    {ignoringAnalysisError}
+                  </div>
+                )}
+
+                {ignoringAnalysis && (
+                  <div className="space-y-5">
+                    <p className="text-sm leading-6 text-muted-foreground">{ignoringAnalysis.summary}</p>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <InsightList title="What seems ignored" items={ignoringAnalysis.ignored_items.map((item) => `${item.title}: ${item.why_it_may_matter} (${item.evidence})`)} />
+                      <InsightList title="Hidden risks" items={ignoringAnalysis.hidden_risks.map((item) => `${item.title}: ${item.why_it_matters}`)} />
+                    </div>
+
+                    <div className="space-y-3">
+                      <h3 className="font-semibold">Small actions to consider</h3>
+                      {ignoringAnalysis.suggested_actions.length === 0 ? (
+                        <EmptyState>No suggested tasks returned this time.</EmptyState>
+                      ) : (
+                        <div className="grid gap-3 md:grid-cols-2">
+                          {ignoringAnalysis.suggested_actions.map((action, index) => (
+                            <div key={`${action.title}-${index}`} className="rounded-md border p-3">
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <p className="font-medium">{action.title}</p>
+                                  <p className="mt-1 text-sm text-muted-foreground">{action.description}</p>
+                                </div>
+                                <Badge variant="outline">{action.priority}</Badge>
+                              </div>
+                              <div className="mt-3 flex items-center justify-between gap-3">
+                                <span className="text-xs text-muted-foreground">{action.life_area_name || "Unassigned"}</span>
+                                <Button
+                                  size="sm"
+                                  variant={createdIgnoringActions.has(index) ? "secondary" : "outline"}
+                                  className="gap-2"
+                                  disabled={creatingIgnoringAction === index || createdIgnoringActions.has(index)}
+                                  onClick={() => createIgnoringSuggestedTask(action, index)}
+                                >
+                                  {creatingIgnoringAction === index ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                                  {createdIgnoringActions.has(index) ? "Created" : "Create task"}
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {(analysisError || analysis) && (
           <Card className="border-primary/20">
