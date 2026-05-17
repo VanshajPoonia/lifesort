@@ -1033,3 +1033,7 @@ CREATE INDEX IF NOT EXISTS idx_agent_action_events_user_status
   ON agent_action_events(user_id, status);
 CREATE INDEX IF NOT EXISTS idx_agent_action_events_run
   ON agent_action_events(agent_run_id);
+
+CREATE INDEX IF NOT EXISTS idx_habits_user_frequency ON habits(user_id, frequency);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_type ON notifications(user_id, type);
+CREATE INDEX IF NOT EXISTS idx_routine_steps_routine_sort ON routine_steps(routine_id, sort_order);

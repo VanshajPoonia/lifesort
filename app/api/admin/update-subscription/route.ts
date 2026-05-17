@@ -11,10 +11,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const { userId, isSubscribed, subscriptionEndsAt } = await request.json()
+    const body = await request.json()
+    const { userId, isSubscribed, subscriptionEndsAt } = body
 
-    if (!userId) {
+    if (!userId || typeof userId !== "string") {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 })
+    }
+    if (typeof isSubscribed !== "boolean") {
+      return NextResponse.json({ error: 'isSubscribed must be a boolean' }, { status: 400 })
+    }
+    if (subscriptionEndsAt != null) {
+      const d = new Date(subscriptionEndsAt)
+      if (isNaN(d.getTime())) {
+        return NextResponse.json({ error: 'subscriptionEndsAt must be a valid ISO date or null' }, { status: 400 })
+      }
     }
 
     // Update user subscription status

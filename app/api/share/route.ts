@@ -83,6 +83,19 @@ export async function POST(request: Request) {
 
     const { id, type, is_public, share_permission } = await request.json()
 
+    if (!id || typeof id !== "string") {
+      return NextResponse.json({ error: "id is required" }, { status: 400 })
+    }
+    if (type !== "folder" && type !== "link") {
+      return NextResponse.json({ error: 'type must be "folder" or "link"' }, { status: 400 })
+    }
+    if (typeof is_public !== "boolean") {
+      return NextResponse.json({ error: "is_public must be a boolean" }, { status: 400 })
+    }
+    if (share_permission != null && share_permission !== "view" && share_permission !== "edit") {
+      return NextResponse.json({ error: 'share_permission must be "view" or "edit"' }, { status: 400 })
+    }
+
     // Generate share token if making public
     const shareToken = is_public ? crypto.randomBytes(16).toString("hex") : null
 

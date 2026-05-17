@@ -17,6 +17,42 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-05-18 - API Body Validation + Missing Schema Indexes
+
+- Agent/tool used: Claude Code (coding agent mode).
+- Task: Implement three deferred P2 fixes from AI_AUDIT.md: body validation on `/api/admin/update-subscription` and `/api/share` POST, plus three missing database indexes.
+
+#### Files Modified
+- `app/api/admin/update-subscription/route.ts` — Added type-safe validation for all three request fields: `userId` must be a non-empty string; `isSubscribed` must be a boolean (previously `undefined` or a non-boolean value would silently write `null` to the column); `subscriptionEndsAt` must be a valid ISO date string or null (previously a malformed string would coerce to `NULL` in Postgres without any feedback to the caller).
+- `app/api/share/route.ts` — Added validation to the POST handler: `id` must be a non-empty string, `type` must be `"folder"` or `"link"`, `is_public` must be a boolean, `share_permission` (when provided) must be `"view"` or `"edit"`. All return 400 on violation.
+- `scripts/schema.sql` — Added three missing indexes: `idx_habits_user_frequency` on `habits(user_id, frequency)`, `idx_notifications_user_type` on `notifications(user_id, type)`, `idx_routine_steps_routine_sort` on `routine_steps(routine_id, sort_order)`. These cover the most common filter/sort patterns for those tables.
+
+#### Commands Run
+- `npx tsc --noEmit` → passes (no output)
+
+#### Schema Index Notes
+- The three new indexes are in `scripts/schema.sql` (fresh-DB baseline only). They do NOT have a corresponding `scripts/migrations/` file because they are additive and non-breaking — apply manually in production via:
+  ```sql
+  CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_habits_user_frequency ON habits(user_id, frequency);
+  CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_notifications_user_type ON notifications(user_id, type);
+  CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_routine_steps_routine_sort ON routine_steps(routine_id, sort_order);
+  ```
+  `CONCURRENTLY` avoids table locks on a live database.
+
+#### Remaining Audit Items (from AI_AUDIT.md — not yet implemented)
+- Rate limiting on auth routes (brute-force protection on `/api/auth/login` + `/api/auth/register`)
+- HTTP status discipline — ~20 CRUD routes return 500 for user input errors
+- Zod validation across remaining CRUD routes (P2 — ~1 week)
+- OAuth refresh token encryption in `calendar_integrations`
+- `lib/agent-tools.ts` tool registry (replaces 501 stub in `/api/agent/execute`)
+- `url_preview_events` per-user rate limit
+- Production migration: `scripts/migrations/2026-05-18-agent-action-events.sql` still needs to be applied to Neon
+
+#### Suggested Next Steps
+- Apply the three new indexes in production (use `CONCURRENTLY`; no downtime).
+- Apply `scripts/migrations/2026-05-18-agent-action-events.sql` to production Neon if not yet done.
+- Start Agents UI work (pre-conditions: N1–N5 all shipped, body validation shipped today).
+
 ### 2026-05-18 - Pre-Agents Audit Fixes (N1–N5)
 
 - Agent/tool used: Claude Code (coding agent mode).
