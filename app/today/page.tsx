@@ -30,6 +30,13 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 
@@ -68,13 +75,38 @@ type TodayPlan = {
   id: string | null
   plan_date: string
   focus_items: TodayItem[]
+  energy_level: "low" | "medium" | "high"
+  available_focus_minutes: number | null
+  mood: string
+  day_type: "normal" | "busy" | "travel" | "sick" | "school" | "work-heavy" | "recovery"
   reflection_went_well: string
   reflection_did_not_go_well: string
   reflection_improve_tomorrow: string
 }
 
+type CapacityForm = {
+  energy_level: TodayPlan["energy_level"]
+  available_focus_minutes: string
+  mood: string
+  day_type: TodayPlan["day_type"]
+}
+
+type CapacitySummary = {
+  recommended_focus_count: number
+  estimated_task_capacity: number
+  overload: boolean
+  warnings: Array<{ type: string; message: string }>
+}
+
 type TodayResponse = {
   plan: TodayPlan
+  capacity: CapacitySummary
+  summary: {
+    focusItems: number
+    dueOrOverdueTasks: number
+    highPriorityDueTasks: number
+    calendarToday: number
+  }
   candidates: {
     focusSuggestions: TodayItem[]
     mustDo: TodayItem[]
@@ -96,6 +128,13 @@ const emptyCandidates: TodayResponse["candidates"] = {
   calendarToday: [],
   quickNotes: [],
   unavailable: [],
+}
+
+const defaultCapacity: CapacityForm = {
+  energy_level: "medium",
+  available_focus_minutes: "",
+  mood: "",
+  day_type: "normal",
 }
 
 function localDateString() {
@@ -141,12 +180,77 @@ function toFocusItem(item: TodayItem): TodayItem {
   }
 }
 
+function focusMinutesValue(value: string) {
+  if (!value.trim()) return null
+  const parsed = Number.parseInt(value, 10)
+  return Number.isFinite(parsed) ? Math.max(0, Math.min(1440, parsed)) : null
+}
+
+function baseRecommendedFocus(energyLevel: CapacityForm["energy_level"]) {
+  if (energyLevel === "low") return 1
+  if (energyLevel === "high") return 3
+  return 2
+}
+
+function deriveCapacitySummary(input: {
+  capacity: CapacityForm
+  focusCount: number
+  dueOrOverdueTasks: number
+  highPriorityDueTasks: number
+}): CapacitySummary {
+  const focusMinutes = focusMinutesValue(input.capacity.available_focus_minutes)
+  let recommended = baseRecommendedFocus(input.capacity.energy_level)
+  if (focusMinutes !== null) {
+    if (focusMinutes < 60) recommended = Math.min(recommended, 1)
+    else if (focusMinutes < 120) recommended = Math.min(recommended, 2)
+  }
+  if (["busy", "travel", "sick", "recovery"].includes(input.capacity.day_type)) {
+    recommended = Math.min(recommended, 2)
+  }
+
+  const estimatedTaskCapacity =
+    focusMinutes === null ? recommended + 2 : Math.max(1, Math.min(8, Math.floor(focusMinutes / 45)))
+  const warnings: CapacitySummary["warnings"] = []
+
+  if (input.focusCount > recommended) {
+    warnings.push({
+      type: "focus_count",
+      message: `You picked ${input.focusCount} focus items; ${recommended} may fit better today.`,
+    })
+  }
+  if (input.dueOrOverdueTasks > estimatedTaskCapacity) {
+    warnings.push({
+      type: "task_load",
+      message: `${input.dueOrOverdueTasks} due or overdue tasks may be too much for the focus time available.`,
+    })
+  }
+  if (input.highPriorityDueTasks >= 3) {
+    warnings.push({
+      type: "high_priority",
+      message: `${input.highPriorityDueTasks} high-priority due or overdue items may make today feel overloaded.`,
+    })
+  }
+
+  return {
+    recommended_focus_count: recommended,
+    estimated_task_capacity: estimatedTaskCapacity,
+    overload: warnings.length > 0,
+    warnings,
+  }
+}
+
 export default function TodayPage() {
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const [planDate] = useState(localDateString)
   const [plan, setPlan] = useState<TodayPlan | null>(null)
   const [candidates, setCandidates] = useState<TodayResponse["candidates"]>(emptyCandidates)
+  const [todaySummary, setTodaySummary] = useState<TodayResponse["summary"]>({
+    focusItems: 0,
+    dueOrOverdueTasks: 0,
+    highPriorityDueTasks: 0,
+    calendarToday: 0,
+  })
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState("")
   const [saveState, setSaveState] = useState<SaveState>("idle")
@@ -156,6 +260,7 @@ export default function TodayPage() {
     reflection_did_not_go_well: "",
     reflection_improve_tomorrow: "",
   })
+  const [capacity, setCapacity] = useState<CapacityForm>(defaultCapacity)
   const [habitsToday, setHabitsToday] = useState<HabitToday[]>([])
   const [habitsLoaded, setHabitsLoaded] = useState(false)
   const [aiPlan, setAiPlan] = useState<AiTodayPlanResult | null>(null)
@@ -177,6 +282,20 @@ export default function TodayPage() {
       const data = (await response.json()) as TodayResponse
       setPlan(data.plan)
       setCandidates(data.candidates || emptyCandidates)
+      setTodaySummary(data.summary || {
+        focusItems: data.plan.focus_items?.length || 0,
+        dueOrOverdueTasks: 0,
+        highPriorityDueTasks: 0,
+        calendarToday: 0,
+      })
+      setCapacity({
+        energy_level: data.plan.energy_level || "medium",
+        available_focus_minutes: data.plan.available_focus_minutes === null || data.plan.available_focus_minutes === undefined
+          ? ""
+          : String(data.plan.available_focus_minutes),
+        mood: data.plan.mood || "",
+        day_type: data.plan.day_type || "normal",
+      })
       setReflection({
         reflection_went_well: data.plan.reflection_went_well || "",
         reflection_did_not_go_well: data.plan.reflection_did_not_go_well || "",
@@ -246,7 +365,7 @@ export default function TodayPage() {
   }
 
   const savePlan = useCallback(
-    async (focusItems: TodayItem[], nextReflection = reflection) => {
+    async (focusItems: TodayItem[], nextReflection = reflection, nextCapacity = capacity) => {
       setSaveState("saving")
       try {
         const response = await fetch("/api/today-plan", {
@@ -255,6 +374,10 @@ export default function TodayPage() {
           body: JSON.stringify({
             plan_date: planDate,
             focus_items: focusItems.map(toFocusItem),
+            energy_level: nextCapacity.energy_level,
+            available_focus_minutes: focusMinutesValue(nextCapacity.available_focus_minutes),
+            mood: nextCapacity.mood,
+            day_type: nextCapacity.day_type,
             ...nextReflection,
           }),
         })
@@ -265,19 +388,34 @@ export default function TodayPage() {
           ...(current || {
             id: null,
             plan_date: planDate,
+            focus_items: [],
+            energy_level: nextCapacity.energy_level,
+            available_focus_minutes: focusMinutesValue(nextCapacity.available_focus_minutes),
+            mood: nextCapacity.mood,
+            day_type: nextCapacity.day_type,
             reflection_went_well: "",
             reflection_did_not_go_well: "",
             reflection_improve_tomorrow: "",
           }),
           ...data.plan,
         }))
+        if (data.plan) {
+          setCapacity({
+            energy_level: data.plan.energy_level || nextCapacity.energy_level,
+            available_focus_minutes: data.plan.available_focus_minutes === null || data.plan.available_focus_minutes === undefined
+              ? ""
+              : String(data.plan.available_focus_minutes),
+            mood: data.plan.mood || "",
+            day_type: data.plan.day_type || nextCapacity.day_type,
+          })
+        }
         setSaveState("saved")
       } catch (error) {
         console.error("Failed to save today plan:", error)
         setSaveState("error")
       }
     },
-    [planDate, reflection]
+    [capacity, planDate, reflection]
   )
 
   const focusItems = plan?.focus_items || []
@@ -287,6 +425,15 @@ export default function TodayPage() {
     month: "long",
     day: "numeric",
   })
+  const capacitySummary = useMemo(
+    () => deriveCapacitySummary({
+      capacity,
+      focusCount: focusItems.length,
+      dueOrOverdueTasks: todaySummary.dueOrOverdueTasks,
+      highPriorityDueTasks: todaySummary.highPriorityDueTasks,
+    }),
+    [capacity, focusItems.length, todaySummary.dueOrOverdueTasks, todaySummary.highPriorityDueTasks],
+  )
 
   const addFocus = async (item: TodayItem) => {
     if (focusItems.length >= 3 || focusIds.has(item.id)) return
@@ -320,6 +467,10 @@ export default function TodayPage() {
     await savePlan(focusItems, reflection)
   }
 
+  const saveCapacity = async () => {
+    await savePlan(focusItems, reflection, capacity)
+  }
+
   const generateAiPlan = async () => {
     if (loading || generatingAi) return
     setGeneratingAi(true)
@@ -345,6 +496,15 @@ export default function TodayPage() {
           calendar_today: candidates.calendarToday.map(simplify),
           habits_today: habitsToday.map((h) => ({ id: h.id, name: h.name, done: h.done })),
           upcoming_deadlines: candidates.upcomingDeadlines.map(simplify),
+          capacity: {
+            energy_level: capacity.energy_level,
+            available_focus_minutes: focusMinutesValue(capacity.available_focus_minutes),
+            mood: capacity.mood,
+            day_type: capacity.day_type,
+            recommended_focus_count: capacitySummary.recommended_focus_count,
+            overload: capacitySummary.overload,
+            warnings: capacitySummary.warnings,
+          },
         }),
       })
       const data = await response.json().catch(() => null)
@@ -424,6 +584,117 @@ export default function TodayPage() {
                 </div>
               </div>
             )}
+
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Clock className="h-5 w-5 text-primary" />
+                      Capacity
+                    </CardTitle>
+                    <CardDescription>Plan around the time and energy you actually have today.</CardDescription>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Badge variant={capacitySummary.overload ? "destructive" : "secondary"}>
+                      {capacitySummary.recommended_focus_count} focus item{capacitySummary.recommended_focus_count === 1 ? "" : "s"} recommended
+                    </Badge>
+                    <SaveStatus state={saveState} />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <div className="space-y-2">
+                    <Label>Energy level</Label>
+                    <Select
+                      value={capacity.energy_level}
+                      onValueChange={(value: CapacityForm["energy_level"]) => setCapacity((prev) => ({ ...prev, energy_level: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="low">Low</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="high">High</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="available-focus-minutes">Available focus time</Label>
+                    <Input
+                      id="available-focus-minutes"
+                      type="number"
+                      min={0}
+                      max={1440}
+                      value={capacity.available_focus_minutes}
+                      onChange={(event) => setCapacity((prev) => ({ ...prev, available_focus_minutes: event.target.value }))}
+                      placeholder="Minutes"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="mood">Mood</Label>
+                    <Input
+                      id="mood"
+                      value={capacity.mood}
+                      onChange={(event) => setCapacity((prev) => ({ ...prev, mood: event.target.value }))}
+                      placeholder="Optional"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Day type</Label>
+                    <Select
+                      value={capacity.day_type}
+                      onValueChange={(value: CapacityForm["day_type"]) => setCapacity((prev) => ({ ...prev, day_type: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="normal">Normal</SelectItem>
+                        <SelectItem value="busy">Busy</SelectItem>
+                        <SelectItem value="travel">Travel</SelectItem>
+                        <SelectItem value="sick">Sick</SelectItem>
+                        <SelectItem value="school">School</SelectItem>
+                        <SelectItem value="work-heavy">Work-heavy</SelectItem>
+                        <SelectItem value="recovery">Recovery</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {capacitySummary.overload ? (
+                  <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                      <div>
+                        <p className="text-sm font-medium text-destructive">Today may be overloaded.</p>
+                        <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+                          {capacitySummary.warnings.map((warning) => (
+                            <li key={warning.type}>{warning.message}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                    Your current plan looks realistic for the capacity you entered.
+                  </div>
+                )}
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button onClick={saveCapacity} disabled={saveState === "saving"} className="gap-2">
+                    {saveState === "saving" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    Save Capacity
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    Estimated task capacity: {capacitySummary.estimated_task_capacity} item{capacitySummary.estimated_task_capacity === 1 ? "" : "s"}.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
 
             <Card className="border-primary/20 bg-primary/5">
               <CardHeader>
