@@ -1622,6 +1622,46 @@ After that, re-run the regression checkpoint and the schema-drift 500s should di
   - Mark-complete anchors recurrence from the completion date: weekly +7 days, monthly +1 month, quarterly +3 months, yearly +1 year, custom +`custom_interval_days`.
   - Completed status is available for retired/one-off records; recurring mark-complete keeps the item active.
 
+### 2026-05-17 21:48 IST - Life Timeline Upgrade
+
+- Agent/tool used: Codex.
+- Task summary: Upgraded the existing derived Life Timeline instead of creating a duplicate timeline feature.
+- Files changed:
+  - `lib/timeline.ts`
+  - `app/api/timeline/route.ts`
+  - `app/timeline/page.tsx`
+  - `app/api/search/route.ts`
+  - `components/global-search.tsx`
+  - `AI_PROJECT.md`
+  - `AI_DECISIONS.md`
+  - `AI_CHECKLIST.md`
+  - `AI_TASK_LOG.md`
+- What changed:
+  - Moved timeline derivation into `lib/timeline.ts` so `/api/timeline` and Global Search share one source of truth.
+  - Expanded timeline events to include project activity milestones, budget goals reached, maintenance completions, Vault renewals through Vault-linked maintenance completions, People follow-ups where reminders are marked sent, and completed commitments.
+  - Added timeline API filters for `start_date` and `end_date` alongside existing search, type, life area, and limit filters.
+  - Added date-range inputs and new event type badges/icons to `/timeline` while keeping month/week grouping.
+  - Added Timeline as a Global Search result group, backed by the shared timeline helper.
+  - No `timeline_events` table or migration was added.
+- Commands run:
+  - `git status --short --branch` - clean at task start on `main...origin/main`.
+  - `npx tsc --noEmit` - passed.
+  - `npm run lint` - failed before source linting because ESLint 10.3.0 cannot find `eslint.config.(js|mjs|cjs)`.
+  - `npm run build` - passed; generated 110 routes including `/timeline` and `/api/timeline`; still skips type/lint validation because of `next.config.mjs` and emits known metadata `themeColor`/`viewport` warnings, including `/timeline`.
+- Remaining issues and limitations:
+  - Task and goal completion dates still use `updated_at` because those tables do not have dedicated `completed_at` columns.
+  - Budget goal milestones use `created_at` because `budget_goals` has no `updated_at` or completion timestamp in the current schema.
+  - People follow-up completion depends on `people_reminders.is_sent = TRUE`; the current People UI does not expose a clear mark-complete action, so this source may be sparse.
+  - Vault renewal completion is conservatively derived from completed maintenance items linked to Vault items.
+  - No browser/manual smoke test was run in this pass.
+  - `npm run lint` remains blocked by the missing ESLint flat config.
+- Suggested next steps:
+  - Smoke-test `/timeline` with real data across event type, life area, start date, and end date filters.
+  - Consider adding explicit `completed_at` fields for tasks/goals/budget goals/people follow-ups if exact historical timing becomes important.
+- Handoff notes:
+  - `lib/timeline.ts` catches missing source table/column errors per source and returns partial timelines rather than failing the whole endpoint.
+  - Global Search calls `getTimelineData(user.id, { search, limit: 5 })` and links timeline results to `/timeline`.
+
 ## AI Handoff Summaries
 
 Future agents should start by reading all root memory files, then inspect the relevant code before editing. Keep changes small and update this file after every repo change.

@@ -92,10 +92,10 @@ Architecture and product decision memory for LifeSort.
 
 ## Timeline and Multi-Source Aggregation Decisions
 
-- The Life Timeline derives events from 8 existing source tables (tasks, goals, projects, notes, weekly_reviews, wishlist_items, investments, budget_categories) plus habit_checkins for milestone computation. No new database tables were added.
-- The timeline API (`/api/timeline`) runs one query per source in parallel via `Promise.all`. Each source query is wrapped in a `safe()` helper that catches missing-table errors (PostgreSQL error codes 42P01/42703) and returns an empty array, allowing partial results when a migration hasn't been applied. This is the same resilience pattern used in `lib/ai-usage.ts`.
+- The Life Timeline derives events from existing source tables and does not add `timeline_events` in v1. Timeline logic lives in `lib/timeline.ts` so `/api/timeline`, the dashboard widget, and Global Search can share one derivation path. Vault renewal completions are represented by completed maintenance items linked to Vault records; People follow-up completions are represented by `people_reminders.is_sent = TRUE`.
+- The timeline helper runs one query per source in parallel via `Promise.all`. Each source query is wrapped in a `safe()` helper that catches missing-table errors (PostgreSQL error codes 42P01/42703) and returns an empty array, allowing partial results when a migration hasn't been applied. This is the same resilience pattern used in `lib/ai-usage.ts`.
 - Habit streak milestones are computed in JavaScript inside the API route: habit_checkins are fetched and grouped by habit_id, deduplicated by date, sorted chronologically, and milestone events are emitted at the 7th, 14th, 21st, 30th, 50th, and 100th unique check-in date per habit. This approach is simpler than a SQL window function and handles weekly/daily habits the same way.
-- Timeline filtering (event type, life area, text search) happens in JavaScript after all sources are merged, not in SQL. This is acceptable for a personal app where total event count is bounded (< 1000 events per user). If scaling becomes a concern, move filters into individual SQL WHERE clauses.
+- Timeline filtering (event type, life area, date range, text search) happens in JavaScript after all sources are merged, not in SQL. This is acceptable for a personal app where total event count is bounded (< 1000 events per user). If scaling becomes a concern, move filters into individual SQL WHERE clauses.
 - The `/api/timeline` GET response includes `life_areas` for the filter dropdown, avoiding a second client fetch.
 
 ## Template and Static Data Decisions

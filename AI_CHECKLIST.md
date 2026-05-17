@@ -215,6 +215,7 @@ Known as of 2026-05-17:
 9. For schema-spanning features, update the standalone migration, `scripts/website-current-schema.sql`, and `scripts/run-pending-migrations.sql` together, and document that migrations were not run automatically.
 10. For capture/conversion features, verify every API is authenticated, every read/write is scoped by `user_id`, optional Life Area IDs are ownership-validated, and target record creation requires explicit user confirmation before writing structured module data.
 11. For date-based tracker features, verify dashboard counts and filters exclude closed statuses, all optional linked IDs are ownership-validated, Global Search remains user-scoped, Quick Add posts a minimal valid payload, and AI Capture only creates editable drafts before confirmation. For recurring trackers, verify completion advances the next due date from the completion date.
+12. For derived timeline/search features, verify no duplicate timeline table is introduced unless manual events are explicitly requested, every source query is user-scoped, missing source tables fail softly, and Global Search uses the same derivation path as the timeline API.
 
 ## Common Failure Points
 
