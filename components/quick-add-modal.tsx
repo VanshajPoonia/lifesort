@@ -17,6 +17,7 @@ import {
   Target,
   TrendingUp,
   Users,
+  Wrench,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -31,6 +32,7 @@ type QuickAddType =
   | "inbox"
   | "waiting"
   | "commitment"
+  | "maintenance"
   | "task"
   | "goal"
   | "note"
@@ -126,6 +128,26 @@ const commitmentTypeOptions = [
   { value: "other", label: "Other" },
 ]
 
+const maintenanceCategoryOptions = [
+  { value: "home", label: "Home" },
+  { value: "vehicle", label: "Vehicle" },
+  { value: "health", label: "Health" },
+  { value: "finance", label: "Finance" },
+  { value: "digital", label: "Digital" },
+  { value: "school", label: "School" },
+  { value: "work", label: "Work" },
+  { value: "business", label: "Business" },
+  { value: "other", label: "Other" },
+]
+
+const maintenanceRecurrenceOptions = [
+  { value: "weekly", label: "Weekly" },
+  { value: "monthly", label: "Monthly" },
+  { value: "quarterly", label: "Quarterly" },
+  { value: "yearly", label: "Yearly" },
+  { value: "custom", label: "Custom" },
+]
+
 function numericValue(value: string) {
   if (!value.trim()) return null
   const parsed = Number.parseFloat(value)
@@ -203,6 +225,30 @@ const quickAddConfigs: QuickAddConfig[] = [
       commitment_type: values.commitment_type || "personal",
       due_date: values.due_date || null,
       status: "open",
+    }),
+  },
+  {
+    type: "maintenance",
+    label: "Maintenance",
+    description: "Track a recurring life responsibility",
+    endpoint: "/api/maintenance",
+    eventType: "maintenance",
+    icon: Wrench,
+    fields: [
+      { name: "title", label: "Title", type: "text", required: true, placeholder: "Renew domain, book checkup, review subscriptions" },
+      { name: "category", label: "Category", type: "select", options: maintenanceCategoryOptions },
+      { name: "recurrence", label: "Recurrence", type: "select", options: maintenanceRecurrenceOptions },
+      { name: "next_due_date", label: "Next due date", type: "date" },
+      { name: "reminder_days_before", label: "Reminder days before", type: "number" },
+    ],
+    buildPayload: (values) => ({
+      title: values.title,
+      category: values.category || "other",
+      recurrence: values.recurrence || "monthly",
+      custom_interval_days: values.recurrence === "custom" ? 30 : null,
+      next_due_date: values.next_due_date || null,
+      reminder_days_before: numericValue(values.reminder_days_before) ?? 7,
+      status: "active",
     }),
   },
   {
@@ -434,6 +480,7 @@ const defaultValues: Record<QuickAddType, Record<string, string>> = {
   inbox: {},
   waiting: { waiting_on_type: "person" },
   commitment: { commitment_type: "personal" },
+  maintenance: { category: "other", recurrence: "monthly", reminder_days_before: "7" },
   task: { priority: "medium" },
   goal: { category: "personal", priority: "medium" },
   note: {},
