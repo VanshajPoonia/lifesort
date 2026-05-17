@@ -17,6 +17,64 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-05-17 23:39 IST - Explainable LifeScore
+
+- Agent/tool used: Codex (GPT-5 coding agent).
+- Task completed: Added an explainable dashboard LifeScore with daily score snapshots, component breakdowns, top improvement suggestions, and optional read-only AI explanation.
+
+#### Files Changed
+
+- `app/page.tsx` — Added LifeScore dashboard card, loading/error states, component bars, reasons, top improvements, compact history, and AI explanation UI.
+- `app/api/life-score/route.ts` — Added authenticated GET endpoint for user-scoped LifeScore data.
+- `app/api/ai/life-score/route.ts` — Added authenticated, rate-limited OpenRouter explanation endpoint. It is read-only and sends only derived LifeScore data.
+- `lib/life-score.ts` — Added shared LifeScore derivation helper with safe missing-schema handling and daily snapshot upsert.
+- `lib/ai-usage.ts` — Added `life_score_explanation` AI usage route with a 5/day cap.
+- `scripts/add-life-score-history.sql` — Added idempotent migration for `life_score_history`.
+- `scripts/website-current-schema.sql` — Added `life_score_history` to the canonical schema baseline.
+- `scripts/run-pending-migrations.sql` — Added `life_score_history` to the consolidated migration.
+- `AI_PROJECT.md` — Documented LifeScore product scope, route, and table.
+- `AI_DECISIONS.md` — Documented the derived-score, daily snapshot, and read-only AI explanation decisions.
+- `AI_CHECKLIST.md` — Added a recurring checklist note for explainable, non-shaming score/insight features.
+- `AI_TASK_LOG.md` — Added this implementation entry.
+
+#### Summary
+
+- LifeScore computes a 0-100 daily signal from focus completion, overdue task load, habit consistency, goal updates, weekly review status, commitments, maintenance/vault dates, and Life Area balance.
+- Components are explainable and weighted. Missing optional source tables are reported in `unavailable` and excluded from the normalized score rather than failing the whole response.
+- `GET /api/life-score` saves one snapshot per user/day when `life_score_history` exists; if the migration is missing, the dashboard still works without history.
+- `POST /api/ai/life-score` uses OpenRouter through the existing AI SDK pattern, records usage events, returns a concise read-only explanation, and never writes source data.
+
+#### Commands Run
+
+- `npx tsc --noEmit` -> passed.
+- `npm run lint` -> failed with the known repo-wide ESLint 10 blocker: missing `eslint.config.*`.
+- `npm run build` -> passed. Build still skips type/lint validation and emits known unsupported `metadata.themeColor` / `metadata.viewport` warnings.
+- `git diff --check` -> passed.
+
+#### Migration Status
+
+- Added `scripts/add-life-score-history.sql`.
+- Updated `scripts/website-current-schema.sql` and `scripts/run-pending-migrations.sql`.
+- Migration was not run automatically. Apply the migration to enable persistent LifeScore history in the target database.
+
+#### Remaining Issues / Limitations
+
+- `npm run lint` remains blocked by the pre-existing missing ESLint flat config.
+- LifeScore history requires the `life_score_history` migration; without it, score and explanations still load but history is unavailable.
+- Habit consistency uses a simple 7-day active-habit/check-in ratio and may be conservative for weekly/custom habits.
+- Manual browser/API smoke was not run against a live migrated database in this pass.
+
+#### Suggested Next Steps
+
+- Apply `scripts/add-life-score-history.sql` in the intended database environment.
+- Smoke test dashboard LifeScore with a user that has tasks, habits, weekly reviews, commitments, maintenance, vault items, and life areas.
+- Add ESLint flat config so lint can run as a real verification gate.
+
+#### Handoff Notes
+
+- The LifeScore helper is intentionally centralized in `lib/life-score.ts`; reuse it for future score widgets or API consumers instead of duplicating SQL in the dashboard.
+- The AI explanation endpoint is read-only by design. If future LifeScore suggestions create tasks, keep them as user-confirmed drafts via existing CRUD APIs.
+
 ### 2026-05-17 - In-App Notification Center
 
 - Agent/tool used: Claude Code (coding agent mode).
