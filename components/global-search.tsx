@@ -19,6 +19,7 @@ import {
   TrendingUp,
   Users,
   Wallet,
+  Wrench,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -35,6 +36,7 @@ type SearchType =
   | "inbox"
   | "waiting"
   | "commitments"
+  | "maintenance"
   | "tasks"
   | "goals"
   | "notes"
@@ -71,6 +73,7 @@ const groupIcons = {
   inbox: Inbox,
   waiting: Clock,
   commitments: ClipboardCheck,
+  maintenance: Wrench,
   tasks: CheckSquare,
   goals: Target,
   notes: FileText,
@@ -190,7 +193,7 @@ export function GlobalSearch() {
       </Button>
 
       <CommandDialog open={open} onOpenChange={setOpen}>
-        <CommandInput placeholder="Search inbox, commitments, waiting, tasks, goals..." value={query} onValueChange={setQuery} />
+        <CommandInput placeholder="Search inbox, maintenance, commitments, tasks..." value={query} onValueChange={setQuery} />
         <CommandList className="max-h-[420px]">
           {!hasQuery ? (
             <div className="px-4 py-8 text-center text-sm text-muted-foreground">
