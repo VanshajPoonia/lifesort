@@ -16,14 +16,15 @@ import {
   FileText,
   Flame,
   FolderPlus,
+  Gauge,
   Heart,
   Inbox,
   ListTodo,
   Lightbulb,
   NotebookText,
   PiggyBank,
-  Plus,
   Shield,
+  Sparkles,
   Target,
   TrendingUp,
   Users,
@@ -266,6 +267,44 @@ interface WeeklyReviewPreview {
     habits?: { completed_checkins?: number }
     projects?: { updated?: number }
   }
+}
+
+interface LifeScoreComponent {
+  key: string
+  label: string
+  score: number
+  weight: number
+  status: "supportive" | "steady" | "attention"
+  explanation: string
+  href: string
+}
+
+interface LifeScoreData {
+  score: number
+  label: string
+  previous_score: number | null
+  change: number | null
+  components: LifeScoreComponent[]
+  reasons: string[]
+  top_improvements: Array<{
+    title: string
+    description: string
+    href: string
+    component_key: string
+  }>
+  history: Array<{
+    score_date: string
+    score: number
+    label: string
+  }>
+  unavailable: string[]
+}
+
+interface LifeScoreAiExplanation {
+  summary: string
+  what_helped: string[]
+  gentle_watchouts: string[]
+  next_small_steps: string[]
 }
 
 const emptySources: DashboardSources = {
@@ -519,6 +558,19 @@ function EmptyState({
   )
 }
 
+function lifeScoreStatusClass(status: LifeScoreComponent["status"]) {
+  if (status === "supportive") return "bg-emerald-500"
+  if (status === "steady") return "bg-primary"
+  return "bg-amber-500"
+}
+
+function lifeScoreChangeText(change: number | null) {
+  if (change === null) return "First snapshot"
+  if (change > 0) return `+${change} since last snapshot`
+  if (change < 0) return `${change} since last snapshot`
+  return "Steady since last snapshot"
+}
+
 export default function Home() {
   const { user, loading } = useAuth()
   const router = useRouter()
@@ -536,6 +588,12 @@ export default function Home() {
   const [commitmentsWidget, setCommitmentsWidget] = useState<{ dueSoon: number; atRisk: number; recent: CommitmentItem[] } | null>(null)
   const [maintenanceWidget, setMaintenanceWidget] = useState<{ upcoming: number; overdue: number; recent: MaintenanceItem[] } | null>(null)
   const [resetWidget, setResetWidget] = useState<ResetWidget | null>(null)
+  const [lifeScore, setLifeScore] = useState<LifeScoreData | null>(null)
+  const [lifeScoreLoading, setLifeScoreLoading] = useState(true)
+  const [lifeScoreError, setLifeScoreError] = useState<string | null>(null)
+  const [lifeScoreAi, setLifeScoreAi] = useState<LifeScoreAiExplanation | null>(null)
+  const [lifeScoreAiLoading, setLifeScoreAiLoading] = useState(false)
+  const [lifeScoreAiError, setLifeScoreAiError] = useState<string | null>(null)
   const [dashboardLoading, setDashboardLoading] = useState(true)
   const [errors, setErrors] = useState<Partial<Record<DashboardErrorKey, string>>>({})
   const [milestones, setMilestones] = useState<Array<{ id: string; label: string; title: string; occurred_at: string }>>([])
@@ -550,6 +608,7 @@ export default function Home() {
     if (user) {
       checkOnboarding()
       fetchDashboard()
+      fetchLifeScore()
       fetch("/api/timeline?limit=5")
         .then((r) => r.ok ? r.json() : { events: [] })
         .then((d) => setMilestones(d.events ?? []))
@@ -573,6 +632,42 @@ export default function Home() {
       }
     } catch (error) {
       console.error("Error checking onboarding:", error)
+    }
+  }
+
+  const fetchLifeScore = async () => {
+    setLifeScoreLoading(true)
+    setLifeScoreError(null)
+    try {
+      const response = await fetch("/api/life-score")
+      if (!response.ok) {
+        throw new Error(response.status === 401 ? "Sign in again to load LifeScore." : "LifeScore is unavailable right now.")
+      }
+      const data = await response.json()
+      setLifeScore(data.life_score ?? null)
+    } catch (error) {
+      setLifeScore(null)
+      setLifeScoreError(error instanceof Error ? error.message : "LifeScore is unavailable right now.")
+    } finally {
+      setLifeScoreLoading(false)
+    }
+  }
+
+  const explainLifeScore = async () => {
+    setLifeScoreAiLoading(true)
+    setLifeScoreAiError(null)
+    try {
+      const response = await fetch("/api/ai/life-score", { method: "POST" })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(data.error || "LifeScore explanation is unavailable right now.")
+      }
+      setLifeScoreAi(data.explanation ?? null)
+      if (data.life_score) setLifeScore(data.life_score)
+    } catch (error) {
+      setLifeScoreAiError(error instanceof Error ? error.message : "LifeScore explanation is unavailable right now.")
+    } finally {
+      setLifeScoreAiLoading(false)
     }
   }
 
@@ -1025,6 +1120,138 @@ export default function Home() {
             </div>
           </div>
         )}
+
+        <Card className="border-primary/20">
+          <CardHeader>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Gauge className="h-5 w-5 text-primary" />
+                  LifeScore
+                </CardTitle>
+                <CardDescription>A calm daily signal for how organized your LifeSort system is.</CardDescription>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="gap-2"
+                onClick={explainLifeScore}
+                disabled={lifeScoreAiLoading || lifeScoreLoading || Boolean(lifeScoreError)}
+              >
+                <Sparkles className="h-4 w-4" />
+                {lifeScoreAiLoading ? "Explaining..." : "Explain with AI"}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {lifeScoreLoading ? (
+              <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
+                <Skeleton className="h-32 w-full" />
+                <div className="space-y-3">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-5/6" />
+                  <Skeleton className="h-4 w-4/6" />
+                </div>
+              </div>
+            ) : lifeScoreError ? (
+              <SectionUnavailable label="LifeScore" />
+            ) : lifeScore ? (
+              <div className="space-y-4">
+                <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
+                  <div className="rounded-md border bg-muted/40 p-4">
+                    <div className="flex items-end gap-2">
+                      <p className="text-5xl font-bold leading-none">{lifeScore.score}</p>
+                      <p className="pb-1 text-sm text-muted-foreground">/100</p>
+                    </div>
+                    <Badge variant="secondary" className="mt-3">{lifeScore.label}</Badge>
+                    <p className="mt-2 text-sm text-muted-foreground">{lifeScoreChangeText(lifeScore.change)}</p>
+                    {lifeScore.history.length > 0 && (
+                      <div className="mt-4 flex items-end gap-1">
+                        {lifeScore.history.slice(-10).map((point) => (
+                          <div
+                            key={point.score_date}
+                            className="w-full rounded-t bg-primary/70"
+                            title={`${point.score_date}: ${point.score}`}
+                            style={{ height: `${Math.max(10, Math.round(point.score / 2))}px` }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="grid gap-2 md:grid-cols-2">
+                      {lifeScore.components.map((item) => (
+                        <Link key={item.key} href={item.href} className="rounded-md border p-3 hover:bg-secondary">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="truncate text-sm font-medium">{item.label}</p>
+                            <span className="text-sm font-semibold">{item.score}</span>
+                          </div>
+                          <div className="mt-2 h-2 rounded-full bg-muted">
+                            <div
+                              className={`h-2 rounded-full ${lifeScoreStatusClass(item.status)}`}
+                              style={{ width: `${item.score}%` }}
+                            />
+                          </div>
+                          <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">{item.explanation}</p>
+                        </Link>
+                      ))}
+                    </div>
+                    {lifeScore.unavailable.length > 0 && (
+                      <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+                        Some sources are not included yet: {lifeScore.unavailable.join(", ")}.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <div className="rounded-md border p-3">
+                    <p className="text-sm font-medium">Why it changed</p>
+                    <div className="mt-2 space-y-2">
+                      {lifeScore.reasons.map((reason, index) => (
+                        <p key={`${reason}-${index}`} className="text-sm text-muted-foreground">{reason}</p>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="rounded-md border p-3">
+                    <p className="text-sm font-medium">Top ways to make it easier</p>
+                    <div className="mt-2 space-y-2">
+                      {lifeScore.top_improvements.slice(0, 3).map((item) => (
+                        <Link key={`${item.component_key}-${item.title}`} href={item.href} className="block rounded-md bg-muted/50 p-2 text-sm hover:bg-secondary">
+                          <span className="font-medium">{item.title}</span>
+                          <span className="mt-1 block text-xs text-muted-foreground">{item.description}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {(lifeScoreAi || lifeScoreAiError) && (
+                  <div className="rounded-md border bg-primary/5 p-3">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <Sparkles className="h-4 w-4 text-primary" />
+                      AI explanation
+                    </div>
+                    {lifeScoreAiError ? (
+                      <p className="mt-2 text-sm text-muted-foreground">{lifeScoreAiError}</p>
+                    ) : lifeScoreAi ? (
+                      <div className="mt-2 space-y-3 text-sm text-muted-foreground">
+                        <p>{lifeScoreAi.summary}</p>
+                        {[...lifeScoreAi.what_helped, ...lifeScoreAi.gentle_watchouts, ...lifeScoreAi.next_small_steps].slice(0, 6).map((item, index) => (
+                          <p key={`${item}-${index}`}>- {item}</p>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <EmptyState>LifeScore will appear after your dashboard data is available.</EmptyState>
+            )}
+          </CardContent>
+        </Card>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {dashboardLoading ? (
