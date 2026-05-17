@@ -7,6 +7,14 @@ export interface ModelInfo {
 }
 
 export const AVAILABLE_MODELS: ModelInfo[] = [
+  // ── Free tier ──────────────────────────────────────────────────────────────
+  {
+    id: "google/gemini-2.5-flash-preview:free",
+    name: "Gemini 2.5 Flash",
+    provider: "Google",
+    description: "Google's latest fast model, free",
+    free: true,
+  },
   {
     id: "google/gemini-2.0-flash-exp:free",
     name: "Gemini 2.0 Flash",
@@ -35,6 +43,8 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     description: "Efficient European model, free",
     free: true,
   },
+
+  // ── Paid tier ──────────────────────────────────────────────────────────────
   {
     id: "openai/gpt-4o-mini",
     name: "GPT-4o Mini",
@@ -43,10 +53,17 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     free: false,
   },
   {
-    id: "openai/gpt-4o",
-    name: "GPT-4o",
+    id: "openai/gpt-5",
+    name: "GPT-5",
     provider: "OpenAI",
-    description: "Most capable GPT model",
+    description: "OpenAI's most advanced model",
+    free: false,
+  },
+  {
+    id: "google/gemini-2.5-pro-preview",
+    name: "Gemini 2.5 Pro",
+    provider: "Google",
+    description: "Google's most capable model",
     free: false,
   },
   {
@@ -61,6 +78,13 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     name: "Claude Sonnet 4.5",
     provider: "Anthropic",
     description: "Highly capable, strong reasoning",
+    free: false,
+  },
+  {
+    id: "anthropic/claude-opus-4-5",
+    name: "Claude Opus 4.5",
+    provider: "Anthropic",
+    description: "Anthropic's most powerful model",
     free: false,
   },
 ]
