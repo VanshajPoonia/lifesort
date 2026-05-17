@@ -17,6 +17,23 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-05-18 - DailyPopup Bug Fixes
+
+- Agent/tool used: Claude Code (coding agent mode).
+- Task: Fix three bugs surfaced during the review of `components/daily-popup.tsx`.
+
+#### Files Modified
+- `components/daily-popup.tsx`:
+  1. Restored the early-return guard in `saveContentToHistory` (a previous working-tree edit had removed it). Prevents POSTing empty records to `/api/daily-content` when an AI response is malformed.
+  2. Added a `MalformedContent` fallback component shown for `trivia` without `options` and `would_you_rather` missing either option. Previously the popup rendered a blank body. The fallback includes a "Try Again" button that re-fetches that specific content type.
+  3. Added `wyrTimeoutRef` (`useRef`) to track the 1000ms auto-close `setTimeout` in `handleWyrChoice`. Cleared on manual close, on unmount, and before scheduling a new one. Prevents `handleClose()` from firing twice if the user closes the dialog manually within the 1s window.
+
+#### Commands Run
+- `npx tsc --noEmit` → passes (no output)
+
+#### Notes
+- The pre-existing working-tree change in `saveContentToHistory` (inline expression replacing `safeContent` + guard) was reverted to HEAD's safer pattern. If that removal was intentional, it can be re-applied — but the guard is genuinely useful and there's no comment explaining why it was dropped.
+
 ### 2026-05-18 - API Body Validation + Missing Schema Indexes
 
 - Agent/tool used: Claude Code (coding agent mode).

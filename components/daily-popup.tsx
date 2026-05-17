@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import Link from "next/link"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -125,6 +125,22 @@ interface DailyContent {
   }
 }
 
+function MalformedContent({ label, onRetry }: { label: string; onRetry: () => void }) {
+  return (
+    <div className="space-y-4 py-2">
+      <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/20">
+        <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">
+          We couldn&apos;t generate a {label} this time. Give it another try.
+        </p>
+      </div>
+      <Button variant="outline" className="w-full" onClick={onRetry}>
+        <RefreshCw className="mr-2 h-4 w-4" />
+        Try Again
+      </Button>
+    </div>
+  )
+}
+
 const CONTENT_TYPES = [
   { type: "quote", icon: Quote, label: "Quote", color: "text-primary" },
   { type: "joke", icon: Laugh, label: "Joke", color: "text-amber-500" },
@@ -149,6 +165,7 @@ export function DailyPopup() {
   const [activeGame, setActiveGame] = useState<"wordle" | "snake" | null>(null)
   const [hintLevel, setHintLevel] = useState(0)
   const [attempts, setAttempts] = useState(0)
+  const wyrTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Generate current hint based on hint level
   const currentHint = useMemo(() => {
@@ -158,6 +175,12 @@ export function DailyPopup() {
 
   useEffect(() => {
     checkDailyContent()
+    return () => {
+      if (wyrTimeoutRef.current) {
+        clearTimeout(wyrTimeoutRef.current)
+        wyrTimeoutRef.current = null
+      }
+    }
   }, [])
 
   const checkDailyContent = async () => {
@@ -353,6 +376,10 @@ export function DailyPopup() {
   }
 
   const handleClose = () => {
+    if (wyrTimeoutRef.current) {
+      clearTimeout(wyrTimeoutRef.current)
+      wyrTimeoutRef.current = null
+    }
     setIsOpen(false)
     resetState()
   }
@@ -577,8 +604,11 @@ export function DailyPopup() {
       )
     }
 
-// Trivia
-    if (content.content_type === "trivia" && content.extra_data?.options) {
+    // Trivia
+    if (content.content_type === "trivia") {
+      if (!content.extra_data?.options || content.extra_data.options.length === 0) {
+        return <MalformedContent label="trivia question" onRetry={() => fetchAIContent("trivia")} />
+      }
       return (
         <div className="space-y-4">
           {/* Question with engaging styling */}
@@ -651,11 +681,16 @@ export function DailyPopup() {
     }
 
     // Would You Rather
-    if (content.content_type === "would_you_rather" && content.extra_data?.option_a) {
+    if (content.content_type === "would_you_rather") {
+      if (!content.extra_data?.option_a || !content.extra_data?.option_b) {
+        return <MalformedContent label="would-you-rather prompt" onRetry={() => fetchAIContent("would_you_rather")} />
+      }
       const handleWyrChoice = (choice: "a" | "b") => {
         setWyrChoice(choice)
         // Auto-close after showing the confirmation briefly
-        setTimeout(() => {
+        if (wyrTimeoutRef.current) clearTimeout(wyrTimeoutRef.current)
+        wyrTimeoutRef.current = setTimeout(() => {
+          wyrTimeoutRef.current = null
           handleClose()
         }, 1000)
       }
