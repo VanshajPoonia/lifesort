@@ -29,6 +29,7 @@ const DEFAULT_SIDEBAR_SECTIONS = {
   custom_sections: true,
   ai_assistant: true,
   capture: true,
+  templates: true,
 }
 
 export async function GET() {

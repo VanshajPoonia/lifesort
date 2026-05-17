@@ -78,6 +78,7 @@ const DEFAULT_SIDEBAR_PREFS = {
   ai_assistant: true,
   habits: true,
   capture: true,
+  templates: true,
 }
 
 // Module-level cache — persists across client-side navigations so the
@@ -442,6 +443,14 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
                 <Button variant={isActivePath("/capture") ? "secondary" : "ghost"} className={navButtonClass("/capture")}>
                   <Wand2 className={navIconClass("/capture")} />
                   AI Capture
+                </Button>
+              </Link>
+            )}
+            {prefs.templates && (
+              <Link href="/templates">
+                <Button variant={isActivePath("/templates") ? "secondary" : "ghost"} className={navButtonClass("/templates")}>
+                  <Sparkles className={navIconClass("/templates")} />
+                  Smart Templates
                 </Button>
               </Link>
             )}

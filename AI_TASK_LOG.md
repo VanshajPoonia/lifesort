@@ -17,6 +17,60 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-05-17 - Smart Templates Feature
+
+- Agent/tool used: Claude Code (coding agent mode).
+- Task summary: Added `/templates` page with 10 pre-designed life system templates. Users preview all items before creation; nothing writes to the database until explicit confirmation. Template application calls existing CRUD APIs sequentially — no new backend route.
+
+#### Files Created
+- `lib/templates.ts` — `TemplateItem` discriminated union type, `Template` type, `TEMPLATES` array (10 templates), `ENDPOINT_MAP`, `buildPayload()` helper that strips the type discriminant and injects `type: "category"` for budget category API.
+- `app/templates/page.tsx` — Client component. Template grid (3-column, responsive). Per-card: gradient accent bar, icon, description, computed type-count badges ("2 goals", "3 tasks", etc.), "Preview & Apply" button. Preview dialog shows items grouped by type with colored badges. Apply state replaces preview with per-item status (spinner → check/X). Post-apply shows success count. No writes until user clicks "Create this system".
+
+#### Files Modified
+- `components/dashboard-layout.tsx` — Added `templates: true` to `DEFAULT_SIDEBAR_PREFS`; added "Smart Templates" nav link using `Sparkles` icon after "AI Capture".
+- `app/api/sidebar-preferences/route.ts` — Added `templates: true` to `DEFAULT_SIDEBAR_SECTIONS`.
+- `app/settings/page.tsx` — Added `templates: true` to `sidebarPrefs` state; added `{ id: "templates", label: "Smart Templates", icon: Sparkles, description: "..." }` to sidebar items list.
+- `AI_PROJECT.md` — Added Smart Templates to implemented features.
+
+#### Template Coverage (10 templates, 8 item types)
+| Template | Items |
+|---|---|
+| Student Semester | project, 2 goals, 3 tasks, 2 habits, 2 notes |
+| Fitness Transformation | project, 3 goals, 3 tasks, 3 habits, 2 notes |
+| Job Search | project, 2 goals, 4 tasks, 2 habits, 3 notes |
+| Business Launch | project, 2 goals, 4 tasks, 2 habits, 2 notes, 1 budget category, 1 vault item |
+| Budget Reset | 2 goals, 3 tasks, 2 habits, 3 budget categories, 1 vault item |
+| Travel Plan | project, 1 goal, 4 tasks, 1 habit, 3 notes, 1 budget category, 1 vault item |
+| Learning Roadmap | project, 2 goals, 3 tasks, 2 habits, 3 notes, 1 custom section |
+| Content Creator Planner | project, 2 goals, 3 tasks, 3 habits, 3 notes, 1 custom section |
+| Home Management | project, 1 goal, 3 tasks, 2 habits, 2 notes, 2 budget categories, 2 vault items |
+| Reading List | 2 goals, 2 tasks, 2 habits, 3 notes, 1 custom section |
+
+#### API Payload Notes
+- `budget_category` → `POST /api/budget` with `{ type: "category", name, budget_limit, color }` — the API discriminates on `type: "category"`.
+- All other types strip the TypeScript discriminant and POST remaining fields to their respective endpoints.
+- `life_area_id` is intentionally omitted from template items (templates are generic, not tied to a user's specific life areas).
+
+#### TypeScript Error Fixed
+- First tsc run: `error TS2613` — `DashboardLayout` is a named export, not a default export. Fixed `import DashboardLayout` → `import { DashboardLayout }`.
+- Second tsc run: 0 errors.
+
+#### Commands Run
+- `npx tsc --noEmit` → 0 errors (after fixing named import)
+- `npm run build` → passed, `/templates` in route output (8.14 kB, 92 routes total)
+
+#### Remaining Limitations
+- No browser/manual smoke test — requires a live database with the logged-in session to call CRUD APIs.
+- If a budget category API call fails (e.g., due to missing table schema), the failure is shown per-item in the dialog. The user can retry manually via `/budget`.
+- Templates are static code definitions — there is no user-facing way to edit, rename, or build custom templates. If this is needed later, it would require a `templates` database table and CRUD flow.
+- `life_area_id` is not set by templates — all template-created items are unassigned to a life area. Users can assign them after creation.
+- Template-created notes have starter content but users should replace it with their own.
+
+#### Suggested Next Steps
+- Smoke-test by navigating to `/templates` → click "Preview & Apply" on Student Semester → verify items appear in /tasks, /goals, /habits, /notes.
+- Consider adding a "Used this template" counter or a way to mark a template as applied.
+- Consider adding a compact dashboard widget linking to /templates for new users.
+
 ### 2026-05-17 - AI Safety and Regression Checkpoint
 
 - Agent/tool used: Claude Code (reviewer + coding agent mode).

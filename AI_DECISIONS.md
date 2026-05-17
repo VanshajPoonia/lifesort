@@ -73,6 +73,14 @@ Architecture and product decision memory for LifeSort.
 - Zod (`"zod": "3.25.76"`) is available in the repo and is now used in the capture endpoint. Future AI endpoints that need structured output validation should use Zod rather than manual type checks.
 - AI Life Balance Insights (`/api/ai/life-balance`) differs from the client-sends-data pattern: GET and POST both derive user-scoped aggregate metrics server-side from Life Areas, tasks, goals, habits, projects, notes, budget, and recent weekly review reflections. The AI prompt receives aggregate counts plus short reflection snippets, not task titles or note content. The endpoint is read-only; suggested actions are returned as draft task suggestions and are only created by the `/insights` client after the user confirms.
 
+## Template and Static Data Decisions
+
+- Smart Templates are defined as static TypeScript data in `lib/templates.ts`, not as database rows. There is no `templates` database table. Templates are arrays of `TemplateItem` union types with a `buildPayload()` helper that maps each item type to the correct API payload shape.
+- Template application is client-side: the `/templates` page iterates `template.items` and POSTs each to its existing CRUD endpoint sequentially. This reuses all existing validation and auth logic on those endpoints without a new API route.
+- `budget_category` items require `type: "category"` as a discriminator in the `/api/budget` POST body; `buildPayload()` injects this. All other types strip the TypeScript discriminant before sending.
+- `life_area_id` is intentionally omitted from template definitions — templates are generic and not tied to a user's specific life areas. Users assign life areas after creation.
+- If template storage or user-editable templates are needed in the future, introduce a `templates` table and CRUD route. Do not try to repurpose the existing `custom_sections` table.
+
 ## UI and Component Decisions
 
 - App pages generally render inside `DashboardLayout`.

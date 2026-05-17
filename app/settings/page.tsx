@@ -126,6 +126,7 @@ export default function SettingsPage() {
     daily_content: true,
     ai_assistant: true,
     capture: true,
+    templates: true,
   })
 
   useEffect(() => {
@@ -493,6 +494,7 @@ export default function SettingsPage() {
                   { id: "daily_content", label: "Daily Quotes & Games", icon: Sparkles, description: "Daily quotes, jokes, games" },
                   { id: "ai_assistant", label: "AI Assistant", icon: Sparkles, description: "AI chat assistant" },
                   { id: "capture", label: "AI Capture", icon: Wand2, description: "Parse natural language into tasks, goals, habits, and more" },
+                  { id: "templates", label: "Smart Templates", icon: Sparkles, description: "Ready-made life systems you can apply in one click" },
                 ].map(({ id, label, icon: Icon, description }) => (
                   <div
                     key={id}
