@@ -236,6 +236,7 @@ const apiEndpoints: Record<DashboardApiKey, string> = {
 }
 
 const quickActions = [
+  { title: "Capture inbox", href: "/inbox", icon: Inbox },
   { title: "Add task", href: "/tasks", icon: ListTodo },
   { title: "Add goal", href: "/goals", icon: Target },
   { title: "Add project", href: "/projects", icon: FolderPlus },
