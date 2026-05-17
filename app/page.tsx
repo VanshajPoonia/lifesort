@@ -16,6 +16,7 @@ import {
   Flame,
   FolderPlus,
   Heart,
+  Inbox,
   ListTodo,
   NotebookText,
   PiggyBank,
@@ -157,6 +158,15 @@ interface Project {
   updated_at?: string | null
   created_at?: string | null
   life_area_id?: string | number | null
+}
+
+interface InboxItem {
+  id: number | string
+  title: string
+  raw_text?: string | null
+  status?: string | null
+  updated_at?: string | null
+  created_at?: string | null
 }
 
 interface DashboardSources {
@@ -414,6 +424,7 @@ export default function Home() {
   const [habitsToday, setHabitsToday] = useState<{ total: number; done: number; streak: number } | null>(null)
   const [peopleWidget, setPeopleWidget] = useState<{ birthdays: number; followUps: number; total: number } | null>(null)
   const [vaultWidget, setVaultWidget] = useState<{ expiringSoon: number; total: number } | null>(null)
+  const [inboxWidget, setInboxWidget] = useState<{ total: number; recent: InboxItem[] } | null>(null)
   const [dashboardLoading, setDashboardLoading] = useState(true)
   const [errors, setErrors] = useState<Partial<Record<DashboardErrorKey, string>>>({})
   const [milestones, setMilestones] = useState<Array<{ id: string; label: string; title: string; occurred_at: string }>>([])
