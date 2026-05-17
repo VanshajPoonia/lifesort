@@ -53,6 +53,7 @@ import {
   Inbox,
   Lightbulb,
   RefreshCcw,
+  Settings2,
 } from "lucide-react"
 import {
   Accordion,
@@ -112,6 +113,7 @@ export default function SettingsPage() {
   const [sidebarPrefs, setSidebarPrefs] = useState({
     dashboard: true,
     reset: true,
+    rules: true,
     someday: true,
     inbox: true,
     waiting: true,
@@ -488,6 +490,7 @@ export default function SettingsPage() {
                 {[
                   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, description: "Main dashboard view" },
                   { id: "reset", label: "Reset My Life", icon: RefreshCcw, description: "Overwhelm recovery and safe bulk triage" },
+                  { id: "rules", label: "Operating Rules", icon: Settings2, description: "Visible preferences AI planning features can use" },
                   { id: "someday", label: "Someday / Maybe", icon: Lightbulb, description: "Low-pressure ideas and possibilities" },
                   { id: "inbox", label: "Inbox", icon: Inbox, description: "Universal capture queue for unsorted thoughts" },
                   { id: "waiting", label: "Waiting For", icon: Clock, description: "Follow-ups, approvals, refunds, deliveries, and replies" },
