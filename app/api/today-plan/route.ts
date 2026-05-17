@@ -14,6 +14,9 @@ type FocusItem = {
   custom: boolean
 }
 
+const energyLevels = new Set(["low", "medium", "high"])
+const dayTypes = new Set(["normal", "busy", "travel", "sick", "school", "work-heavy", "recovery"])
+
 const sourceTypes = new Set([
   "task",
   "goal",
@@ -49,6 +52,28 @@ function toNumber(value: unknown) {
   return Number.isFinite(parsed) ? parsed : 0
 }
 
+function cleanEnergyLevel(value: unknown) {
+  const normalized = text(value, "medium").toLowerCase()
+  return energyLevels.has(normalized) ? normalized : "medium"
+}
+
+function cleanDayType(value: unknown) {
+  const normalized = text(value, "normal").toLowerCase()
+  return dayTypes.has(normalized) ? normalized : "normal"
+}
+
+function cleanFocusMinutes(value: unknown) {
+  if (value === null || value === undefined || value === "") return null
+  const parsed = Number.parseInt(String(value), 10)
+  if (!Number.isFinite(parsed)) return null
+  return Math.max(0, Math.min(1440, parsed))
+}
+
+function cleanMood(value: unknown) {
+  const mood = text(value)
+  return mood ? mood.slice(0, 120) : ""
+}
+
 function normalizeFocusItems(value: unknown): FocusItem[] {
   if (!Array.isArray(value)) return []
 
@@ -75,6 +100,63 @@ function normalizeFocusItems(value: unknown): FocusItem[] {
       }
     })
     .filter((item): item is FocusItem => Boolean(item))
+}
+
+function baseRecommendedFocus(energyLevel: string) {
+  if (energyLevel === "low") return 1
+  if (energyLevel === "high") return 3
+  return 2
+}
+
+function deriveCapacitySummary(input: {
+  energyLevel: string
+  availableFocusMinutes: number | null
+  dayType: string
+  focusCount: number
+  dueOrOverdueTasks: number
+  highPriorityDueTasks: number
+}) {
+  let recommendedFocusCount = baseRecommendedFocus(input.energyLevel)
+  if (input.availableFocusMinutes !== null) {
+    if (input.availableFocusMinutes < 60) recommendedFocusCount = Math.min(recommendedFocusCount, 1)
+    else if (input.availableFocusMinutes < 120) recommendedFocusCount = Math.min(recommendedFocusCount, 2)
+  }
+
+  if (["busy", "travel", "sick", "recovery"].includes(input.dayType)) {
+    recommendedFocusCount = Math.min(recommendedFocusCount, 2)
+  }
+
+  const estimatedTaskCapacity =
+    input.availableFocusMinutes === null
+      ? recommendedFocusCount + 2
+      : Math.max(1, Math.min(8, Math.floor(input.availableFocusMinutes / 45)))
+
+  const warnings: Array<{ type: string; message: string }> = []
+  if (input.focusCount > recommendedFocusCount) {
+    warnings.push({
+      type: "focus_count",
+      message: `You picked ${input.focusCount} focus items; ${recommendedFocusCount} may fit better today.`,
+    })
+  }
+  if (input.dueOrOverdueTasks > estimatedTaskCapacity) {
+    warnings.push({
+      type: "task_load",
+      message: `${input.dueOrOverdueTasks} due or overdue tasks may be too much for the focus time available.`,
+    })
+  }
+  if (input.highPriorityDueTasks >= 3) {
+    warnings.push({
+      type: "high_priority",
+      message: `${input.highPriorityDueTasks} high-priority due or overdue items may make today feel overloaded.`,
+    })
+  }
+
+  return {
+    recommended_focus_count: recommendedFocusCount,
+    estimated_task_capacity: estimatedTaskCapacity,
+    overload: warnings.length > 0,
+    warnings,
+  }
 }
 
 async function safeRows(label: string, query: Promise<Row[]>, unavailable?: string[]): Promise<Row[]> {
@@ -399,6 +481,7 @@ async function getDerivedCandidates(userId: string, planDate: string) {
       calendarToday: todayEvents.length,
       quickNotes: recentNotes.length,
       dueOrOverdueTasks: overdueTasks.length + todayTasks.length,
+      highPriorityDueTasks: [...overdueTasks, ...todayTasks].filter((task) => task.priority === "high").length,
     },
   }
 }
@@ -424,17 +507,31 @@ export async function GET(request: Request) {
     id: savedPlan?.id ? String(savedPlan.id) : null,
     plan_date: planDate,
     focus_items: normalizeFocusItems(savedPlan?.focus_items),
+    energy_level: cleanEnergyLevel(savedPlan?.energy_level),
+    available_focus_minutes: cleanFocusMinutes(savedPlan?.available_focus_minutes),
+    mood: cleanMood(savedPlan?.mood),
+    day_type: cleanDayType(savedPlan?.day_type),
     reflection_went_well: savedPlan?.reflection_went_well || "",
     reflection_did_not_go_well: savedPlan?.reflection_did_not_go_well || "",
     reflection_improve_tomorrow: savedPlan?.reflection_improve_tomorrow || "",
   }
+  const capacity = deriveCapacitySummary({
+    energyLevel: plan.energy_level,
+    availableFocusMinutes: plan.available_focus_minutes,
+    dayType: plan.day_type,
+    focusCount: plan.focus_items.length,
+    dueOrOverdueTasks: candidates.summary.dueOrOverdueTasks,
+    highPriorityDueTasks: candidates.summary.highPriorityDueTasks,
+  })
 
   return NextResponse.json({
     plan,
     candidates,
+    capacity,
     summary: {
       focusItems: plan.focus_items.length,
       dueOrOverdueTasks: candidates.summary.dueOrOverdueTasks,
+      highPriorityDueTasks: candidates.summary.highPriorityDueTasks,
       calendarToday: candidates.summary.calendarToday,
     },
   })
@@ -454,6 +551,10 @@ export async function PUT(request: Request) {
     }
 
     const focusItems = normalizeFocusItems(body.focus_items)
+    const energyLevel = cleanEnergyLevel(body.energy_level)
+    const availableFocusMinutes = cleanFocusMinutes(body.available_focus_minutes)
+    const mood = cleanMood(body.mood)
+    const dayType = cleanDayType(body.day_type)
     const reflectionWentWell = text(body.reflection_went_well)
     const reflectionDidNotGoWell = text(body.reflection_did_not_go_well)
     const reflectionImproveTomorrow = text(body.reflection_improve_tomorrow)
@@ -463,6 +564,10 @@ export async function PUT(request: Request) {
         user_id,
         plan_date,
         focus_items,
+        energy_level,
+        available_focus_minutes,
+        mood,
+        day_type,
         reflection_went_well,
         reflection_did_not_go_well,
         reflection_improve_tomorrow
@@ -471,6 +576,10 @@ export async function PUT(request: Request) {
         ${user.id},
         ${planDate},
         ${JSON.stringify(focusItems)}::jsonb,
+        ${energyLevel},
+        ${availableFocusMinutes},
+        ${mood || null},
+        ${dayType},
         ${reflectionWentWell || null},
         ${reflectionDidNotGoWell || null},
         ${reflectionImproveTomorrow || null}
@@ -478,6 +587,10 @@ export async function PUT(request: Request) {
       ON CONFLICT (user_id, plan_date)
       DO UPDATE SET
         focus_items = EXCLUDED.focus_items,
+        energy_level = EXCLUDED.energy_level,
+        available_focus_minutes = EXCLUDED.available_focus_minutes,
+        mood = EXCLUDED.mood,
+        day_type = EXCLUDED.day_type,
         reflection_went_well = EXCLUDED.reflection_went_well,
         reflection_did_not_go_well = EXCLUDED.reflection_did_not_go_well,
         reflection_improve_tomorrow = EXCLUDED.reflection_improve_tomorrow,
@@ -490,6 +603,10 @@ export async function PUT(request: Request) {
         ...rows[0],
         id: String(rows[0].id),
         focus_items: normalizeFocusItems(rows[0].focus_items),
+        energy_level: cleanEnergyLevel(rows[0].energy_level),
+        available_focus_minutes: cleanFocusMinutes(rows[0].available_focus_minutes),
+        mood: cleanMood(rows[0].mood),
+        day_type: cleanDayType(rows[0].day_type),
         reflection_went_well: rows[0].reflection_went_well || "",
         reflection_did_not_go_well: rows[0].reflection_did_not_go_well || "",
         reflection_improve_tomorrow: rows[0].reflection_improve_tomorrow || "",

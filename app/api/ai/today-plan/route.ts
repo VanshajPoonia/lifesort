@@ -29,6 +29,15 @@ type InputHabit = { id?: unknown; name?: unknown; done?: unknown }
 
 type TodayPlanInput = {
   plan_date?: unknown
+  capacity?: {
+    energy_level?: unknown
+    available_focus_minutes?: unknown
+    mood?: unknown
+    day_type?: unknown
+    recommended_focus_count?: unknown
+    overload?: unknown
+    warnings?: Array<{ message?: unknown }>
+  }
   must_do?: InputItem[]
   should_do?: InputItem[]
   could_do?: InputItem[]
@@ -48,6 +57,35 @@ function formatItem(item: InputItem): string {
   const subtitle = item.subtitle ? ` (${safeStr(item.subtitle, 60)})` : ""
   const date = item.date ? ` · due ${safeStr(item.date, 12)}` : ""
   return `- [${id}] ${title}${subtitle}${date}`
+}
+
+function capacityLine(data: TodayPlanInput) {
+  const capacity = data.capacity
+  if (!capacity || typeof capacity !== "object") return "No capacity details saved yet."
+  const energy = safeStr(capacity.energy_level, 20) || "medium"
+  const minutes =
+    typeof capacity.available_focus_minutes === "number"
+      ? `${capacity.available_focus_minutes} minutes`
+      : typeof capacity.available_focus_minutes === "string" && capacity.available_focus_minutes
+        ? `${safeStr(capacity.available_focus_minutes, 20)} minutes`
+        : "not set"
+  const mood = safeStr(capacity.mood, 80) || "not set"
+  const dayType = safeStr(capacity.day_type, 40) || "normal"
+  const recommended =
+    typeof capacity.recommended_focus_count === "number"
+      ? capacity.recommended_focus_count
+      : Number.parseInt(String(capacity.recommended_focus_count || 0), 10)
+  const warnings = Array.isArray(capacity.warnings)
+    ? capacity.warnings.map((warning) => safeStr(warning.message, 160)).filter(Boolean).slice(0, 3)
+    : []
+  return [
+    `Energy: ${energy}`,
+    `Available focus time: ${minutes}`,
+    `Mood: ${mood}`,
+    `Day type: ${dayType}`,
+    `Recommended focus count from capacity: ${Number.isFinite(recommended) && recommended > 0 ? recommended : "not set"}`,
+    warnings.length ? `Overload warnings: ${warnings.join(" | ")}` : "Overload warnings: none",
+  ].join("\n")
 }
 
 function buildPrompt(planDate: string, data: TodayPlanInput, rulesContextPreview: string, maxFocusItems: number): string {
@@ -76,6 +114,9 @@ Today: ${planDate} (${dow})
 
 VISIBLE PERSONAL OPERATING RULES AND PREFERENCES:
 ${rulesContextPreview}
+
+TODAY'S ENERGY AND CAPACITY:
+${capacityLine(data)}
 
 MUST DO — overdue or high-priority items due today:
 ${mustDoLines}
@@ -114,6 +155,7 @@ Return ONLY valid JSON. No markdown, no code fences:
 
 Rules:
 - top_priorities: 1–${maxFocusItems} items only. Prioritise MUST DO first, then CALENDAR. Use the exact bracket IDs from the input.
+- Respect today's energy and capacity. On low-energy, busy, travel, sick, or recovery days, choose fewer priorities and suggest a lighter schedule.
 - schedule_blocks: exactly 3 (Morning, Afternoon, Evening). Name specific items in each suggestion.
 - defer: 0–3 items the user should skip today. Exact IDs from input. Empty array if none.
 - risks: 0–3 short warnings. Empty array if no concerns.
@@ -222,7 +264,15 @@ export async function POST(req: Request) {
 
   try {
     const rulesContext = await getPersonalRulesContext(user.id)
-    const maxFocusItems = Math.min(3, Math.max(1, rulesContext.preferences.max_daily_focus_items))
+    const capacityRecommendation =
+      typeof data.capacity?.recommended_focus_count === "number"
+        ? data.capacity.recommended_focus_count
+        : Number.parseInt(String(data.capacity?.recommended_focus_count || 0), 10)
+    const maxFocusItems = Math.min(
+      3,
+      Math.max(1, rulesContext.preferences.max_daily_focus_items),
+      Number.isFinite(capacityRecommendation) && capacityRecommendation > 0 ? capacityRecommendation : 3,
+    )
     const prompt = buildPrompt(plan_date, data, rulesContext.preview, maxFocusItems)
 
     const { text } = await generateText({
