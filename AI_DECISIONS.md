@@ -65,6 +65,8 @@ Architecture and product decision memory for LifeSort.
 - Global search intentionally catches per-source query failures and returns partial results.
 - Dashboard aggregation exists both on the client dashboard page and in `/api/dashboard`.
 - AI text routes use OpenRouter through `@ai-sdk/openai` with explicit model allowlists and main `getUserFromSession()` auth. Groq remains limited to investment screenshot parsing.
+- AI Weekly Summary (`/api/ai/weekly-summary`) uses a client-sends-data pattern: the review page loads week metrics from `/api/weekly-review` and POSTs the already-loaded `summary` object to the AI endpoint. This avoids a second DB query and follows the same trust model as `/api/chat` (client sends messages). Since the endpoint is read-only (no DB writes), there is no security concern from client-provided data. Future AI features that are read-only can follow this pattern.
+- New AI endpoints live under `app/api/ai/` to separate them from CRUD routes. Each must require session auth, check `OPENROUTER_API_KEY`, and use `checkAiUsageLimit`/`createAiUsageEvent`/`updateAiUsageEvent` from `lib/ai-usage.ts`.
 
 ## UI and Component Decisions
 

@@ -16,6 +16,7 @@ import {
   Loader2,
   Network,
   Save,
+  Sparkles,
   Target,
   Trophy,
   Wallet,
@@ -78,6 +79,15 @@ type WeeklyReviewResponse = {
   review: Review
   history: HistoryReview[]
   summary: WeeklySummary
+}
+
+type AiSummaryResult = {
+  summary: string
+  wins: string[]
+  risks: string[]
+  ignored_areas: string[]
+  next_week_focus: string
+  next_actions: string[]
 }
 
 const emptyReview: Review = {
@@ -177,6 +187,9 @@ export default function WeeklyReviewPage() {
   const [saving, setSaving] = useState(false)
   const [saveState, setSaveState] = useState<"idle" | "saved" | "failed">("idle")
   const [error, setError] = useState("")
+  const [aiSummary, setAiSummary] = useState<AiSummaryResult | null>(null)
+  const [generatingAi, setGeneratingAi] = useState(false)
+  const [aiError, setAiError] = useState("")
 
   useEffect(() => {
     if (!loading && !user) {
@@ -248,6 +261,44 @@ export default function WeeklyReviewPage() {
     }
   }
 
+  const generateAiSummary = async () => {
+    if (!summary || generatingAi) return
+    setGeneratingAi(true)
+    setAiError("")
+    setAiSummary(null)
+
+    try {
+      const response = await fetch("/api/ai/weekly-summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ week_start: summary.week_start, summary }),
+      })
+      const data = await response.json().catch(() => null)
+      if (!response.ok) {
+        throw new Error(data?.error || "AI summary failed")
+      }
+      setAiSummary(data.result)
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : "AI summary failed")
+    } finally {
+      setGeneratingAi(false)
+    }
+  }
+
+  const applyAiToReflections = () => {
+    if (!aiSummary) return
+    const nextWeekContent = aiSummary.next_actions.length > 0
+      ? `${aiSummary.next_week_focus}\n\nNext actions:\n${aiSummary.next_actions.map((a, i) => `${i + 1}. ${a}`).join("\n")}`
+      : aiSummary.next_week_focus
+    setReview((current) => ({
+      ...current,
+      reflection_wins: aiSummary.wins.join("\n"),
+      reflection_challenges: aiSummary.risks.join("\n"),
+      reflection_next_week_focus: nextWeekContent,
+    }))
+    setSaveState("idle")
+  }
+
   const statusLabel = useMemo(() => {
     if (saving) return "Saving..."
     if (saveState === "saved") return "Saved"
@@ -279,6 +330,15 @@ export default function WeeklyReviewPage() {
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <Badge variant={saveState === "failed" ? "destructive" : "outline"}>{statusLabel}</Badge>
+            <Button
+              onClick={generateAiSummary}
+              disabled={generatingAi || loadingReview || !summary}
+              variant="outline"
+              className="gap-2"
+            >
+              {generatingAi ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              AI Summary
+            </Button>
             <Button onClick={saveReview} disabled={saving || loadingReview} className="gap-2">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               Save Review
@@ -392,6 +452,103 @@ export default function WeeklyReviewPage() {
                 </div>
               </div>
             ) : null}
+
+            {(generatingAi || aiSummary || aiError) && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-primary" />
+                    AI Weekly Summary
+                  </CardTitle>
+                  <CardDescription>
+                    AI-generated from numeric activity data. Does not modify your records.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {generatingAi && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Analyzing your week...
+                    </div>
+                  )}
+                  {aiError && !generatingAi && (
+                    <div className="text-sm text-destructive">{aiError}</div>
+                  )}
+                  {aiSummary && !generatingAi && (
+                    <div className="space-y-4">
+                      <p className="text-sm">{aiSummary.summary}</p>
+
+                      {aiSummary.wins.length > 0 && (
+                        <div>
+                          <p className="mb-2 text-sm font-medium text-green-600 dark:text-green-400">Wins</p>
+                          <ul className="space-y-1">
+                            {aiSummary.wins.map((win, i) => (
+                              <li key={i} className="flex items-start gap-2 text-sm">
+                                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-500" />
+                                {win}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {aiSummary.risks.length > 0 && (
+                        <div>
+                          <p className="mb-2 text-sm font-medium text-destructive">Risks</p>
+                          <ul className="space-y-1">
+                            {aiSummary.risks.map((risk, i) => (
+                              <li key={i} className="flex items-start gap-2 text-sm">
+                                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                                {risk}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {aiSummary.ignored_areas.length > 0 && (
+                        <div>
+                          <p className="mb-2 text-sm font-medium text-muted-foreground">Ignored Areas</p>
+                          <div className="flex flex-wrap gap-2">
+                            {aiSummary.ignored_areas.map((area, i) => (
+                              <Badge key={i} variant="outline">{area}</Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div>
+                        <p className="mb-1 text-sm font-medium">Next Week Focus</p>
+                        <p className="text-sm text-muted-foreground">{aiSummary.next_week_focus}</p>
+                      </div>
+
+                      {aiSummary.next_actions.length > 0 && (
+                        <div>
+                          <p className="mb-2 text-sm font-medium">Next Actions</p>
+                          <ol className="space-y-1">
+                            {aiSummary.next_actions.map((action, i) => (
+                              <li key={i} className="flex items-start gap-2 text-sm">
+                                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                                  {i + 1}
+                                </span>
+                                {action}
+                              </li>
+                            ))}
+                          </ol>
+                        </div>
+                      )}
+
+                      <div className="flex justify-end border-t pt-4">
+                        <Button onClick={applyAiToReflections} variant="outline" size="sm" className="gap-2">
+                          <ArrowRight className="h-4 w-4" />
+                          Apply to Reflections
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             <div className="grid gap-6 lg:grid-cols-2">
               <Card>

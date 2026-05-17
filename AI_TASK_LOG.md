@@ -17,6 +17,44 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-05-17 - AI Weekly Summary Feature
+
+- Agent/tool used: Claude Code (coding agent mode).
+- Task summary: Added an AI-powered "Generate AI Summary" button to the Weekly Review page that analyzes the already-loaded week data and returns a structured summary (wins, risks, ignored areas, next-week focus, 3 next actions). AI is read-only — it never writes to any user table.
+- Files added:
+  - `app/api/ai/weekly-summary/route.ts` — authenticated POST endpoint. Accepts `{ week_start, summary }` from client. Rate-limited to 5/day via `ai_usage_events`. Builds a privacy-safe prompt (numbers and life area names only, no personal content), calls `generateText` via OpenRouter (`google/gemini-2.0-flash-exp:free`), parses and validates structured JSON response, returns `{ result, remaining }`.
+- Files modified:
+  - `lib/ai-usage.ts` — Added `"weekly_summary"` to `AiUsageRoute` union type and `weekly_summary: 5` to `DAILY_LIMITS`.
+  - `app/review/page.tsx` — Added `AiSummaryResult` type, `aiSummary`/`generatingAi`/`aiError` state, `generateAiSummary()` function, `applyAiToReflections()` function (fills `reflection_wins`, `reflection_challenges`, `reflection_next_week_focus` from AI result), "AI Summary" button in page header, conditional AI Summary card with wins/risks/ignored-areas/focus/actions display and "Apply to Reflections" button. Added `Sparkles` lucide import.
+- Data sent to AI:
+  - Week date range.
+  - Numeric counts: tasks completed/overdue/touched, goals progressed/deadlines, habits completed/check-ins, projects updated/overdue, notes created/updated, finance income/expenses/net/transactions, budget categories near limit (category name + % used), life area names + activity counts.
+  - No personal content (no task titles, note text, person names, goal descriptions).
+- Privacy safeguards:
+  - Prompt explicitly instructs AI: "Only reference the numbers above. Do NOT invent details."
+  - AI result is displayed but never auto-saved; user must click "Apply to Reflections" and then "Save Review."
+  - Usage is capped at 5/day per user via `ai_usage_events` table (degrades gracefully if table is missing).
+  - Endpoint requires session auth; all data is user-scoped.
+  - Endpoint returns 503 if `OPENROUTER_API_KEY` is not configured.
+- Usage limits:
+  - 5 summaries/day per user (stored in `ai_usage_events` with `route = 'weekly_summary'`).
+  - 429 response with `{ error, limit, used, remaining }` when exceeded.
+- Commands run:
+  - `npx tsc --noEmit` → 0 errors (first run failed on `maxTokens` parameter not existing in this AI SDK version; removed and clean on second run).
+  - `npm run build` → passed, `/api/ai/weekly-summary` appears in route list (88 routes total).
+- Remaining limitations:
+  - No database migration required (uses existing `ai_usage_events` table from Codex's AI foundation work).
+  - No browser/manual smoke test run — requires live OpenRouter key.
+  - If AI returns malformed JSON (not wrapped in the expected structure), returns 502 with a user-facing "unexpected format" message.
+- Suggested next steps:
+  - Smoke-test the AI Summary button on `/review` with a valid OpenRouter key — click button, verify structured result, click "Apply to Reflections", save.
+  - Consider adding a "Regenerate" button that clears the previous result and calls the API again.
+  - Consider extending the prompt with user-written reflection context for richer suggestions.
+- Handoff notes:
+  - The AI endpoint is in `app/api/ai/` — a new directory. Any future AI endpoints can follow this pattern.
+  - `WEEKLY_SUMMARY_MODEL` constant at the top of `route.ts` controls the model; switch to a paid model for more reliable structured JSON output.
+  - The `applyAiToReflections` function fills wins → `reflection_wins`, risks → `reflection_challenges`, focus + next actions → `reflection_next_week_focus`. `reflection_lessons` is intentionally left untouched (AI doesn't generate this).
+
 ### 2026-05-17 13:16 IST - Weekly Review Feature
 
 - Agent/tool used: Codex.

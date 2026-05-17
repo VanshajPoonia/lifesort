@@ -39,6 +39,7 @@ Implemented feature areas found in the repo:
 - Settings for profile, daily content preferences, and sidebar preferences.
 - Admin subscription management.
 - AI chat page and authenticated `/api/chat` route for productivity coaching, with model allowlisting, request validation, and conservative usage caps.
+- AI Weekly Summary at `/api/ai/weekly-summary`: authenticated POST that takes the already-loaded week summary (numeric counts only, no PII) and calls OpenRouter to return structured output (summary, wins, risks, ignored areas, next-week focus, 3 next actions). Rate-limited to 5/day. Result is displayed on `/review` and optionally applied to reflection fields; AI never writes to any user table.
 - Global search across tasks, goals, notes, links, wishlist, investments, income, and budget.
 - Global search also includes projects.
 
