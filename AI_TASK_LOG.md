@@ -1395,6 +1395,62 @@ After that, re-run the regression checkpoint and the schema-drift 500s should di
 - Handoff notes:
   - Future AI insight features should keep the same pattern: server-derived user-scoped aggregates, minimal personal text sent to provider, read-only AI response, and explicit confirmation before any write.
 
+### 2026-05-17 20:38 IST - Universal Life Inbox
+
+- Agent/tool used: Codex.
+- Task summary: Added a website-only Universal Life Inbox for capturing messy thoughts before sorting them into structured LifeSort modules.
+- Files changed:
+  - `app/inbox/page.tsx`
+  - `app/inbox/loading.tsx`
+  - `app/api/inbox/route.ts`
+  - `app/api/inbox/convert/route.ts`
+  - `app/api/search/route.ts`
+  - `app/api/sidebar-preferences/route.ts`
+  - `app/capture/page.tsx`
+  - `app/page.tsx`
+  - `app/settings/page.tsx`
+  - `components/dashboard-layout.tsx`
+  - `components/global-search.tsx`
+  - `components/quick-add-modal.tsx`
+  - `scripts/add-inbox-items.sql`
+  - `scripts/website-current-schema.sql`
+  - `scripts/run-pending-migrations.sql`
+  - `AI_PROJECT.md`
+  - `AI_DECISIONS.md`
+  - `AI_CHECKLIST.md`
+  - `AI_TASK_LOG.md`
+- What changed:
+  - Added `inbox_items` as a user-owned capture table with `title`, `raw_text`, optional `suggested_type`, `status`, optional `life_area_id`, `source`, `converted_type`, `converted_id`, and timestamps.
+  - Added authenticated `/api/inbox` CRUD with `user_id` filters and Life Area ownership validation.
+  - Added authenticated `/api/inbox/convert` for explicit, server-side conversion into task, goal, note, project, habit, wishlist item, vault item, or calendar event. The Inbox item is marked `converted` only after target creation succeeds.
+  - Added `/inbox` with quick capture, filters, search, item edit/archive/delete, conversion confirmation UI, converted links, and loading/error/empty states.
+  - Added Inbox to sidebar defaults, Settings sidebar controls, Quick Add, dashboard widget, and Global Search.
+  - Added a "Save to Inbox" action on AI Capture that stores raw capture text with `source='ai_capture'` without changing AI parsing.
+  - Added standalone and consolidated SQL migration updates. No database scripts were run.
+- Data model added:
+  - `inbox_items.status`: `unsorted`, `converted`, `archived`.
+  - `inbox_items.source`: `manual`, `quick_add`, `ai_capture`.
+  - `inbox_items.converted_type` / `converted_id`: polymorphic link to the confirmed target record.
+  - Indexes: `(user_id, status, updated_at DESC)`, `life_area_id`, and `(user_id, converted_type, converted_id)`.
+- Commands run:
+  - `git status --short --branch` — clean at task start on `main...origin/main`.
+  - `npx tsc --noEmit` — passed.
+  - `npm run lint` — failed before source linting because ESLint 10.3.0 cannot find `eslint.config.(js|mjs|cjs)`.
+  - `npm run build` — passed; generated 101 routes including `/inbox`, `/api/inbox`, and `/api/inbox/convert`; still skips type/lint validation because of `next.config.mjs` and emits known metadata `themeColor`/`viewport` warnings.
+  - `git diff --check` — passed.
+- Remaining issues and limitations:
+  - The `inbox_items` migration must be applied to the target database before `/inbox`, Quick Add Inbox capture, Global Search Inbox results, and the dashboard Inbox widget can work against live data.
+  - Calendar conversion is intentionally strict and requires explicit date/start/end values; no natural-language date inference is added.
+  - Conversion creates new target records but does not auto-link those records back to projects or other modules.
+  - Browser/manual smoke testing was not run because this pass used command verification only.
+  - `npm run lint` remains blocked by the missing ESLint flat config.
+- Suggested next steps:
+  - Confirm the target Neon environment and apply `scripts/add-inbox-items.sql` or the consolidated pending migration, then smoke-test two-user isolation for capture, conversion, dashboard widget, and Global Search.
+  - Add ESLint flat config and consider re-enabling build type/lint gates.
+- Handoff notes:
+  - Inbox conversion follows the same explicit-confirmation safety pattern used by AI Capture and Smart Templates.
+  - The new conversion endpoint validates optional `life_area_id` ownership itself because not every existing target route currently performs that validation consistently.
+
 ## AI Handoff Summaries
 
 Future agents should start by reading all root memory files, then inspect the relevant code before editing. Keep changes small and update this file after every repo change.
