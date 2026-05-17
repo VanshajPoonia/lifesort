@@ -560,6 +560,17 @@ export default function Home() {
       // Vault widget failure is non-fatal
     }
 
+    // Inbox widget — fetch independently, fails silently
+    try {
+      const inboxRes = await fetch("/api/inbox?status=unsorted&limit=100")
+      if (inboxRes.ok) {
+        const inboxData: InboxItem[] = await inboxRes.json()
+        setInboxWidget({ total: inboxData.length, recent: inboxData.slice(0, 3) })
+      }
+    } catch {
+      // Inbox widget failure is non-fatal
+    }
+
     setSources({
       tasks: normalizeArray<Task>(tasks.data),
       goals: normalizeArray<Goal>(goals.data),
