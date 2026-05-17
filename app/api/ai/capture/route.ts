@@ -4,6 +4,7 @@ import { NextResponse } from "next/server"
 import { z } from "zod"
 import { getUserFromSession } from "@/lib/auth"
 import { checkAiUsageLimit, createAiUsageEvent, updateAiUsageEvent } from "@/lib/ai-usage"
+import { getPersonalRulesContext } from "@/lib/personal-rules"
 
 const CAPTURE_MODEL = "google/gemini-2.0-flash-exp:free"
 
@@ -142,9 +143,12 @@ export type DraftAction =
 
 // ─── Prompt ──────────────────────────────────────────────────────────────────
 
-function buildPrompt(text: string, today: string, dayOfWeek: string): string {
+function buildPrompt(text: string, today: string, dayOfWeek: string, rulesContextPreview: string): string {
   return `You are a structured data parser for LifeSort, a personal life-management app.
 Today: ${today} (${dayOfWeek})
+
+Visible Personal Operating Rules and Preferences:
+${rulesContextPreview}
 
 Parse the user's natural language input into structured LifeSort actions.
 
@@ -191,6 +195,8 @@ Rules:
 - Use someday_item for low-pressure possibilities, maybe-one-day ideas, future trips, vague purchases, or non-committal projects that should not become active work yet.
 - description must be a single human-readable sentence summarising the action.
 - Do NOT include fields not listed for each type.
+- Respect visible personal operating rules when resolving dates or deciding whether something belongs as active work versus someday.
+- Do NOT create, change, or infer personal operating rules.
 
 Return ONLY valid JSON. No markdown, no preamble:
 { "actions": [ { "type": "...", "description": "...", "payload": { ... } } ] }
@@ -300,7 +306,8 @@ export async function POST(req: Request) {
     const now = new Date()
     const today = now.toISOString().slice(0, 10)
     const dayOfWeek = now.toLocaleDateString("en-US", { weekday: "long" })
-    const prompt = buildPrompt(text, today, dayOfWeek)
+    const rulesContext = await getPersonalRulesContext(user.id)
+    const prompt = buildPrompt(text, today, dayOfWeek, rulesContext.preview)
 
     const { text: aiText } = await generateText({
       model: openrouter(CAPTURE_MODEL),

@@ -9,6 +9,7 @@ import {
   updateAiUsageEvent,
 } from "@/lib/ai-usage"
 import { AVAILABLE_MODELS, DEFAULT_MODEL } from "@/lib/ai-models"
+import { getPersonalRulesContext } from "@/lib/personal-rules"
 
 export const maxDuration = 60
 
@@ -170,10 +171,16 @@ export async function POST(req: Request) {
 
   try {
     const modelMessages = await convertToModelMessages(validatedMessages.messages)
+    const rulesContext = await getPersonalRulesContext(user.id)
 
     const result = streamText({
       model: openrouter(selectedModel.id),
-      system: SYSTEM_PROMPT,
+      system: `${SYSTEM_PROMPT}
+
+Visible Personal Operating Rules and Preferences:
+${rulesContext.preview}
+
+Respect these visible rules when suggesting plans. Do not claim hidden rules exist, and do not create or change rules.`,
       messages: modelMessages,
       onFinish: async () => {
         await updateAiUsageEvent(usageEventId, "success")
