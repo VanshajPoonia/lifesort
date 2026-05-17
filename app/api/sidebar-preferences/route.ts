@@ -7,6 +7,7 @@ const sql = neon(process.env.DATABASE_URL!)
 const DEFAULT_SIDEBAR_SECTIONS = {
   dashboard: true,
   reset: true,
+  rules: true,
   someday: true,
   inbox: true,
   waiting: true,
