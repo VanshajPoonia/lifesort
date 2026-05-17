@@ -1770,6 +1770,59 @@ After that, re-run the regression checkpoint and the schema-drift 500s should di
   - `/api/ai/reset-suggestions` is read-only and only returns recommended actions. Actual writes still go through `/api/reset/actions` after user confirmation.
   - Missing source tables are reported as unavailable where derivation supports graceful fallback; action endpoints still require the relevant table/column to exist.
 
+### 2026-05-17 22:24 IST - Someday / Maybe
+
+- Agent/tool used: Codex.
+- Task summary: Added a website-only Someday / Maybe area for low-pressure ideas and possibilities that are not active tasks or goals yet.
+- Files changed:
+  - `app/someday/page.tsx`
+  - `app/someday/loading.tsx`
+  - `app/api/someday/route.ts`
+  - `app/api/someday/promote/route.ts`
+  - `scripts/add-someday-items.sql`
+  - `scripts/website-current-schema.sql`
+  - `scripts/run-pending-migrations.sql`
+  - `app/page.tsx`
+  - `components/dashboard-layout.tsx`
+  - `app/settings/page.tsx`
+  - `app/api/sidebar-preferences/route.ts`
+  - `components/quick-add-modal.tsx`
+  - `app/api/search/route.ts`
+  - `components/global-search.tsx`
+  - `app/api/ai/capture/route.ts`
+  - `app/capture/page.tsx`
+  - `AI_PROJECT.md`
+  - `AI_DECISIONS.md`
+  - `AI_CHECKLIST.md`
+  - `AI_TASK_LOG.md`
+- Summary of changes:
+  - Added `someday_items` schema support with user ownership, category, optional Life Area, review date, status, and polymorphic promoted-object fields.
+  - Added authenticated Someday CRUD and promotion APIs with `getUserFromSession()`, `user_id` filtering, and Life Area ownership validation.
+  - Added `/someday` with create/edit/delete/archive/restore, filters, search, review-due cards, Life Area badges, promotion confirmation, and empty/loading/error states.
+  - Added promotion to project, goal, task, wishlist item, and note. Promotion creates the target first, then marks the Someday item promoted with `promoted_type` and `promoted_id`.
+  - Added dashboard review-due widget, sidebar/settings defaults, Quick Add support, Global Search support, and AI Capture `someday_item` draft support.
+  - Updated project memory and checklist documentation.
+- Commands run:
+  - `git status --short --branch` - clean on `main...origin/main` at task start; shows Someday implementation pending after changes.
+  - `npx tsc --noEmit` - passed.
+  - `npm run lint` - failed before source linting because ESLint 10.3.0 cannot find `eslint.config.(js|mjs|cjs)`.
+  - `npm run build` - passed; generated 118 routes including `/someday`, `/api/someday`, and `/api/someday/promote`; still skips type/lint validation through `next.config.mjs` and emits known metadata `themeColor`/`viewport` warnings, including `/someday`.
+  - `git diff --check` - passed with no whitespace errors.
+- Bugs found or fixed:
+  - No new TypeScript or build failures found.
+- Remaining issues and limitations:
+  - `scripts/add-someday-items.sql` or the consolidated pending migration must be applied before live Someday CRUD, promotion, dashboard widget, Quick Add, Global Search, and AI Capture writes work against the target database.
+  - Promotion is one-way in v1; promoted items keep their `promoted_type/promoted_id` even if the target record is later deleted.
+  - No browser/manual smoke test was run in this pass.
+  - `npm run lint` remains blocked by the missing ESLint flat config.
+  - `npm run build` still hides TypeScript and lint failures through `next.config.mjs`.
+- Suggested next steps:
+  - Confirm the target database and apply the Someday migration, then smoke-test Someday CRUD, archive/restore, filters, promotion to each supported target, dashboard count, Quick Add, Global Search, AI Capture drafts, and two-user isolation.
+  - Add ESLint flat config and revisit build settings that skip type/lint validation.
+- Handoff notes:
+  - Someday / Maybe is intentionally separate from Reset's existing "move to someday" mapping; this feature adds a standalone `someday_items` table.
+  - AI Capture only creates editable `someday_item` drafts; it does not auto-classify or write anything without the user's existing confirmation flow.
+
 ## AI Handoff Summaries
 
 Future agents should start by reading all root memory files, then inspect the relevant code before editing. Keep changes small and update this file after every repo change.

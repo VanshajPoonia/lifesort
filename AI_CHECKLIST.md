@@ -101,6 +101,7 @@ Use this checklist when implementing the regression prompt:
 8. Treat 500s from missing columns/tables as schema drift and list exact missing objects.
 9. Do not run migrations or direct database cleanup without explicit target confirmation.
 10. After testing, delete temporary records through app APIs when possible and document anything left behind.
+11. Capture/promotion features must keep APIs user-scoped, update migration baselines, validate optional linked ownership, and require explicit confirmation before creating linked records.
 
 ## Environment Setup Checklist
 
