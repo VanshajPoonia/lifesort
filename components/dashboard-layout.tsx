@@ -53,6 +53,7 @@ interface DashboardLayoutProps {
 const DEFAULT_SIDEBAR_PREFS = {
   dashboard: true,
   today: true,
+  review: true,
   life_areas: true,
   projects: true,
   people: true,
@@ -260,6 +261,14 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
                 <Button variant={isActivePath("/today") ? "secondary" : "ghost"} className={navButtonClass("/today")}>
                   <CalendarCheck className={navIconClass("/today")} />
                   Today Plan
+                </Button>
+              </Link>
+            )}
+            {prefs.review && (
+              <Link href="/review">
+                <Button variant={isActivePath("/review") ? "secondary" : "ghost"} className={navButtonClass("/review")}>
+                  <CheckSquare className={navIconClass("/review")} />
+                  Weekly Review
                 </Button>
               </Link>
             )}

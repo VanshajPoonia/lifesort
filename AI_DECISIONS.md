@@ -50,6 +50,7 @@ Architecture and product decision memory for LifeSort.
 - Investments can link to wishlist items through `investments.wishlist_item_id`.
 - Notes use a simple knowledge model: user-owned `note_folders`, optional `notes.folder_id`, inline `notes.tags` as `TEXT[]`, and `notes.is_pinned` for pinned/favorite notes.
 - Today Plan uses one `daily_plans` row per user per date, with `focus_items JSONB` for up to three saved focus items and three reflection text fields.
+- Weekly Review uses one `weekly_reviews` row per user per Monday-Sunday week, with user-written reflection fields and a `summary_snapshot JSONB` saved only when the user saves the review. Weekly metrics are otherwise derived live from user-scoped source tables and do not mutate those source records.
 - Life Projects use a user-owned `projects` table plus flexible `project_items` links for existing records and `project_activity` for project-level changes. Project links are polymorphic and validated in API code because linked source records live in separate module tables; deleting a project removes links/activity, but deleting or unlinking a source item does not mutate other modules.
 - Link folders can be nested through `link_folders.parent_id`.
 - Preferences use JSON/JSONB in user-related tables, including sidebar preferences and content preferences.

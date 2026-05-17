@@ -8,6 +8,7 @@ import {
   ArrowRight,
   Cake,
   CalendarCheck,
+  CheckSquare,
   CheckCircle2,
   Clock,
   FileText,
@@ -38,7 +39,7 @@ import type { LifeArea } from "@/lib/life-areas"
 import { normalizeLifeArea } from "@/lib/life-areas"
 
 type DashboardApiKey = "tasks" | "goals" | "notes" | "budget" | "investments" | "wishlist" | "income" | "projects"
-type DashboardErrorKey = DashboardApiKey | "today"
+type DashboardErrorKey = DashboardApiKey | "today" | "review"
 
 interface Task {
   id: number | string
@@ -182,6 +183,21 @@ interface TodayPlanPreview {
     focusItems?: number
     dueOrOverdueTasks?: number
     calendarToday?: number
+  }
+}
+
+interface WeeklyReviewPreview {
+  review?: {
+    id?: string | null
+    week_start?: string
+    week_end?: string
+    updated_at?: string | null
+  }
+  summary?: {
+    tasks?: { completed?: number; overdue?: number }
+    goals?: { progressed?: number }
+    habits?: { completed_checkins?: number }
+    projects?: { updated?: number }
   }
 }
 
@@ -392,6 +408,7 @@ export default function Home() {
   const [sources, setSources] = useState<DashboardSources>(emptySources)
   const [lifeAreas, setLifeAreas] = useState<LifeArea[]>([])
   const [todayPreview, setTodayPreview] = useState<TodayPlanPreview | null>(null)
+  const [weeklyReviewPreview, setWeeklyReviewPreview] = useState<WeeklyReviewPreview | null>(null)
   const [habitsToday, setHabitsToday] = useState<{ total: number; done: number; streak: number } | null>(null)
   const [peopleWidget, setPeopleWidget] = useState<{ birthdays: number; followUps: number; total: number } | null>(null)
   const [vaultWidget, setVaultWidget] = useState<{ expiringSoon: number; total: number } | null>(null)
@@ -431,7 +448,7 @@ export default function Home() {
   const fetchDashboard = async () => {
     setDashboardLoading(true)
     const planDate = localDateString()
-    const [tasks, goals, notes, budget, investments, wishlist, income, projects, lifeAreasResult, todayPlan] = await Promise.all([
+    const [tasks, goals, notes, budget, investments, wishlist, income, projects, lifeAreasResult, todayPlan, weeklyReview] = await Promise.all([
       fetchJson<Task[]>(apiEndpoints.tasks),
       fetchJson<Goal[]>(apiEndpoints.goals),
       fetchJson<Note[]>(apiEndpoints.notes),
@@ -442,6 +459,7 @@ export default function Home() {
       fetchJson<Project[]>(apiEndpoints.projects),
       fetchJson<LifeArea[]>("/api/life-areas"),
       fetchJson<TodayPlanPreview>(`/api/today-plan?date=${planDate}`),
+      fetchJson<WeeklyReviewPreview>(`/api/weekly-review?date=${planDate}`),
     ])
 
     // Habits widget — fetch independently so failures don't block the rest
@@ -533,6 +551,7 @@ export default function Home() {
     })
     setLifeAreas(normalizeArray<LifeArea>(lifeAreasResult.data).map((area) => normalizeLifeArea(area as unknown as Record<string, unknown>)))
     setTodayPreview(todayPlan.data)
+    setWeeklyReviewPreview(weeklyReview.data)
     setErrors({
       ...(tasks.error ? { tasks: tasks.error } : {}),
       ...(goals.error ? { goals: goals.error } : {}),
@@ -543,6 +562,7 @@ export default function Home() {
       ...(income.error ? { income: income.error } : {}),
       ...(projects.error ? { projects: projects.error } : {}),
       ...(todayPlan.error ? { today: todayPlan.error } : {}),
+      ...(weeklyReview.error ? { review: weeklyReview.error } : {}),
     })
     setDashboardLoading(false)
   }
@@ -741,6 +761,12 @@ export default function Home() {
   }, [lifeAreas, recentActivityFull, sources.goals, sources.tasks])
 
   const hasAnyErrors = Object.keys(errors).length > 0
+  const weeklyReviewSaved = Boolean(weeklyReviewPreview?.review?.id)
+  const weeklyReviewActivity =
+    toNumber(weeklyReviewPreview?.summary?.tasks?.completed) +
+    toNumber(weeklyReviewPreview?.summary?.goals?.progressed) +
+    toNumber(weeklyReviewPreview?.summary?.habits?.completed_checkins) +
+    toNumber(weeklyReviewPreview?.summary?.projects?.updated)
 
   return (
     <DashboardLayout>
@@ -917,6 +943,52 @@ export default function Home() {
                 <div className="rounded-md border bg-background/70 p-3">
                   <p className="text-2xl font-bold">{todayPreview?.summary?.calendarToday || 0}</p>
                   <p className="text-xs text-muted-foreground">calendar events today</p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <CheckSquare className="h-5 w-5 text-primary" />
+                  Complete your weekly review
+                </CardTitle>
+                <CardDescription>Reflect on the week and choose next week&apos;s focus.</CardDescription>
+              </div>
+              <Button asChild size="sm" variant={weeklyReviewSaved ? "outline" : "default"} className="gap-2">
+                <Link href="/review">
+                  {weeklyReviewSaved ? "View review" : "Start review"}
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {dashboardLoading ? (
+              <div className="grid gap-3 md:grid-cols-3">
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-16 w-full" />
+              </div>
+            ) : errors.review ? (
+              <SectionUnavailable label="Weekly Review" />
+            ) : (
+              <div className="grid gap-3 md:grid-cols-3">
+                <div className="rounded-md border bg-muted/40 p-3">
+                  <p className="text-2xl font-bold">{weeklyReviewSaved ? "Done" : "Open"}</p>
+                  <p className="text-xs text-muted-foreground">current week status</p>
+                </div>
+                <div className="rounded-md border bg-muted/40 p-3">
+                  <p className="text-2xl font-bold">{weeklyReviewActivity}</p>
+                  <p className="text-xs text-muted-foreground">tracked highlights</p>
+                </div>
+                <div className="rounded-md border bg-muted/40 p-3">
+                  <p className="text-2xl font-bold">{weeklyReviewPreview?.summary?.tasks?.overdue || 0}</p>
+                  <p className="text-xs text-muted-foreground">overdue tasks</p>
                 </div>
               </div>
             )}

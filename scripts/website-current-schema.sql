@@ -76,6 +76,21 @@ CREATE TABLE IF NOT EXISTS daily_plans (
   UNIQUE(user_id, plan_date)
 );
 
+CREATE TABLE IF NOT EXISTS weekly_reviews (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  week_start DATE NOT NULL,
+  week_end DATE NOT NULL,
+  reflection_wins TEXT,
+  reflection_challenges TEXT,
+  reflection_lessons TEXT,
+  reflection_next_week_focus TEXT,
+  summary_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(user_id, week_start)
+);
+
 CREATE TABLE IF NOT EXISTS projects (
   id SERIAL PRIMARY KEY,
   user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -423,6 +438,7 @@ CREATE TABLE IF NOT EXISTS popular_investments (
 CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(session_token);
 CREATE INDEX IF NOT EXISTS idx_life_areas_user_order ON life_areas(user_id, sort_order, name);
 CREATE INDEX IF NOT EXISTS idx_daily_plans_user_date ON daily_plans(user_id, plan_date);
+CREATE INDEX IF NOT EXISTS idx_weekly_reviews_user_week ON weekly_reviews(user_id, week_start DESC);
 CREATE INDEX IF NOT EXISTS idx_projects_user_status ON projects(user_id, status, due_date);
 CREATE INDEX IF NOT EXISTS idx_projects_life_area_id ON projects(life_area_id);
 CREATE INDEX IF NOT EXISTS idx_project_items_project_id ON project_items(project_id);

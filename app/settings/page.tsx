@@ -102,6 +102,7 @@ export default function SettingsPage() {
   const [sidebarPrefs, setSidebarPrefs] = useState({
     dashboard: true,
     today: true,
+    review: true,
     life_areas: true,
     projects: true,
     people: true,
@@ -466,6 +467,7 @@ export default function SettingsPage() {
                 {[
                   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, description: "Main dashboard view" },
                   { id: "today", label: "Today Plan", icon: CalendarCheck, description: "Daily focus and reflection" },
+                  { id: "review", label: "Weekly Review", icon: CheckSquare, description: "Weekly summary and reflection" },
                   { id: "life_areas", label: "Life Areas", icon: Network, description: "Life area organization" },
                   { id: "projects", label: "Projects", icon: FolderPlus, description: "Bigger life efforts and linked items" },
                   { id: "people", label: "People", icon: CheckSquare, description: "Relationships, contacts, and reminders" },

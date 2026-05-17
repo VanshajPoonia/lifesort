@@ -8,7 +8,7 @@ Project name: LifeSort.
 
 `package.json` currently names the package `my-v0-project`, but the app UI, metadata, README, assets, and domain language identify the product as LifeSort.
 
-LifeSort is a personal life-management application for organizing today plans, life areas, life projects, goals, tasks, calendar events, notes, links, wishlist items, investments, income, budgets, daily content, and productivity coaching.
+LifeSort is a personal life-management application for organizing today plans, weekly reviews, life areas, life projects, goals, tasks, calendar events, notes, links, wishlist items, investments, income, budgets, daily content, and productivity coaching.
 
 ## Current Product Scope
 
@@ -17,6 +17,7 @@ Implemented feature areas found in the repo:
 - Dashboard at `app/page.tsx`, aggregating tasks, goals, notes, budget, investments, wishlist, income, and habits widget.
 - Habits & Routines at `app/habits/page.tsx`, with per-habit CRUD, daily check-ins, streak tracking (current/best), weekly/monthly completion %, and routine builder with ordered steps.
 - Today Plan at `app/today/page.tsx`, providing a non-AI daily command center with focus items, habits due today (with check-off), derived task/goal/calendar/note/budget/wishlist suggestions, and end-of-day reflection.
+- Weekly Review at `app/review/page.tsx`, providing a non-AI Monday-Sunday review across tasks, goals, habits, projects, notes, finance, and Life Areas with saved reflections and previous-review history.
 - Life Areas at `app/life-areas/page.tsx`, providing user-owned cross-module organization with default areas, icons, colors, descriptions, and ordering.
 - Life Projects at `app/projects/page.tsx` and `app/projects/[id]/page.tsx`, providing larger project containers with status, priority, progress, optional Life Area assignment, templates, linked existing records, and activity.
 - Life Vault at `app/vault/page.tsx`, with structured storage for important life info (documents, subscriptions, warranties, insurance, vehicle, home, medical, education, work), expiry/renewal/reminder date tracking, four views (All/Expiring/Renewals/By category), color-coded urgency badges, dashboard widget, global search, and quick-add support.
@@ -95,6 +96,7 @@ Major tables in the current schema baseline:
 - `users`, `sessions`, `password_reset_tokens`
 - `life_areas`
 - `daily_plans`
+- `weekly_reviews`
 - `projects`, `project_items`, `project_activity`
 - `goals`, `tasks`, `nuke_goals`
 - `calendar_events`, `calendar_integrations`
@@ -115,7 +117,7 @@ Backend code lives in `app/api/**/route.ts`. It uses Next route handlers with di
 Representative API areas:
 
 - Auth: `app/api/auth/*`
-- CRUD and planning: `today-plan`, `life-areas`, `projects`, `projects/items`, `projects/activity`, `tasks`, `goals`, `notes`, `note-folders`, `links`, `link-folders`, `wishlist`, `investments`, `income`, `budget`, `calendar-events`, `nuke-goal`, `custom-sections`
+- CRUD and planning: `today-plan`, `weekly-review`, `life-areas`, `projects`, `projects/items`, `projects/activity`, `tasks`, `goals`, `notes`, `note-folders`, `links`, `link-folders`, `wishlist`, `investments`, `income`, `budget`, `calendar-events`, `nuke-goal`, `custom-sections`
 - User/profile/preferences: `profile`, `onboarding`, `sidebar-preferences`, `daily-content`
 - Integrations: `calendar/google/*`, `calendar/sync`, `stock-quote`, `url-preview`
 - AI: `chat`, `daily-content/generate`, `investments/parse-screenshot`
@@ -129,6 +131,7 @@ Important pages:
 
 - `/`: dashboard with Today Plan preview and Life Area Balance
 - `/today`
+- `/review`
 - `/life-areas`
 - `/projects`, `/projects/[id]`
 - `/login`, `/register`, `/forgot-password`, `/reset-password`

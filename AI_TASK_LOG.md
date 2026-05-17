@@ -17,6 +17,65 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-05-17 13:16 IST - Weekly Review Feature
+
+- Agent/tool used: Codex.
+- Task summary: Implemented the website-only Weekly Review feature for Monday-Sunday reviews across existing LifeSort data.
+- Files added:
+  - `app/api/weekly-review/route.ts`
+  - `app/review/page.tsx`
+  - `scripts/add-weekly-reviews.sql`
+- Files modified:
+  - `app/page.tsx`
+  - `app/api/sidebar-preferences/route.ts`
+  - `app/settings/page.tsx`
+  - `components/dashboard-layout.tsx`
+  - `scripts/website-current-schema.sql`
+  - `scripts/run-pending-migrations.sql`
+  - `AI_PROJECT.md`
+  - `AI_DECISIONS.md`
+  - `AI_TASK_LOG.md`
+- Summary of changes:
+  - Added `weekly_reviews` with one saved review per user per Monday-Sunday week.
+  - Added `/api/weekly-review` with authenticated `GET` and `PUT`, user-scoped summary queries, previous-review history, and section-level fallbacks for missing optional tables.
+  - Added `/review` with weekly metric cards, Life Area balance, finance highlights, reflection fields, previous review history, loading/saving/save-failed states, and useful empty states.
+  - Added Weekly Review to sidebar navigation, sidebar preferences defaults, Settings sidebar controls, and a dashboard “Complete your weekly review” card.
+- Metrics included:
+  - Tasks completed, overdue, and created/updated.
+  - Goals progressed and upcoming deadlines.
+  - Habit completed check-ins and completed-habit count.
+  - Projects updated, active/overdue projects, and project activity count.
+  - Notes created/updated.
+  - Finance weekly income/expense/net, transactions, near/over budget categories, updated income sources, and investment tracked value/updates.
+  - Life Area activity balance, including Unassigned.
+- New data model:
+  - `weekly_reviews`: `id`, `user_id`, `week_start`, `week_end`, `reflection_wins`, `reflection_challenges`, `reflection_lessons`, `reflection_next_week_focus`, `summary_snapshot JSONB`, `created_at`, `updated_at`.
+  - Unique key: `(user_id, week_start)`.
+- Migration status:
+  - Created `scripts/add-weekly-reviews.sql`.
+  - Updated `scripts/website-current-schema.sql`.
+  - Updated `scripts/run-pending-migrations.sql`.
+  - No database migrations were run automatically.
+- Commands run:
+  - `git status --short --branch` → clean starting point on `main...origin/main`.
+  - `npx tsc --noEmit` → failed once for a missing dashboard icon import, then passed after the import fix.
+  - `npm run lint` → failed before source linting because ESLint 10.3.0 cannot find `eslint.config.(js|mjs|cjs)`.
+  - `npm run build` → passed, generated 87 routes, skipped type validation and linting, and emitted the known unsupported `metadata.themeColor`/`metadata.viewport` warnings, including `/review`.
+- Bugs found or fixed:
+  - Fixed missing `CheckSquare` import in `app/page.tsx`.
+- Remaining issues and limitations:
+  - Apply and verify the Weekly Reviews migration in the target Neon database before saving weekly reviews.
+  - No browser/manual smoke test was run because migrations were not applied in this pass.
+  - Metrics rely on available timestamps such as `updated_at`; tasks do not have a dedicated `completed_at`, so “tasks completed this week” is inferred from completed tasks updated during the week.
+  - Optional sections such as Habits, Projects, and Finance can appear unavailable if their migrations have not been applied.
+  - Existing lint flat-config blocker remains.
+- Suggested next steps:
+  - Confirm target database, apply pending migrations, then smoke-test `/review` with empty data and with tasks, goals, habits, projects, notes, budget, income, investments, and Life Areas.
+  - Fix ESLint flat config and revisit build settings that skip type/lint validation.
+- Handoff notes:
+  - Weekly Review does not mutate source tasks, goals, habits, projects, notes, or finance records.
+  - `summary_snapshot` is saved only on `PUT`; `GET` derives fresh metrics from current user-scoped data.
+
 ### 2026-05-17 - Life Vault Feature
 
 - Agent/tool used: Claude Code (coding agent mode).
