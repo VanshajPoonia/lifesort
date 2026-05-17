@@ -25,6 +25,7 @@ import {
   Calendar as CalendarIcon,
   ClipboardCheck,
   Clock,
+  Wrench,
   Zap,
   FileText,
   Sparkles,
@@ -62,6 +63,7 @@ const DEFAULT_SIDEBAR_PREFS = {
   inbox: true,
   waiting: true,
   commitments: true,
+  maintenance: true,
   today: true,
   review: true,
   insights: true,
@@ -292,6 +294,14 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
                 <Button variant={isActivePath("/commitments") ? "secondary" : "ghost"} className={navButtonClass("/commitments")}>
                   <ClipboardCheck className={navIconClass("/commitments")} />
                   Commitments
+                </Button>
+              </Link>
+            )}
+            {prefs.maintenance && (
+              <Link href="/maintenance">
+                <Button variant={isActivePath("/maintenance") ? "secondary" : "ghost"} className={navButtonClass("/maintenance")}>
+                  <Wrench className={navIconClass("/maintenance")} />
+                  Maintenance
                 </Button>
               </Link>
             )}
