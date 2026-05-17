@@ -576,6 +576,57 @@ export default function Home() {
     setDashboardLoading(false)
   }
 
+  // Must be before any early return — hooks cannot be called conditionally
+  const lifeAreaBalance = useMemo(() => {
+    const byId = new Map(lifeAreas.map((area) => [String(area.id), area]))
+    const rows = new Map<string, {
+      key: string
+      area: LifeArea | null
+      activeTasks: number
+      activeGoals: number
+      recentActivity: number
+    }>()
+
+    const ensure = (key: string) => {
+      if (!rows.has(key)) {
+        rows.set(key, {
+          key,
+          area: key === "unassigned" ? null : byId.get(key) ?? null,
+          activeTasks: 0,
+          activeGoals: 0,
+          recentActivity: 0,
+        })
+      }
+      return rows.get(key)!
+    }
+
+    const keyFor = (value?: string | number | null) => {
+      if (!value) return "unassigned"
+      const key = String(value)
+      return byId.has(key) ? key : "unassigned"
+    }
+
+    lifeAreas.forEach((area) => ensure(String(area.id)))
+    sources.tasks.filter((task) => !task.completed).forEach((task) => {
+      ensure(keyFor(task.life_area_id)).activeTasks += 1
+    })
+    sources.goals.filter((goal) => goal.status !== "completed").forEach((goal) => {
+      ensure(keyFor(goal.life_area_id)).activeGoals += 1
+    })
+    const allItems = [
+      ...sources.tasks, ...sources.goals, ...sources.notes,
+      ...sources.wishlist, ...sources.investments, ...sources.income, ...sources.projects,
+    ]
+    allItems.slice(0, 12).forEach((item) => {
+      ensure(keyFor(item.life_area_id)).recentActivity += 1
+    })
+
+    return Array.from(rows.values())
+      .filter((row) => row.activeTasks > 0 || row.activeGoals > 0 || row.recentActivity > 0)
+      .sort((a, b) => (b.activeTasks + b.activeGoals + b.recentActivity) - (a.activeTasks + a.activeGoals + a.recentActivity))
+      .slice(0, 6)
+  }, [lifeAreas, sources])
+
   if (loading || !user) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
@@ -722,52 +773,6 @@ export default function Home() {
     .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
 
   const recentActivity = recentActivityFull.slice(0, 6)
-
-  const lifeAreaBalance = useMemo(() => {
-    const byId = new Map(lifeAreas.map((area) => [String(area.id), area]))
-    const rows = new Map<string, {
-      key: string
-      area: LifeArea | null
-      activeTasks: number
-      activeGoals: number
-      recentActivity: number
-    }>()
-
-    const ensure = (key: string) => {
-      if (!rows.has(key)) {
-        rows.set(key, {
-          key,
-          area: key === "unassigned" ? null : byId.get(key) ?? null,
-          activeTasks: 0,
-          activeGoals: 0,
-          recentActivity: 0,
-        })
-      }
-      return rows.get(key)!
-    }
-
-    const keyFor = (value?: string | number | null) => {
-      if (!value) return "unassigned"
-      const key = String(value)
-      return byId.has(key) ? key : "unassigned"
-    }
-
-    lifeAreas.forEach((area) => ensure(String(area.id)))
-    sources.tasks.filter((task) => !task.completed).forEach((task) => {
-      ensure(keyFor(task.life_area_id)).activeTasks += 1
-    })
-    sources.goals.filter((goal) => goal.status !== "completed").forEach((goal) => {
-      ensure(keyFor(goal.life_area_id)).activeGoals += 1
-    })
-    recentActivityFull.slice(0, 12).forEach((activity) => {
-      ensure(keyFor(activity.life_area_id)).recentActivity += 1
-    })
-
-    return Array.from(rows.values())
-      .filter((row) => row.activeTasks > 0 || row.activeGoals > 0 || row.recentActivity > 0)
-      .sort((a, b) => (b.activeTasks + b.activeGoals + b.recentActivity) - (a.activeTasks + a.activeGoals + a.recentActivity))
-      .slice(0, 6)
-  }, [lifeAreas, recentActivityFull, sources.goals, sources.tasks])
 
   const hasAnyErrors = Object.keys(errors).length > 0
   const weeklyReviewSaved = Boolean(weeklyReviewPreview?.review?.id)
