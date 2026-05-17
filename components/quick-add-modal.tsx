@@ -5,6 +5,7 @@ import type { ElementType } from "react"
 import {
   Calendar,
   CheckSquare,
+  ClipboardCheck,
   Clock,
   DollarSign,
   FileText,
@@ -29,6 +30,7 @@ import { useToast } from "@/hooks/use-toast"
 type QuickAddType =
   | "inbox"
   | "waiting"
+  | "commitment"
   | "task"
   | "goal"
   | "note"
@@ -113,6 +115,17 @@ const waitingOnTypeOptions = [
   { value: "other", label: "Other" },
 ]
 
+const commitmentTypeOptions = [
+  { value: "personal", label: "Personal" },
+  { value: "work", label: "Work" },
+  { value: "school", label: "School" },
+  { value: "family", label: "Family" },
+  { value: "friend", label: "Friend" },
+  { value: "client", label: "Client" },
+  { value: "financial", label: "Financial" },
+  { value: "other", label: "Other" },
+]
+
 function numericValue(value: string) {
   if (!value.trim()) return null
   const parsed = Number.parseFloat(value)
@@ -169,6 +182,27 @@ const quickAddConfigs: QuickAddConfig[] = [
       expected_date: values.expected_date || null,
       follow_up_date: values.follow_up_date || null,
       status: "waiting",
+    }),
+  },
+  {
+    type: "commitment",
+    label: "Commitment",
+    description: "Track a promise",
+    endpoint: "/api/commitments",
+    eventType: "commitment",
+    icon: ClipboardCheck,
+    fields: [
+      { name: "title", label: "Title", type: "text", required: true, placeholder: "Send recommendation letter" },
+      { name: "committed_to", label: "Committed to", type: "text", required: true, placeholder: "My friend, team, client, or myself" },
+      { name: "commitment_type", label: "Type", type: "select", options: commitmentTypeOptions },
+      { name: "due_date", label: "Due date", type: "date" },
+    ],
+    buildPayload: (values) => ({
+      title: values.title,
+      committed_to: values.committed_to,
+      commitment_type: values.commitment_type || "personal",
+      due_date: values.due_date || null,
+      status: "open",
     }),
   },
   {
@@ -399,6 +433,7 @@ const quickAddConfigs: QuickAddConfig[] = [
 const defaultValues: Record<QuickAddType, Record<string, string>> = {
   inbox: {},
   waiting: { waiting_on_type: "person" },
+  commitment: { commitment_type: "personal" },
   task: { priority: "medium" },
   goal: { category: "personal", priority: "medium" },
   note: {},

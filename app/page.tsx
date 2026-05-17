@@ -11,6 +11,7 @@ import {
   CalendarCheck,
   CheckSquare,
   CheckCircle2,
+  ClipboardCheck,
   Clock,
   FileText,
   Flame,
@@ -180,6 +181,16 @@ interface WaitingItem {
   created_at?: string | null
 }
 
+interface CommitmentItem {
+  id: number | string
+  title: string
+  committed_to?: string | null
+  status?: string | null
+  due_date?: string | null
+  updated_at?: string | null
+  created_at?: string | null
+}
+
 interface DashboardSources {
   tasks: Task[]
   goals: Goal[]
@@ -249,6 +260,7 @@ const apiEndpoints: Record<DashboardApiKey, string> = {
 const quickActions = [
   { title: "Capture inbox", href: "/inbox", icon: Inbox },
   { title: "Track waiting", href: "/waiting", icon: Clock },
+  { title: "Add commitment", href: "/commitments", icon: ClipboardCheck },
   { title: "Add task", href: "/tasks", icon: ListTodo },
   { title: "Add goal", href: "/goals", icon: Target },
   { title: "Add project", href: "/projects", icon: FolderPlus },
@@ -334,6 +346,19 @@ function waitingFollowUpDue(item: WaitingItem) {
 function waitingOverdue(item: WaitingItem) {
   const date = parseDate(item.expected_date)
   return waitingItemIsActive(item) && Boolean(date && date < startOfToday())
+}
+
+function commitmentIsActive(item: CommitmentItem) {
+  return item.status === "open" || item.status === "at_risk"
+}
+
+function commitmentDueSoon(item: CommitmentItem) {
+  const date = parseDate(item.due_date)
+  if (!commitmentIsActive(item) || !date) return false
+  const today = startOfToday()
+  const limit = new Date(today)
+  limit.setDate(limit.getDate() + 7)
+  return date >= today && date <= limit
 }
 
 function sortByDueDate<T extends { date: string }>(items: T[]) {
@@ -453,6 +478,7 @@ export default function Home() {
   const [vaultWidget, setVaultWidget] = useState<{ expiringSoon: number; total: number } | null>(null)
   const [inboxWidget, setInboxWidget] = useState<{ total: number; recent: InboxItem[] } | null>(null)
   const [waitingWidget, setWaitingWidget] = useState<{ followUpsDue: number; overdue: number; recent: WaitingItem[] } | null>(null)
+  const [commitmentsWidget, setCommitmentsWidget] = useState<{ dueSoon: number; atRisk: number; recent: CommitmentItem[] } | null>(null)
   const [dashboardLoading, setDashboardLoading] = useState(true)
   const [errors, setErrors] = useState<Partial<Record<DashboardErrorKey, string>>>({})
   const [milestones, setMilestones] = useState<Array<{ id: string; label: string; title: string; occurred_at: string }>>([])
@@ -612,6 +638,22 @@ export default function Home() {
       }
     } catch {
       // Waiting For widget failure is non-fatal
+    }
+
+    // Commitments widget — fetch independently, fails silently
+    try {
+      const commitmentsRes = await fetch("/api/commitments?view=all&limit=100")
+      if (commitmentsRes.ok) {
+        const commitmentsData: CommitmentItem[] = await commitmentsRes.json()
+        const activeCommitments = commitmentsData.filter(commitmentIsActive)
+        setCommitmentsWidget({
+          dueSoon: commitmentsData.filter(commitmentDueSoon).length,
+          atRisk: commitmentsData.filter((item) => item.status === "at_risk").length,
+          recent: activeCommitments.slice(0, 3),
+        })
+      }
+    } catch {
+      // Commitments widget failure is non-fatal
     }
 
     setSources({
@@ -1139,6 +1181,73 @@ export default function Home() {
                             </span>
                           </span>
                           <span className="shrink-0 text-xs text-muted-foreground">{formatDate(item.follow_up_date || item.expected_date || item.updated_at || item.created_at)}</span>
+                        </Link>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {commitmentsWidget !== null && (
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <ClipboardCheck className="h-5 w-5 text-primary" />
+                    Commitments
+                  </CardTitle>
+                  <CardDescription>Promises and obligations that need to stay visible.</CardDescription>
+                </div>
+                <Button asChild size="sm" variant="outline" className="gap-2">
+                  <Link href="/commitments">
+                    Open Commitments
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {dashboardLoading ? (
+                <div className="grid gap-3 md:grid-cols-3">
+                  <Skeleton className="h-20 w-full" />
+                  <Skeleton className="h-20 w-full" />
+                  <Skeleton className="h-20 w-full" />
+                </div>
+              ) : commitmentsWidget.dueSoon === 0 && commitmentsWidget.atRisk === 0 && commitmentsWidget.recent.length === 0 ? (
+                <EmptyState actionHref="/commitments" actionLabel="Add commitment">
+                  No active commitments are asking for attention.
+                </EmptyState>
+              ) : (
+                <div className="grid gap-3 lg:grid-cols-[160px_160px_minmax(0,1fr)]">
+                  <div className="rounded-md border bg-muted/40 p-3">
+                    <p className="text-2xl font-bold">{commitmentsWidget.dueSoon}</p>
+                    <p className="text-xs text-muted-foreground">due soon</p>
+                  </div>
+                  <div className="rounded-md border bg-muted/40 p-3">
+                    <p className="text-2xl font-bold">{commitmentsWidget.atRisk}</p>
+                    <p className="text-xs text-muted-foreground">at risk</p>
+                  </div>
+                  <div className="space-y-2">
+                    {commitmentsWidget.recent.length === 0 ? (
+                      <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">No open or at-risk commitments.</p>
+                    ) : (
+                      commitmentsWidget.recent.map((item) => (
+                        <Link
+                          key={item.id}
+                          href="/commitments"
+                          className="flex items-center justify-between gap-3 rounded-md border p-3 text-sm hover:bg-secondary"
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate font-medium">{item.title}</span>
+                            <span className="block truncate text-xs text-muted-foreground">
+                              Committed to {item.committed_to || "someone"}
+                            </span>
+                          </span>
+                          <span className="shrink-0 text-xs text-muted-foreground">{formatDate(item.due_date || item.updated_at || item.created_at)}</span>
                         </Link>
                       ))
                     )}

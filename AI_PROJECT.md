@@ -47,8 +47,9 @@ Implemented feature areas found in the repo:
 - Life Timeline at `/timeline` and `/api/timeline`: chronological view of meaningful life activity derived from existing tables (no new schema). Sources: completed tasks, completed goals, completed projects, notes created, weekly reviews, habit check-in milestones (7/14/21/30/50/100 check-ins), wishlist items purchased, investments added, budget categories created. Single GET endpoint uses parallel per-source queries with per-source error handling (missing tables are skipped). Filters by event type, life area, and text search. Client groups events by month or week. Dashboard widget shows 5 most recent milestones. Sidebar nav under "Insights".
 - Universal Life Inbox at `/inbox` and `/api/inbox`: user-scoped capture queue for messy thoughts, reminders, ideas, and responsibilities before the user decides where they belong. Items can be unsorted, archived, or converted after explicit confirmation into tasks, goals, notes, projects, habits, wishlist items, vault items, or calendar events. Conversion records `converted_type` and `converted_id` on the original inbox item. Quick Add can capture to Inbox, AI Capture can save raw text to Inbox, the dashboard shows unsorted items, and Global Search includes Inbox items.
 - Waiting For tracker at `/waiting` and `/api/waiting`: user-scoped tracking for external dependencies such as replies, approvals, deliveries, refunds, school/company/bank/government follow-ups, job applications, and other things the user is waiting on. Items support status, expected/follow-up dates, optional Life Area, Project, and Person links, dashboard follow-up/overdue widget, Quick Add support, Global Search, and AI Capture draft creation.
+- Commitments tracker at `/commitments` and `/api/commitments`: user-scoped tracking for promises and obligations made to oneself or others. Commitments support type/status, due dates, optional Life Area/Project/Person/Task links, dashboard due-soon/at-risk widget, Quick Add, Global Search, and explicit conversion to a linked task through `/api/commitments/convert-to-task`.
 - Smart Templates at `/templates`: 10 pre-designed life systems (student semester, fitness transformation, job search, business launch, budget reset, travel plan, learning roadmap, content creator planner, home management, reading list). Each template is a static code definition in `lib/templates.ts`. Users preview all items before anything is created. "Create this system" applies each item sequentially via existing CRUD APIs (projects, tasks, goals, habits, notes, custom sections, budget categories, vault items). Nothing writes to the database until the user explicitly confirms. Template-created items appear in existing global search automatically.
-- Global search across Inbox, Waiting For, tasks, goals, notes, links, wishlist, investments, income, and budget.
+- Global search across Inbox, Waiting For, Commitments, tasks, goals, notes, links, wishlist, investments, income, and budget.
 - Global search also includes projects.
 - Notification Center at `/notifications` and `components/notification-bell.tsx`: bell icon in the header shows a red unread badge and a Popover dropdown with the 10 most recent notifications. Full `/notifications` page lists all notifications grouped by date (Today / Yesterday / This Week / Earlier) with type filter and read/unread toggle. Notifications are generated on-demand from 8 source conditions: tasks due in 3 days, goal deadlines in 7 days, active daily habits with no check-in today, project deadlines in 7 days, vault items expiring in 30 days, people reminders due, weekly review nudge if no review for the previous week, and budget categories at ≥80% of monthly limit. Uses `notifications` table with UNIQUE(user_id, type, related_item_type, related_item_id) to prevent duplicate generation. Read state is preserved across regenerations via `ON CONFLICT DO NOTHING`. Sidebar nav link and Settings toggle included. Migration: `scripts/add-notifications.sql`.
 
@@ -108,6 +109,7 @@ Major tables in the current schema baseline:
 - `weekly_reviews`
 - `inbox_items`
 - `waiting_items`
+- `commitments`
 - `projects`, `project_items`, `project_activity`
 - `goals`, `tasks`, `nuke_goals`
 - `calendar_events`, `calendar_integrations`
@@ -129,7 +131,7 @@ Representative API areas:
 
 - Auth: `app/api/auth/*`
 - CRUD and planning: `today-plan`, `weekly-review`, `life-areas`, `projects`, `projects/items`, `projects/activity`, `tasks`, `goals`, `notes`, `note-folders`, `links`, `link-folders`, `wishlist`, `investments`, `income`, `budget`, `calendar-events`, `nuke-goal`, `custom-sections`
-- Capture and sorting: `inbox`, `inbox/convert`, `waiting`
+- Capture and sorting: `inbox`, `inbox/convert`, `waiting`, `commitments`, `commitments/convert-to-task`
 - User/profile/preferences: `profile`, `onboarding`, `sidebar-preferences`, `daily-content`
 - Integrations: `calendar/google/*`, `calendar/sync`, `stock-quote`, `url-preview`
 - AI: `chat`, `daily-content/generate`, `investments/parse-screenshot`, `ai/weekly-summary`, `ai/today-plan`, `ai/capture`, `ai/life-balance`; these routes use main session auth and provider-specific env vars.
@@ -146,6 +148,7 @@ Important pages:
 - `/review`
 - `/inbox`
 - `/waiting`
+- `/commitments`
 - `/insights`
 - `/life-areas`
 - `/projects`, `/projects/[id]`

@@ -6,6 +6,7 @@ import { sql } from "@/lib/db"
 type SearchType =
   | "inbox"
   | "waiting"
+  | "commitments"
   | "tasks"
   | "goals"
   | "notes"
@@ -39,6 +40,7 @@ type SearchResult = {
 const groupLabels: Record<SearchType, string> = {
   inbox: "Inbox",
   waiting: "Waiting For",
+  commitments: "Commitments",
   tasks: "Tasks",
   goals: "Goals",
   notes: "Notes",
@@ -103,6 +105,7 @@ export async function GET(request: Request) {
   const [
     inbox,
     waiting,
+    commitments,
     tasks,
     goals,
     notes,
@@ -172,6 +175,42 @@ export async function GET(request: Request) {
         OR COALESCE(pe.name, '') ILIKE ${pattern}
       )
       ORDER BY wi.updated_at DESC, wi.created_at DESC
+      LIMIT 5
+    `),
+    safeRows("commitments", sql`
+      SELECT
+        c.id,
+        c.title,
+        COALESCE(la.name, p.title, pe.name, t.title, c.committed_to, c.status) as subtitle,
+        '/commitments' as href,
+        c.updated_at,
+        c.created_at
+      FROM commitments c
+      LEFT JOIN life_areas la
+        ON c.life_area_id = la.id
+        AND la.user_id = ${user.id}
+      LEFT JOIN projects p
+        ON c.project_id = p.id
+        AND p.user_id = ${user.id}
+      LEFT JOIN people pe
+        ON c.person_id = pe.id
+        AND pe.user_id = ${user.id}
+      LEFT JOIN tasks t
+        ON c.related_task_id = t.id
+        AND t.user_id = ${user.id}
+      WHERE c.user_id = ${user.id}
+      AND (
+        c.title ILIKE ${pattern}
+        OR COALESCE(c.description, '') ILIKE ${pattern}
+        OR c.committed_to ILIKE ${pattern}
+        OR c.commitment_type ILIKE ${pattern}
+        OR c.status ILIKE ${pattern}
+        OR COALESCE(la.name, '') ILIKE ${pattern}
+        OR COALESCE(p.title, '') ILIKE ${pattern}
+        OR COALESCE(pe.name, '') ILIKE ${pattern}
+        OR COALESCE(t.title, '') ILIKE ${pattern}
+      )
+      ORDER BY c.updated_at DESC, c.created_at DESC
       LIMIT 5
     `),
     safeRows("tasks", sql`
@@ -337,6 +376,7 @@ export async function GET(request: Request) {
     const rowsByType: Record<SearchType, SearchRow[]> = {
       inbox,
       waiting,
+      commitments,
       tasks,
       goals,
       notes,

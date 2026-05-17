@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import {
   CheckSquare,
+  ClipboardCheck,
   Clock,
   DollarSign,
   FileText,
@@ -33,6 +34,7 @@ import {
 type SearchType =
   | "inbox"
   | "waiting"
+  | "commitments"
   | "tasks"
   | "goals"
   | "notes"
@@ -68,6 +70,7 @@ type SearchResponse = {
 const groupIcons = {
   inbox: Inbox,
   waiting: Clock,
+  commitments: ClipboardCheck,
   tasks: CheckSquare,
   goals: Target,
   notes: FileText,
@@ -187,7 +190,7 @@ export function GlobalSearch() {
       </Button>
 
       <CommandDialog open={open} onOpenChange={setOpen}>
-        <CommandInput placeholder="Search inbox, waiting, tasks, goals, projects, notes..." value={query} onValueChange={setQuery} />
+        <CommandInput placeholder="Search inbox, commitments, waiting, tasks, goals..." value={query} onValueChange={setQuery} />
         <CommandList className="max-h-[420px]">
           {!hasQuery ? (
             <div className="px-4 py-8 text-center text-sm text-muted-foreground">

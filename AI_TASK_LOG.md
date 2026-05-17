@@ -1506,6 +1506,61 @@ After that, re-run the regression checkpoint and the schema-drift 500s should di
   - Overdue means active `waiting`/`follow_up_needed` items with `expected_date < CURRENT_DATE`.
   - Resolved and cancelled items stay searchable/history-visible but are excluded from active dashboard counts.
 
+### 2026-05-17 21:15 IST - Commitments Tracker
+
+- Agent/tool used: Codex.
+- Task summary: Added a website-only Commitments tracker for promises and obligations made to oneself or other people.
+- Files changed:
+  - `app/commitments/page.tsx`
+  - `app/commitments/loading.tsx`
+  - `app/api/commitments/route.ts`
+  - `app/api/commitments/convert-to-task/route.ts`
+  - `app/api/search/route.ts`
+  - `app/api/sidebar-preferences/route.ts`
+  - `app/page.tsx`
+  - `app/settings/page.tsx`
+  - `components/dashboard-layout.tsx`
+  - `components/global-search.tsx`
+  - `components/quick-add-modal.tsx`
+  - `scripts/add-commitments.sql`
+  - `scripts/website-current-schema.sql`
+  - `scripts/run-pending-migrations.sql`
+  - `AI_PROJECT.md`
+  - `AI_DECISIONS.md`
+  - `AI_TASK_LOG.md`
+- What changed:
+  - Added `commitments` as a user-owned table with title, description, committed-to, commitment type, due date, status, optional Life Area/Project/Person/Task links, and timestamps.
+  - Added authenticated `/api/commitments` CRUD with `user_id` filters, enum/date normalization, and ownership validation for optional linked records.
+  - Added authenticated `/api/commitments/convert-to-task` for explicit task creation and linking through `related_task_id`.
+  - Added `/commitments` with create/edit/delete, quick status changes, Open/Due soon/At risk/Completed/Missed/All views, search, linked record badges, task conversion dialog, and loading/error/empty states.
+  - Added Commitments to sidebar defaults, Settings sidebar controls, dashboard widget, Quick Add, and Global Search.
+  - Added standalone and consolidated SQL migration updates. No database scripts were run.
+- Data model added:
+  - `commitments.commitment_type`: `personal`, `work`, `school`, `family`, `friend`, `client`, `financial`, `other`.
+  - `commitments.status`: `open`, `at_risk`, `completed`, `missed`, `cancelled`.
+  - Optional `life_area_id`, `project_id`, `person_id`, and `related_task_id` links. The migration uses `ON DELETE SET NULL` for Life Areas directly and conditionally adds Project/Person/Task foreign keys when those tables exist, while the API always validates ownership before saving linked IDs.
+  - Indexes: `user_id`, `(user_id, status)`, `(user_id, due_date)`, `life_area_id`, `project_id`, `person_id`, and `related_task_id`.
+- Commands run:
+  - `git status --short --branch` - clean at task start on `main...origin/main`.
+  - `npx tsc --noEmit` - passed.
+  - `git diff --check` - passed.
+  - `npm run lint` - failed before source linting because ESLint 10.3.0 cannot find `eslint.config.(js|mjs|cjs)`.
+  - `npm run build` - passed; generated 106 routes including `/commitments`, `/api/commitments`, and `/api/commitments/convert-to-task`; still skips type/lint validation because of `next.config.mjs` and emits known metadata `themeColor`/`viewport` warnings, including the new `/commitments` route.
+- Remaining issues and limitations:
+  - `scripts/add-commitments.sql` or the consolidated migration must be applied to the target database before `/commitments`, dashboard Commitments widget, Quick Add Commitment, Global Search Commitments, and task conversion can save or load live data.
+  - No browser/manual smoke test was run in this pass.
+  - No notifications or AI Capture support were added for commitments in v1.
+  - Overdue open commitments are visually flagged but not auto-marked missed.
+  - `npm run lint` remains blocked by the missing ESLint flat config.
+  - `npm run build` still hides TypeScript and lint failures through `next.config.mjs`.
+- Suggested next steps:
+  - Confirm the target Neon environment and apply `scripts/add-commitments.sql` or the consolidated pending migration, then smoke-test Commitments CRUD, views, task conversion, dashboard counts, Quick Add, Global Search, and two-user isolation.
+  - Add ESLint flat config and consider re-enabling build type/lint gates.
+- Handoff notes:
+  - Due soon means active `open`/`at_risk` commitments with `due_date` from today through the next 7 days.
+  - Missed is a manual status; the app does not mutate status based on dates.
+  - Task conversion creates a new task and links it with `related_task_id`; it does not delete or complete the commitment.
+
 ## AI Handoff Summaries
 
 Future agents should start by reading all root memory files, then inspect the relevant code before editing. Keep changes small and update this file after every repo change.
