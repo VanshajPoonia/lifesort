@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
 import { Resend } from "resend"
+import { timingSafeEqual } from "crypto"
 
 const sql = neon(process.env.DATABASE_URL!)
 const resend = new Resend(process.env.RESEND_API_KEY)
@@ -24,11 +25,21 @@ type ReminderRow = Omit<ReminderItem, 'type' | 'reminder_days'> & {
 
 // This endpoint is called daily by Vercel Cron
 export async function GET(request: Request) {
-  // Verify cron secret to prevent unauthorized access
-  const authHeader = request.headers.get("authorization")
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    // In development, allow without secret
-    if (process.env.NODE_ENV === "production" && !process.env.CRON_SECRET) {
+  // Verify cron secret with timing-safe equality. In dev, allow when no
+  // secret is configured at all. In prod, an unset secret is a config error.
+  const authHeader = request.headers.get("authorization") ?? ""
+  const secret = process.env.CRON_SECRET
+  const isProd = process.env.NODE_ENV === "production"
+
+  if (!secret) {
+    if (isProd) {
+      return NextResponse.json({ error: "Cron not configured" }, { status: 500 })
+    }
+    // dev: allow without secret
+  } else {
+    const expected = Buffer.from(`Bearer ${secret}`)
+    const actual = Buffer.from(authHeader)
+    if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
   }
