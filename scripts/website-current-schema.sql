@@ -68,6 +68,14 @@ CREATE TABLE IF NOT EXISTS daily_plans (
   user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   plan_date DATE NOT NULL,
   focus_items JSONB NOT NULL DEFAULT '[]'::jsonb,
+  energy_level TEXT NOT NULL DEFAULT 'medium' CHECK (energy_level IN ('low', 'medium', 'high')),
+  available_focus_minutes INTEGER CHECK (
+    available_focus_minutes IS NULL OR (available_focus_minutes >= 0 AND available_focus_minutes <= 1440)
+  ),
+  mood TEXT,
+  day_type TEXT NOT NULL DEFAULT 'normal' CHECK (
+    day_type IN ('normal', 'busy', 'travel', 'sick', 'school', 'work-heavy', 'recovery')
+  ),
   reflection_went_well TEXT,
   reflection_did_not_go_well TEXT,
   reflection_improve_tomorrow TEXT,
