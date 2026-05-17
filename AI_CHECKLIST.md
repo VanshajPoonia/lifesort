@@ -222,6 +222,7 @@ Known as of 2026-05-17:
 15. For read-only AI insight features, derive source signals server-side with `user_id` filters, tolerate missing newer tables with partial results, rate-limit through `ai_usage_events`, and keep all suggested writes behind explicit user confirmation.
 16. For app-aware AI chat features, gather context server-side with `user_id` filters, cap the prompt context, avoid sending sensitive long-form content unless explicitly approved, expose citations for items used, and keep generated actions as confirmed drafts.
 17. For capacity or wellness-adjacent planning features, keep language practical and non-medical, store only user-entered planning labels, and verify AI prompts do not make health claims.
+18. For score/health-signal-style dashboard features, keep components explainable, user-scoped, non-shaming, and resilient to missing optional module tables; store history only in explicit snapshot tables and document migrations before use.
 
 ## Common Failure Points
 
