@@ -21,8 +21,13 @@ import {
   History,
   X,
   Filter,
+  Wrench,
+  Shield,
+  Users,
+  ClipboardCheck,
+  Sparkles,
 } from "lucide-react"
-import type { EventType, TimelineEvent, LifeAreaRow } from "@/app/api/timeline/route"
+import type { EventType, TimelineEvent, LifeAreaRow } from "@/lib/timeline"
 
 const EVENT_TYPE_CONFIG: Record<
   EventType,
@@ -45,6 +50,12 @@ const EVENT_TYPE_CONFIG: Record<
     Icon: FolderOpen,
     badge: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",
     dot: "bg-indigo-500",
+  },
+  project_milestone: {
+    label: "Project Milestone",
+    Icon: Sparkles,
+    badge: "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300",
+    dot: "bg-sky-500",
   },
   note_created: {
     label: "Note Created",
@@ -77,10 +88,34 @@ const EVENT_TYPE_CONFIG: Record<
     dot: "bg-emerald-500",
   },
   budget_milestone: {
-    label: "Budget Category",
+    label: "Budget Milestone",
     Icon: Wallet,
     badge: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
     dot: "bg-amber-500",
+  },
+  maintenance_completed: {
+    label: "Maintenance Done",
+    Icon: Wrench,
+    badge: "bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300",
+    dot: "bg-slate-500",
+  },
+  vault_renewal_completed: {
+    label: "Vault Renewal",
+    Icon: Shield,
+    badge: "bg-lime-100 text-lime-700 dark:bg-lime-900/40 dark:text-lime-300",
+    dot: "bg-lime-500",
+  },
+  people_followup_completed: {
+    label: "Follow-up Done",
+    Icon: Users,
+    badge: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300",
+    dot: "bg-cyan-500",
+  },
+  commitment_completed: {
+    label: "Commitment Done",
+    Icon: ClipboardCheck,
+    badge: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
+    dot: "bg-purple-500",
   },
 }
 
@@ -135,6 +170,8 @@ export default function TimelinePage() {
   const [search, setSearch] = useState("")
   const [typeFilter, setTypeFilter] = useState("all")
   const [lifeAreaFilter, setLifeAreaFilter] = useState("all")
+  const [startDate, setStartDate] = useState("")
+  const [endDate, setEndDate] = useState("")
   const [groupBy, setGroupBy] = useState<"month" | "week">("month")
 
   useEffect(() => {
@@ -147,6 +184,8 @@ export default function TimelinePage() {
     if (search) params.set("search", search)
     if (typeFilter !== "all") params.set("type", typeFilter)
     if (lifeAreaFilter !== "all") params.set("life_area_id", lifeAreaFilter)
+    if (startDate) params.set("start_date", startDate)
+    if (endDate) params.set("end_date", endDate)
 
     setLoading(true)
     setError(false)
@@ -162,19 +201,21 @@ export default function TimelinePage() {
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false))
-  }, [search, typeFilter, lifeAreaFilter])
+  }, [search, typeFilter, lifeAreaFilter, startDate, endDate])
 
   useEffect(() => {
     fetchTimeline()
   }, [fetchTimeline])
 
-  const hasFilters = search.length > 0 || typeFilter !== "all" || lifeAreaFilter !== "all"
+  const hasFilters = search.length > 0 || typeFilter !== "all" || lifeAreaFilter !== "all" || startDate.length > 0 || endDate.length > 0
 
   function clearFilters() {
     setSearchInput("")
     setSearch("")
     setTypeFilter("all")
     setLifeAreaFilter("all")
+    setStartDate("")
+    setEndDate("")
   }
 
   const groups = groupByPeriod(events, groupBy)
@@ -217,7 +258,7 @@ export default function TimelinePage() {
         {/* Filter bar */}
         <Card>
           <CardContent className="pt-4 pb-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_190px_160px_150px_150px_auto] md:items-center">
               <div className="relative flex-1 max-w-xs">
                 <Input
                   placeholder="Search events…"
@@ -246,19 +287,29 @@ export default function TimelinePage() {
                   ))}
                 </SelectContent>
               </Select>
-              {lifeAreas.length > 0 && (
-                <Select value={lifeAreaFilter} onValueChange={setLifeAreaFilter}>
-                  <SelectTrigger className="w-[160px]">
-                    <SelectValue placeholder="Life area" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All life areas</SelectItem>
-                    {lifeAreas.map((la) => (
-                      <SelectItem key={la.id} value={String(la.id)}>{la.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
+              <Select value={lifeAreaFilter} onValueChange={setLifeAreaFilter} disabled={lifeAreas.length === 0}>
+                <SelectTrigger className="w-full md:w-[160px]">
+                  <SelectValue placeholder="Life area" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All life areas</SelectItem>
+                  {lifeAreas.map((la) => (
+                    <SelectItem key={la.id} value={String(la.id)}>{la.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(event) => setStartDate(event.target.value)}
+                aria-label="Start date"
+              />
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(event) => setEndDate(event.target.value)}
+                aria-label="End date"
+              />
               {hasFilters && (
                 <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground">
                   Clear filters
@@ -309,7 +360,7 @@ export default function TimelinePage() {
                 <>
                   <p className="text-sm font-medium">Your timeline is empty.</p>
                   <p className="text-xs text-muted-foreground">
-                    Complete tasks, achieve goals, build habits, and save weekly reviews — your milestones will appear here.
+                    Complete tasks, goals, projects, commitments, maintenance, habits, reviews, and other milestones to see them here.
                   </p>
                 </>
               )}
