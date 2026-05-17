@@ -152,6 +152,40 @@ Open/inconsistent auth questions:
 - `next.config.mjs` currently disables TypeScript and ESLint build failures.
 - Images are set to unoptimized.
 
+## Agent Action Infrastructure (2026-05-18)
+
+Decisions made while implementing N5 (audit follow-up). These shape how the LifeSort Agents feature will execute writes on the user's behalf.
+
+- **Decision: Every agent write goes through `agent_action_events` as a draft.**
+  - Status lifecycle: `pending` → `confirmed` | `rejected` (set by user) → `executed` | `failed` (set by `/api/agent/execute`).
+  - `executed`/`failed` rows are immutable — they cannot be deleted via the API. This preserves the audit trail.
+  - Rationale: matches the pattern from AI Capture / AI Today Plan and gives users a single review queue across all agent activity.
+
+- **Decision: `/api/agent/execute` returns 501 TOOL_NOT_IMPLEMENTED until `lib/agent-tools.ts` exists.**
+  - The route validates ownership and confirmation state, then marks the action `status='failed'` with a clear error before returning 501.
+  - Rationale: shipping the route as a stub forces every consumer to register tools explicitly. There is no risk of accidental writes through an unimplemented dispatch.
+  - When tool registry is built: replace the 501 branch with `const handler = AGENT_TOOLS[action.tool_name]` lookup; if no handler exists, return the same 501 + `failed` status.
+
+- **Decision: Agent actions are user-scoped at every layer.**
+  - GET, PUT, DELETE on `/api/agent/actions` all filter by `user_id = user.id`.
+  - `/api/agent/execute` validates the action belongs to the current session user before executing.
+  - Even with a valid action id, no user can confirm or execute another user's action.
+
+- **Decision: Zod is mandatory for all agent-related routes from day one.**
+  - Both `/api/agent/actions` and `/api/agent/execute` use Zod schemas for body validation and return structured `{ error, code, issues? }` 400 responses.
+  - This sets the pattern for the broader Zod adoption recommended by AI_AUDIT.md §P.
+
+## Database Migration Workflow (2026-05-18)
+
+- **Decision: Canonical schema lives in `scripts/schema.sql`. Legacy/feature SQL files moved to `scripts/legacy/`.** Forward-only migrations live in `scripts/migrations/YYYY-MM-DD-<name>.sql`.
+  - Rationale: a single file for fresh-DB setup eliminates the previous drift where `setup-database.sql`, `run-pending-migrations.sql`, and `website-current-schema.sql` had overlapping but inconsistent CREATE statements.
+  - When adding a new schema change: write the migration file AND mirror the CREATE/ALTER content into `schema.sql` so fresh-DB setup stays complete.
+  - `scripts/README.md` documents the workflow.
+
+- **Decision: `payment_logs`, `pomodoro_sessions`, `pomodoro_settings` are NOT in the canonical schema.**
+  - Rationale: zero code references found (`grep` across `app/`, `lib/`, `components/`). Including them would propagate type-mismatch drift (legacy `INTEGER`/`UUID` user_id vs current `VARCHAR(255)`).
+  - If a pomodoro feature is built later, write a new migration with the correct user_id type.
+
 ## Pre-Agents Audit Decisions (2026-05-17)
 
 Decisions recorded from the pre-Agents audit (`AI_AUDIT.md`). These shape the next 5 implementation tasks before the Agents feature begins.

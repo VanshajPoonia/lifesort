@@ -129,7 +129,7 @@ Major tables in the current schema baseline:
 - `budget_categories`, `budget_transactions`, `budget_goals`
 - `user_content_preferences`, `daily_content`
 - `custom_sections`, `custom_section_items`
-- `api_usage`, `ai_usage_events`, `popular_investments`
+- `api_usage`, `ai_usage_events`, `popular_investments`, `agent_action_events`
 
 There is no automated migration runner in `package.json`.
 
@@ -146,6 +146,7 @@ Representative API areas:
 - Integrations: `calendar/google/*`, `calendar/sync`, `stock-quote`, `url-preview`
 - AI: `chat`, `daily-content/generate`, `investments/parse-screenshot`, `ai/weekly-summary`, `ai/today-plan`, `ai/capture`, `ai/life-balance`, `ai/what-am-i-ignoring`, `ai/reset-suggestions`, `ai/life-score`; these routes use main session auth and provider-specific env vars. Planning-oriented AI routes read visible Personal Operating Rules through `lib/personal-rules.ts`.
 - Operational: `cron/deadline-reminders`, `admin/update-subscription`, `dashboard`, `search`, `share`
+- Agent infrastructure: `agent/actions` (GET/POST/PUT/DELETE pending agent actions), `agent/execute` (POST executes a confirmed action). Backed by `agent_action_events` table. Both routes require session auth and Zod-validate every body. `/api/agent/execute` returns 501 TOOL_NOT_IMPLEMENTED until the tool registry is built — this is intentional.
 
 ## Frontend Structure
 

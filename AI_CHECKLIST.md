@@ -146,7 +146,11 @@ Database scripts:
 
 - SQL files live in `scripts/`.
 - Do not run them automatically.
-- Treat `scripts/website-current-schema.sql` as the closest canonical baseline until production schema state is verified.
+- Canonical schema: `scripts/schema.sql`. Use for fresh-DB setup only.
+- Forward-only additive migrations: `scripts/migrations/YYYY-MM-DD-<name>.sql`. Apply in date order to existing databases.
+- Legacy SQL files: `scripts/legacy/` — kept for archaeology only, do NOT run.
+- `scripts/legacy/setup-database.sql` is incompatible with the current schema (uses `SERIAL` user_id). Never run it.
+- See `scripts/README.md` for the full workflow.
 
 ## Current Command Behavior
 
@@ -197,7 +201,7 @@ Known as of 2026-05-17:
 2. Check browser console or server output for the first real error.
 3. Inspect the relevant page, component, route handler, and schema columns.
 4. For auth issues, inspect `lib/auth.ts`, `components/auth-provider.tsx`, and the relevant `app/api/auth/*` route.
-5. For database issues, compare queries against `scripts/website-current-schema.sql`.
+5. For database issues, compare queries against `scripts/schema.sql`.
 6. For integration issues, check env var presence and provider response handling without logging secrets.
 7. Make the smallest fix that addresses the failure.
 8. Re-run the targeted verification.
@@ -213,7 +217,7 @@ Known as of 2026-05-17:
 7. Verify external API changes have failure handling.
 8. For AI routes, verify unauthenticated calls return `401`, missing provider keys return a clear `503`, malformed payloads return `400`, and rate-limited calls return `429`.
 9. **Confirm `ai_usage_events` table exists in the live database before enabling AI features.** If the table is missing, all per-user AI rate limits are silently bypassed — `lib/ai-usage.ts` catches the missing-table error and returns `allowed: true` so that deploys don't fail before migrations, but this means unlimited AI calls until the migration runs. Run `SELECT COUNT(*) FROM ai_usage_events` on the live Neon database to verify.
-9. For schema-spanning features, update the standalone migration, `scripts/website-current-schema.sql`, and `scripts/run-pending-migrations.sql` together, and document that migrations were not run automatically.
+9. For schema-spanning features, add a new dated file to `scripts/migrations/` AND mirror the CREATE/ALTER content into `scripts/schema.sql`. Document that migrations were not run automatically.
 10. For capture/conversion features, verify every API is authenticated, every read/write is scoped by `user_id`, optional Life Area IDs are ownership-validated, and target record creation requires explicit user confirmation before writing structured module data.
 11. For date-based tracker features, verify dashboard counts and filters exclude closed statuses, all optional linked IDs are ownership-validated, Global Search remains user-scoped, Quick Add posts a minimal valid payload, and AI Capture only creates editable drafts before confirmation. For recurring trackers, verify completion advances the next due date from the completion date.
 12. For derived timeline/search features, verify no duplicate timeline table is introduced unless manual events are explicitly requested, every source query is user-scoped, missing source tables fail softly, and Global Search uses the same derivation path as the timeline API.

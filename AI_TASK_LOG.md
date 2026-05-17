@@ -17,6 +17,85 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-05-18 - Pre-Agents Audit Fixes (N1–N5)
+
+- Agent/tool used: Claude Code (coding agent mode).
+- Task: Implement all 5 blocking-issue fixes from [AI_AUDIT.md](AI_AUDIT.md) §N. After this commit, the Agents tab UI can begin development safely.
+
+#### N1 — CRON_SECRET timing-safe equality
+- **File:** `app/api/cron/deadline-reminders/route.ts`
+- **Issue:** Original check used `!==` and had a fall-through where a wrong secret in production (with `CRON_SECRET` set) would NOT return 401.
+- **Fix:** Now uses `crypto.timingSafeEqual` with explicit branches: dev without secret → allowed; prod without secret → 500 ("Cron not configured"); secret set and wrong → 401; secret set and right → proceed.
+
+#### N2 — OAuth state validation
+- **File:** `app/api/calendar/google/callback/route.ts`
+- **Issue:** Used `state` parameter directly as `user_id`. An attacker completing Google OAuth could write `calendar_integrations` rows under any user's account.
+- **Fix:** Calls `getUserFromSession()` and confirms `sessionUser.id === state`. Mismatch redirects to `/calendar?error=state_mismatch`. Missing session redirects to `/login?error=session_required`.
+
+#### N3 — SSRF protection in /api/url-preview
+- **New file:** `lib/safe-fetch.ts` — exports `safeFetch(url, opts)` and `SafeFetchError`. Defenses: https-only, DNS lookup of ALL A/AAAA records with private/loopback/link-local/multicast IPv4 + IPv6 blocking (incl. cloud metadata IPs 169.254.169.254), 1 MB response size cap streamed mid-read, 5 s timeout, `redirect: "manual"`.
+- **Modified:** `app/api/url-preview/route.ts` — switched to `safeFetch`; returns structured `{ error, code }` (e.g., `PRIVATE_IP_BLOCKED`, `UNSUPPORTED_PROTOCOL`) with 400/502 instead of opaque 500s. YouTube/Vimeo short-circuit paths unchanged.
+- **Deferred:** Per-user rate limit (`url_preview_events` table) — noted in audit but skipped this pass to keep the change focused on the SSRF blocker. The route is still public/unauthenticated; adding auth + rate-limit is a follow-up.
+
+#### N4 — Canonical schema consolidation
+- **New file:** `scripts/schema.sql` — copy of the former `website-current-schema.sql` PLUS consolidated CREATE TABLE blocks for the 10 actively-used "missing" tables: `habits`, `habit_checkins`, `routines`, `routine_steps`, `people`, `people_reminders`, `people_links`, `vault_items`, `notifications`, `custom_section_records` (and the `custom_sections.description` + `custom_sections.fields` ALTER columns). Also includes `agent_action_events` from N5.
+- **Excluded as confirmed unused:** `payment_logs`, `pomodoro_sessions`, `pomodoro_settings`. `grep` across `app/`, `lib/`, `components/` found zero references. They remain in `scripts/legacy/` for archaeology.
+- **New layout:** `scripts/legacy/` (every old `add-*.sql`, `create-*.sql`, `fix-*.sql`, `setup-database.sql`, `run-pending-migrations.sql`, and the original `website-current-schema.sql` — moved via `git mv`) and `scripts/migrations/` (new dated forward-only migrations). New `scripts/README.md` documents the layout.
+- **Migration:** `scripts/migrations/2026-05-18-agent-action-events.sql` — the standalone migration matching the inline block in `schema.sql`.
+
+#### N5 — Agent action infrastructure
+- **New table:** `agent_action_events` (id, user_id, agent_run_id UUID, tool_name, resource_type, resource_id, payload JSONB, status, error, created_at, executed_at). Status enum: pending | confirmed | rejected | executed | failed. Indexes on (user_id, created_at), (user_id, status), (agent_run_id).
+- **New route:** `app/api/agent/actions/route.ts` — GET (list with status / agent_run_id filters), POST (create pending action, validated via Zod), PUT (confirm or reject a pending action), DELETE (delete pending/rejected/failed; executed actions cannot be deleted via API).
+- **New route:** `app/api/agent/execute/route.ts` — POST that accepts an action id, validates ownership and `status='confirmed'`, then **returns 501 TOOL_NOT_IMPLEMENTED** and marks the action `status='failed'` with a clear error message. This is intentional — no tool registry exists yet. When `lib/agent-tools.ts` is built, replace the 501 branch with registry dispatch.
+- All routes require `getUserFromSession()`, scope every query by `user.id`, use Zod for body validation, and tolerate missing migration via the `safe()` / `isMissingTable()` pattern (returns 503 MIGRATION_REQUIRED).
+
+#### Files Created
+- `lib/safe-fetch.ts`
+- `scripts/schema.sql`
+- `scripts/README.md`
+- `scripts/migrations/2026-05-18-agent-action-events.sql`
+- `app/api/agent/actions/route.ts`
+- `app/api/agent/execute/route.ts`
+
+#### Files Modified
+- `app/api/cron/deadline-reminders/route.ts`
+- `app/api/calendar/google/callback/route.ts`
+- `app/api/url-preview/route.ts`
+- `AI_TASK_LOG.md` — this entry
+- `AI_PROJECT.md` — added agent_action_events table + new API routes to scope
+- `AI_DECISIONS.md` — appended "Agent Action Infrastructure" decisions
+- `AI_CHECKLIST.md` — appended new env vars and the canonical schema location
+
+#### Files Moved (via `git mv`)
+- All `scripts/add-*.sql`, `scripts/create-*.sql`, `scripts/fix-*.sql` → `scripts/legacy/`
+- `scripts/setup-database.sql` → `scripts/legacy/`
+- `scripts/run-pending-migrations.sql` → `scripts/legacy/`
+- `scripts/website-current-schema.sql` → `scripts/legacy/`
+
+#### Commands Run
+- `npx tsc --noEmit` → passes (no output)
+- `npm run build` → passes; new routes `/api/agent/actions` and `/api/agent/execute` appear in route output
+
+#### Production Migration Steps (run in order)
+1. Apply `scripts/migrations/2026-05-18-agent-action-events.sql` to production Neon. This is the only migration that adds a NEW table.
+2. `scripts/schema.sql` is for FRESH databases only — do NOT run it on the existing production database (it would re-CREATE existing tables with `IF NOT EXISTS` guards, which is safe but pointless).
+3. After the migration is applied, the Agents feature can begin UI work.
+
+#### Pre-existing failures (unchanged)
+- `npm run lint` still fails (missing ESLint flat config) — out of scope for this pass.
+
+#### Suggested Next Steps
+- Build the `lib/agent-tools.ts` tool registry (audit §Q3) and wire it into `/api/agent/execute`.
+- Build the Agents UI page that lists pending actions and offers Confirm/Reject buttons.
+- Adopt Zod across remaining CRUD routes (audit §P) — start with `/api/admin/*` and `/api/share` POST.
+- Add `url_preview_events` table + per-user rate limit if URL preview abuse becomes visible.
+
+#### Handoff Notes
+- The `agent_action_events` table is created with `IF NOT EXISTS` everywhere, so it is safe to run the migration ahead of any UI work.
+- The two `/api/agent/*` routes already enforce ownership and confirmation state — no agent can execute another user's action even with a valid action id.
+- `safeFetch` is a generally-useful utility; any future feature that fetches user-supplied URLs (e.g., new link import flows, OG image refresh for `wishlist_items`) should use it instead of raw `fetch()`.
+- The audit recommended deleting `setup-database.sql` outright; instead it was moved to `legacy/` because rolling it forward later is easier than reconstructing it from git history if we need it.
+
 ### 2026-05-17 - Pre-Agents Database & API Integration Audit
 
 - Agent/tool used: Claude Code (review mode).
