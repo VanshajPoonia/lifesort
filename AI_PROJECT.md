@@ -15,6 +15,7 @@ LifeSort is a personal life-management application for organizing today plans, w
 Implemented feature areas found in the repo:
 
 - Dashboard at `app/page.tsx`, aggregating tasks, goals, notes, budget, investments, wishlist, income, and habits widget.
+- Explainable LifeScore on the dashboard through `/api/life-score` and `/api/ai/life-score`: derives a daily 0-100 organization signal from focus completion, overdue task load, habits, goals, weekly review status, commitments, maintenance/vault dates, and Life Area balance. Daily snapshots are stored in `life_score_history` when the migration is applied. Optional AI explanation is read-only, rate-limited, and receives only the derived score summary/components.
 - Habits & Routines at `app/habits/page.tsx`, with per-habit CRUD, daily check-ins, streak tracking (current/best), weekly/monthly completion %, and routine builder with ordered steps.
 - Today Plan at `app/today/page.tsx`, providing a non-AI daily command center with focus items, energy/capacity planning, overload warnings, habits due today (with check-off), derived task/goal/calendar/note/budget/wishlist suggestions, and end-of-day reflection.
 - Weekly Review at `app/review/page.tsx`, providing a non-AI Monday-Sunday review across tasks, goals, habits, projects, notes, finance, Life Areas, and saved energy/capacity patterns with saved reflections and previous-review history.
@@ -112,6 +113,7 @@ Major tables in the current schema baseline:
 - `life_areas`
 - `daily_plans`
 - `weekly_reviews`
+- `life_score_history`
 - `personal_rules`
 - `someday_items`
 - `inbox_items`
@@ -142,7 +144,7 @@ Representative API areas:
 - Capture and sorting: `someday`, `someday/promote`, `inbox`, `inbox/convert`, `waiting`, `commitments`, `commitments/convert-to-task`, `maintenance`, `maintenance/complete`, `maintenance/create-task`
 - User/profile/preferences: `profile`, `onboarding`, `sidebar-preferences`, `daily-content`
 - Integrations: `calendar/google/*`, `calendar/sync`, `stock-quote`, `url-preview`
-- AI: `chat`, `daily-content/generate`, `investments/parse-screenshot`, `ai/weekly-summary`, `ai/today-plan`, `ai/capture`, `ai/life-balance`, `ai/what-am-i-ignoring`, `ai/reset-suggestions`; these routes use main session auth and provider-specific env vars. Planning-oriented AI routes read visible Personal Operating Rules through `lib/personal-rules.ts`.
+- AI: `chat`, `daily-content/generate`, `investments/parse-screenshot`, `ai/weekly-summary`, `ai/today-plan`, `ai/capture`, `ai/life-balance`, `ai/what-am-i-ignoring`, `ai/reset-suggestions`, `ai/life-score`; these routes use main session auth and provider-specific env vars. Planning-oriented AI routes read visible Personal Operating Rules through `lib/personal-rules.ts`.
 - Operational: `cron/deadline-reminders`, `admin/update-subscription`, `dashboard`, `search`, `share`
 
 ## Frontend Structure
