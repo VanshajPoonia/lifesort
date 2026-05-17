@@ -38,6 +38,7 @@ import {
   Wand2,
   Activity,
   History,
+  Inbox,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -56,6 +57,7 @@ interface DashboardLayoutProps {
 
 const DEFAULT_SIDEBAR_PREFS = {
   dashboard: true,
+  inbox: true,
   today: true,
   review: true,
   insights: true,
@@ -262,6 +264,14 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
                 <Button variant={isActivePath("/") ? "secondary" : "ghost"} className={navButtonClass("/")}>
                   <LayoutGrid className={navIconClass("/")} />
                   Dashboard
+                </Button>
+              </Link>
+            )}
+            {prefs.inbox && (
+              <Link href="/inbox">
+                <Button variant={isActivePath("/inbox") ? "secondary" : "ghost"} className={navButtonClass("/inbox")}>
+                  <Inbox className={navIconClass("/inbox")} />
+                  Inbox
                 </Button>
               </Link>
             )}
