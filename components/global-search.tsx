@@ -8,6 +8,7 @@ import {
   FileText,
   FolderPlus,
   Heart,
+  Inbox,
   Link2,
   Loader2,
   Search,
@@ -29,6 +30,7 @@ import {
 } from "@/components/ui/command"
 
 type SearchType =
+  | "inbox"
   | "tasks"
   | "goals"
   | "notes"
@@ -62,6 +64,7 @@ type SearchResponse = {
 }
 
 const groupIcons = {
+  inbox: Inbox,
   tasks: CheckSquare,
   goals: Target,
   notes: FileText,
@@ -181,7 +184,7 @@ export function GlobalSearch() {
       </Button>
 
       <CommandDialog open={open} onOpenChange={setOpen}>
-        <CommandInput placeholder="Search tasks, goals, projects, notes..." value={query} onValueChange={setQuery} />
+        <CommandInput placeholder="Search inbox, tasks, goals, projects, notes..." value={query} onValueChange={setQuery} />
         <CommandList className="max-h-[420px]">
           {!hasQuery ? (
             <div className="px-4 py-8 text-center text-sm text-muted-foreground">
