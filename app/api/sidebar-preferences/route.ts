@@ -31,6 +31,7 @@ const DEFAULT_SIDEBAR_SECTIONS = {
   capture: true,
   templates: true,
   timeline: true,
+  notifications: true,
 }
 
 export async function GET() {

@@ -17,6 +17,40 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-05-17 - In-App Notification Center
+
+- Agent/tool used: Claude Code (coding agent mode).
+- Task summary: Added a full in-app Notification Center — bell dropdown in the header, `/notifications` full page, and a `notifications` database table with server-side generation from 8 source conditions.
+
+#### Files Created
+- `scripts/add-notifications.sql` — Migration: `CREATE TABLE IF NOT EXISTS notifications` with UNIQUE(user_id, type, related_item_type, related_item_id) constraint and unread index. **Must be applied to production before the feature is live.**
+- `app/api/notifications/route.ts` — GET (generate + list), PUT (mark read / mark all read), DELETE (dismiss / clear read). Exports `NotificationType` union and `Notification` type. Generation runs 8 parallel INSERT … ON CONFLICT DO NOTHING queries (tasks due, goal deadlines, habit missed, project deadline, vault expiring, people follow-up, weekly review nudge, budget warning ≥80%). Each source wrapped in `safe()` for resilience against missing tables. Cleanup deletes read notifications older than 30 days on each call.
+- `components/notification-bell.tsx` — Client Popover component replacing the static Bell button in the header. Shows red unread badge. Re-fetches on Popover open. Optimistic mark-read and mark-all-read. Footer link to `/notifications`.
+- `app/notifications/page.tsx` — Full notifications page inside DashboardLayout. Groups by Today / Yesterday / This Week / Earlier. Filter bar: type dropdown (8 types), read/unread toggle. Per-row: type badge with icon, title, message, time-ago, dismiss (X) button. Empty states for filtered and all-time empty.
+
+#### Files Modified
+- `components/dashboard-layout.tsx` — Imported `NotificationBell`; replaced static Bell button (was lines 518-520) with `<NotificationBell />`; added `notifications: true` to `DEFAULT_SIDEBAR_PREFS`; added Notifications nav link (Bell icon) at end of nav.
+- `app/api/sidebar-preferences/route.ts` — Added `notifications: true` to `DEFAULT_SIDEBAR_SECTIONS`.
+- `app/settings/page.tsx` — Added `Bell` import; `notifications: true` to `sidebarPrefs` state; added notifications entry to sidebar items array.
+- `AI_PROJECT.md` — Added Notification Center to feature scope.
+- `AI_DECISIONS.md` — Documented generation-on-fetch, ON CONFLICT DO NOTHING UPSERT, date-keyed IDs, 30-day cleanup, and graceful missing-table handling.
+
+#### Commands Run
+- `npx tsc --noEmit` → 0 errors
+- `npm run build` → passed, `/notifications` and `/api/notifications` in route output
+
+#### Known Limitations / Remaining Work
+- **Migration must be applied in production** before notifications work. Without `scripts/add-notifications.sql`, the API returns `{ notifications: [], unread_count: 0 }` gracefully.
+- `habit_missed` fires for all active daily habits with no check-in today — this can be noisy if the user has many habits. A future enhancement could add a time-of-day gate (only fire after, e.g., 6 PM).
+- `project_deadline` requires the `projects.due_date` column — present in the API type but not confirmed in the canonical SQL schema. The `safe()` wrapper handles a missing column gracefully.
+- No browser push or email integration — in-app only, as requested.
+- No per-type opt-out setting in v1 — filter bar on the page covers basic settings needs.
+
+#### Suggested Next Steps
+- Apply `scripts/add-notifications.sql` to the production database.
+- Smoke test: navigate to any page → bell badge should appear if conditions are met → click bell → dropdown shows notifications → mark read → badge clears.
+- Consider adding a time-of-day gate to `habit_missed` generation to reduce daytime noise.
+
 ### 2026-05-17 - Life Timeline Feature
 
 - Agent/tool used: Claude Code (coding agent mode).

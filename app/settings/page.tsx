@@ -40,6 +40,7 @@ import {
   CheckSquare,
   Target,
   Wand2,
+  Bell,
   Bookmark,
   Heart,
   HelpCircle,
@@ -129,6 +130,7 @@ export default function SettingsPage() {
     capture: true,
     templates: true,
     timeline: true,
+    notifications: true,
   })
 
   useEffect(() => {
@@ -498,6 +500,7 @@ export default function SettingsPage() {
                   { id: "capture", label: "AI Capture", icon: Wand2, description: "Parse natural language into tasks, goals, habits, and more" },
                   { id: "templates", label: "Smart Templates", icon: Sparkles, description: "Ready-made life systems you can apply in one click" },
                   { id: "timeline", label: "Life Timeline", icon: History, description: "Chronological record of completed tasks, goals, habits, and milestones" },
+                  { id: "notifications", label: "Notifications", icon: Bell, description: "Reminders and alerts for tasks, habits, deadlines, and more" },
                 ].map(({ id, label, icon: Icon, description }) => (
                   <div
                     key={id}

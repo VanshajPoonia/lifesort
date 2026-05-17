@@ -45,6 +45,7 @@ import { ThemeSwitcher } from "@/components/theme-switcher"
 import { DailyPopup } from "@/components/daily-popup"
 import { QuickAddModal } from "@/components/quick-add-modal"
 import { GlobalSearch } from "@/components/global-search"
+import { NotificationBell } from "@/components/notification-bell"
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -81,6 +82,7 @@ const DEFAULT_SIDEBAR_PREFS = {
   capture: true,
   templates: true,
   timeline: true,
+  notifications: true,
 }
 
 // Module-level cache — persists across client-side navigations so the
@@ -464,6 +466,14 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
                 </Button>
               </Link>
             )}
+            {prefs.notifications && (
+              <Link href="/notifications">
+                <Button variant={isActivePath("/notifications") ? "secondary" : "ghost"} className={navButtonClass("/notifications")}>
+                  <Bell className={navIconClass("/notifications")} />
+                  Notifications
+                </Button>
+              </Link>
+            )}
           </nav>
 
           {/* User Profile */}
@@ -515,9 +525,7 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
             <span className="sm:hidden">Add</span>
           </Button>
           <ThemeSwitcher />
-          <Button variant="ghost" size="icon" className="hidden sm:flex">
-            <Bell className="h-5 w-5 text-foreground" />
-          </Button>
+          <NotificationBell />
           <Link href="/settings">
             <Button variant="ghost" size="icon" className="hidden sm:flex">
               <Settings className="h-5 w-5 text-foreground" />

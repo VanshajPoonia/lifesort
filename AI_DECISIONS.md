@@ -73,6 +73,17 @@ Architecture and product decision memory for LifeSort.
 - Zod (`"zod": "3.25.76"`) is available in the repo and is now used in the capture endpoint. Future AI endpoints that need structured output validation should use Zod rather than manual type checks.
 - AI Life Balance Insights (`/api/ai/life-balance`) differs from the client-sends-data pattern: GET and POST both derive user-scoped aggregate metrics server-side from Life Areas, tasks, goals, habits, projects, notes, budget, and recent weekly review reflections. The AI prompt receives aggregate counts plus short reflection snippets, not task titles or note content. The endpoint is read-only; suggested actions are returned as draft task suggestions and are only created by the `/insights` client after the user confirms.
 
+## Notification Center Decisions
+
+- Notifications are generated on-demand: every `GET /api/notifications` call runs `generateNotifications(uid)` before querying the table. This avoids a separate cron job for in-app alerts.
+- The `notifications` table uses `UNIQUE(user_id, type, related_item_type, related_item_id)` with `ON CONFLICT DO NOTHING` inserts. This means: (1) each condition creates at most one notification row, and (2) `is_read` state set by the user is preserved across regenerations without being reset.
+- Date-sensitive notification types (habit_missed, budget_warning) include the date or month in `related_item_id` to allow one notification per period (e.g., `habit_id-2026-05-17` or `category_id-2026-05`).
+- Stable notification types (task_due, goal_deadline, vault_expiring, people_followup, project_deadline, weekly_review) use the source item's id as `related_item_id` so the notification is created once per item and persists until dismissed.
+- Read notifications older than 30 days are auto-deleted at the start of each generation call to prevent unbounded table growth.
+- The `safe()` + `isMissingTable()` pattern (same as `app/api/timeline/route.ts`) wraps every INSERT in generation — if the `notifications` table or any source table is missing (migration not yet applied), that source is silently skipped. The GET route catches a missing `notifications` table and returns `{ notifications: [], unread_count: 0 }` rather than 500.
+- `components/notification-bell.tsx` is a client component that re-fetches when the Popover opens to show fresh state. Optimistic updates keep the UI snappy for mark-read actions.
+- Notification settings for v1 are a filter bar on the `/notifications` page (type + read/unread toggles), not a separate preferences page or DB column.
+
 ## Timeline and Multi-Source Aggregation Decisions
 
 - The Life Timeline derives events from 8 existing source tables (tasks, goals, projects, notes, weekly_reviews, wishlist_items, investments, budget_categories) plus habit_checkins for milestone computation. No new database tables were added.
