@@ -11,6 +11,7 @@ import {
   Clock,
   FileText,
   Flame,
+  FolderPlus,
   Heart,
   ListTodo,
   NotebookText,
@@ -33,7 +34,7 @@ import { LifeAreaIcon } from "@/components/life-area-controls"
 import type { LifeArea } from "@/lib/life-areas"
 import { normalizeLifeArea } from "@/lib/life-areas"
 
-type DashboardApiKey = "tasks" | "goals" | "notes" | "budget" | "investments" | "wishlist" | "income"
+type DashboardApiKey = "tasks" | "goals" | "notes" | "budget" | "investments" | "wishlist" | "income" | "projects"
 type DashboardErrorKey = DashboardApiKey | "today"
 
 interface Task {
@@ -137,6 +138,21 @@ interface IncomeSource {
   life_area_id?: string | number | null
 }
 
+interface Project {
+  id: number | string
+  title: string
+  description?: string | null
+  status?: string | null
+  priority?: string | null
+  progress?: number | string | null
+  due_date?: string | null
+  item_count?: number | string | null
+  next_action_count?: number | string | null
+  updated_at?: string | null
+  created_at?: string | null
+  life_area_id?: string | number | null
+}
+
 interface DashboardSources {
   tasks: Task[]
   goals: Goal[]
@@ -145,6 +161,7 @@ interface DashboardSources {
   investments: Investment[]
   wishlist: WishlistItem[]
   income: IncomeSource[]
+  projects: Project[]
 }
 
 interface ActivityItem {
@@ -173,6 +190,7 @@ const emptySources: DashboardSources = {
   investments: [],
   wishlist: [],
   income: [],
+  projects: [],
 }
 
 const apiEndpoints: Record<DashboardApiKey, string> = {
@@ -183,11 +201,13 @@ const apiEndpoints: Record<DashboardApiKey, string> = {
   investments: "/api/investments",
   wishlist: "/api/wishlist",
   income: "/api/income",
+  projects: "/api/projects",
 }
 
 const quickActions = [
   { title: "Add task", href: "/tasks", icon: ListTodo },
   { title: "Add goal", href: "/goals", icon: Target },
+  { title: "Add project", href: "/projects", icon: FolderPlus },
   { title: "Write note", href: "/notes", icon: NotebookText },
   { title: "Track budget", href: "/budget", icon: Wallet },
   { title: "Add wishlist", href: "/wishlist", icon: Heart },
@@ -406,7 +426,7 @@ export default function Home() {
   const fetchDashboard = async () => {
     setDashboardLoading(true)
     const planDate = localDateString()
-    const [tasks, goals, notes, budget, investments, wishlist, income, lifeAreasResult, todayPlan] = await Promise.all([
+    const [tasks, goals, notes, budget, investments, wishlist, income, projects, lifeAreasResult, todayPlan] = await Promise.all([
       fetchJson<Task[]>(apiEndpoints.tasks),
       fetchJson<Goal[]>(apiEndpoints.goals),
       fetchJson<Note[]>(apiEndpoints.notes),
@@ -414,6 +434,7 @@ export default function Home() {
       fetchJson<Investment[]>(apiEndpoints.investments),
       fetchJson<WishlistItem[]>(apiEndpoints.wishlist),
       fetchJson<IncomeSource[]>(apiEndpoints.income),
+      fetchJson<Project[]>(apiEndpoints.projects),
       fetchJson<LifeArea[]>("/api/life-areas"),
       fetchJson<TodayPlanPreview>(`/api/today-plan?date=${planDate}`),
     ])
@@ -456,6 +477,7 @@ export default function Home() {
       investments: normalizeArray<Investment>(investments.data),
       wishlist: normalizeArray<WishlistItem>(wishlist.data),
       income: normalizeArray<IncomeSource>(income.data),
+      projects: normalizeArray<Project>(projects.data),
     })
     setLifeAreas(normalizeArray<LifeArea>(lifeAreasResult.data).map((area) => normalizeLifeArea(area as unknown as Record<string, unknown>)))
     setTodayPreview(todayPlan.data)
@@ -467,6 +489,7 @@ export default function Home() {
       ...(investments.error ? { investments: investments.error } : {}),
       ...(wishlist.error ? { wishlist: wishlist.error } : {}),
       ...(income.error ? { income: income.error } : {}),
+      ...(projects.error ? { projects: projects.error } : {}),
       ...(todayPlan.error ? { today: todayPlan.error } : {}),
     })
     setDashboardLoading(false)
@@ -512,6 +535,17 @@ export default function Home() {
   const wishlistOpenValue = wishlistOpen.reduce((total, item) => total + toNumber(item.price), 0)
   const wishlistTotalValue = sources.wishlist.reduce((total, item) => total + toNumber(item.price), 0)
   const wishlistProgress = sources.wishlist.length ? Math.round((wishlistPurchased / sources.wishlist.length) * 100) : 0
+  const activeProjects = sources.projects.filter((project) => project.status === "active")
+  const overdueProjects = sources.projects.filter((project) => {
+    if (!project.due_date || project.status === "completed" || project.status === "archived") return false
+    const today = startOfToday()
+    const due = parseDate(project.due_date)
+    return Boolean(due && due < today)
+  })
+  const projectProgress = sources.projects.length
+    ? Math.round(sources.projects.reduce((total, project) => total + toNumber(project.progress), 0) / sources.projects.length)
+    : 0
+  const projectNextActions = sources.projects.reduce((total, project) => total + toNumber(project.next_action_count), 0)
 
   const upcomingDeadlines = sortByDueDate([
     ...activeGoals
@@ -592,6 +626,15 @@ export default function Home() {
       type: "Income",
       at: getTimestamp(source),
       life_area_id: source.life_area_id,
+    })),
+    ...sources.projects.map((project) => ({
+      id: `project-${project.id}`,
+      title: project.title,
+      label: project.status === "completed" ? "Completed project" : "Updated project",
+      href: `/projects/${project.id}`,
+      type: "Project",
+      at: getTimestamp(project),
+      life_area_id: project.life_area_id,
     })),
   ]
     .filter((activity) => activity.at)
@@ -822,6 +865,61 @@ export default function Home() {
                 <div className="rounded-md border bg-background/70 p-3">
                   <p className="text-2xl font-bold">{todayPreview?.summary?.calendarToday || 0}</p>
                   <p className="text-xs text-muted-foreground">calendar events today</p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <FolderPlus className="h-5 w-5 text-primary" />
+                  Projects
+                </CardTitle>
+                <CardDescription>Active projects, overdue deadlines, progress, and next actions.</CardDescription>
+              </div>
+              <Button asChild size="sm" variant="outline" className="gap-2">
+                <Link href="/projects">
+                  Open projects
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {dashboardLoading ? (
+              <div className="grid gap-3 md:grid-cols-4">
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-16 w-full" />
+              </div>
+            ) : errors.projects ? (
+              <SectionUnavailable label="Projects" />
+            ) : sources.projects.length === 0 ? (
+              <EmptyState actionHref="/projects" actionLabel="Create a project">
+                Projects can group tasks, notes, goals, links, wishlist items, and budget records.
+              </EmptyState>
+            ) : (
+              <div className="grid gap-3 md:grid-cols-4">
+                <div className="rounded-md border bg-muted/40 p-3">
+                  <p className="text-2xl font-bold">{activeProjects.length}</p>
+                  <p className="text-xs text-muted-foreground">active projects</p>
+                </div>
+                <div className="rounded-md border bg-muted/40 p-3">
+                  <p className="text-2xl font-bold">{overdueProjects.length}</p>
+                  <p className="text-xs text-muted-foreground">overdue</p>
+                </div>
+                <div className="rounded-md border bg-muted/40 p-3">
+                  <p className="text-2xl font-bold">{projectProgress}%</p>
+                  <p className="text-xs text-muted-foreground">average progress</p>
+                </div>
+                <div className="rounded-md border bg-muted/40 p-3">
+                  <p className="text-2xl font-bold">{projectNextActions}</p>
+                  <p className="text-xs text-muted-foreground">next actions</p>
                 </div>
               </div>
             )}

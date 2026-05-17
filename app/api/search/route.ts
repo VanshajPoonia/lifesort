@@ -7,6 +7,7 @@ type SearchType =
   | "tasks"
   | "goals"
   | "notes"
+  | "projects"
   | "links"
   | "wishlist"
   | "investments"
@@ -35,6 +36,7 @@ const groupLabels: Record<SearchType, string> = {
   tasks: "Tasks",
   goals: "Goals",
   notes: "Notes",
+  projects: "Projects",
   links: "Links",
   wishlist: "Wishlist",
   investments: "Investments",
@@ -94,6 +96,7 @@ export async function GET(request: Request) {
     tasks,
     goals,
     notes,
+    projects,
     links,
     wishlist,
     investments,
@@ -136,6 +139,29 @@ export async function GET(request: Request) {
         )
       )
       ORDER BY notes.updated_at DESC, notes.created_at DESC
+      LIMIT 5
+    `),
+    safeRows("projects", sql`
+      SELECT
+        projects.id,
+        projects.title,
+        COALESCE(projects.description, life_areas.name, projects.status) as subtitle,
+        '/projects/' || projects.id::text as href,
+        projects.updated_at,
+        projects.created_at
+      FROM projects
+      LEFT JOIN life_areas
+        ON projects.life_area_id = life_areas.id
+        AND life_areas.user_id = ${user.id}
+      WHERE projects.user_id = ${user.id}
+      AND (
+        projects.title ILIKE ${pattern}
+        OR COALESCE(projects.description, '') ILIKE ${pattern}
+        OR COALESCE(projects.status, '') ILIKE ${pattern}
+        OR COALESCE(projects.priority, '') ILIKE ${pattern}
+        OR COALESCE(life_areas.name, '') ILIKE ${pattern}
+      )
+      ORDER BY projects.updated_at DESC, projects.created_at DESC
       LIMIT 5
     `),
     safeRows("links", sql`
@@ -203,6 +229,7 @@ export async function GET(request: Request) {
       tasks,
       goals,
       notes,
+      projects,
       links,
       wishlist,
       investments,

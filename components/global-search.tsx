@@ -6,6 +6,7 @@ import {
   CheckSquare,
   DollarSign,
   FileText,
+  FolderPlus,
   Heart,
   Link2,
   Loader2,
@@ -29,6 +30,7 @@ type SearchType =
   | "tasks"
   | "goals"
   | "notes"
+  | "projects"
   | "links"
   | "wishlist"
   | "investments"
@@ -59,6 +61,7 @@ const groupIcons = {
   tasks: CheckSquare,
   goals: Target,
   notes: FileText,
+  projects: FolderPlus,
   links: Link2,
   wishlist: Heart,
   investments: TrendingUp,
@@ -172,7 +175,7 @@ export function GlobalSearch() {
       </Button>
 
       <CommandDialog open={open} onOpenChange={setOpen}>
-        <CommandInput placeholder="Search tasks, goals, notes, links..." value={query} onValueChange={setQuery} />
+        <CommandInput placeholder="Search tasks, goals, projects, notes..." value={query} onValueChange={setQuery} />
         <CommandList className="max-h-[420px]">
           {!hasQuery ? (
             <div className="px-4 py-8 text-center text-sm text-muted-foreground">
@@ -189,7 +192,7 @@ export function GlobalSearch() {
             <div className="px-4 py-8 text-center text-sm text-muted-foreground">No results found.</div>
           ) : (
             populatedGroups.map((group) => {
-              const Icon = groupIcons[group.type]
+              const Icon = groupIcons[group.type] || Search
 
               return (
                 <CommandGroup key={group.type} heading={group.label}>

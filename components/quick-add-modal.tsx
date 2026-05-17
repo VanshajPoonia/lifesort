@@ -7,6 +7,7 @@ import {
   CheckSquare,
   DollarSign,
   FileText,
+  FolderPlus,
   Heart,
   Link2,
   Target,
@@ -25,6 +26,7 @@ type QuickAddType =
   | "task"
   | "goal"
   | "note"
+  | "project"
   | "wishlist"
   | "link"
   | "income"
@@ -151,6 +153,28 @@ const quickAddConfigs: QuickAddConfig[] = [
     buildPayload: (values) => ({ title: values.title, content: values.content || "" }),
   },
   {
+    type: "project",
+    label: "Project",
+    description: "Start a bigger effort",
+    endpoint: "/api/projects",
+    eventType: "project",
+    icon: FolderPlus,
+    fields: [
+      { name: "title", label: "Title", type: "text", required: true, placeholder: "Launch portfolio site" },
+      { name: "description", label: "Description", type: "textarea", placeholder: "What belongs in this project?" },
+      { name: "priority", label: "Priority", type: "select", options: priorityOptions },
+      { name: "due_date", label: "Due date", type: "date" },
+    ],
+    buildPayload: (values) => ({
+      title: values.title,
+      description: values.description || null,
+      priority: values.priority || "medium",
+      due_date: values.due_date || null,
+      status: "active",
+      progress: 0,
+    }),
+  },
+  {
     type: "wishlist",
     label: "Wishlist",
     description: "Save something to buy",
@@ -250,6 +274,7 @@ const defaultValues: Record<QuickAddType, Record<string, string>> = {
   task: { priority: "medium" },
   goal: { category: "personal", priority: "medium" },
   note: {},
+  project: { priority: "medium" },
   wishlist: {},
   link: {},
   income: { type: "salary", frequency: "monthly" },

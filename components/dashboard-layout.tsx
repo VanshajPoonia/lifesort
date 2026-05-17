@@ -52,6 +52,7 @@ const DEFAULT_SIDEBAR_PREFS = {
   dashboard: true,
   today: true,
   life_areas: true,
+  projects: true,
   calendar: true,
   links: true,
   daily_content: true,
@@ -263,6 +264,14 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
                 <Button variant={isActivePath("/life-areas") ? "secondary" : "ghost"} className={navButtonClass("/life-areas")}>
                   <Network className={navIconClass("/life-areas")} />
                   Life Areas
+                </Button>
+              </Link>
+            )}
+            {prefs.projects && (
+              <Link href="/projects">
+                <Button variant={isActivePath("/projects") ? "secondary" : "ghost"} className={navButtonClass("/projects")}>
+                  <FolderPlus className={navIconClass("/projects")} />
+                  Projects
                 </Button>
               </Link>
             )}

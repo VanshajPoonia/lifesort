@@ -17,6 +17,73 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-05-17 11:57 IST - Life Projects Feature
+
+- Agent/tool used: Codex.
+- Task summary: Implemented the website-only Life Projects feature as a larger organizing layer for multi-step efforts.
+- Files added:
+  - `app/api/projects/route.ts`
+  - `app/api/projects/items/route.ts`
+  - `app/api/projects/activity/route.ts`
+  - `app/projects/page.tsx`
+  - `app/projects/[id]/page.tsx`
+  - `scripts/add-projects.sql`
+- Files modified:
+  - `app/page.tsx`
+  - `app/api/search/route.ts`
+  - `app/api/sidebar-preferences/route.ts`
+  - `app/settings/page.tsx`
+  - `components/dashboard-layout.tsx`
+  - `components/global-search.tsx`
+  - `components/quick-add-modal.tsx`
+  - `scripts/website-current-schema.sql`
+  - `scripts/run-pending-migrations.sql`
+  - `AI_PROJECT.md`
+  - `AI_DECISIONS.md`
+  - `AI_TASK_LOG.md`
+- Summary of changes:
+  - Added `projects`, `project_items`, and `project_activity` schema support through a standalone idempotent migration plus the canonical schema and consolidated pending migration script.
+  - Added authenticated project CRUD with Life Area ownership validation, manual progress/status/priority/dates, and project activity logging.
+  - Added authenticated item linking/unlinking with source-record ownership validation for tasks, goals, notes, links, wishlist items, budget categories, budget transactions, and budget goals.
+  - Added `/projects` with project stats, templates, project cards, create/edit/delete dialogs, empty/loading/error states, and a next-actions summary.
+  - Added `/projects/[id]` with project overview, edit dialog, grouped linked items, link-existing-item search dialog, next actions, stale/missing linked-item display, and activity feed.
+  - Added Projects to the sidebar, sidebar preferences, Settings sidebar controls, dashboard project card, Quick Add, and Global Search.
+- New data model:
+  - `projects`: `id`, `user_id`, `title`, `description`, optional `life_area_id`, `status`, `priority`, `start_date`, `due_date`, `progress`, `created_at`, `updated_at`.
+  - `project_items`: `id`, `project_id`, `user_id`, `item_type`, `item_id`, `created_at`, unique `(project_id, item_type, item_id)`.
+  - `project_activity`: `id`, `project_id`, `user_id`, `action`, optional `item_type`, optional `item_id`, `message`, `metadata`, `created_at`.
+- Linked modules:
+  - Tasks, goals, notes, links, wishlist items, budget categories, budget transactions, and budget goals.
+  - Budget support is link-only in v1; no budget rows are mutated by project linking.
+- Templates added:
+  - Learning plan, Fitness plan, Business launch, Job search, Travel plan, Finance plan.
+  - Templates prefill project fields only; they do not generate tasks, notes, goals, or budget records.
+- Migration status:
+  - Created `scripts/add-projects.sql`.
+  - Updated `scripts/website-current-schema.sql`.
+  - Updated `scripts/run-pending-migrations.sql`.
+  - No migrations were run automatically.
+- Commands run:
+  - `git status --short --branch` → clean starting point on `main...origin/main`.
+  - `npx tsc --noEmit` → passed.
+  - `npm run lint` → failed before source linting because ESLint 10.3.0 cannot find `eslint.config.(js|mjs|cjs)`.
+  - `npm run build` → passed, generated 79 routes, skipped type validation and linting, and emitted the known unsupported `metadata.themeColor`/`metadata.viewport` warnings, including `/projects`.
+- Bugs found or fixed:
+  - No project-specific TypeScript or build failures were found after implementation.
+  - The existing lint flat-config blocker remains.
+- Remaining issues and limitations:
+  - Apply and verify the Projects migration in the target Neon database before using Projects at runtime.
+  - No browser/manual smoke test was run because migrations were not applied in this pass.
+  - Project progress is manually edited in v1; linked task/goal completion is shown as context and next actions, but it does not automatically recalculate stored project progress.
+  - Source item deletions leave project links as stale/missing until the user unlinks them, by design.
+  - Existing Habits/Routines security/schema findings from the prior regression review remain separate and unfixed.
+- Suggested next steps:
+  - Confirm the target database, apply pending migrations, then smoke-test create/edit/delete Projects, all six templates, link/unlink for every supported item type, dashboard Projects card, Quick Add, Global Search, and two-user isolation.
+  - Fix the ESLint flat config and revisit build settings that skip type/lint validation.
+- Handoff notes:
+  - Project links are polymorphic and protected by API-side ownership validation rather than source-table foreign keys.
+  - Deleting a project cascades project links/activity only; linked tasks, goals, notes, links, wishlist, and budget records remain intact.
+
 ### 2026-05-17 03:43 IST - Life Areas, Today Plan, And Habits Regression Review
 
 - Agent/tool used: Codex.

@@ -8,6 +8,7 @@ const DEFAULT_SIDEBAR_SECTIONS = {
   dashboard: true,
   today: true,
   life_areas: true,
+  projects: true,
   calendar: true,
   goals: true,
   habits: true,
