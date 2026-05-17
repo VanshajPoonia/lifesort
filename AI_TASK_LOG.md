@@ -1561,6 +1561,67 @@ After that, re-run the regression checkpoint and the schema-drift 500s should di
   - Missed is a manual status; the app does not mutate status based on dates.
   - Task conversion creates a new task and links it with `related_task_id`; it does not delete or complete the commitment.
 
+### 2026-05-17 21:34 IST - Life Maintenance Tracker
+
+- Agent/tool used: Codex.
+- Task summary: Added a website-only Life Maintenance tracker for recurring renewals, checkups, repairs, reviews, and admin responsibilities.
+- Files changed:
+  - `app/maintenance/page.tsx`
+  - `app/maintenance/loading.tsx`
+  - `app/api/maintenance/route.ts`
+  - `app/api/maintenance/complete/route.ts`
+  - `app/api/maintenance/create-task/route.ts`
+  - `app/api/search/route.ts`
+  - `app/api/sidebar-preferences/route.ts`
+  - `app/page.tsx`
+  - `app/settings/page.tsx`
+  - `components/dashboard-layout.tsx`
+  - `components/global-search.tsx`
+  - `components/quick-add-modal.tsx`
+  - `scripts/add-maintenance-items.sql`
+  - `scripts/website-current-schema.sql`
+  - `scripts/run-pending-migrations.sql`
+  - `AI_PROJECT.md`
+  - `AI_DECISIONS.md`
+  - `AI_CHECKLIST.md`
+  - `AI_TASK_LOG.md`
+- What changed:
+  - Added `maintenance_items` as a user-owned recurring tracker table with title, category, recurrence, optional custom interval days, next due date, last completed date, reminder lead time, optional Life Area/Vault links, notes, status, and timestamps.
+  - Added authenticated `/api/maintenance` CRUD with `user_id` filters, enum/date normalization, and ownership validation for optional Life Area and Vault links.
+  - Added authenticated `/api/maintenance/complete` to set `last_completed_date`, advance `next_due_date` from the completion date, and keep recurring items active.
+  - Added authenticated `/api/maintenance/create-task` for explicit task creation from a maintenance item without mutating the maintenance item.
+  - Added `/maintenance` with create/edit/delete, complete, pause/resume, create-task action, All/Upcoming/Overdue/Paused/Completed/By category views, search, templates, linked badges, and loading/error/empty states.
+  - Added Maintenance to sidebar defaults, Settings sidebar controls, dashboard widget, Quick Add, and Global Search.
+  - Added standalone and consolidated SQL migration updates. No database scripts were run.
+- Data model added:
+  - `maintenance_items.category`: `home`, `vehicle`, `health`, `finance`, `digital`, `school`, `work`, `business`, `other`.
+  - `maintenance_items.recurrence`: `weekly`, `monthly`, `quarterly`, `yearly`, `custom`.
+  - `maintenance_items.custom_interval_days`: used only for custom recurrence, constrained to 1-3650 days.
+  - `maintenance_items.status`: `active`, `paused`, `completed`.
+  - Optional `life_area_id` and `vault_item_id` links. The migration uses `ON DELETE SET NULL` for Life Areas directly and conditionally adds the Vault foreign key when `vault_items` exists, while the API validates ownership before saving linked IDs.
+  - Indexes: `user_id`, `(user_id, status)`, `(user_id, next_due_date)`, `(user_id, category)`, `life_area_id`, and `vault_item_id`.
+- Commands run:
+  - `git status --short --branch` - clean at task start on `main...origin/main`.
+  - `npx tsc --noEmit` - passed.
+  - `npm run lint` - failed before source linting because ESLint 10.3.0 cannot find `eslint.config.(js|mjs|cjs)`.
+  - `npm run build` - passed; generated 110 routes including `/maintenance`, `/api/maintenance`, `/api/maintenance/complete`, and `/api/maintenance/create-task`; still skips type/lint validation because of `next.config.mjs` and emits known metadata `themeColor`/`viewport` warnings, including the new `/maintenance` route.
+- Remaining issues and limitations:
+  - `scripts/add-maintenance-items.sql` or the consolidated migration must be applied to the target database before `/maintenance`, dashboard Maintenance widget, Quick Add Maintenance, Global Search Maintenance, completion, and task creation can save or load live data.
+  - No browser/manual smoke test was run in this pass.
+  - No notification/reminder delivery was added; `reminder_days_before` is stored for future reminder behavior.
+  - Completion does not create history rows in v1; it updates `last_completed_date` and the next due date on the same item.
+  - Global Search Maintenance includes Vault item titles when the `vault_items` table exists; if Vault schema is missing, the search source fails safely like the existing Vault search source.
+  - `npm run lint` remains blocked by the missing ESLint flat config.
+  - `npm run build` still hides TypeScript and lint failures through `next.config.mjs`.
+- Suggested next steps:
+  - Confirm the target Neon environment and apply `scripts/add-maintenance-items.sql` or the consolidated pending migration, then smoke-test Maintenance CRUD, recurrence completion, templates, dashboard counts, Quick Add, Global Search, task creation, optional Vault/Life Area links, and two-user isolation.
+  - Add ESLint flat config and consider re-enabling build type/lint gates.
+- Handoff notes:
+  - Upcoming means active maintenance items with `next_due_date` from today through the next 30 days.
+  - Overdue means active maintenance items with `next_due_date < CURRENT_DATE`.
+  - Mark-complete anchors recurrence from the completion date: weekly +7 days, monthly +1 month, quarterly +3 months, yearly +1 year, custom +`custom_interval_days`.
+  - Completed status is available for retired/one-off records; recurring mark-complete keeps the item active.
+
 ## AI Handoff Summaries
 
 Future agents should start by reading all root memory files, then inspect the relevant code before editing. Keep changes small and update this file after every repo change.
