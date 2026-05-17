@@ -13,6 +13,7 @@ import {
   Heart,
   Inbox,
   Link2,
+  Lightbulb,
   Shield,
   Target,
   TrendingUp,
@@ -30,6 +31,7 @@ import { useToast } from "@/hooks/use-toast"
 
 type QuickAddType =
   | "inbox"
+  | "someday"
   | "waiting"
   | "commitment"
   | "maintenance"
@@ -148,6 +150,18 @@ const maintenanceRecurrenceOptions = [
   { value: "custom", label: "Custom" },
 ]
 
+const somedayCategoryOptions = [
+  { value: "idea", label: "Idea" },
+  { value: "project", label: "Project" },
+  { value: "purchase", label: "Purchase" },
+  { value: "travel", label: "Travel" },
+  { value: "learning", label: "Learning" },
+  { value: "relationship", label: "Relationship" },
+  { value: "finance", label: "Finance" },
+  { value: "health", label: "Health" },
+  { value: "other", label: "Other" },
+]
+
 function numericValue(value: string) {
   if (!value.trim()) return null
   const parsed = Number.parseFloat(value)
@@ -181,6 +195,27 @@ const quickAddConfigs: QuickAddConfig[] = [
       raw_text: values.raw_text || "",
       suggested_type: values.suggested_type || null,
       source: "quick_add",
+    }),
+  },
+  {
+    type: "someday",
+    label: "Someday",
+    description: "Save a maybe-one-day idea",
+    endpoint: "/api/someday",
+    eventType: "someday",
+    icon: Lightbulb,
+    fields: [
+      { name: "title", label: "Title", type: "text", required: true, placeholder: "Learn pottery, visit Japan, build a tiny app..." },
+      { name: "category", label: "Category", type: "select", options: somedayCategoryOptions },
+      { name: "review_date", label: "Review date", type: "date" },
+      { name: "description", label: "Description", type: "textarea", placeholder: "Optional notes for future you..." },
+    ],
+    buildPayload: (values) => ({
+      title: values.title,
+      description: values.description || null,
+      category: values.category || "idea",
+      review_date: values.review_date || null,
+      status: "someday",
     }),
   },
   {
@@ -478,6 +513,7 @@ const quickAddConfigs: QuickAddConfig[] = [
 
 const defaultValues: Record<QuickAddType, Record<string, string>> = {
   inbox: {},
+  someday: { category: "idea" },
   waiting: { waiting_on_type: "person" },
   commitment: { commitment_type: "personal" },
   maintenance: { category: "other", recurrence: "monthly", reminder_days_before: "7" },

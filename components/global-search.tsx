@@ -13,6 +13,7 @@ import {
   History,
   Inbox,
   Link2,
+  Lightbulb,
   Loader2,
   Search,
   Shield,
@@ -35,6 +36,7 @@ import {
 
 type SearchType =
   | "inbox"
+  | "someday"
   | "waiting"
   | "commitments"
   | "maintenance"
@@ -73,6 +75,7 @@ type SearchResponse = {
 
 const groupIcons = {
   inbox: Inbox,
+  someday: Lightbulb,
   waiting: Clock,
   commitments: ClipboardCheck,
   maintenance: Wrench,
@@ -196,7 +199,7 @@ export function GlobalSearch() {
       </Button>
 
       <CommandDialog open={open} onOpenChange={setOpen}>
-        <CommandInput placeholder="Search timeline, inbox, maintenance, commitments..." value={query} onValueChange={setQuery} />
+        <CommandInput placeholder="Search timeline, someday, inbox, maintenance..." value={query} onValueChange={setQuery} />
         <CommandList className="max-h-[420px]">
           {!hasQuery ? (
             <div className="px-4 py-8 text-center text-sm text-muted-foreground">

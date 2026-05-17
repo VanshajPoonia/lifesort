@@ -6,6 +6,7 @@ import { getTimelineData } from "@/lib/timeline"
 
 type SearchType =
   | "inbox"
+  | "someday"
   | "waiting"
   | "commitments"
   | "maintenance"
@@ -42,6 +43,7 @@ type SearchResult = {
 
 const groupLabels: Record<SearchType, string> = {
   inbox: "Inbox",
+  someday: "Someday / Maybe",
   waiting: "Waiting For",
   commitments: "Commitments",
   maintenance: "Maintenance",
@@ -109,6 +111,7 @@ export async function GET(request: Request) {
 
   const [
     inbox,
+    someday,
     waiting,
     commitments,
     maintenance,
@@ -149,6 +152,29 @@ export async function GET(request: Request) {
         OR COALESCE(life_areas.name, '') ILIKE ${pattern}
       )
       ORDER BY inbox_items.updated_at DESC, inbox_items.created_at DESC
+      LIMIT 5
+    `),
+    safeRows("someday", sql`
+      SELECT
+        si.id,
+        si.title,
+        COALESCE(la.name, si.category, si.status) as subtitle,
+        '/someday' as href,
+        si.updated_at,
+        si.created_at
+      FROM someday_items si
+      LEFT JOIN life_areas la
+        ON si.life_area_id = la.id
+        AND la.user_id = ${user.id}
+      WHERE si.user_id = ${user.id}
+      AND (
+        si.title ILIKE ${pattern}
+        OR COALESCE(si.description, '') ILIKE ${pattern}
+        OR si.category ILIKE ${pattern}
+        OR si.status ILIKE ${pattern}
+        OR COALESCE(la.name, '') ILIKE ${pattern}
+      )
+      ORDER BY si.updated_at DESC, si.created_at DESC
       LIMIT 5
     `),
     safeRows("waiting", sql`
@@ -419,6 +445,7 @@ export async function GET(request: Request) {
   const groups = emptyGroups().map((group) => {
     const rowsByType: Record<SearchType, SearchRow[]> = {
       inbox,
+      someday,
       waiting,
       commitments,
       maintenance,

@@ -42,6 +42,7 @@ import {
   Activity,
   History,
   Inbox,
+  Lightbulb,
   RefreshCcw,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -62,6 +63,7 @@ interface DashboardLayoutProps {
 const DEFAULT_SIDEBAR_PREFS = {
   dashboard: true,
   reset: true,
+  someday: true,
   inbox: true,
   waiting: true,
   commitments: true,
@@ -280,6 +282,14 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
                 <Button variant={isActivePath("/reset") ? "secondary" : "ghost"} className={navButtonClass("/reset")}>
                   <RefreshCcw className={navIconClass("/reset")} />
                   Reset My Life
+                </Button>
+              </Link>
+            )}
+            {prefs.someday && (
+              <Link href="/someday">
+                <Button variant={isActivePath("/someday") ? "secondary" : "ghost"} className={navButtonClass("/someday")}>
+                  <Lightbulb className={navIconClass("/someday")} />
+                  Someday / Maybe
                 </Button>
               </Link>
             )}

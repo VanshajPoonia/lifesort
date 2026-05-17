@@ -10,6 +10,7 @@ import {
   FileText,
   FolderPlus,
   Inbox,
+  Lightbulb,
   Loader2,
   Shield,
   ShoppingCart,
@@ -56,6 +57,7 @@ const EXAMPLES = [
 const TYPE_META: Record<DraftActionType, { label: string; color: string; icon: React.ElementType }> = {
   task:          { label: "Task",          color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",     icon: CheckCircle2 },
   waiting_item:  { label: "Waiting For",   color: "bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300",         icon: Clock },
+  someday_item:  { label: "Someday",       color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300", icon: Lightbulb },
   goal:          { label: "Goal",          color: "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300", icon: Target },
   habit:         { label: "Habit",         color: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300", icon: Sparkles },
   note:          { label: "Note",          color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",   icon: FileText },
@@ -67,10 +69,12 @@ const TYPE_META: Record<DraftActionType, { label: string; color: string; icon: R
 
 const VAULT_CATEGORIES = ["documents", "subscriptions", "warranty", "insurance", "vehicle", "home", "medical", "education", "work", "other"] as const
 const WAITING_ON_TYPES = ["person", "company", "school", "bank", "government", "delivery", "refund", "job", "other"] as const
+const SOMEDAY_CATEGORIES = ["idea", "project", "purchase", "travel", "learning", "relationship", "finance", "health", "other"] as const
 
 const ENDPOINT_MAP: Record<DraftActionType, string> = {
   task:           "/api/tasks",
   waiting_item:   "/api/waiting",
+  someday_item:   "/api/someday",
   goal:           "/api/goals",
   habit:          "/api/habits",
   note:           "/api/notes",
@@ -176,6 +180,36 @@ function DraftFields({
         <div className="space-y-1">
           <Label className="text-xs">Follow-up Date</Label>
           <Input type="date" value={String(p.follow_up_date ?? "")} onChange={(e) => updatePayload({ follow_up_date: e.target.value || null })} />
+        </div>
+        <div className="sm:col-span-2 space-y-1">
+          <Label className="text-xs">Description</Label>
+          <Textarea rows={3} value={String(p.description ?? "")} onChange={(e) => updatePayload({ description: e.target.value })} />
+        </div>
+      </div>
+    )
+  }
+
+  if (action.type === "someday_item") {
+    return (
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="sm:col-span-2 space-y-1">
+          <Label className="text-xs">Title</Label>
+          <Input value={String(p.title ?? "")} onChange={(e) => updatePayload({ title: e.target.value })} />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Category</Label>
+          <Select value={String(p.category ?? "idea")} onValueChange={(v) => updatePayload({ category: v })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {SOMEDAY_CATEGORIES.map((category) => (
+                <SelectItem key={category} value={category}>{category.charAt(0).toUpperCase() + category.slice(1)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Review Date</Label>
+          <Input type="date" value={String(p.review_date ?? "")} onChange={(e) => updatePayload({ review_date: e.target.value || null })} />
         </div>
         <div className="sm:col-span-2 space-y-1">
           <Label className="text-xs">Description</Label>

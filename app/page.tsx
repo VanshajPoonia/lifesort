@@ -19,6 +19,7 @@ import {
   Heart,
   Inbox,
   ListTodo,
+  Lightbulb,
   NotebookText,
   PiggyBank,
   Plus,
@@ -172,6 +173,17 @@ interface InboxItem {
   created_at?: string | null
 }
 
+interface SomedayItem {
+  id: number | string
+  title: string
+  description?: string | null
+  category?: string | null
+  status?: string | null
+  review_date?: string | null
+  updated_at?: string | null
+  created_at?: string | null
+}
+
 interface WaitingItem {
   id: number | string
   title: string
@@ -280,6 +292,7 @@ const apiEndpoints: Record<DashboardApiKey, string> = {
 
 const quickActions = [
   { title: "Reset my life", href: "/reset", icon: RefreshCcw },
+  { title: "Save someday", href: "/someday", icon: Lightbulb },
   { title: "Capture inbox", href: "/inbox", icon: Inbox },
   { title: "Track waiting", href: "/waiting", icon: Clock },
   { title: "Add commitment", href: "/commitments", icon: ClipboardCheck },
@@ -518,6 +531,7 @@ export default function Home() {
   const [peopleWidget, setPeopleWidget] = useState<{ birthdays: number; followUps: number; total: number } | null>(null)
   const [vaultWidget, setVaultWidget] = useState<{ expiringSoon: number; total: number } | null>(null)
   const [inboxWidget, setInboxWidget] = useState<{ total: number; recent: InboxItem[] } | null>(null)
+  const [somedayWidget, setSomedayWidget] = useState<{ due: number; recent: SomedayItem[] } | null>(null)
   const [waitingWidget, setWaitingWidget] = useState<{ followUpsDue: number; overdue: number; recent: WaitingItem[] } | null>(null)
   const [commitmentsWidget, setCommitmentsWidget] = useState<{ dueSoon: number; atRisk: number; recent: CommitmentItem[] } | null>(null)
   const [maintenanceWidget, setMaintenanceWidget] = useState<{ upcoming: number; overdue: number; recent: MaintenanceItem[] } | null>(null)
@@ -665,6 +679,17 @@ export default function Home() {
       }
     } catch {
       // Inbox widget failure is non-fatal
+    }
+
+    // Someday widget — fetch independently, fails silently
+    try {
+      const somedayRes = await fetch("/api/someday?view=review_due&limit=100")
+      if (somedayRes.ok) {
+        const somedayData: SomedayItem[] = await somedayRes.json()
+        setSomedayWidget({ due: somedayData.length, recent: somedayData.slice(0, 3) })
+      }
+    } catch {
+      // Someday widget failure is non-fatal
     }
 
     // Waiting For widget — fetch independently, fails silently
@@ -1184,6 +1209,62 @@ export default function Home() {
                       >
                         <span className="min-w-0 truncate font-medium">{item.title}</span>
                         <span className="shrink-0 text-xs text-muted-foreground">{formatDate(item.updated_at || item.created_at)}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {somedayWidget !== null && (
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Lightbulb className="h-5 w-5 text-primary" />
+                    Someday / Maybe
+                  </CardTitle>
+                  <CardDescription>Low-pressure ideas that are ready for a gentle review.</CardDescription>
+                </div>
+                <Button asChild size="sm" variant="outline" className="gap-2">
+                  <Link href="/someday">
+                    Open Someday
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {dashboardLoading ? (
+                <div className="grid gap-3 md:grid-cols-[160px_minmax(0,1fr)]">
+                  <Skeleton className="h-20 w-full" />
+                  <Skeleton className="h-20 w-full" />
+                </div>
+              ) : somedayWidget.due === 0 ? (
+                <EmptyState actionHref="/someday" actionLabel="Add someday item">
+                  Nothing is due for Someday review.
+                </EmptyState>
+              ) : (
+                <div className="grid gap-3 md:grid-cols-[160px_minmax(0,1fr)]">
+                  <div className="rounded-md border bg-muted/40 p-3">
+                    <p className="text-2xl font-bold">{somedayWidget.due}</p>
+                    <p className="text-xs text-muted-foreground">due for review</p>
+                  </div>
+                  <div className="space-y-2">
+                    {somedayWidget.recent.map((item) => (
+                      <Link
+                        key={item.id}
+                        href="/someday"
+                        className="flex items-center justify-between gap-3 rounded-md border p-3 text-sm hover:bg-secondary"
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium">{item.title}</span>
+                          <span className="block truncate text-xs text-muted-foreground">{item.category || "idea"}</span>
+                        </span>
+                        <span className="shrink-0 text-xs text-muted-foreground">{formatDate(item.review_date || item.updated_at || item.created_at)}</span>
                       </Link>
                     ))}
                   </div>
