@@ -214,7 +214,7 @@ Known as of 2026-05-17:
 9. **Confirm `ai_usage_events` table exists in the live database before enabling AI features.** If the table is missing, all per-user AI rate limits are silently bypassed — `lib/ai-usage.ts` catches the missing-table error and returns `allowed: true` so that deploys don't fail before migrations, but this means unlimited AI calls until the migration runs. Run `SELECT COUNT(*) FROM ai_usage_events` on the live Neon database to verify.
 9. For schema-spanning features, update the standalone migration, `scripts/website-current-schema.sql`, and `scripts/run-pending-migrations.sql` together, and document that migrations were not run automatically.
 10. For capture/conversion features, verify every API is authenticated, every read/write is scoped by `user_id`, optional Life Area IDs are ownership-validated, and target record creation requires explicit user confirmation before writing structured module data.
-11. For date-based tracker features, verify dashboard counts and filters exclude closed statuses, all optional linked IDs are ownership-validated, Global Search remains user-scoped, Quick Add posts a minimal valid payload, and AI Capture only creates editable drafts before confirmation.
+11. For date-based tracker features, verify dashboard counts and filters exclude closed statuses, all optional linked IDs are ownership-validated, Global Search remains user-scoped, Quick Add posts a minimal valid payload, and AI Capture only creates editable drafts before confirmation. For recurring trackers, verify completion advances the next due date from the completion date.
 
 ## Common Failure Points
 
