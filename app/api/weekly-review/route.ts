@@ -127,6 +127,7 @@ async function getDerivedSummary(userId: string, weekStart: string, weekEnd: str
     nearBudgetRows,
     investmentsRows,
     incomeRows,
+    capacityRows,
     lifeAreaRows,
   ] = await Promise.all([
     safeRows("tasks", sql`
@@ -260,6 +261,37 @@ async function getDerivedSummary(userId: string, weekStart: string, weekEnd: str
       FROM income_sources
       WHERE user_id = ${userId}
     `, unavailable),
+    safeRows("daily capacity", sql`
+      SELECT
+        COUNT(*)::int AS days_logged,
+        COUNT(*) FILTER (WHERE energy_level = 'low')::int AS low_energy_days,
+        COUNT(*) FILTER (WHERE energy_level = 'medium')::int AS medium_energy_days,
+        COUNT(*) FILTER (WHERE energy_level = 'high')::int AS high_energy_days,
+        ROUND(AVG(available_focus_minutes))::int AS average_focus_minutes,
+        ROUND(AVG(jsonb_array_length(focus_items)))::int AS average_focus_items,
+        COUNT(*) FILTER (
+          WHERE jsonb_array_length(focus_items) >
+            CASE
+              WHEN energy_level = 'low' THEN 1
+              WHEN energy_level = 'high' THEN 3
+              ELSE 2
+            END
+        )::int AS overload_days,
+        (
+          SELECT day_type
+          FROM daily_plans dp2
+          WHERE dp2.user_id = ${userId}
+            AND dp2.plan_date >= ${weekStart}::date
+            AND dp2.plan_date < ${nextWeekStart}::date
+          GROUP BY day_type
+          ORDER BY COUNT(*) DESC, day_type ASC
+          LIMIT 1
+        ) AS most_common_day_type
+      FROM daily_plans
+      WHERE user_id = ${userId}
+        AND plan_date >= ${weekStart}::date
+        AND plan_date < ${nextWeekStart}::date
+    `, unavailable),
     safeRows("life area balance", sql`
       WITH activity AS (
         SELECT life_area_id, 'task' AS source_type, COUNT(*)::int AS activity_count
@@ -329,6 +361,7 @@ async function getDerivedSummary(userId: string, weekStart: string, weekEnd: str
   const finance = financeRows[0] || {}
   const investments = investmentsRows[0] || {}
   const income = incomeRows[0] || {}
+  const capacity = capacityRows[0] || {}
   const expenses = toNumber(finance.expenses)
   const budgetIncome = toNumber(finance.income)
 
@@ -380,6 +413,16 @@ async function getDerivedSummary(userId: string, weekStart: string, weekEnd: str
       active_income_amount: toNumber(income.active_amount),
       investments_updated: toNumber(investments.updated),
       investment_tracked_value: toNumber(investments.tracked_value),
+    },
+    capacity: {
+      days_logged: toNumber(capacity.days_logged),
+      low_energy_days: toNumber(capacity.low_energy_days),
+      medium_energy_days: toNumber(capacity.medium_energy_days),
+      high_energy_days: toNumber(capacity.high_energy_days),
+      average_focus_minutes: toNumber(capacity.average_focus_minutes),
+      average_focus_items: toNumber(capacity.average_focus_items),
+      overload_days: toNumber(capacity.overload_days),
+      most_common_day_type: capacity.most_common_day_type || null,
     },
     life_areas: lifeAreaRows.map((row) => ({
       key: String(row.key || "unassigned"),

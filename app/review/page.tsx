@@ -9,6 +9,7 @@ import {
   CalendarCheck,
   CheckCircle2,
   ClipboardCheck,
+  Clock,
   FileText,
   Flame,
   FolderPlus,
@@ -70,6 +71,16 @@ type WeeklySummary = {
     active_income_amount: number
     investments_updated: number
     investment_tracked_value: number
+  }
+  capacity: {
+    days_logged: number
+    low_energy_days: number
+    medium_energy_days: number
+    high_energy_days: number
+    average_focus_minutes: number
+    average_focus_items: number
+    overload_days: number
+    most_common_day_type: string | null
   }
   life_areas: Array<{ key: string; name: string; icon: string; color: string; activity_count: number }>
 }
@@ -137,7 +148,8 @@ function totalActivity(summary: WeeklySummary | null) {
     toNumber(summary.projects.activity) +
     toNumber(summary.notes.created) +
     toNumber(summary.notes.updated) +
-    toNumber(summary.finance.transactions)
+    toNumber(summary.finance.transactions) +
+    toNumber(summary.capacity?.days_logged)
   )
 }
 
@@ -452,6 +464,56 @@ export default function WeeklyReviewPage() {
                 </div>
               </div>
             ) : null}
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-primary" />
+                  Energy & Capacity Patterns
+                </CardTitle>
+                <CardDescription>Planning signals from the Today Plan entries you saved this week.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loadingReview ? (
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <Skeleton className="h-24" />
+                    <Skeleton className="h-24" />
+                    <Skeleton className="h-24" />
+                    <Skeleton className="h-24" />
+                  </div>
+                ) : !summary?.capacity || summary.capacity.days_logged === 0 ? (
+                  <EmptyState>Save Today Plan capacity for a few days to see energy and workload patterns here.</EmptyState>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="rounded-md border p-3">
+                      <p className="text-sm font-medium">Days logged</p>
+                      <p className="mt-2 text-2xl font-bold">{summary.capacity.days_logged}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">Today Plan capacity entries</p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                      <p className="text-sm font-medium">Energy mix</p>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Low {summary.capacity.low_energy_days} · Medium {summary.capacity.medium_energy_days} · High {summary.capacity.high_energy_days}
+                      </p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                      <p className="text-sm font-medium">Average focus time</p>
+                      <p className="mt-2 text-2xl font-bold">{summary.capacity.average_focus_minutes || 0}m</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {summary.capacity.average_focus_items || 0} focus items on average
+                      </p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                      <p className="text-sm font-medium">Load fit</p>
+                      <p className="mt-2 text-2xl font-bold">{summary.capacity.overload_days}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        overloaded day{summary.capacity.overload_days === 1 ? "" : "s"} · most common: {summary.capacity.most_common_day_type || "not set"}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             {(generatingAi || aiSummary || aiError) && (
               <Card>
