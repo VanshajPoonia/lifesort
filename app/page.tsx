@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   Clock,
   FileText,
+  Flame,
   Heart,
   ListTodo,
   NotebookText,
@@ -368,6 +369,7 @@ export default function Home() {
   const [sources, setSources] = useState<DashboardSources>(emptySources)
   const [lifeAreas, setLifeAreas] = useState<LifeArea[]>([])
   const [todayPreview, setTodayPreview] = useState<TodayPlanPreview | null>(null)
+  const [habitsToday, setHabitsToday] = useState<{ total: number; done: number; streak: number } | null>(null)
   const [dashboardLoading, setDashboardLoading] = useState(true)
   const [errors, setErrors] = useState<Partial<Record<DashboardErrorKey, string>>>({})
 
@@ -415,6 +417,36 @@ export default function Home() {
       fetchJson<LifeArea[]>("/api/life-areas"),
       fetchJson<TodayPlanPreview>(`/api/today-plan?date=${planDate}`),
     ])
+
+    // Habits widget — fetch independently so failures don't block the rest
+    try {
+      const [habitsRes, checkinsRes] = await Promise.all([
+        fetch("/api/habits"),
+        fetch(`/api/habits/checkins?date=${planDate}`),
+      ])
+      if (habitsRes.ok && checkinsRes.ok) {
+        type RawHabit = { id: number; is_active: boolean; frequency: string; custom_days: number[]; target_count: number }
+        type RawCheckin = { habit_id: number; count: number }
+        type RawCheckinData = { checkins: RawCheckin[]; stats: Record<string, { current_streak: number }> }
+        const habitsData: RawHabit[] = await habitsRes.json()
+        const checkinsData: RawCheckinData = await checkinsRes.json()
+
+        const today = new Date().getDay()
+        const activeHabits = habitsData.filter((h: RawHabit) => {
+          if (!h.is_active) return false
+          if (h.frequency === "daily") return true
+          if (h.frequency === "weekly") return true
+          if (h.frequency === "custom") return (h.custom_days || []).includes(today)
+          return false
+        })
+        const checkinMap = new Map((checkinsData.checkins || []).map((c: RawCheckin) => [c.habit_id, c.count]))
+        const done = activeHabits.filter((h: RawHabit) => (checkinMap.get(h.id) ?? 0) >= h.target_count).length
+        const streak = Object.values(checkinsData.stats || {}).reduce((sum: number, s: { current_streak: number }) => sum + s.current_streak, 0)
+        setHabitsToday({ total: activeHabits.length, done, streak })
+      }
+    } catch {
+      // Habits widget failure is non-fatal
+    }
 
     setSources({
       tasks: normalizeArray<Task>(tasks.data),
@@ -795,6 +827,49 @@ export default function Home() {
             )}
           </CardContent>
         </Card>
+
+        {habitsToday !== null && (
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Flame className="h-5 w-5 text-orange-500" />
+                    Habits Today
+                  </CardTitle>
+                  <CardDescription>Daily habit completion and streak progress.</CardDescription>
+                </div>
+                <Button asChild size="sm" variant="outline" className="gap-2">
+                  <Link href="/habits">
+                    View habits
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="rounded-md border bg-muted/40 p-3 text-center">
+                  <p className="text-2xl font-bold">{habitsToday.done}/{habitsToday.total}</p>
+                  <p className="text-xs text-muted-foreground">Done today</p>
+                </div>
+                <div className="rounded-md border bg-muted/40 p-3 text-center">
+                  <p className="text-2xl font-bold text-orange-500 flex items-center justify-center gap-1">
+                    <Flame className="h-5 w-5" />
+                    {habitsToday.streak}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Total streak</p>
+                </div>
+                <div className="rounded-md border bg-muted/40 p-3 text-center">
+                  <p className="text-2xl font-bold">
+                    {habitsToday.total > 0 ? Math.round((habitsToday.done / habitsToday.total) * 100) : 0}%
+                  </p>
+                  <p className="text-xs text-muted-foreground">Complete</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>

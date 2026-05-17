@@ -7,9 +7,11 @@ import { useRouter } from "next/navigation"
 import {
   AlertCircle,
   CalendarDays,
+  Check,
   CheckCircle2,
   Clock,
   FileText,
+  Flame,
   Lightbulb,
   ListChecks,
   Loader2,
@@ -32,6 +34,15 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 
 type SaveState = "idle" | "saving" | "saved" | "error"
+
+type HabitToday = {
+  id: number
+  name: string
+  color: string
+  target_count: number
+  done: boolean
+  count: number
+}
 
 type TodayItem = {
   id: string
@@ -131,6 +142,8 @@ export default function TodayPage() {
     reflection_did_not_go_well: "",
     reflection_improve_tomorrow: "",
   })
+  const [habitsToday, setHabitsToday] = useState<HabitToday[]>([])
+  const [habitsLoaded, setHabitsLoaded] = useState(false)
 
   useEffect(() => {
     if (!authLoading && !user) router.push("/login")
@@ -161,6 +174,57 @@ export default function TodayPage() {
   useEffect(() => {
     if (user) fetchToday()
   }, [fetchToday, user])
+
+  const fetchHabitsToday = useCallback(async () => {
+    try {
+      const [habitsRes, checkinsRes] = await Promise.all([
+        fetch("/api/habits"),
+        fetch(`/api/habits/checkins?date=${planDate}`),
+      ])
+      if (!habitsRes.ok || !checkinsRes.ok) return
+      type RawHabit = { id: number; name: string; color: string; is_active: boolean; frequency: string; custom_days: number[]; target_count: number }
+      type RawCheckin = { habit_id: number; count: number }
+      type RawCheckinData = { checkins: RawCheckin[] }
+      const habitsData: RawHabit[] = await habitsRes.json()
+      const checkinsData: RawCheckinData = await checkinsRes.json()
+      const todayDay = new Date().getDay()
+      const active = habitsData.filter((h) => {
+        if (!h.is_active) return false
+        if (h.frequency === "daily") return true
+        if (h.frequency === "weekly") return true
+        if (h.frequency === "custom") return (h.custom_days || []).includes(todayDay)
+        return false
+      })
+      const checkinMap = new Map((checkinsData.checkins || []).map((c) => [c.habit_id, c.count]))
+      setHabitsToday(active.map((h) => {
+        const count = checkinMap.get(h.id) ?? 0
+        return { id: h.id, name: h.name, color: h.color || "#2563EB", target_count: h.target_count, done: count >= h.target_count, count }
+      }))
+    } catch {
+      // non-fatal
+    } finally {
+      setHabitsLoaded(true)
+    }
+  }, [planDate])
+
+  useEffect(() => {
+    if (user) fetchHabitsToday()
+  }, [fetchHabitsToday, user])
+
+  const toggleHabit = async (habit: HabitToday) => {
+    const newCount = habit.done ? 0 : habit.target_count
+    setHabitsToday((prev) => prev.map((h) => h.id === habit.id ? { ...h, done: !habit.done, count: newCount } : h))
+    try {
+      await fetch("/api/habits/checkins", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ habit_id: habit.id, checkin_date: planDate, count: newCount }),
+      })
+    } catch {
+      // revert
+      setHabitsToday((prev) => prev.map((h) => h.id === habit.id ? habit : h))
+    }
+  }
 
   const savePlan = useCallback(
     async (focusItems: TodayItem[], nextReflection = reflection) => {
@@ -379,6 +443,43 @@ export default function TodayPage() {
                 empty="No optional ideas yet. Add a custom focus if something is on your mind."
               />
             </div>
+
+            {habitsLoaded && habitsToday.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <Flame className="h-5 w-5 text-orange-500" />
+                      Habits Today
+                    </CardTitle>
+                    <span className="text-sm text-muted-foreground">
+                      {habitsToday.filter((h) => h.done).length}/{habitsToday.length} done
+                    </span>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {habitsToday.map((habit) => (
+                      <button
+                        key={habit.id}
+                        className={`flex items-center gap-3 rounded-lg border p-3 text-left transition-all hover:border-primary/50 ${habit.done ? "bg-muted/50" : ""}`}
+                        onClick={() => toggleHabit(habit)}
+                      >
+                        <span
+                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-all"
+                          style={habit.done ? { background: habit.color, borderColor: habit.color } : { borderColor: habit.color }}
+                        >
+                          {habit.done && <Check className="h-3 w-3 text-white" />}
+                        </span>
+                        <span className={`text-sm font-medium leading-tight ${habit.done ? "line-through text-muted-foreground" : ""}`}>
+                          {habit.name}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             <div className="grid gap-4 lg:grid-cols-3">
               <SectionCard

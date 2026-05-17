@@ -14,8 +14,9 @@ LifeSort is a personal life-management application for organizing today plans, l
 
 Implemented feature areas found in the repo:
 
-- Dashboard at `app/page.tsx`, aggregating tasks, goals, notes, budget, investments, wishlist, and income.
-- Today Plan at `app/today/page.tsx`, providing a non-AI daily command center with focus items, derived task/goal/calendar/note/budget/wishlist suggestions, and end-of-day reflection.
+- Dashboard at `app/page.tsx`, aggregating tasks, goals, notes, budget, investments, wishlist, income, and habits widget.
+- Habits & Routines at `app/habits/page.tsx`, with per-habit CRUD, daily check-ins, streak tracking (current/best), weekly/monthly completion %, and routine builder with ordered steps.
+- Today Plan at `app/today/page.tsx`, providing a non-AI daily command center with focus items, habits due today (with check-off), derived task/goal/calendar/note/budget/wishlist suggestions, and end-of-day reflection.
 - Life Areas at `app/life-areas/page.tsx`, providing user-owned cross-module organization with default areas, icons, colors, descriptions, and ordering.
 - Custom auth: login, register, logout, current-user check, forgot password, and reset password.
 - Tasks with priority, due date/time, reminders, completion state, category, optional goal linking, and optional Life Area assignment.

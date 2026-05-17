@@ -15,6 +15,7 @@ import {
   Heart,
   TrendingUp,
   DollarSign,
+  Flame,
   Menu,
   Bell,
   Settings,
@@ -66,6 +67,7 @@ const DEFAULT_SIDEBAR_PREFS = {
   investments: true,
   income: true,
   ai_assistant: true,
+  habits: true,
 }
 
 // Module-level cache — persists across client-side navigations so the
@@ -277,6 +279,14 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
                 <Button variant={isActivePath("/goals") ? "secondary" : "ghost"} className={navButtonClass("/goals")}>
                   <Target className={navIconClass("/goals")} />
                   Goals
+                </Button>
+              </Link>
+            )}
+            {prefs.habits && (
+              <Link href="/habits">
+                <Button variant={isActivePath("/habits") ? "secondary" : "ghost"} className={navButtonClass("/habits")}>
+                  <Flame className={navIconClass("/habits")} />
+                  Habits
                 </Button>
               </Link>
             )}

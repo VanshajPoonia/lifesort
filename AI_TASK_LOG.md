@@ -17,6 +17,116 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-05-17 03:43 IST - Life Areas, Today Plan, And Habits Regression Review
+
+- Agent/tool used: Codex.
+- Task summary: Ran a review-only regression checkpoint across the existing Life Areas and Today Plan work plus the current uncommitted Habits & Routines implementation. No features were added, no migrations were run, and no commits/pushes were made.
+- Files changed:
+  - `AI_TASK_LOG.md` only.
+- Commands run:
+  - `git status --short --branch`
+  - `git diff --stat`
+  - `npx tsc --noEmit`
+  - `npm run lint`
+  - `npm run build`
+  - Static `rg`, `sed`, and `nl` inspections of Life Areas, Today Plan, Habits/Routines, dashboard, navigation, global search, migrations, and related API routes.
+- Command results:
+  - `git status --short --branch`: `main...origin/main`; uncommitted Habits/Routines work is present in `AI_PROJECT.md`, `AI_TASK_LOG.md`, `app/api/sidebar-preferences/route.ts`, `app/page.tsx`, `app/settings/page.tsx`, `app/today/page.tsx`, `components/dashboard-layout.tsx`; untracked `app/api/habits/`, `app/api/routines/`, `app/habits/`, `scripts/add-habits.sql`, and unrelated `pnpm-workspace.yaml`.
+  - `git diff --stat`: tracked diff showed 7 files changed, 239 insertions, 2 deletions; untracked Habit files are not included in that stat.
+  - `npx tsc --noEmit`: passed when run sequentially by itself.
+  - `npm run lint`: failed before source linting because ESLint 10.3.0 cannot find `eslint.config.(js|mjs|cjs)`.
+  - `npm run build`: passed, generated 75 routes, skipped type validation and linting, and emitted the known unsupported `metadata.themeColor`/`metadata.viewport` warnings, including for `/habits`.
+- Pass/fail summary for requested checks:
+  - Life area assignment across connected modules: partial fail. Existing connected modules generally validate Life Area ownership before assignment, but new Habits only normalizes `life_area_id` and does not validate ownership before insert/update.
+  - Today Plan source safety: pass from static review. `/api/today-plan` reads tasks, goals, calendar events, notes, budget, wishlist, and investments through user-scoped SELECTs and only writes `daily_plans`; the Today UI additionally writes habit check-ins only through `/api/habits/checkins`.
+  - Habit check-ins save correctly: partial fail. The check-in API validates habit ownership and scopes reads/writes by `user_id`, but the `/habits` and `/today` optimistic UI paths do not check `response.ok`, so HTTP 4xx/5xx failures can appear successful.
+  - Dashboard still loads: pass at build/static level. Dashboard Habits widget fetches independently and catches failures so the main dashboard should continue loading if Habit tables are missing.
+  - Quick Add: pass from static review. Quick Add remains mounted in `DashboardLayout` and its existing config was not changed by Habits/Routines.
+  - Global Search: pass for no regression, limitation noted. `/api/search` remains authenticated and user-scoped for existing modules, but Habits/Routines are not included in global search yet.
+  - User data scoping: partial fail. Life Areas, Today Plan, habit check-ins, and most habit/routine reads/writes are authenticated and `user_id` scoped; risks remain for assigning another user's Life Area to a habit and for routine steps referencing another user's habit id.
+  - Database migrations: partial fail. `scripts/add-habits.sql` is idempotent and documented in the task log, but Habits/Routines tables are not yet represented in `scripts/website-current-schema.sql` or `scripts/run-pending-migrations.sql`.
+  - TypeScript/lint/build: partial fail. TypeScript and build pass; lint remains blocked by missing ESLint flat config.
+- API/auth/user-scope findings:
+  - `/api/life-areas`, `/api/today-plan`, `/api/habits`, `/api/habits/checkins`, `/api/routines`, and `/api/search` all call `getUserFromSession()` and return `401` when unauthenticated by static inspection.
+  - `/api/habits` GET joins Life Areas with `la.user_id = user.id` and filters habits by `h.user_id = user.id`, but POST/PUT do not verify that `life_area_id` belongs to the current user before writing it.
+  - `/api/habits/checkins` verifies habit ownership before upsert and joins `habits` on reads, which protects check-ins from cross-user access.
+  - `/api/routines` scopes routine CRUD by `routines.user_id`, but POST/PUT insert `routine_steps.habit_id` values without checking that the referenced habit belongs to the current user.
+  - `/api/routines` final POST/PUT reload queries filter by routine id only, not `user_id`; because the id comes from a just-created or already-validated routine, this is lower risk but should still be tightened for consistency.
+- Empty-state/navigation/search/Quick Add findings:
+  - `/habits` has loading skeletons and empty states for no habits, no routines, no steps, and no stats.
+  - Today Plan has empty states for focus, suggestions, Must/Should/Could, deadlines, calendar, and notes; the Habits Today card is hidden when no habits are loaded, so there is no explicit "no habits today" empty state.
+  - `/habits` is linked in sidebar navigation and sidebar settings defaults.
+  - Quick Add does not include Habits/Routines, but no existing Quick Add paths were changed.
+  - Global Search does not include Habits/Routines; record as a limitation, not a regression.
+- Migration/documentation findings:
+  - `scripts/add-life-areas.sql` and `scripts/add-today-plan.sql` are represented in the current schema/pending migration scripts from prior work.
+  - `scripts/add-habits.sql` is idempotent and safe-looking, but it has not been applied to any database and is not yet included in `website-current-schema.sql` or `run-pending-migrations.sql`.
+  - `AI_PROJECT.md` was partially updated for Habits/Routines product scope, but its major table/API/page lists have not yet been fully updated for `habits`, `habit_checkins`, `routines`, `routine_steps`, `/habits`, `/api/habits`, and `/api/routines`.
+- Bugs found:
+  - Missing Life Area ownership validation in `app/api/habits/route.ts`.
+  - Missing routine-step habit ownership validation in `app/api/routines/route.ts`.
+  - Habit check-in optimistic UI does not check non-OK responses in `app/habits/page.tsx` and `app/today/page.tsx`.
+  - Habits/Routines migration is not included in schema baseline or consolidated pending migration script.
+- Remaining issues:
+  - No browser/manual smoke test was run and no database write smoke test was run because migrations were not to be applied in this pass.
+  - Existing lint flat-config blocker remains.
+  - Build still hides type and lint validation through `next.config.mjs`.
+  - Existing Next metadata warnings remain.
+  - Untracked `pnpm-workspace.yaml` remains unrelated and untouched.
+- Suggested next steps:
+  - Fix the Habits/Routines security and persistence issues before applying the migration: validate Habit Life Area ownership, validate routine step habit ownership, check `response.ok` in habit check-in UI writes, and add Habits/Routines tables to `website-current-schema.sql` and `run-pending-migrations.sql`.
+  - Then run `npx tsc --noEmit`, `npm run lint`, `npm run build`, apply migrations in the confirmed target DB, and perform authenticated two-user smoke tests for Life Areas, Today Plan, Habits, dashboard, Quick Add, and Global Search.
+- Handoff notes:
+  - This was review-only and intentionally left feature code unchanged.
+  - The current Habits/Routines implementation remains uncommitted work from another agent plus this task-log entry.
+
+### 2026-05-17 - Habits & Routines Feature
+
+- Agent/tool used: Claude Code (coding agent mode — Codex unavailable).
+- Task summary: Implemented Habits & Routines as a new product area with CRUD, check-ins, streaks, routines with steps, dashboard widget, Today Plan integration, sidebar nav, and settings toggle.
+- Files added:
+  - `scripts/add-habits.sql` — idempotent migration for `habits`, `habit_checkins`, `routines`, `routine_steps` tables.
+  - `app/api/habits/route.ts` — CRUD (GET/POST/PUT/DELETE) for habits.
+  - `app/api/habits/checkins/route.ts` — habit check-in upsert/delete and server-side streak computation (current, best, weekly %, monthly %).
+  - `app/api/routines/route.ts` — CRUD for routines with step replacement (DELETE + re-INSERT in PUT).
+  - `app/habits/page.tsx` — full Habits & Routines UI: Habits tab (due today, other active, inactive grouping; optimistic check-in toggle; form for create/edit), Routines tab (ordered steps with habit or custom step types; create/edit; expandable step list), Stats tab (current streak, best streak, week/month completion per habit).
+- Files modified:
+  - `app/page.tsx` — added `habitsToday` state; habits widget card (done/total, total streak days, completion %) fetched independently after main dashboard data; added `Flame` import.
+  - `app/today/page.tsx` — added `HabitToday` type, `habitsToday`/`habitsLoaded` state, `fetchHabitsToday`/`toggleHabit` callbacks; inserted Habits Today card between Must/Should/Could grid and Deadlines grid.
+  - `components/dashboard-layout.tsx` — added `habits: true` to `DEFAULT_SIDEBAR_PREFS`; added Habits nav link with `Flame` icon between Goals and Tasks; added `Flame` to icon imports.
+  - `app/api/sidebar-preferences/route.ts` — added `habits: true` to default sections.
+  - `app/settings/page.tsx` — added `habits: true` to `sidebarPrefs` state; added Habits entry to sidebar section list.
+  - `AI_PROJECT.md` — updated current product scope.
+- New data model:
+  - `habits`: id, user_id, name, description, frequency (daily/weekly/custom), custom_days (int[]), target_count, reminder_time, life_area_id, is_active, color, icon, sort_order, created_at, updated_at.
+  - `habit_checkins`: id, habit_id, user_id, checkin_date (DATE), count, note, created_at. Unique (habit_id, checkin_date). Upsert on conflict.
+  - `routines`: id, user_id, name, description, routine_type (morning/evening/custom), is_active, sort_order, created_at, updated_at.
+  - `routine_steps`: id, routine_id, step_type (habit/custom), habit_id, title, description, duration_minutes, sort_order, created_at.
+- Migration status:
+  - `scripts/add-habits.sql` created.
+  - Not run against any database yet. User confirmed: focus on correct code, run DB later.
+- Commands run:
+  - `npx tsc --noEmit` → 0 errors.
+  - `npm run build` → passed, 75 routes (up from 71).
+- Verification results:
+  - `npx tsc --noEmit`: clean.
+  - `npm run build`: passed, new routes: `/habits`, `/api/habits`, `/api/habits/checkins`, `/api/routines`.
+  - Pre-existing `metadata.themeColor`/`metadata.viewport` warnings continue; no new warnings.
+- Remaining issues:
+  - Run `scripts/add-habits.sql` against Neon production DB before habits will work at runtime.
+  - Habit reminder_time is stored but no cron job sends reminders yet — future work.
+  - No browser/manual smoke test was run.
+- Suggested next steps:
+  - Run `scripts/add-habits.sql` against the Neon database.
+  - Add habit reminders to the `/api/cron/deadline-reminders` cron job.
+  - Optionally surface habits in the global search (`/api/search`).
+- Handoff notes:
+  - Habits API enforces ownership via `user_id` in all SQL queries.
+  - Check-in toggle is optimistic: UI updates immediately and reverts on network failure.
+  - Streak computation is server-side in `computeStats()` in `checkins/route.ts`, scanning last 90 days.
+  - Dashboard habits widget fetches independently and fails silently — the main dashboard still loads if habits tables are missing.
+  - Today Plan habits section also fails silently and simply doesn't render if the API is unavailable.
+
 ### 2026-05-17 03:10 IST - Today Plan Feature
 
 - Agent/tool used: Codex.

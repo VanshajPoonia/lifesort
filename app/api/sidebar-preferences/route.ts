@@ -10,6 +10,7 @@ const DEFAULT_SIDEBAR_SECTIONS = {
   life_areas: true,
   calendar: true,
   goals: true,
+  habits: true,
   tasks: true,
   nuke: true,
   pomodoro: true,
