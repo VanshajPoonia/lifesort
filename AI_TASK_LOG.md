@@ -1876,6 +1876,137 @@ After that, re-run the regression checkpoint and the schema-drift 500s should di
   - The structured preferences row is not hidden: it is represented by the `/rules` preference UI and included in the preview.
   - AI routes can read the preview but there is no AI endpoint that writes to `personal_rules`.
 
+## 2026-05-17 23:03 IST - AI What Am I Ignoring Insight
+
+- Agent/tool used: Codex.
+- Task summary: Added a read-only AI "What Am I Ignoring?" insight section to `/insights`, backed by derived non-AI risk signals and confirmed task creation.
+- Files changed:
+  - `app/insights/page.tsx`
+  - `app/api/ai/what-am-i-ignoring/route.ts`
+  - `lib/ignoring-insights.ts`
+  - `lib/ai-usage.ts`
+  - `AI_PROJECT.md`
+  - `AI_DECISIONS.md`
+  - `AI_CHECKLIST.md`
+  - `AI_TASK_LOG.md`
+- Summary of changes:
+  - Added `lib/ignoring-insights.ts` to derive user-scoped signals for quiet Life Areas, stale goals/projects, overdue waiting items, overdue commitments, missed habits, overdue maintenance, upcoming Vault renewals, and finance review gaps.
+  - Added `/api/ai/what-am-i-ignoring` with authenticated `GET` for non-AI signals and authenticated `POST` for optional read-only OpenRouter analysis.
+  - Added `ignoring_insights` to AI usage tracking with a conservative cap of 5 requests per user per day.
+  - Updated `/insights` with a "What Am I Ignoring?" section, loading/error/empty/unavailable-source states, grouped non-AI signals, optional AI explanation, and explicit confirmation before creating any suggested task through `/api/tasks`.
+  - Updated project memory for the new insight scope, derived/read-only AI decision, and recurring checklist guidance.
+- Commands run:
+  - `git status --short --branch` - reviewed current feature diff on `main`.
+  - `git diff --stat` - reviewed changed-file summary.
+  - `npx tsc --noEmit` - passed.
+  - `npm run lint` - failed before source linting because ESLint 10.3.0 cannot find `eslint.config.(js|mjs|cjs)`.
+  - `npm run build` - passed; generated 121 routes including `/api/ai/what-am-i-ignoring`; still skips type/lint validation through `next.config.mjs` and emits known metadata `themeColor`/`viewport` warnings.
+  - `git diff --check` - passed.
+- Bugs found or fixed:
+  - No new TypeScript or build failures found.
+- Remaining issues and limitations:
+  - Browser/manual smoke testing was not run in this pass.
+  - `OPENROUTER_API_KEY` is required for the optional AI explanation; the non-AI `GET` signals work without it.
+  - AI usage limiting depends on the existing `ai_usage_events` table being present in the target database.
+  - Newer optional tables such as `vault_items` are handled best-effort; missing tables are reported as unavailable instead of failing the page.
+  - `npm run lint` remains blocked by the missing ESLint flat config.
+  - `npm run build` still hides TypeScript and lint failures through `next.config.mjs`.
+- Suggested next steps:
+  - Apply any already-existing pending migrations required by the target database, then smoke-test `/insights` with two users, stale/overdue records, missing-provider behavior, AI rate-limit behavior, and confirmed suggested-task creation.
+  - Add ESLint flat config and revisit build settings that skip type/lint validation.
+- Handoff notes:
+  - No new database migration was added for this feature.
+  - The AI endpoint never writes source records or tasks; task creation remains a separate client-confirmed `/api/tasks` call.
+
+## 2026-05-17 23:17 IST - LifeSort Coach Upgrade
+
+- Agent/tool used: Codex.
+- Task summary: Upgraded `/ai-chat` from a generic AI Assistant into an app-aware LifeSort Coach that answers with read-only user-scoped LifeSort context, visible citations, and confirmed draft task suggestions.
+- Files changed:
+  - `app/ai-chat/page.tsx`
+  - `app/api/chat/route.ts`
+  - `app/api/chat/context/route.ts`
+  - `lib/lifesort-coach-context.ts`
+  - `AI_PROJECT.md`
+  - `AI_DECISIONS.md`
+  - `AI_CHECKLIST.md`
+  - `AI_TASK_LOG.md`
+- Summary of changes:
+  - Added `lib/lifesort-coach-context.ts` with selectable context modes: Today, This week, Goals, Projects, Finance, and Full LifeSort summary.
+  - Added safe missing-schema handling and user-scoped context queries across tasks, goals, projects, habits, notes metadata, calendar events, waiting items, commitments, weekly reviews, life areas, budget, income, and investments.
+  - Added `GET /api/chat/context?mode=...` for a read-only context preview and citations without calling the AI provider.
+  - Updated `/api/chat` to accept `contextMode`, inject Personal Operating Rules plus selected LifeSort context into the system prompt, require inline citation ids, and keep task suggestions as draft-only `lifesort-actions` JSON blocks.
+  - Updated `/ai-chat` into LifeSort Coach with a context selector, context preview panel, citation chips, friendly partial-context states, and confirmed draft task creation through existing `/api/tasks`.
+  - Kept note privacy conservative: the Coach sends note metadata only, not note body content.
+  - Updated project memory and checklist documentation.
+- Commands run:
+  - `git status --short --branch` - reviewed; branch was already ahead of `origin/main` by 1 prior commit and this task added new pending changes.
+  - `npx tsc --noEmit` - passed.
+  - `npm run lint` - failed before source linting because ESLint 10.3.0 cannot find `eslint.config.(js|mjs|cjs)`.
+  - `npm run build` - passed; generated 122 routes including `/api/chat/context`; still skips type/lint validation through `next.config.mjs` and emits known metadata `themeColor`/`viewport` warnings, including `/ai-chat`.
+  - `git diff --check` - passed.
+- Bugs found or fixed:
+  - Fixed one TypeScript parser issue in the draft-task extraction helper before final checks.
+- Remaining issues and limitations:
+  - Browser/manual smoke testing was not run in this pass.
+  - `OPENROUTER_API_KEY` is still required for streamed Coach responses; `/api/chat/context` works without calling the provider.
+  - Context is capped and summarized, so very large accounts only expose representative items.
+  - Citation chips are matched against the currently selected context; changing modes clears the conversation to avoid stale citation mismatch.
+  - `npm run lint` remains blocked by the missing ESLint flat config.
+  - `npm run build` still hides TypeScript and lint failures through `next.config.mjs`.
+- Suggested next steps:
+  - Smoke-test `/ai-chat` with a signed-in user across all context modes, ask the five acceptance prompts, confirm draft task creation, and verify User B cannot see User A context.
+  - Add ESLint flat config and revisit build settings that skip type/lint validation.
+- Handoff notes:
+  - No new database migration was added.
+  - `/api/chat` and `/api/chat/context` are read-only except for AI usage events on chat POST; task creation remains a separate confirmed client action through `/api/tasks`.
+
+## 2026-05-17 23:27 IST - Energy And Capacity Planner
+
+- Agent/tool used: Codex.
+- Task summary: Added daily energy/capacity planning to Today Plan, capacity-aware AI Today Planner input, overload warnings, and Weekly Review capacity patterns.
+- Files changed:
+  - `app/today/page.tsx`
+  - `app/api/today-plan/route.ts`
+  - `app/api/ai/today-plan/route.ts`
+  - `app/review/page.tsx`
+  - `app/api/weekly-review/route.ts`
+  - `scripts/add-daily-capacity-fields.sql`
+  - `scripts/add-today-plan.sql`
+  - `scripts/website-current-schema.sql`
+  - `scripts/run-pending-migrations.sql`
+  - `AI_PROJECT.md`
+  - `AI_DECISIONS.md`
+  - `AI_CHECKLIST.md`
+  - `AI_TASK_LOG.md`
+- Summary of changes:
+  - Added Today Plan capacity fields for energy level, available focus minutes, optional mood, and day type.
+  - Added capacity-derived recommended focus count, estimated task capacity, and overload warnings for too many focus items, too many due/overdue tasks for available time, and 3+ high-priority due/overdue items.
+  - Added a Today Plan Capacity panel with selectors/inputs, save state, recommendation badge, and practical non-medical overload wording.
+  - Updated AI Today Planner to receive capacity and cap top priorities based on the capacity recommendation.
+  - Added Weekly Review energy/capacity patterns from `daily_plans`: days logged, energy mix, average focus minutes, average focus items, overload days, and most common day type.
+  - Added an idempotent capacity migration and updated the Today Plan migration, schema baseline, and consolidated pending migration. No SQL scripts were run.
+- Commands run:
+  - `git status --short --branch` - reviewed; branch was already ahead of `origin/main` by 2 prior commits before this task.
+  - `npx tsc --noEmit` - passed.
+  - `npm run lint` - failed before source linting because ESLint 10.3.0 cannot find `eslint.config.(js|mjs|cjs)`.
+  - `npm run build` - passed; generated 122 routes; still skips type/lint validation through `next.config.mjs` and emits known metadata `themeColor`/`viewport` warnings, including `/today` and `/review`.
+  - `git diff --check` - passed.
+- Bugs found or fixed:
+  - No new TypeScript or build failures found.
+- Remaining issues and limitations:
+  - `scripts/add-daily-capacity-fields.sql` or the consolidated pending migration must be applied before live capacity saves work against the target database.
+  - Browser/manual smoke testing was not run in this pass.
+  - Weekly capacity patterns are only as complete as the user's saved Today Plan entries.
+  - `npm run lint` remains blocked by the missing ESLint flat config.
+  - `npm run build` still hides TypeScript and lint failures through `next.config.mjs`.
+- Suggested next steps:
+  - Apply the capacity migration to the confirmed target database, then smoke-test `/today` capacity save/reload, overload warnings, AI Today Planner output on low capacity, `/review` capacity patterns, and two-user isolation.
+  - Add ESLint flat config and revisit build settings that skip type/lint validation.
+- Handoff notes:
+  - Capacity labels are practical planning labels only. Avoid health claims in future UI and AI prompts around sick/recovery day types.
+  - No autonomous writes were added; AI Today Planner still only suggests and the user applies actions.
+
 ## AI Handoff Summaries
 
 Future agents should start by reading all root memory files, then inspect the relevant code before editing. Keep changes small and update this file after every repo change.
