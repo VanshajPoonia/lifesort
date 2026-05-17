@@ -7,6 +7,7 @@ type SearchType =
   | "inbox"
   | "waiting"
   | "commitments"
+  | "maintenance"
   | "tasks"
   | "goals"
   | "notes"
@@ -41,6 +42,7 @@ const groupLabels: Record<SearchType, string> = {
   inbox: "Inbox",
   waiting: "Waiting For",
   commitments: "Commitments",
+  maintenance: "Maintenance",
   tasks: "Tasks",
   goals: "Goals",
   notes: "Notes",
@@ -106,6 +108,7 @@ export async function GET(request: Request) {
     inbox,
     waiting,
     commitments,
+    maintenance,
     tasks,
     goals,
     notes,
@@ -211,6 +214,34 @@ export async function GET(request: Request) {
         OR COALESCE(t.title, '') ILIKE ${pattern}
       )
       ORDER BY c.updated_at DESC, c.created_at DESC
+      LIMIT 5
+    `),
+    safeRows("maintenance", sql`
+      SELECT
+        mi.id,
+        mi.title,
+        COALESCE(la.name, vi.title, mi.category, mi.recurrence, mi.status) as subtitle,
+        '/maintenance' as href,
+        mi.updated_at,
+        mi.created_at
+      FROM maintenance_items mi
+      LEFT JOIN life_areas la
+        ON mi.life_area_id = la.id
+        AND la.user_id = ${user.id}
+      LEFT JOIN vault_items vi
+        ON mi.vault_item_id = vi.id
+        AND vi.user_id = ${user.id}
+      WHERE mi.user_id = ${user.id}
+      AND (
+        mi.title ILIKE ${pattern}
+        OR mi.category ILIKE ${pattern}
+        OR mi.recurrence ILIKE ${pattern}
+        OR mi.status ILIKE ${pattern}
+        OR COALESCE(mi.notes, '') ILIKE ${pattern}
+        OR COALESCE(la.name, '') ILIKE ${pattern}
+        OR COALESCE(vi.title, '') ILIKE ${pattern}
+      )
+      ORDER BY mi.updated_at DESC, mi.created_at DESC
       LIMIT 5
     `),
     safeRows("tasks", sql`
@@ -377,6 +408,7 @@ export async function GET(request: Request) {
       inbox,
       waiting,
       commitments,
+      maintenance,
       tasks,
       goals,
       notes,
