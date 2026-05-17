@@ -986,6 +986,59 @@ export default function Home() {
           </CardContent>
         </Card>
 
+        {inboxWidget !== null && (
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Inbox className="h-5 w-5 text-primary" />
+                    Inbox
+                  </CardTitle>
+                  <CardDescription>Unsorted thoughts waiting to be turned into LifeSort items.</CardDescription>
+                </div>
+                <Button asChild size="sm" variant="outline" className="gap-2">
+                  <Link href="/inbox">
+                    Open Inbox
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {dashboardLoading ? (
+                <div className="grid gap-3 md:grid-cols-[160px_minmax(0,1fr)]">
+                  <Skeleton className="h-20 w-full" />
+                  <Skeleton className="h-20 w-full" />
+                </div>
+              ) : inboxWidget.total === 0 ? (
+                <EmptyState actionHref="/inbox" actionLabel="Capture something">
+                  Your universal inbox is clear.
+                </EmptyState>
+              ) : (
+                <div className="grid gap-3 md:grid-cols-[160px_minmax(0,1fr)]">
+                  <div className="rounded-md border bg-muted/40 p-3">
+                    <p className="text-2xl font-bold">{inboxWidget.total}</p>
+                    <p className="text-xs text-muted-foreground">unsorted items</p>
+                  </div>
+                  <div className="space-y-2">
+                    {inboxWidget.recent.map((item) => (
+                      <Link
+                        key={item.id}
+                        href="/inbox"
+                        className="flex items-center justify-between gap-3 rounded-md border p-3 text-sm hover:bg-secondary"
+                      >
+                        <span className="min-w-0 truncate font-medium">{item.title}</span>
+                        <span className="shrink-0 text-xs text-muted-foreground">{formatDate(item.updated_at || item.created_at)}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
