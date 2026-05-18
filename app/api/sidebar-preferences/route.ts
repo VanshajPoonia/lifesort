@@ -22,6 +22,7 @@ const DEFAULT_SIDEBAR_SECTIONS = {
   commitments: true,
   maintenance: true,
   today: true,
+  journal: true,
   review: true,
   insights: true,
   life_areas: true,
