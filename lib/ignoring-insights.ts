@@ -484,7 +484,7 @@ export async function getIgnoringInsightsData(userId: string): Promise<IgnoringI
       return acc
     }, { last: null, count: 0 })
     const inactiveDays = financeActivity.last ? daysSince(financeActivity.last, now) : null
-    if (!financeActivity.last || (inactiveDays !== null && inactiveDays >= 30)) {
+    if (financeActivity.count > 0 && inactiveDays !== null && inactiveDays >= 30) {
       signals.push(makeSignal({
         id: "finance:not-reviewed",
         source: "finance",

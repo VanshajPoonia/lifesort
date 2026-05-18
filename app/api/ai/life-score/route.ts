@@ -100,6 +100,19 @@ export async function POST() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
+  let lifeScore: LifeScoreData
+  try {
+    lifeScore = await getLifeScoreData(user.id)
+  } catch {
+    return NextResponse.json({ error: "LifeScore is unavailable right now" }, { status: 500 })
+  }
+  if (!lifeScore.ready) {
+    return NextResponse.json(
+      { error: "LifeScore will be explainable after you add some LifeSort data.", life_score: lifeScore },
+      { status: 400 },
+    )
+  }
+
   if (!process.env.OPENROUTER_API_KEY) {
     return NextResponse.json({ error: "AI features are not configured" }, { status: 503 })
   }
@@ -127,7 +140,6 @@ export async function POST() {
   })
 
   try {
-    const lifeScore = await getLifeScoreData(user.id)
     const { text } = await generateText({
       model: openrouter(LIFE_SCORE_MODEL),
       prompt: buildPrompt(lifeScore),

@@ -35,6 +35,7 @@ export type LifeScoreHistoryPoint = {
 
 export type LifeScoreData = {
   generated_at: string
+  ready: boolean
   score: number
   label: string
   previous_score: number | null
@@ -297,6 +298,7 @@ export async function getLifeScoreData(userId: string): Promise<LifeScoreData> {
     `, unavailable),
     safeRows("tasks", sql`
       SELECT
+        COUNT(*)::int AS total_tasks,
         COUNT(*) FILTER (WHERE completed IS NOT TRUE)::int AS open_tasks,
         COUNT(*) FILTER (
           WHERE completed IS NOT TRUE AND due_date IS NOT NULL AND due_date < CURRENT_DATE
@@ -337,14 +339,15 @@ export async function getLifeScoreData(userId: string): Promise<LifeScoreData> {
       WHERE h.user_id = ${userId} AND h.is_active IS NOT FALSE
     `, unavailable),
     safeRows("weekly_reviews", sql`
-      SELECT id
+      SELECT
+        COUNT(*)::int AS total_reviews,
+        COUNT(*) FILTER (WHERE week_start = DATE_TRUNC('week', CURRENT_DATE)::date)::int AS current_week_reviews
       FROM weekly_reviews
       WHERE user_id = ${userId}
-        AND week_start = DATE_TRUNC('week', CURRENT_DATE)::date
-      LIMIT 1
     `, unavailable),
     safeRows("commitments", sql`
       SELECT
+        COUNT(*)::int AS total_commitments,
         COUNT(*) FILTER (WHERE status IN ('open', 'at_risk'))::int AS active_commitments,
         COUNT(*) FILTER (
           WHERE status IN ('open', 'at_risk') AND due_date IS NOT NULL AND due_date < CURRENT_DATE
@@ -425,6 +428,7 @@ export async function getLifeScoreData(userId: string): Promise<LifeScoreData> {
       : 55 + (completedFocusTasks / Math.max(1, focusTaskIds.length)) * 45
 
   const tasks = taskSummary[0] ?? {}
+  const totalTasks = n(tasks.total_tasks)
   const overdueTasks = n(tasks.overdue_tasks)
   const highOverdueTasks = n(tasks.high_overdue_tasks)
   const overdueScore = overdueTasks === 0 ? 100 : overdueTasks <= 2 ? 85 : overdueTasks <= 5 ? 65 : overdueTasks <= 10 ? 45 : 25
@@ -440,9 +444,12 @@ export async function getLifeScoreData(userId: string): Promise<LifeScoreData> {
   const staleGoals = n(goals.stale_goals)
   const goalsScore = activeGoals === 0 ? 82 : Math.max(35, (recentlyUpdatedGoals / Math.max(1, activeGoals)) * 100 - staleGoals * 4)
 
-  const weeklyScore = weeklyReview.length > 0 ? 100 : 65
+  const reviews = weeklyReview[0] ?? {}
+  const totalReviews = n(reviews.total_reviews)
+  const weeklyScore = n(reviews.current_week_reviews) > 0 ? 100 : 65
 
   const commitments = commitmentSummary[0] ?? {}
+  const totalCommitments = n(commitments.total_commitments)
   const activeCommitments = n(commitments.active_commitments)
   const overdueCommitments = n(commitments.overdue_commitments)
   const missedCommitments = n(commitments.missed_commitments)
@@ -469,89 +476,6 @@ export async function getLifeScoreData(userId: string): Promise<LifeScoreData> {
   const quietAreas = Math.max(0, lifeAreaCount - activeAreaIds.size)
   const balanceScore = lifeAreaCount === 0 ? 82 : Math.max(45, 100 - (quietAreas / Math.max(1, lifeAreaCount)) * 55)
 
-  const components = [
-    component({
-      key: "focus_completion",
-      label: "Focus completion",
-      score: focusScore,
-      weight: 15,
-      explanation: focusItems.length === 0
-        ? "No focus items are selected today, so this is a gentle neutral score."
-        : `${completedFocusTasks}/${Math.max(focusTaskIds.length, focusItems.length)} visible focus item${focusItems.length === 1 ? "" : "s"} are complete or ready.`,
-      href: "/today",
-    }),
-    component({
-      key: "overdue_task_load",
-      label: "Overdue task load",
-      score: overdueScore,
-      weight: 20,
-      explanation: overdueTasks === 0
-        ? "No overdue tasks are weighing down today."
-        : `${overdueTasks} overdue task${overdueTasks === 1 ? "" : "s"} need a decision, including ${highOverdueTasks} high-priority item${highOverdueTasks === 1 ? "" : "s"}.`,
-      href: "/tasks",
-    }),
-    component({
-      key: "habit_consistency",
-      label: "Habit consistency",
-      score: habitScore,
-      weight: 15,
-      explanation: activeHabits === 0
-        ? "No active habits are tracked yet, so this stays neutral."
-        : `${completedCheckins} habit check-in${completedCheckins === 1 ? "" : "s"} logged across the last 7 days.`,
-      href: "/habits",
-    }),
-    component({
-      key: "goals_updated",
-      label: "Goals updated",
-      score: goalsScore,
-      weight: 15,
-      explanation: activeGoals === 0
-        ? "No active goals are tracked yet, so this stays neutral."
-        : `${recentlyUpdatedGoals}/${activeGoals} active goal${activeGoals === 1 ? "" : "s"} were updated recently.`,
-      href: "/goals",
-    }),
-    component({
-      key: "weekly_review_status",
-      label: "Weekly review",
-      score: weeklyScore,
-      weight: 10,
-      explanation: weeklyReview.length > 0
-        ? "This week's review has been saved."
-        : "This week's review is still open.",
-      href: "/review",
-    }),
-    component({
-      key: "commitments_kept",
-      label: "Commitments kept",
-      score: commitmentScore,
-      weight: 10,
-      explanation: overdueCommitments === 0 && missedCommitments === 0
-        ? "No open commitments are overdue or marked missed."
-        : `${overdueCommitments} open commitment${overdueCommitments === 1 ? "" : "s"} are overdue and ${missedCommitments} are marked missed.`,
-      href: "/commitments",
-    }),
-    component({
-      key: "maintenance_vault",
-      label: "Maintenance and vault",
-      score: maintenanceScore,
-      weight: 10,
-      explanation: overdueMaintenance === 0 && overdueVault === 0
-        ? "Maintenance and vault dates look current."
-        : `${overdueMaintenance + overdueVault} maintenance or vault date${overdueMaintenance + overdueVault === 1 ? "" : "s"} need attention.`,
-      href: "/maintenance",
-    }),
-    component({
-      key: "life_area_balance",
-      label: "Life area balance",
-      score: balanceScore,
-      weight: 5,
-      explanation: lifeAreaCount === 0
-        ? "No Life Areas are set up yet, so this stays neutral."
-        : `${activeAreaIds.size}/${lifeAreaCount} Life Area${lifeAreaCount === 1 ? "" : "s"} have recent tracked activity.`,
-      href: "/insights",
-    }),
-  ]
-
   const unavailableSet = new Set(unavailable)
   const componentSourceMap: Record<LifeScoreComponentKey, string[]> = {
     focus_completion: ["daily_plans", "tasks"],
@@ -563,10 +487,117 @@ export async function getLifeScoreData(userId: string): Promise<LifeScoreData> {
     maintenance_vault: ["maintenance_items", "vault_items"],
     life_area_balance: ["life_areas", "life_area_activity"],
   }
-  const availableComponents = components.filter((item) => !componentSourceMap[item.key].some((source) => unavailableSet.has(source)))
-  const score = availableComponents.length
-    ? clampScore(availableComponents.reduce((sum, item) => sum + item.score * item.weight, 0) / availableComponents.reduce((sum, item) => sum + item.weight, 0))
-    : 70
+  const isComponentAvailable = (key: LifeScoreComponentKey) =>
+    !componentSourceMap[key].some((source) => unavailableSet.has(source))
+  const components: LifeScoreComponent[] = []
+
+  if (focusItems.length > 0 && isComponentAvailable("focus_completion")) {
+    components.push(component({
+      key: "focus_completion",
+      label: "Focus completion",
+      score: focusScore,
+      weight: 15,
+      explanation: focusItems.length === 0
+        ? "No focus items are selected today, so this is a gentle neutral score."
+        : `${completedFocusTasks}/${Math.max(focusTaskIds.length, focusItems.length)} visible focus item${focusItems.length === 1 ? "" : "s"} are complete or ready.`,
+      href: "/today",
+    }))
+  }
+
+  if (totalTasks > 0 && isComponentAvailable("overdue_task_load")) {
+    components.push(component({
+      key: "overdue_task_load",
+      label: "Overdue task load",
+      score: overdueScore,
+      weight: 20,
+      explanation: overdueTasks === 0
+        ? "No overdue tasks are weighing down today."
+        : `${overdueTasks} overdue task${overdueTasks === 1 ? "" : "s"} need a decision, including ${highOverdueTasks} high-priority item${highOverdueTasks === 1 ? "" : "s"}.`,
+      href: "/tasks",
+    }))
+  }
+
+  if (activeHabits > 0 && isComponentAvailable("habit_consistency")) {
+    components.push(component({
+      key: "habit_consistency",
+      label: "Habit consistency",
+      score: habitScore,
+      weight: 15,
+      explanation: activeHabits === 0
+        ? "No active habits are tracked yet, so this stays neutral."
+        : `${completedCheckins} habit check-in${completedCheckins === 1 ? "" : "s"} logged across the last 7 days.`,
+      href: "/habits",
+    }))
+  }
+
+  if (activeGoals > 0 && isComponentAvailable("goals_updated")) {
+    components.push(component({
+      key: "goals_updated",
+      label: "Goals updated",
+      score: goalsScore,
+      weight: 15,
+      explanation: activeGoals === 0
+        ? "No active goals are tracked yet, so this stays neutral."
+        : `${recentlyUpdatedGoals}/${activeGoals} active goal${activeGoals === 1 ? "" : "s"} were updated recently.`,
+      href: "/goals",
+    }))
+  }
+
+  if (totalReviews > 0 && isComponentAvailable("weekly_review_status")) {
+    components.push(component({
+      key: "weekly_review_status",
+      label: "Weekly review",
+      score: weeklyScore,
+      weight: 10,
+      explanation: n(reviews.current_week_reviews) > 0
+        ? "This week's review has been saved."
+        : "This week's review is still open.",
+      href: "/review",
+    }))
+  }
+
+  if (totalCommitments > 0 && isComponentAvailable("commitments_kept")) {
+    components.push(component({
+      key: "commitments_kept",
+      label: "Commitments kept",
+      score: commitmentScore,
+      weight: 10,
+      explanation: overdueCommitments === 0 && missedCommitments === 0
+        ? "No open commitments are overdue or marked missed."
+        : `${overdueCommitments} open commitment${overdueCommitments === 1 ? "" : "s"} are overdue and ${missedCommitments} are marked missed.`,
+      href: "/commitments",
+    }))
+  }
+
+  if ((n(maintenance.active_maintenance) + n(vault.vault_items)) > 0 && isComponentAvailable("maintenance_vault")) {
+    components.push(component({
+      key: "maintenance_vault",
+      label: "Maintenance and vault",
+      score: maintenanceScore,
+      weight: 10,
+      explanation: overdueMaintenance === 0 && overdueVault === 0
+        ? "Maintenance and vault dates look current."
+        : `${overdueMaintenance + overdueVault} maintenance or vault date${overdueMaintenance + overdueVault === 1 ? "" : "s"} need attention.`,
+      href: "/maintenance",
+    }))
+  }
+
+  if (activeAreaIds.size > 0 && isComponentAvailable("life_area_balance")) {
+    components.push(component({
+      key: "life_area_balance",
+      label: "Life area balance",
+      score: balanceScore,
+      weight: 5,
+      explanation: lifeAreaCount === 0
+        ? "No Life Areas are set up yet, so this stays neutral."
+        : `${activeAreaIds.size}/${lifeAreaCount} Life Area${lifeAreaCount === 1 ? "" : "s"} have recent tracked activity.`,
+      href: "/insights",
+    }))
+  }
+
+  const score = components.length
+    ? clampScore(components.reduce((sum, item) => sum + item.score * item.weight, 0) / components.reduce((sum, item) => sum + item.weight, 0))
+    : 0
   const label = labelFor(score)
   const reasons = buildReasons(score, components, previous.components, previous.score)
   const topImprovements = [...components]
@@ -576,17 +607,18 @@ export async function getLifeScoreData(userId: string): Promise<LifeScoreData> {
 
   const snapshot = {
     generated_at: new Date().toISOString(),
+    ready: components.length > 0,
     score,
-    label,
+    label: components.length > 0 ? label : "Not enough data yet",
     previous_score: previous.score,
-    change: previous.score === null ? null : score - previous.score,
+    change: components.length > 0 && previous.score !== null ? score - previous.score : null,
     components,
-    reasons,
+    reasons: components.length > 0 ? reasons : [],
     top_improvements: topImprovements,
     unavailable: Array.from(new Set(unavailable)),
   }
 
-  await saveSnapshot(userId, snapshot, unavailable)
+  if (snapshot.ready) await saveSnapshot(userId, snapshot, unavailable)
   const history = await getHistory(userId, unavailable)
 
   return {
