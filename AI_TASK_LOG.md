@@ -17,6 +17,156 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-05-18 23:30 IST - Daily Journal Feature
+
+- Agent/tool used: Codex (GPT-5 coding agent).
+- Task completed: Added a user-scoped Daily Journal feature connected to Today and Reflect without adding OpenClaw, Agents, AI affirmation generation, route deletion, or broad redesign.
+
+#### Files Modified
+- `scripts/migrations/2026-05-18-daily-journal.sql` — Added the forward-only `daily_journal_entries` migration.
+- `scripts/schema.sql` — Mirrored the journal table and user/date index into the canonical schema.
+- `scripts/fresh-install.sql` — Mirrored the journal table and index for fresh installs.
+- `lib/journal.ts` — Added Zod validation, normalized journal input helpers, and database row mapping.
+- `app/api/journal/[date]/route.ts` — Added authenticated, user-scoped GET/PUT for one journal date.
+- `app/api/journal/recent/route.ts` — Added authenticated recent journal history endpoint.
+- `app/api/journal/weekly-digest/route.ts` — Added authenticated weekly digest with simple averages and counts.
+- `app/journal/page.tsx` — Added the Daily Journal UI with date controls, mood, gratitude, affirmation, intentions, reflection, star ratings, tomorrow setup, recent history, 2-second autosave, and manual Save fallback.
+- `components/dashboard-layout.tsx` — Added Journal to the desktop/tablet sidebar and mobile More sheet.
+- `app/api/sidebar-preferences/route.ts` — Added Journal to default sidebar preferences.
+- `app/settings/page.tsx` — Added Journal to sidebar customization.
+- `app/today/page.tsx` — Added a compact Journal preview card linked to the selected date.
+- `app/insights/page.tsx` — Added a Journal tab to Reflect/Insights using the weekly digest endpoint.
+- `AI_PROJECT.md`, `AI_DECISIONS.md`, `AI_CHECKLIST.md`, `AI_TASK_LOG.md` — Updated project memory for scope, modeling/autosave decisions, checks, and handoff.
+
+#### Summary
+- Journal stores one row per user per date with JSONB gratitude/intentions/tags, nullable mood/reflection/star/tomorrow fields, and future-ready `locked_at`.
+- All journal APIs require the main session auth and filter by `user_id`; missing entries return `entry: null` rather than fake saved data.
+- The Journal page autosaves whole normalized entries after 2 seconds and keeps visible save status plus a manual Save button.
+- Today now shows whether the selected date's journal has started, including mood and gratitude/affirmation preview when available.
+- Reflect and compatibility `/insights` now include a Journal tab with weekly entry count, gratitude count, completed intentions, star averages, and recent links.
+- AI affirmation suggestions, task pulling, creating tomorrow focus, and hard locking remain explicit future TODOs.
+
+#### Commands Run
+- `git status --short --branch` → branch `main...origin/main [ahead 2]`; worktree contained scoped journal/docs changes.
+- `git diff --stat` → reviewed; changes scoped to journal schema/API/UI, navigation integration, Today/Reflect integration, and memory docs.
+- `git diff --check` → passed.
+- `npx tsc --noEmit` → passed.
+- `npm run lint` → failed with the known repo-wide ESLint 10 blocker: no `eslint.config.(js|mjs|cjs)` file exists.
+- `npm run build` → passed. Build still skips type/lint validation and emits the known unsupported `metadata.themeColor` / `metadata.viewport` warnings, now including `/journal`.
+
+#### Bugs Found or Fixed
+- No unrelated bugs were fixed.
+- Added explicit JSONB casts in the journal upsert so JSON arrays write cleanly to Postgres.
+
+#### Remaining Issues / Known Limitations
+- The migration was added but not run automatically.
+- Browser/manual user-isolation checks were not run in this environment.
+- Past-entry read-only locking, AI affirmation suggestions, pulling from tasks, and creating tomorrow focus from Journal are intentionally not implemented in v1.
+- `npm run lint` remains blocked by the pre-existing missing ESLint flat config.
+
+#### Suggested Next Steps
+- Apply `scripts/migrations/2026-05-18-daily-journal.sql` to the target database after confirming the environment.
+- Browser-check `/journal`, `/today`, `/reflect?tab=journal`, `/insights?tab=journal`, desktop sidebar, and mobile More.
+- Add an ESLint flat config so source linting can run normally.
+
+#### Handoff Notes
+- Journal API shape is intentionally simple: GET returns `{ entry }`, PUT saves one whole normalized entry, recent returns `{ entries }`, and weekly digest returns `{ week, entries, averages, counts }`.
+- Keep future Journal AI work under `app/api/ai/` with usage caps and no automatic writes, matching existing AI safety decisions.
+
+### 2026-05-18 23:18 IST - Information Architecture Consolidation Pass
+
+- Agent/tool used: Codex (GPT-5 coding agent).
+- Task completed: Reduced LifeSort feature sprawl on the website app by simplifying Home, consolidating Today focus surfaces, and turning Reflect/Insights into a tabbed review surface without deleting routes, data, schemas, APIs, or feature pages.
+
+#### Files Modified
+- `app/page.tsx` — Replaced the long dashboard wall with a calmer attention dashboard: compact LifeScore, compact Open Today card, compact Money summary, unified Pending card, Recent Activity, and pinned favorites placeholder. Removed unneeded Home fetches for no-longer-rendered full widgets.
+- `app/today/page.tsx` — Merged focus items, Today To-Do, Should Do, and Could Do into one priority-filtered daily list with Must/Should/Could chips while preserving capacity, AI Plan My Day, habits, calendar, notes, deadlines, reflection, and existing drag ordering.
+- `app/insights/page.tsx` — Added Reflect tabs for Weekly Review, Life Balance, Ignored Signals, Timeline, LifeScore, and Reset; preserved the existing Life Balance and Ignored Signals workflows and `/insights` compatibility behavior.
+- `AI_PROJECT.md`, `AI_DECISIONS.md`, `AI_CHECKLIST.md`, `AI_TASK_LOG.md` — Updated project memory for the Home/Today/Reflect IA decisions and recurring checks.
+
+#### Summary
+- Home now answers "what needs attention right now" instead of duplicating many full feature surfaces.
+- The unified Pending card clubs Inbox, Someday, Waiting For, Commitments, and Maintenance with per-source filters and counts only when the source loaded successfully.
+- Today now has one daily priority list with Must/Should/Could filters and still saves order through the existing `today_item_order` field.
+- Reflect now uses tabs instead of a card wall; deep feature routes like `/review`, `/timeline`, `/reset`, `/tasks`, `/inbox`, `/someday`, `/waiting`, `/commitments`, and `/maintenance` remain preserved.
+
+#### Commands Run
+- `git status --short --branch` → branch `main...origin/main [ahead 1]`; worktree contains scoped IA/docs changes.
+- `git diff --stat` → reviewed; changes are scoped to Home, Today, Reflect/Insights, and memory docs.
+- `git diff --check` → passed.
+- `npx tsc --noEmit` → passed after the production build regenerated `.next/types`. A concurrent run while `next build` was regenerating `.next/types` briefly failed with missing `.next/types/*` files; rerun passed.
+- `npm run lint` → failed with the known repo-wide ESLint 10 blocker: no `eslint.config.(js|mjs|cjs)` file exists.
+- `npm run build` → passed. Build still skips type/lint validation and emits the known unsupported `metadata.themeColor` / `metadata.viewport` warnings.
+
+#### Bugs Found or Fixed
+- Fixed Home overexposure by removing repeated full module widgets from the primary dashboard render.
+- Fixed Today duplication by replacing separate Today To-Do, Should Do, and Could Do cards with one filtered daily list.
+- Fixed Reflect discoverability by replacing the hub-card wall with explicit tabs while keeping legacy `/insights`.
+
+#### Remaining Issues / Known Limitations
+- Browser/manual visual verification was not run in this pass.
+- `npm run lint` remains blocked by the pre-existing missing ESLint flat config.
+- Existing Next metadata warnings remain unchanged.
+
+#### Suggested Next Steps
+- Browser-check Home, Today, Reflect, and `/insights` on desktop and mobile to tune spacing and confirm no overflow.
+- Add the missing ESLint flat config so source linting can run normally.
+
+#### Handoff Notes
+- Keep Home short in future passes; detailed module summaries should live in Organize, Money, Reflect, Today, or feature routes.
+- Today priority ordering stores a mixed id list in `daily_plans.today_item_order`; the API already ignores vanished or non-due ids safely.
+
+### 2026-05-18 22:55 IST - Responsive Foundation Fix
+
+- Agent/tool used: Codex (GPT-5 coding agent).
+- Task completed: Implemented a frontend-only responsive foundation pass for the LifeSort website app shell, shared grids, trial banner, and Reflect Life Area metric rows.
+
+#### Files Modified
+- `hooks/use-breakpoint.ts` — Added the shared runtime breakpoint hook for mobile/tablet/desktop/wide behavior.
+- `components/dashboard-layout.tsx` — Moved shell behavior to the `<640` mobile, `640-1023` tablet rail, and `1024+` desktop model; added persisted desktop sidebar collapse; replaced mobile More dropdown with a bottom sheet; kept mobile Quick Add as a FAB.
+- `components/subscription-checker.tsx` — Shortened mobile trial banner copy while preserving the measured banner offset contract.
+- `components/hub-page.tsx` — Made the hub card grid explicitly one-column before `sm`, then two-column and four-column at wider breakpoints.
+- `app/page.tsx` — Adjusted dashboard stat/summary grids to stack on mobile and expand progressively.
+- `app/today/page.tsx` — Adjusted planner grids/forms to stack on mobile and use wider columns only from larger breakpoints.
+- `app/tasks/page.tsx` — Adjusted task stat cards, tabs, filters, and editable title widths to avoid mobile overflow.
+- `app/budget/page.tsx` — Adjusted finance summary, stat, quick-link, and category grids for mobile/tablet.
+- `app/insights/page.tsx` — Added responsive Life Area metric row behavior: mobile shows two summary metrics, tablet shows four, and desktop shows all six, with More/Less expansion on smaller widths.
+- `AI_PROJECT.md`, `AI_DECISIONS.md`, `AI_CHECKLIST.md`, `AI_TASK_LOG.md` — Updated project memory for the responsive breakpoint contract and checks.
+
+#### Summary
+- No product modules, APIs, schemas, or routes were added or removed.
+- The signed-in shell now uses a full sidebar on desktop/wide, automatic icon rail on tablet, and mobile bottom navigation only below `640px`.
+- Desktop users can collapse the sidebar; the preference is stored in `localStorage` as `sidebar-collapsed`.
+- Mobile More is now a sheet with Reflect, Settings, Profile, Support / Upgrade, Support LifeSort, and admin-only Admin when applicable.
+- Main content is centered with `max-w-[1400px]` and `min-w-0` to reduce wide-screen stretch and overflow risk.
+
+#### Commands Run
+- `git status --short --branch` → branch `main...origin/main`; worktree contained only scoped responsive/docs changes before commit.
+- `git diff --stat` → reviewed; changes scoped to shell, responsive grids, Reflect metrics, breakpoint hook, and memory docs.
+- `git diff --check` → passed.
+- `npx tsc --noEmit` → passed.
+- `npm run lint` → failed with the known repo-wide ESLint 10 blocker: no `eslint.config.(js|mjs|cjs)` file exists.
+- `npm run build` → passed. Build still skips type/lint validation and emits the known unsupported `metadata.themeColor` / `metadata.viewport` warnings.
+- `node -e "try { require.resolve('playwright') ... }"` → Playwright is not installed, so automated responsive screenshots were not available.
+- `npm run dev` → started successfully on port 3000; `/login` returned `200` via curl. A broader scripted route smoke hit local sandbox/network connection refusals despite the dev server listening, so visual width checks were not completed here. The dev server was stopped afterward.
+
+#### Bugs Found or Fixed
+- Fixed mobile overflow risk from fixed-width task filters and editable task titles.
+- Fixed Reflect Life Area metric rows showing too many metric columns on mobile/tablet.
+- Fixed mobile Quick Add duplication by keeping the top-bar Quick Add hidden below `sm` and using the existing FAB.
+
+#### Remaining Issues / Known Limitations
+- `npm run lint` is expected to remain blocked by the pre-existing missing ESLint flat config unless that repo configuration has changed.
+- Browser screenshot verification was not completed because Playwright is not installed and local route curl checks beyond `/login` hit sandbox/network connection refusals.
+
+#### Suggested Next Steps
+- Browser-verify the requested widths and fix any remaining page-specific overflow found on deep feature pages beyond the targeted set.
+- Add an ESLint flat config so responsive shell changes can be linted normally.
+
+#### Handoff Notes
+- Use `hooks/use-breakpoint.ts` only for runtime behavior. Layout should still be Tailwind-first.
+- Keep future shell changes aligned to mobile `<640`, tablet `640-1023`, desktop `1024-1600`, and wide `>1600`.
+
 ### 2026-05-18 22:45 IST - LifeSort UX Polish Pass
 
 - Agent/tool used: Codex (GPT-5 coding agent).
