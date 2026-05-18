@@ -103,6 +103,14 @@ Use this checklist when implementing the regression prompt:
 10. After testing, delete temporary records through app APIs when possible and document anything left behind.
 11. Capture/promotion features must keep APIs user-scoped, update migration baselines, validate optional linked ownership, and require explicit confirmation before creating linked records.
 
+## Navigation / Information Architecture Checklist
+
+1. Preserve deep links when consolidating navigation; hide routes from the sidebar only, never delete feature pages.
+2. Keep the primary sidebar hub-level: Home, Today, Plan, Capture, Money, Life Admin, Insights, Settings, and admin-only Admin.
+3. Keep Quick Add, Global Search, notifications, profile/settings, and sign-out reachable from the shared layout.
+4. Keep hub summary endpoints read-only, authenticated, user-scoped, and missing-schema tolerant.
+5. Add hub cards for any feature hidden from the sidebar so discoverability is not lost.
+
 ## Environment Setup Checklist
 
 Observed env var names include:
