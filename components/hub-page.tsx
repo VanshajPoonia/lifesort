@@ -22,6 +22,7 @@ export type HubCard = {
   statusKey?: string
   statusLabel?: string
   zeroLabel?: string
+  priority?: "primary" | "secondary"
 }
 
 export function HubHero({
@@ -112,10 +113,14 @@ export function HubGrid({ cards }: { cards: HubCard[] }) {
         const { title, description, href, icon: Icon } = card
         return (
         <Link key={`${href}-${title}`} href={href} className="group">
-          <Card className="h-full transition-colors hover:border-primary/60 hover:bg-muted/30">
+          <Card
+            className={`h-full transition-colors hover:border-primary/60 hover:bg-muted/30 ${
+              card.priority === "primary" ? "border-primary/30 bg-primary/5" : ""
+            }`}
+          >
             <CardHeader className="space-y-3">
               <div className="flex items-start justify-between gap-3">
-                <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                <div className={`rounded-lg p-2 text-primary ${card.priority === "primary" ? "bg-primary/15" : "bg-primary/10"}`}>
                   <Icon className="h-5 w-5" />
                 </div>
                 <StatusBadge card={card} summary={summary} loading={loading} />

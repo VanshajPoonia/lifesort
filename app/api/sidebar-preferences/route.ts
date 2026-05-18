@@ -6,6 +6,8 @@ const sql = neon(process.env.DATABASE_URL!)
 
 const DEFAULT_SIDEBAR_SECTIONS = {
   home: true,
+  organize: true,
+  reflect: true,
   plan: true,
   money: true,
   life_admin: true,
