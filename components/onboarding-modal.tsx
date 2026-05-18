@@ -137,7 +137,7 @@ export function OnboardingModal({ isOpen, onComplete }: OnboardingModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleSkip()}>
-      <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden">
+      <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden [&>button]:hidden">
         {/* Progress bar */}
         <div className="px-6 pt-6">
           <div className="flex items-center gap-4 mb-2">
