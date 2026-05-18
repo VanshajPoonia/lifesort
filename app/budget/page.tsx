@@ -487,7 +487,7 @@ export default function BudgetPage() {
     <DashboardLayout title="Finance Hub" subtitle="Your complete financial picture">
 
       {/* ── Top summary cards ── */}
-      <div className="grid gap-4 md:grid-cols-3 mb-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-4">
         <Card className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/20">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Monthly Income</CardTitle>
@@ -555,7 +555,7 @@ export default function BudgetPage() {
       </div>
 
       {/* ── Secondary stats + Net Worth ── */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Investments</CardTitle>
@@ -614,7 +614,7 @@ export default function BudgetPage() {
       </div>
 
       {/* ── Quick links ── */}
-      <div className="grid gap-3 grid-cols-2 md:grid-cols-4 mb-6">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-6">
         {[
           { href: "/income",      label: "Income Sources",  desc: `${incomeSources.length} source${incomeSources.length !== 1 ? "s" : ""}`,   icon: <TrendingUp className="h-4 w-4 text-green-500" /> },
           { href: "/investments", label: "Investments",     desc: `${investments.length} position${investments.length !== 1 ? "s" : ""}`,      icon: <BarChart3 className="h-4 w-4 text-emerald-500" /> },
@@ -854,7 +854,7 @@ export default function BudgetPage() {
               </EmptyContent>
             </Empty>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {categories.map((cat) => {
                 const spent = transactions
                   .filter(t => t.category_id === cat.id && t.type === "expense")
