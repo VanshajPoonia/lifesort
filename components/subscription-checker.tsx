@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuth } from './auth-provider'
 import { Button } from './ui/button'
 import { X, Coffee, Clock } from 'lucide-react'
@@ -10,6 +10,7 @@ export function SubscriptionChecker() {
   const [subscriptionState, setSubscriptionState] = useState<'active' | 'trial' | 'expired'>('active')
   const [dismissed, setDismissed] = useState(false)
   const [timeLeft, setTimeLeft] = useState<string>('')
+  const bannerRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     setDismissed(false)
@@ -55,11 +56,38 @@ export function SubscriptionChecker() {
     return () => clearInterval(interval)
   }, [user])
 
-  if (subscriptionState !== 'active' && !dismissed) {
+  const isVisible = subscriptionState !== 'active' && !dismissed
+
+  useEffect(() => {
+    const root = document.documentElement
+
+    if (!isVisible) {
+      root.style.setProperty('--subscription-banner-offset', '0px')
+      return
+    }
+
+    const updateOffset = () => {
+      const height = bannerRef.current?.offsetHeight ?? 0
+      root.style.setProperty('--subscription-banner-offset', `${height}px`)
+    }
+
+    updateOffset()
+    const resizeObserver = new ResizeObserver(updateOffset)
+    if (bannerRef.current) resizeObserver.observe(bannerRef.current)
+    window.addEventListener('resize', updateOffset)
+
+    return () => {
+      resizeObserver.disconnect()
+      window.removeEventListener('resize', updateOffset)
+      root.style.setProperty('--subscription-banner-offset', '0px')
+    }
+  }, [isVisible, timeLeft])
+
+  if (isVisible) {
     const isExpired = subscriptionState === 'expired'
 
     return (
-      <div className="fixed top-0 left-0 right-0 z-40 glass-strong border-b border-primary/20 md:left-64">
+      <div ref={bannerRef} className="fixed left-0 right-0 top-0 z-40 glass-strong border-b border-primary/20">
         <div className="px-4 py-3">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 flex-1">
@@ -97,6 +125,8 @@ export function SubscriptionChecker() {
                 size="icon" 
                 className="h-8 w-8"
                 onClick={() => setDismissed(true)}
+                aria-label="Dismiss subscription banner"
+                title="Dismiss subscription banner"
               >
                 <X className="h-4 w-4" />
               </Button>

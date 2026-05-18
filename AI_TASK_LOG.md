@@ -17,6 +17,45 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-05-18 21:04 IST - Trial Banner Layout Offset Fix
+
+- Agent/tool used: Codex (GPT-5 coding agent).
+- Task completed: Fixed the free-trial/support banner overlapping the app logo, sidebar, and top navigation.
+
+#### Files Modified
+- `components/subscription-checker.tsx` — Added a measured banner ref that writes `--subscription-banner-offset` to the document root while the banner is visible, resets it to `0px` when dismissed/hidden, and gives the dismiss button an accessible label/title.
+- `components/dashboard-layout.tsx` — Made the dashboard shell use the banner offset for its top margin and available height; mobile sidebar/overlay now also start below the banner.
+- `AI_TASK_LOG.md` — Recorded this work and verification.
+
+#### Summary
+- The subscription/trial banner remains fixed at the top, but now publishes its actual rendered height instead of covering the app shell.
+- The dashboard logo, sidebar navigation, header, and mobile drawer are pushed below the banner while it is visible.
+- Dismissing the banner resets the offset so the app shell moves back to the top.
+
+#### Commands Run
+- `git status --short --branch` → branch `main...origin/main`; worktree was clean before edits.
+- `git diff --stat` → reviewed; changes scoped to `DashboardLayout`, `SubscriptionChecker`, and this log.
+- `npx tsc --noEmit` → passed.
+- `npm run lint` → failed with the known repo-wide ESLint 10 blocker: no `eslint.config.(js|mjs|cjs)` file exists.
+- `npm run build` → passed. Build still skips type/lint validation and emits the known unsupported `metadata.themeColor` / `metadata.viewport` warnings.
+- `git diff --check` → passed.
+- `node -e "try{require.resolve('playwright'); ...}"` → Playwright is not installed, so automated visual screenshot verification was not available.
+
+#### Bugs Found or Fixed
+- Fixed the banner overlay bug caused by `SubscriptionChecker` being `fixed top-0` while `DashboardLayout` still started at viewport top.
+
+#### Remaining Issues / Known Limitations
+- Visual verification in a browser was not run because Playwright/agent-browser is unavailable in this workspace.
+- `npm run lint` remains blocked by the pre-existing missing ESLint flat config.
+
+#### Suggested Next Steps
+- Browser-check the dashboard with the trial banner visible and after dismissing it on desktop and mobile.
+- Add ESLint flat config so linting can validate source files again.
+
+#### Handoff Notes
+- `--subscription-banner-offset` is the shared contract between the global `SubscriptionChecker` and signed-in `DashboardLayout`.
+- Keep future fixed top UI aware of this offset so it does not cover the app shell.
+
 ### 2026-05-18 20:28 IST - Safe Navigation Consolidation to Six Hubs
 
 - Agent/tool used: Codex (GPT-5 coding agent).

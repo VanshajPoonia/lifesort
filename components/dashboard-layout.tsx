@@ -274,7 +274,13 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
   }, [user])
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div
+      className="flex overflow-hidden bg-background transition-[height,margin-top] duration-200"
+      style={{
+        height: "calc(100vh - var(--subscription-banner-offset, 0px))",
+        marginTop: "var(--subscription-banner-offset, 0px)",
+      }}
+    >
       {/* Daily Content Popup */}
       <DailyPopup />
       <QuickAddModal open={quickAddOpen} onOpenChange={setQuickAddOpen} />
@@ -282,7 +288,7 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
       {/* Mobile Overlay */}
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          className="fixed inset-x-0 bottom-0 top-[var(--subscription-banner-offset,0px)] z-40 bg-black/50 md:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -291,7 +297,7 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
       <aside
         className={`${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } fixed inset-y-0 left-0 z-50 w-64 md:relative md:translate-x-0 border-r border-border bg-card transition-transform duration-300`}
+        } fixed bottom-0 left-0 top-[var(--subscription-banner-offset,0px)] z-50 w-64 border-r border-border bg-card transition-transform duration-300 md:relative md:bottom-auto md:top-auto md:translate-x-0`}
       >
         <div className="flex h-full flex-col">
           {/* Logo */}
