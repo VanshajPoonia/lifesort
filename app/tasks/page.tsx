@@ -536,7 +536,7 @@ export default function TasksPage() {
       subtitle={new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
     >
       <div className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {loading ? (
             [0, 1, 2, 3].map((item) => (
               <Card key={item} className="glass border">
@@ -615,7 +615,7 @@ export default function TasksPage() {
 
         <Tabs value={activeView} onValueChange={(value) => setActiveView(value as TaskView)} className="space-y-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <TabsList className="grid w-full grid-cols-2 md:w-auto md:grid-cols-4">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:w-auto">
               {taskViews.map((view) => (
                 <TabsTrigger key={view.value} value={view.value}>
                   {view.label}
@@ -625,7 +625,7 @@ export default function TasksPage() {
 
             <div className="grid gap-2 sm:grid-cols-3">
               <Select value={sortMode} onValueChange={(value) => setSortMode(value as SortMode)}>
-                <SelectTrigger className="min-w-[150px]">
+                <SelectTrigger className="w-full sm:min-w-[150px]">
                   <ArrowUpDown className="mr-2 h-4 w-4" />
                   <SelectValue />
                 </SelectTrigger>
@@ -639,7 +639,7 @@ export default function TasksPage() {
               </Select>
 
               <Select value={priorityFilter} onValueChange={(value) => setPriorityFilter(value as PriorityFilter)}>
-                <SelectTrigger className="min-w-[170px]">
+                <SelectTrigger className="w-full sm:min-w-[170px]">
                   <Filter className="mr-2 h-4 w-4" />
                   <SelectValue />
                 </SelectTrigger>
@@ -653,7 +653,7 @@ export default function TasksPage() {
               </Select>
 
               <Select value={completionFilter} onValueChange={(value) => setCompletionFilter(value as CompletionFilter)}>
-                <SelectTrigger className="min-w-[170px]">
+                <SelectTrigger className="w-full sm:min-w-[170px]">
                   <CheckCircle2 className="mr-2 h-4 w-4" />
                   <SelectValue />
                 </SelectTrigger>
@@ -715,7 +715,7 @@ export default function TasksPage() {
                             <EditableText
                               value={task.title}
                               onSave={(value) => handleUpdateTask(task.id, { title: value })}
-                              className={`min-w-[180px] font-medium text-foreground ${task.completed ? "line-through" : ""}`}
+                              className={`min-w-0 font-medium text-foreground ${task.completed ? "line-through" : ""}`}
                               placeholder="Enter task name..."
                             />
                             <Badge className={getPriorityColor(task.priority)}>{task.priority}</Badge>
