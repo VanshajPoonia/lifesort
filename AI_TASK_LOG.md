@@ -2788,51 +2788,6 @@ After that, re-run the regression checkpoint and the schema-drift 500s should di
   - No new database migration was added.
   - `/api/chat` and `/api/chat/context` are read-only except for AI usage events on chat POST; task creation remains a separate confirmed client action through `/api/tasks`.
 
-## 2026-05-19 00:02 IST - Global UX Polish
-
-- Agent/tool used: Codex.
-- Task summary: Polished global UX by centralizing search/capture/navigation into one command palette, adding a compact/detailed Home preference, refreshing onboarding, improving empty states, and reducing upgrade/banner visual noise.
-- Files changed:
-  - `app/api/app-preferences/route.ts`
-  - `app/api/onboarding/route.ts`
-  - `app/journal/page.tsx`
-  - `app/page.tsx`
-  - `app/settings/page.tsx`
-  - `components/dashboard-layout.tsx`
-  - `components/empty-state.tsx`
-  - `components/global-command-palette.tsx`
-  - `components/onboarding-modal.tsx`
-  - `components/quick-add-modal.tsx`
-  - `components/subscription-checker.tsx`
-  - `AI_PROJECT.md`
-  - `AI_DECISIONS.md`
-  - `AI_CHECKLIST.md`
-  - `AI_TASK_LOG.md`
-- Summary of changes:
-  - Added `/api/app-preferences` with an allowlisted `home_view_mode` key stored in `users.app_preferences`, plus a Settings control and inline Home segmented toggle.
-  - Added `GlobalCommandPalette` for Cmd/Ctrl+K, Ctrl+K, header search, desktop Quick Add, and mobile FAB. It groups Capture, Search, Navigate, and safe AI links while reusing `QuickAddModal` for writes.
-  - Added `?` shortcuts dialog, with global shortcut handling disabled inside editable fields.
-  - Added `AppEmptyState` as a small wrapper around existing empty primitives and used it on Home, Journal recent history, and command palette no-results.
-  - Refreshed onboarding into a compact skippable setup for important Life Areas, planning style/work hours, optional first task, optional first goal, and first journal gratitude.
-  - Changed onboarding persistence to merge `app_preferences`/`sidebar_preferences` instead of overwriting existing preference JSON.
-  - Added a compact Journal card on Home and a detailed Home mode with extra deadline/note context while keeping compact as the default.
-  - Renamed trial/support CTA wording to Go Pro/Upgrade and removed the orange sidebar Go Pro block; mobile More and the trial banner still expose upgrade paths.
-- Commands run:
-  - `git status --short --branch` - reviewed; branch was already ahead of `origin/main` by 3 prior commits before this task.
-  - `npx tsc --noEmit` - passed.
-  - `git diff --check` - initially found trailing whitespace in `app/settings/page.tsx`; fixed and reran successfully.
-  - `npm run lint` - failed before source linting because ESLint 10.3.0 cannot find `eslint.config.(js|mjs|cjs)`.
-  - `npm run build` - passed; generated 136 routes including `/api/app-preferences`; still skips type/lint validation through `next.config.mjs` and emits known unsupported `metadata.themeColor`/`metadata.viewport` warnings.
-- Bugs found or fixed:
-  - Fixed the onboarding preference overwrite risk by changing `/api/onboarding` to JSONB-merge preferences.
-  - Fixed trailing whitespace found by `git diff --check`.
-- Remaining issues and limitations:
-  - Browser/manual smoke testing was not run in this pass.
-  - `npm run lint` remains blocked by missing ESLint flat config.
-  - `npm run build` still hides TypeScript and lint failures through `next.config.mjs`.
-  - The command palette links to existing AI pages only; no inline AI assistant was added.
-  - Onboarding optional task/goal/journal writes are best-effort and can fail independently without blocking setup completion.
-
 ## 2026-05-17 23:27 IST - Energy And Capacity Planner
 
 - Agent/tool used: Codex.
@@ -2878,6 +2833,57 @@ After that, re-run the regression checkpoint and the schema-drift 500s should di
 - Handoff notes:
   - Capacity labels are practical planning labels only. Avoid health claims in future UI and AI prompts around sick/recovery day types.
   - No autonomous writes were added; AI Today Planner still only suggests and the user applies actions.
+
+## 2026-05-19 00:02 IST - Global UX Polish
+
+- Agent/tool used: Codex.
+- Task summary: Polished global UX by centralizing search/capture/navigation into one command palette, adding a compact/detailed Home preference, refreshing onboarding, improving empty states, and reducing upgrade/banner visual noise.
+- Files changed:
+  - `app/api/app-preferences/route.ts`
+  - `app/api/onboarding/route.ts`
+  - `app/journal/page.tsx`
+  - `app/page.tsx`
+  - `app/settings/page.tsx`
+  - `components/dashboard-layout.tsx`
+  - `components/empty-state.tsx`
+  - `components/global-command-palette.tsx`
+  - `components/onboarding-modal.tsx`
+  - `components/quick-add-modal.tsx`
+  - `components/subscription-checker.tsx`
+  - `AI_PROJECT.md`
+  - `AI_DECISIONS.md`
+  - `AI_CHECKLIST.md`
+  - `AI_TASK_LOG.md`
+- Summary of changes:
+  - Added `/api/app-preferences` with an allowlisted `home_view_mode` key stored in `users.app_preferences`, plus a Settings control and inline Home segmented toggle.
+  - Added `GlobalCommandPalette` for Cmd/Ctrl+K, Ctrl+K, header search, desktop Quick Add, and mobile FAB. It groups Capture, Search, Navigate, and safe AI links while reusing `QuickAddModal` for writes.
+  - Added `?` shortcuts dialog, with global shortcut handling disabled inside editable fields.
+  - Added `AppEmptyState` as a small wrapper around existing empty primitives and used it on Home, Journal recent history, and command palette no-results.
+  - Refreshed onboarding into a compact skippable setup for important Life Areas, planning style/work hours, optional first task, optional first goal, and first journal gratitude.
+  - Changed onboarding persistence to merge `app_preferences`/`sidebar_preferences` instead of overwriting existing preference JSON.
+  - Added a compact Journal card on Home and a detailed Home mode with extra deadline/note context while keeping compact as the default.
+  - Renamed trial/support CTA wording to Go Pro/Upgrade and removed the orange sidebar Go Pro block; mobile More and the trial banner still expose upgrade paths.
+- Commands run:
+  - `git status --short --branch` - reviewed; branch was already ahead of `origin/main` by 3 prior commits before this task.
+  - `npx tsc --noEmit` - passed.
+  - `git diff --check` - initially found trailing whitespace in `app/settings/page.tsx`; fixed and reran successfully.
+  - `npm run lint` - failed before source linting because ESLint 10.3.0 cannot find `eslint.config.(js|mjs|cjs)`.
+  - `npm run build` - passed; generated 136 routes including `/api/app-preferences`; still skips type/lint validation through `next.config.mjs` and emits known unsupported `metadata.themeColor`/`metadata.viewport` warnings.
+- Bugs found or fixed:
+  - Fixed the onboarding preference overwrite risk by changing `/api/onboarding` to JSONB-merge preferences.
+  - Fixed trailing whitespace found by `git diff --check`.
+- Remaining issues and limitations:
+  - Browser/manual smoke testing was not run in this pass.
+  - `npm run lint` remains blocked by missing ESLint flat config.
+  - `npm run build` still hides TypeScript and lint failures through `next.config.mjs`.
+  - The command palette links to existing AI pages only; no inline AI assistant was added.
+  - Onboarding optional task/goal/journal writes are best-effort and can fail independently without blocking setup completion.
+- Suggested next steps:
+  - Smoke-test signed-in flows for Cmd/Ctrl+K, `?`, Quick Add/FAB capture mode, Home compact/detailed persistence, onboarding skip/complete, and mobile More/upgrade links.
+  - Add an ESLint flat config and consider re-enabling build type/lint gates.
+- Handoff notes:
+  - Keep `/api/app-preferences` allowlisted. Do not expose arbitrary client-writable `users.app_preferences` keys.
+  - `components/global-search.tsx` still exists for compatibility but is no longer mounted by `DashboardLayout`.
 
 ## AI Handoff Summaries
 
