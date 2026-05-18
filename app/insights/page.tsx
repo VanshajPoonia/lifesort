@@ -1,28 +1,31 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import {
   Activity,
   AlertCircle,
   ArrowRight,
+  BookOpenText,
   CheckCircle2,
   CheckSquare,
+  ChevronDown,
   FileText,
   Flame,
   FolderPlus,
   History,
+  Heart,
   LayoutDashboard,
   Loader2,
   Plus,
   Search,
   ShieldAlert,
   Sparkles,
+  Star,
   Target,
   Wallet,
 } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard-layout"
-import { HubGrid } from "@/components/hub-page"
 import { useAuth } from "@/components/auth-provider"
 import { LifeAreaIcon } from "@/components/life-area-controls"
 import { Badge } from "@/components/ui/badge"
@@ -30,6 +33,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useBreakpoint } from "@/hooks/use-breakpoint"
 import { cn } from "@/lib/utils"
 
 type AreaMetrics = {
@@ -139,6 +144,32 @@ type AiIgnoringResult = {
   }>
 }
 
+type JournalDigest = {
+  week: { start: string; end: string }
+  entries: Array<{
+    id: number
+    journal_date: string
+    mood: number | null
+    gratitude: string[]
+    affirmation_text: string | null
+    notes_from_today: string | null
+    work_stars: number | null
+    personal_stars: number | null
+    family_stars: number | null
+  }>
+  averages: {
+    mood: number | null
+    work_stars: number | null
+    personal_stars: number | null
+    family_stars: number | null
+  }
+  counts: {
+    entries: number
+    gratitude_items: number
+    completed_intentions: number
+  }
+}
+
 function toNumber(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0
 }
@@ -183,6 +214,24 @@ const IGNORING_SOURCE_LABELS: Record<IgnoringSignalSource, string> = {
   finance: "Finance Review",
 }
 
+type ReflectTab = "weekly-review" | "life-balance" | "ignored-signals" | "journal" | "timeline" | "lifescore" | "reset"
+
+const reflectTabs: Array<{ value: ReflectTab; label: string }> = [
+  { value: "weekly-review", label: "Weekly Review" },
+  { value: "life-balance", label: "Life Balance" },
+  { value: "ignored-signals", label: "Ignored Signals" },
+  { value: "journal", label: "Journal" },
+  { value: "timeline", label: "Timeline" },
+  { value: "lifescore", label: "LifeScore" },
+  { value: "reset", label: "Reset" },
+]
+
+function normalizeReflectTab(value: string | null): ReflectTab {
+  return value === "weekly-review" || value === "ignored-signals" || value === "journal" || value === "timeline" || value === "lifescore" || value === "reset"
+    ? value
+    : "life-balance"
+}
+
 function getReflectHubCards(currentHref: "/reflect" | "/insights") {
   return [
   {
@@ -201,6 +250,14 @@ function getReflectHubCards(currentHref: "/reflect" | "/insights") {
     statusKey: "weeklyReviewPending",
     statusLabel: "pending",
     zeroLabel: "0 pending",
+    priority: "primary" as const,
+  },
+  {
+    title: "Journal",
+    description: "Review daily reflections, gratitude, and star ratings.",
+    href: "/journal",
+    icon: BookOpenText,
+    badge: "Daily",
     priority: "primary" as const,
   },
   {
@@ -255,30 +312,46 @@ function formatDateLabel(value: string | null) {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
 }
 
+function localDateString() {
+  const date = new Date()
+  const offset = date.getTimezoneOffset()
+  return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 10)
+}
+
 function ReflectExperience() {
   const { user, loading } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
+  const { isMobile, isTablet } = useBreakpoint()
   const compatibility = pathname.startsWith("/insights")
   const routeTitle = compatibility ? "Insights" : "Reflect"
   const routeHref = compatibility ? "/insights" : "/reflect"
-  const reflectHubCards = useMemo(() => getReflectHubCards(routeHref), [routeHref])
+  const [activeReflectTab, setActiveReflectTab] = useState<ReflectTab>("life-balance")
   const [metrics, setMetrics] = useState<LifeBalanceMetrics | null>(null)
   const [analysis, setAnalysis] = useState<AiLifeBalanceResult | null>(null)
   const [ignoringInsights, setIgnoringInsights] = useState<IgnoringInsightsData | null>(null)
   const [ignoringAnalysis, setIgnoringAnalysis] = useState<AiIgnoringResult | null>(null)
+  const [journalDigest, setJournalDigest] = useState<JournalDigest | null>(null)
   const [loadingMetrics, setLoadingMetrics] = useState(true)
   const [loadingIgnoring, setLoadingIgnoring] = useState(true)
+  const [loadingJournal, setLoadingJournal] = useState(true)
   const [analyzing, setAnalyzing] = useState(false)
   const [analyzingIgnoring, setAnalyzingIgnoring] = useState(false)
   const [error, setError] = useState("")
   const [analysisError, setAnalysisError] = useState("")
   const [ignoringError, setIgnoringError] = useState("")
   const [ignoringAnalysisError, setIgnoringAnalysisError] = useState("")
+  const [journalError, setJournalError] = useState("")
   const [createdActions, setCreatedActions] = useState<Set<number>>(new Set())
   const [createdIgnoringActions, setCreatedIgnoringActions] = useState<Set<number>>(new Set())
   const [creatingAction, setCreatingAction] = useState<number | null>(null)
   const [creatingIgnoringAction, setCreatingIgnoringAction] = useState<number | null>(null)
+  const [expandedAreaRows, setExpandedAreaRows] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    setActiveReflectTab(normalizeReflectTab(new URL(window.location.href).searchParams.get("tab")))
+  }, [pathname])
 
   useEffect(() => {
     if (!loading && !user) {
@@ -288,6 +361,7 @@ function ReflectExperience() {
     if (user) {
       fetchMetrics()
       fetchIgnoringSignals()
+      fetchJournalDigest()
     }
   }, [loading, router, user])
 
@@ -326,6 +400,25 @@ function ReflectExperience() {
       setIgnoringError(err instanceof Error ? err.message : "Could not load ignored-life signals")
     } finally {
       setLoadingIgnoring(false)
+    }
+  }
+
+  const fetchJournalDigest = async () => {
+    setLoadingJournal(true)
+    setJournalError("")
+    try {
+      const response = await fetch(`/api/journal/weekly-digest?weekOf=${localDateString()}`)
+      if (response.status === 401) {
+        router.push("/login")
+        return
+      }
+      const data = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(data?.error || "Could not load journal digest")
+      setJournalDigest(data)
+    } catch (err) {
+      setJournalError(err instanceof Error ? err.message : "Could not load journal digest")
+    } finally {
+      setLoadingJournal(false)
     }
   }
 
@@ -423,6 +516,17 @@ function ReflectExperience() {
   }, [metrics])
 
   const maxScore = Math.max(1, ...visibleAreas.map((area) => area.score))
+  const toggleAreaRow = (key: string) => {
+    setExpandedAreaRows((current) => {
+      const next = new Set(current)
+      if (next.has(key)) {
+        next.delete(key)
+      } else {
+        next.add(key)
+      }
+      return next
+    })
+  }
   const totals = useMemo(() => {
     return visibleAreas.reduce(
       (acc, area) => {
@@ -447,6 +551,12 @@ function ReflectExperience() {
     return Array.from(groups.entries())
   }, [ignoringInsights])
 
+  const changeReflectTab = (value: string) => {
+    const next = normalizeReflectTab(value)
+    setActiveReflectTab(next)
+    router.replace(`${routeHref}?tab=${next}`, { scroll: false })
+  }
+
   if (loading || !user) {
     return (
       <DashboardLayout title={routeTitle} subtitle="Life balance metrics and AI analysis">
@@ -460,11 +570,155 @@ function ReflectExperience() {
   return (
     <DashboardLayout title={routeTitle} subtitle="See which parts of life are getting attention and which ones may need care.">
       <div className="space-y-5 md:space-y-6">
-        <div className="section-enter">
-          <HubGrid cards={reflectHubCards} />
-        </div>
+        <Tabs value={activeReflectTab} onValueChange={changeReflectTab} className="section-enter space-y-4">
+          <TabsList className="flex w-full justify-start overflow-x-auto rounded-lg bg-muted/70 p-1">
+            {reflectTabs.map((tab) => (
+              <TabsTrigger key={tab.value} value={tab.value} className="min-w-max">
+                {tab.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
 
-        <section className="surface-card section-enter rounded-lg border bg-card/95 p-4 md:p-5">
+        {activeReflectTab === "weekly-review" && (
+          <ReflectLinkPanel
+            icon={<CheckSquare className="h-5 w-5 text-primary" />}
+            title="Weekly Review"
+            description="Reflect on the week, save lessons, and choose next-week focus."
+            href="/review"
+            action="Open Weekly Review"
+          />
+        )}
+
+        {activeReflectTab === "journal" && (
+          <Card className="surface-card section-enter border-amber-500/20 bg-amber-500/5">
+            <CardHeader>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <BookOpenText className="h-5 w-5 text-amber-600 dark:text-amber-300" />
+                    Journal
+                  </CardTitle>
+                  <CardDescription>
+                    Daily gratitude, intentions, and star ratings for the current week.
+                  </CardDescription>
+                </div>
+                <Button asChild className="gap-2">
+                  <a href="/journal">
+                    Open Journal
+                    <ArrowRight className="h-4 w-4" />
+                  </a>
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {journalError && (
+                <div className="rounded-md border border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive">
+                  {journalError}
+                </div>
+              )}
+
+              {loadingJournal ? (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  {Array.from({ length: 4 }).map((_, index) => (
+                    <Skeleton key={index} className="h-24 w-full" />
+                  ))}
+                </div>
+              ) : journalDigest ? (
+                <>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <MetricPill icon={BookOpenText} label="Entries this week" value={journalDigest.counts.entries} />
+                    <MetricPill icon={Heart} label="Gratitude notes" value={journalDigest.counts.gratitude_items} />
+                    <MetricPill icon={CheckCircle2} label="Completed intentions" value={journalDigest.counts.completed_intentions} />
+                    <MetricPill icon={Star} label="Avg mood" value={journalDigest.averages.mood ?? "No data"} />
+                  </div>
+
+                  <div className="grid gap-4 lg:grid-cols-[0.85fr_1.15fr]">
+                    <Card className="bg-background/80">
+                      <CardHeader>
+                        <CardTitle className="text-base">Star Averages</CardTitle>
+                        <CardDescription>{formatDateLabel(journalDigest.week.start)} to {formatDateLabel(journalDigest.week.end)}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-3 text-sm">
+                        {[
+                          ["Work", journalDigest.averages.work_stars],
+                          ["Personal", journalDigest.averages.personal_stars],
+                          ["Family", journalDigest.averages.family_stars],
+                        ].map(([label, value]) => (
+                          <div key={label} className="flex items-center justify-between rounded-md border bg-muted/20 p-3">
+                            <span className="text-muted-foreground">{label}</span>
+                            <span className="font-medium">{value ?? "No data"}</span>
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+
+                    <Card className="bg-background/80">
+                      <CardHeader>
+                        <CardTitle className="text-base">Recent Journal Entries</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {journalDigest.entries.length === 0 ? (
+                          <EmptyState>No journal entries this week yet. Start with one small note from today.</EmptyState>
+                        ) : (
+                          journalDigest.entries.slice(0, 5).map((entry) => (
+                            <a
+                              key={entry.id}
+                              href={`/journal?date=${entry.journal_date}`}
+                              className="block rounded-md border bg-muted/20 p-3 text-sm transition-colors hover:bg-muted/40"
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="font-medium">{formatDateLabel(entry.journal_date)}</span>
+                                {entry.mood && <span aria-label={`Mood ${entry.mood}`}>{["😟", "😕", "😐", "🙂", "😊"][entry.mood - 1]}</span>}
+                              </div>
+                              <p className="mt-1 line-clamp-2 text-muted-foreground">
+                                {entry.affirmation_text || entry.gratitude.find(Boolean) || entry.notes_from_today || "Journal entry"}
+                              </p>
+                            </a>
+                          ))
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+                </>
+              ) : (
+                <EmptyState>Journal digest is not available yet.</EmptyState>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {activeReflectTab === "timeline" && (
+          <ReflectLinkPanel
+            icon={<History className="h-5 w-5 text-primary" />}
+            title="Life Timeline"
+            description="Review milestones and meaningful activity over time."
+            href="/timeline"
+            action="Open Timeline"
+          />
+        )}
+
+        {activeReflectTab === "lifescore" && (
+          <ReflectLinkPanel
+            icon={<LayoutDashboard className="h-5 w-5 text-primary" />}
+            title="LifeScore"
+            description="See the explainable organization signal on Home."
+            href="/"
+            action="Open Home"
+          />
+        )}
+
+        {activeReflectTab === "reset" && (
+          <ReflectLinkPanel
+            icon={<ShieldAlert className="h-5 w-5 text-primary" />}
+            title="Reset My Life"
+            description="Triage stale, overdue, and overwhelming items safely."
+            href="/reset"
+            action="Open Reset"
+          />
+        )}
+
+        <section className={cn("surface-card section-enter rounded-lg border bg-card/95 p-4 md:p-5", activeReflectTab !== "life-balance" && "hidden")}>
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Life Balance</p>
@@ -480,7 +734,7 @@ function ReflectExperience() {
           </div>
         </section>
 
-        {error && (
+        {activeReflectTab === "life-balance" && error && (
           <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
             <div className="flex items-center gap-2">
               <AlertCircle className="h-4 w-4" />
@@ -489,8 +743,8 @@ function ReflectExperience() {
           </div>
         )}
 
-        {loadingMetrics ? (
-          <div className="grid gap-4 md:grid-cols-5">
+        {activeReflectTab === "life-balance" && (loadingMetrics ? (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
             {Array.from({ length: 5 }).map((_, index) => (
               <Skeleton key={index} className="h-24 w-full" />
             ))}
@@ -506,7 +760,7 @@ function ReflectExperience() {
               </div>
             )}
 
-            <div className="grid gap-4 md:grid-cols-5">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
               <MetricPill icon={CheckSquare} label="Active tasks" value={totals.tasks} />
               <MetricPill icon={Target} label="Active goals" value={totals.goals} />
               <MetricPill icon={Flame} label="Active habits" value={totals.habits} />
@@ -527,7 +781,21 @@ function ReflectExperience() {
                   {visibleAreas.length === 0 ? (
                     <EmptyState>Add Life Areas or assign records to see balance metrics.</EmptyState>
                   ) : (
-                    visibleAreas.map((area) => (
+                    visibleAreas.map((area) => {
+                      const metricItems = [
+                        { label: "tasks", value: area.tasks.active },
+                        { label: "goals", value: area.goals.active },
+                        { label: "habits", value: area.habits.active },
+                        { label: "projects", value: area.projects.active },
+                        { label: "notes", value: area.notes.recent_updates },
+                        { label: "30d spend", value: formatCurrency(area.budget.expenses_30d) },
+                      ]
+                      const expanded = expandedAreaRows.has(area.key)
+                      const compactLimit = isMobile ? 2 : isTablet ? 4 : metricItems.length
+                      const showToggle = (isMobile || isTablet) && metricItems.length > compactLimit
+                      const visibleMetricItems = showToggle && !expanded ? metricItems.slice(0, compactLimit) : metricItems
+
+                      return (
                       <div key={area.key} className="rounded-md border p-3">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <div className="flex min-w-0 items-center gap-3">
@@ -547,16 +815,29 @@ function ReflectExperience() {
                           </Badge>
                         </div>
                         <Progress value={(area.score / maxScore) * 100} className="mt-3 h-2" />
-                        <div className="mt-3 grid gap-2 text-sm sm:grid-cols-3 lg:grid-cols-6">
-                          <div><span className="font-medium">{area.tasks.active}</span><p className="text-xs text-muted-foreground">tasks</p></div>
-                          <div><span className="font-medium">{area.goals.active}</span><p className="text-xs text-muted-foreground">goals</p></div>
-                          <div><span className="font-medium">{area.habits.active}</span><p className="text-xs text-muted-foreground">habits</p></div>
-                          <div><span className="font-medium">{area.projects.active}</span><p className="text-xs text-muted-foreground">projects</p></div>
-                          <div><span className="font-medium">{area.notes.recent_updates}</span><p className="text-xs text-muted-foreground">notes</p></div>
-                          <div><span className="font-medium">{formatCurrency(area.budget.expenses_30d)}</span><p className="text-xs text-muted-foreground">30d spend</p></div>
+                        <div className="mt-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4 lg:grid-cols-6">
+                          {visibleMetricItems.map((metric) => (
+                            <div key={metric.label}>
+                              <span className="font-medium">{metric.value}</span>
+                              <p className="text-xs text-muted-foreground">{metric.label}</p>
+                            </div>
+                          ))}
                         </div>
+                        {showToggle && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="mt-2 h-8 px-0 text-xs text-muted-foreground"
+                            onClick={() => toggleAreaRow(area.key)}
+                          >
+                            {expanded ? "Less" : "More"}
+                            <ChevronDown className={cn("ml-1 h-3.5 w-3.5 transition-transform", expanded && "rotate-180")} />
+                          </Button>
+                        )}
                       </div>
-                    ))
+                      )
+                    })
                   )}
                 </CardContent>
               </Card>
@@ -619,9 +900,9 @@ function ReflectExperience() {
               </div>
             </div>
           </>
-        ) : null}
+        ) : null)}
 
-        <Card className="surface-card section-enter border-primary/20">
+        <Card className={cn("surface-card section-enter border-primary/20", activeReflectTab !== "ignored-signals" && "hidden")}>
           <CardHeader>
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
               <div>
@@ -647,7 +928,7 @@ function ReflectExperience() {
             )}
 
             {loadingIgnoring ? (
-              <div className="grid gap-4 md:grid-cols-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {Array.from({ length: 4 }).map((_, index) => (
                   <Skeleton key={index} className="h-24 w-full" />
                 ))}
@@ -663,7 +944,7 @@ function ReflectExperience() {
                   </div>
                 )}
 
-                <div className="grid gap-4 md:grid-cols-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   <MetricPill icon={ShieldAlert} label="Signals found" value={ignoringInsights.summary.total} />
                   <MetricPill icon={AlertCircle} label="High attention" value={ignoringInsights.summary.high} />
                   <MetricPill icon={Target} label="Stale goals" value={ignoringInsights.summary.stale_goals} />
@@ -672,7 +953,7 @@ function ReflectExperience() {
 
                 {ignoringInsights.signals.length === 0 ? (
                   <EmptyState>
-                    Nothing looks ignored right now. Keep using Today Plan, Weekly Review, and Life Areas so future signals stay useful.
+                    Nothing looks ignored right now. Keep using Today, Weekly Review, and Life Areas so future signals stay useful.
                   </EmptyState>
                 ) : (
                   <div className="space-y-4">
@@ -784,7 +1065,7 @@ function ReflectExperience() {
           </CardContent>
         </Card>
 
-        {(analysisError || analysis) && (
+        {activeReflectTab === "life-balance" && (analysisError || analysis) && (
           <Card className="surface-card section-enter border-primary/20">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -856,6 +1137,40 @@ function ReflectExperience() {
 
 export default function InsightsPage() {
   return <ReflectExperience />
+}
+
+function ReflectLinkPanel({
+  icon,
+  title,
+  description,
+  href,
+  action,
+}: {
+  icon: ReactNode
+  title: string
+  description: string
+  href: string
+  action: string
+}) {
+  return (
+    <Card className="surface-card section-enter border-primary/20 bg-primary/5">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          {icon}
+          {title}
+        </CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Button asChild className="gap-2">
+          <a href={href}>
+            {action}
+            <ArrowRight className="h-4 w-4" />
+          </a>
+        </Button>
+      </CardContent>
+    </Card>
+  )
 }
 
 function InsightList({ title, items }: { title: string; items: string[] }) {
