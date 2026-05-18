@@ -38,6 +38,7 @@ import {
   Archive,
   Settings2,
   Wallet,
+  BookOpenText,
 } from "lucide-react"
 import {
   Accordion,
@@ -67,6 +68,8 @@ interface UserProfile {
   } | null
 }
 
+type HomeViewMode = "compact" | "detailed"
+
 export default function SettingsPage() {
   const { user } = useAuth()
   const router = useRouter()
@@ -77,6 +80,8 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [activeTab, setActiveTab] = useState("profile")
+  const [homeViewMode, setHomeViewMode] = useState<HomeViewMode>("compact")
+  const [savingAppPreferences, setSavingAppPreferences] = useState(false)
   
   const [formData, setFormData] = useState({
     name: "",
@@ -111,9 +116,10 @@ export default function SettingsPage() {
     inbox: true,
     waiting: true,
     commitments: true,
-    maintenance: true,
-    today: true,
-    review: true,
+  maintenance: true,
+  today: true,
+  journal: true,
+  review: true,
     insights: true,
     life_areas: true,
     projects: true,
@@ -147,7 +153,38 @@ export default function SettingsPage() {
     }
     fetchProfile()
     fetchSidebarPrefs()
+    fetchAppPreferences()
   }, [])
+
+  const fetchAppPreferences = async () => {
+    try {
+      const response = await fetch("/api/app-preferences")
+      if (!response.ok) return
+      const data = await response.json()
+      setHomeViewMode(data.preferences?.home_view_mode === "detailed" ? "detailed" : "compact")
+    } catch (error) {
+      console.error("[v0] Error fetching app preferences:", error)
+    }
+  }
+
+  const saveHomeViewMode = async (mode: HomeViewMode) => {
+    setHomeViewMode(mode)
+    setSavingAppPreferences(true)
+    try {
+      const response = await fetch("/api/app-preferences", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ home_view_mode: mode }),
+      })
+
+      if (!response.ok) throw new Error("Failed to save app preference")
+    } catch (error) {
+      console.error("[v0] Error saving app preferences:", error)
+      alert("Failed to save app preference")
+    } finally {
+      setSavingAppPreferences(false)
+    }
+  }
 
   const changeSettingsTab = (tab: string) => {
     setActiveTab(tab)
@@ -542,6 +579,7 @@ export default function SettingsPage() {
                 {[
                   { id: "home", label: "Home", icon: LayoutDashboard, description: "Dashboard, quick actions, LifeScore, and today snapshot" },
                   { id: "today", label: "Today", icon: CalendarCheck, description: "Today Plan, calendar today, habits due, and capacity planning" },
+                  { id: "journal", label: "Journal", icon: BookOpenText, description: "Daily reflection, gratitude, intentions, and tomorrow setup" },
                   { id: "organize", label: "Organize", icon: Archive, description: "Plan, Capture, and Life Admin workspaces" },
                   { id: "money", label: "Money", icon: Wallet, description: "Budget, income, investments, and wishlist" },
                   { id: "reflect", label: "Reflect", icon: Activity, description: "Life Balance, Weekly Review, Timeline, Reset, Coach, and LifeScore insights" },
@@ -589,6 +627,48 @@ export default function SettingsPage() {
 
         {/* Content Preferences Tab */}
         <TabsContent value="content" className="section-enter space-y-5 md:space-y-6">
+          <Card className="surface-card">
+            <CardHeader>
+              <CardTitle>Home View</CardTitle>
+              <CardDescription>
+                Choose whether Home stays focused or shows extra dashboard detail.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                {[
+                  {
+                    id: "compact" as const,
+                    title: "Compact",
+                    description: "Greeting, Today, Pending, Journal, LifeScore, Money, and Recent Activity.",
+                  },
+                  {
+                    id: "detailed" as const,
+                    title: "Detailed",
+                    description: "Adds extra deadline and note context for deeper dashboard review.",
+                  },
+                ].map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    className={`interactive-card rounded-lg border p-4 text-left transition-colors ${
+                      homeViewMode === option.id ? "border-primary bg-primary/5" : "border-border bg-background hover:bg-secondary"
+                    }`}
+                    onClick={() => saveHomeViewMode(option.id)}
+                    disabled={savingAppPreferences}
+                  >
+                    <span className="flex items-center justify-between gap-3">
+                      <span className="font-medium">{option.title}</span>
+                      {homeViewMode === option.id && <Badge variant="secondary">Current</Badge>}
+                    </span>
+                    <span className="mt-2 block text-sm text-muted-foreground">{option.description}</span>
+                  </button>
+                ))}
+              </div>
+              {savingAppPreferences && <p className="text-sm text-muted-foreground">Saving Home preference...</p>}
+            </CardContent>
+          </Card>
+
           <Card className="surface-card">
             <CardHeader>
               <CardTitle>Daily Content Preferences</CardTitle>
@@ -798,8 +878,8 @@ export default function SettingsPage() {
                   <AccordionTrigger>How do I upgrade to Pro?</AccordionTrigger>
                   <AccordionContent>
                     <p className="text-muted-foreground">
-                      Click the "Go Pro" button in the sidebar. This supports the development of the app and gives you 
-                      access to premium features. You can check your current subscription status in the 
+                      Use the trial banner or mobile More menu to open "Go Pro". This supports the development of the app
+                      and gives you access to premium features. You can check your current subscription status in the
                       <strong> Settings &gt; Account</strong> tab.
                     </p>
                   </AccordionContent>
