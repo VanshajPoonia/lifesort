@@ -2788,6 +2788,32 @@ After that, re-run the regression checkpoint and the schema-drift 500s should di
   - No new database migration was added.
   - `/api/chat` and `/api/chat/context` are read-only except for AI usage events on chat POST; task creation remains a separate confirmed client action through `/api/tasks`.
 
+## 2026-05-19 00:02 IST - Global UX Polish
+
+- Agent/tool used: Codex.
+- Task summary: Polished global UX by centralizing search/capture/navigation into one command palette, adding a compact/detailed Home preference, refreshing onboarding, improving empty states, and reducing upgrade/banner visual noise.
+- Files changed:
+  - `app/api/app-preferences/route.ts`
+  - `app/api/onboarding/route.ts`
+  - `app/journal/page.tsx`
+  - `app/page.tsx`
+  - `app/settings/page.tsx`
+  - `components/dashboard-layout.tsx`
+  - `components/empty-state.tsx`
+  - `components/global-command-palette.tsx`
+  - `components/onboarding-modal.tsx`
+  - `components/quick-add-modal.tsx`
+  - `components/subscription-checker.tsx`
+  - `AI_PROJECT.md`
+  - `AI_DECISIONS.md`
+  - `AI_CHECKLIST.md`
+  - `AI_TASK_LOG.md`
+- Summary of changes:
+  - Added `/api/app-preferences` with an allowlisted `home_view_mode` key stored in `users.app_preferences`, plus a Settings control and inline Home segmented toggle.
+  - Added `GlobalCommandPalette` for Cmd/Ctrl+K, Ctrl+K, header search, desktop Quick Add, and mobile FAB. It groups Capture, Search, Navigate, and safe AI links while reusing `QuickAddModal` for writes.
+  - Added `?` shortcuts dialog, with global shortcut handling disabled inside editable fields.
+  - Added `AppEmptyState` as a small wrapper around existing empty primitives and used it on Home, Journal recent history, and command palette no-results.
+
 ## 2026-05-17 23:27 IST - Energy And Capacity Planner
 
 - Agent/tool used: Codex.
