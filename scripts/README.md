@@ -22,6 +22,30 @@ psql "$DATABASE_URL" -f scripts/schema.sql
 
 That single file produces the complete current schema. Once it has been run, any future migrations in `scripts/migrations/` should be applied in date order.
 
+### Wipe-and-recreate (Neon SQL Editor)
+
+`scripts/fresh-install.sql` is an auto-generated bundle that drops the entire `public` schema and runs `schema.sql` in one paste. Use it when you want a clean start on a database whose data you are OK losing.
+
+To regenerate after editing `schema.sql`:
+```bash
+{ echo "-- LifeSort fresh-install bundle"; \
+  echo "-- AUTO-GENERATED from scripts/schema.sql on $(date '+%Y-%m-%d')."; \
+  echo "--"; \
+  echo "-- ⚠️  DESTRUCTIVE: Drops ALL existing tables in the public schema."; \
+  echo "-- Only run this on an empty database or one whose data you are OK losing."; \
+  echo "-- Paste this file into Neon SQL Editor and click Run."; \
+  echo ""; \
+  echo "DROP SCHEMA IF EXISTS public CASCADE;"; \
+  echo "CREATE SCHEMA public;"; \
+  echo "GRANT ALL ON SCHEMA public TO postgres;"; \
+  echo "GRANT ALL ON SCHEMA public TO public;"; \
+  echo ""; \
+  echo "-- ── Begin schema.sql ────────────────────────────────────────────────────────"; \
+  cat scripts/schema.sql; \
+  echo "-- ── End schema.sql ──────────────────────────────────────────────────────────"; \
+} > scripts/fresh-install.sql
+```
+
 ### Adding a new feature with schema changes
 1. Write a new `scripts/migrations/YYYY-MM-DD-<feature>.sql` file with only `CREATE TABLE IF NOT EXISTS`, `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, and `CREATE INDEX IF NOT EXISTS` statements.
 2. Mirror the same `CREATE TABLE` / `ALTER TABLE` content into `schema.sql` so fresh-DB setup stays complete.
@@ -120,6 +144,6 @@ Should return 10 rows. If any are missing, apply the matching `legacy/add-*.sql`
 
 ## Notes
 
-- `payment_logs`, `pomodoro_sessions`, and `pomodoro_settings` were defined in legacy migrations but are not referenced from any code. They are intentionally excluded from the canonical `schema.sql` (audit 2026-05-17).
+- `payment_logs`, `pomodoro_sessions`, and `pomodoro_settings` are not currently queried by `app/api` code, but are included in `schema.sql` for potential future use. Their `user_id` columns have been rewritten to `VARCHAR(255)` for consistency (legacy versions used `INTEGER`/`UUID` which were incompatible with `users.id`).
 - All user-scoped tables use `VARCHAR(255)` for `user_id` with `REFERENCES users(id) ON DELETE CASCADE`.
 - Foreign keys to `life_areas` use `ON DELETE SET NULL` so deleting a life area does not cascade through every linked record.

@@ -1,3 +1,16 @@
+-- LifeSort fresh-install bundle
+-- AUTO-GENERATED from scripts/schema.sql on 2026-05-18.
+--
+-- ⚠️  DESTRUCTIVE: Drops ALL existing tables in the public schema.
+-- Only run this on an empty database or one whose data you are OK losing.
+-- Paste this file into Neon SQL Editor and click Run.
+
+DROP SCHEMA IF EXISTS public CASCADE;
+CREATE SCHEMA public;
+GRANT ALL ON SCHEMA public TO postgres;
+GRANT ALL ON SCHEMA public TO public;
+
+-- ── Begin schema.sql ────────────────────────────────────────────────────────
 -- LifeSort website canonical schema baseline
 -- This file reflects the tables and columns expected by the current website API.
 -- Run after reviewing existing production schema; older patch scripts contain drift.
@@ -1080,3 +1093,4 @@ CREATE TABLE IF NOT EXISTS payment_logs (
 CREATE INDEX IF NOT EXISTS idx_payment_logs_email ON payment_logs(email);
 CREATE INDEX IF NOT EXISTS idx_payment_logs_processed ON payment_logs(processed);
 CREATE INDEX IF NOT EXISTS idx_payment_logs_created_at ON payment_logs(created_at DESC);
+-- ── End schema.sql ──────────────────────────────────────────────────────────

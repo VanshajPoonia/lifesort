@@ -64,6 +64,25 @@ Current verification state:
 #### Notes
 - The pre-existing working-tree change in `saveContentToHistory` (inline expression replacing `safeContent` + guard) was reverted to HEAD's safer pattern. If that removal was intentional, it can be re-applied — but the guard is genuinely useful and there's no comment explaining why it was dropped.
 
+### 2026-05-18 - Canonical Schema Includes Pomodoro/Payment + fresh-install Bundle
+
+- Agent/tool used: Claude Code (coding agent mode).
+- Task: Make `schema.sql` truly complete (no more "intentionally excluded" tables) and provide a single-paste fresh-install procedure.
+
+#### Files Modified
+- `scripts/schema.sql` — Added `pomodoro_sessions`, `pomodoro_settings`, `payment_logs` at the end. All three use `VARCHAR(255)` user_id matching `users(id)`, rewriting the legacy `INTEGER`/`UUID` definitions for consistency. These tables are not currently queried by code but are kept for future use (user explicitly requested keeping them).
+- `scripts/README.md` — Removed the "intentionally excluded" note for pomodoro/payment_logs. Added new "Wipe-and-recreate (Neon SQL Editor)" section documenting `fresh-install.sql` and the regeneration shell command.
+
+#### Files Created
+- `scripts/fresh-install.sql` — Auto-generated bundle of `DROP SCHEMA public CASCADE` + `CREATE SCHEMA public` + entire contents of `schema.sql`. 1096 lines. Single paste into Neon SQL Editor wipes the DB and recreates it cleanly.
+
+#### Regeneration
+After any edit to `schema.sql`, regenerate `fresh-install.sql` using the shell command documented in `scripts/README.md` → "Wipe-and-recreate" section.
+
+#### Commands Run
+- `npx tsc --noEmit` → passes
+- Generated `scripts/fresh-install.sql` (1096 lines)
+
 ### 2026-05-18 - Migration File for New Indexes + Run Book
 
 - Agent/tool used: Claude Code (coding agent mode).
