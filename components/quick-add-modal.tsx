@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import type { ElementType } from "react"
 import {
   Calendar,
@@ -29,7 +29,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 
-type QuickAddType =
+export type QuickAddType =
   | "inbox"
   | "someday"
   | "waiting"
@@ -533,9 +533,10 @@ const defaultValues: Record<QuickAddType, Record<string, string>> = {
 interface QuickAddModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  initialType?: QuickAddType | null
 }
 
-export function QuickAddModal({ open, onOpenChange }: QuickAddModalProps) {
+export function QuickAddModal({ open, onOpenChange, initialType }: QuickAddModalProps) {
   const { toast } = useToast()
   const [activeType, setActiveType] = useState<QuickAddType>("task")
   const [values, setValues] = useState<Record<string, string>>(defaultValues.task)
@@ -543,6 +544,13 @@ export function QuickAddModal({ open, onOpenChange }: QuickAddModalProps) {
   const [submitting, setSubmitting] = useState(false)
 
   const config = useMemo(() => quickAddConfigs.find((item) => item.type === activeType) || quickAddConfigs[0], [activeType])
+
+  useEffect(() => {
+    if (!open || !initialType) return
+    setActiveType(initialType)
+    setValues(defaultValues[initialType] || {})
+    setError("")
+  }, [initialType, open])
 
   const handleTypeChange = (type: QuickAddType) => {
     setActiveType(type)
