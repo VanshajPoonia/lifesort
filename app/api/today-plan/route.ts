@@ -52,6 +52,10 @@ function toNumber(value: unknown) {
   return Number.isFinite(parsed) ? parsed : 0
 }
 
+function dateKey(value: unknown) {
+  return value ? String(value).slice(0, 10) : ""
+}
+
 function cleanEnergyLevel(value: unknown) {
   const normalized = text(value, "medium").toLowerCase()
   return energyLevels.has(normalized) ? normalized : "medium"
@@ -102,6 +106,44 @@ function normalizeFocusItems(value: unknown): FocusItem[] {
     .filter((item): item is FocusItem => Boolean(item))
 }
 
+function normalizeTodayItemOrder(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+
+  const seen = new Set<string>()
+  const ids: string[] = []
+
+  value.forEach((item) => {
+    if (typeof item !== "string") return
+    const id = item.trim()
+    if (!id || id.length > 120 || seen.has(id)) return
+    seen.add(id)
+    ids.push(id)
+  })
+
+  return ids.slice(0, 50)
+}
+
+function applyTodayItemOrder<T extends { id: string }>(items: T[], order: string[]) {
+  if (items.length === 0 || order.length === 0) return items
+
+  const byId = new Map(items.map((item) => [item.id, item]))
+  const ordered: T[] = []
+  const used = new Set<string>()
+
+  order.forEach((id) => {
+    const item = byId.get(id)
+    if (!item) return
+    ordered.push(item)
+    used.add(id)
+  })
+
+  items.forEach((item) => {
+    if (!used.has(item.id)) ordered.push(item)
+  })
+
+  return ordered
+}
+
 function baseRecommendedFocus(energyLevel: string) {
   if (energyLevel === "low") return 1
   if (energyLevel === "high") return 3
@@ -113,7 +155,7 @@ function deriveCapacitySummary(input: {
   availableFocusMinutes: number | null
   dayType: string
   focusCount: number
-  dueOrOverdueTasks: number
+  dueOrOverdueItems: number
   highPriorityDueTasks: number
 }) {
   let recommendedFocusCount = baseRecommendedFocus(input.energyLevel)
@@ -138,10 +180,10 @@ function deriveCapacitySummary(input: {
       message: `You picked ${input.focusCount} focus items; ${recommendedFocusCount} may fit better today.`,
     })
   }
-  if (input.dueOrOverdueTasks > estimatedTaskCapacity) {
+  if (input.dueOrOverdueItems > estimatedTaskCapacity) {
     warnings.push({
       type: "task_load",
-      message: `${input.dueOrOverdueTasks} due or overdue tasks may be too much for the focus time available.`,
+      message: `${input.dueOrOverdueItems} due or overdue items may be too much for the focus time available.`,
     })
   }
   if (input.highPriorityDueTasks >= 3) {
@@ -212,6 +254,63 @@ function goalItem(goal: Row, label?: string) {
   }
 }
 
+function projectItem(project: Row, label?: string) {
+  return {
+    id: `project-${project.id}`,
+    source_type: "project",
+    source_id: String(project.id),
+    title: String(project.title || "Untitled project"),
+    subtitle: label || [project.priority, project.due_date].filter(Boolean).join(" · "),
+    href: `/projects/${project.id}`,
+    custom: false,
+    priority: project.priority || "medium",
+    date: project.due_date || null,
+  }
+}
+
+function waitingItem(item: Row, label?: string) {
+  const date = item.follow_up_date || item.expected_date || null
+  return {
+    id: `waiting-${item.id}`,
+    source_type: "waiting",
+    source_id: String(item.id),
+    title: String(item.title || "Waiting item"),
+    subtitle: label || [item.waiting_on_name, date].filter(Boolean).join(" · "),
+    href: "/waiting",
+    custom: false,
+    priority: "medium",
+    date,
+  }
+}
+
+function commitmentItem(item: Row, label?: string) {
+  return {
+    id: `commitment-${item.id}`,
+    source_type: "commitment",
+    source_id: String(item.id),
+    title: String(item.title || "Commitment"),
+    subtitle: label || [item.committed_to, item.due_date].filter(Boolean).join(" · "),
+    href: "/commitments",
+    custom: false,
+    priority: item.status === "at_risk" ? "high" : "medium",
+    date: item.due_date || null,
+  }
+}
+
+function maintenanceItem(item: Row, label?: string) {
+  return {
+    id: `maintenance-${item.id}`,
+    source_type: "maintenance",
+    source_id: String(item.id),
+    title: String(item.title || "Maintenance item"),
+    subtitle: label || [item.category, item.next_due_date].filter(Boolean).join(" · "),
+    href: "/maintenance",
+    custom: false,
+    priority: "medium",
+    date: item.next_due_date || null,
+  }
+}
+
 function noteItem(note: Row) {
   return {
     id: `note-${note.id}`,
@@ -274,6 +373,13 @@ async function getDerivedCandidates(userId: string, planDate: string) {
   const [
     overdueTasks,
     todayTasks,
+    overdueGoals,
+    todayGoals,
+    overdueProjects,
+    todayProjects,
+    waitingDue,
+    commitmentsDue,
+    maintenanceDue,
     undatedTasks,
     upcomingTasks,
     upcomingGoals,
@@ -304,6 +410,80 @@ async function getDerivedCandidates(userId: string, planDate: string) {
         CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
         updated_at DESC NULLS LAST
       LIMIT 16
+    `, unavailable),
+    safeRows("overdue goals", sql`
+      SELECT id, title, priority, target_date, status, updated_at, created_at
+      FROM goals
+      WHERE user_id = ${userId}
+        AND COALESCE(status, 'active') != 'completed'
+        AND target_date IS NOT NULL
+        AND target_date < ${planDate}
+      ORDER BY target_date ASC, updated_at DESC NULLS LAST
+      LIMIT 8
+    `, unavailable),
+    safeRows("today goals", sql`
+      SELECT id, title, priority, target_date, status, updated_at, created_at
+      FROM goals
+      WHERE user_id = ${userId}
+        AND COALESCE(status, 'active') != 'completed'
+        AND target_date = ${planDate}
+      ORDER BY
+        CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
+        updated_at DESC NULLS LAST
+      LIMIT 8
+    `, unavailable),
+    safeRows("overdue projects", sql`
+      SELECT id, title, priority, due_date, status, updated_at, created_at
+      FROM projects
+      WHERE user_id = ${userId}
+        AND status NOT IN ('completed', 'archived')
+        AND due_date IS NOT NULL
+        AND due_date < ${planDate}
+      ORDER BY due_date ASC, updated_at DESC NULLS LAST
+      LIMIT 8
+    `, unavailable),
+    safeRows("today projects", sql`
+      SELECT id, title, priority, due_date, status, updated_at, created_at
+      FROM projects
+      WHERE user_id = ${userId}
+        AND status NOT IN ('completed', 'archived')
+        AND due_date = ${planDate}
+      ORDER BY
+        CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
+        updated_at DESC NULLS LAST
+      LIMIT 8
+    `, unavailable),
+    safeRows("waiting due", sql`
+      SELECT id, title, waiting_on_name, status, expected_date, follow_up_date, updated_at, created_at
+      FROM waiting_items
+      WHERE user_id = ${userId}
+        AND status IN ('waiting', 'follow_up_needed')
+        AND (
+          (follow_up_date IS NOT NULL AND follow_up_date <= ${planDate})
+          OR (expected_date IS NOT NULL AND expected_date <= ${planDate})
+        )
+      ORDER BY follow_up_date ASC NULLS LAST, expected_date ASC NULLS LAST, updated_at DESC NULLS LAST
+      LIMIT 8
+    `, unavailable),
+    safeRows("commitments due", sql`
+      SELECT id, title, committed_to, status, due_date, updated_at, created_at
+      FROM commitments
+      WHERE user_id = ${userId}
+        AND status IN ('open', 'at_risk')
+        AND due_date IS NOT NULL
+        AND due_date <= ${planDate}
+      ORDER BY due_date ASC, updated_at DESC NULLS LAST
+      LIMIT 8
+    `, unavailable),
+    safeRows("maintenance due", sql`
+      SELECT id, title, category, next_due_date, updated_at, created_at
+      FROM maintenance_items
+      WHERE user_id = ${userId}
+        AND status = 'active'
+        AND next_due_date IS NOT NULL
+        AND next_due_date <= ${planDate}
+      ORDER BY next_due_date ASC, updated_at DESC NULLS LAST
+      LIMIT 8
     `, unavailable),
     safeRows("undated tasks", sql`
       SELECT id, title, priority, due_date, updated_at, created_at
@@ -410,10 +590,40 @@ async function getDerivedCandidates(userId: string, planDate: string) {
 
   const highOrMediumToday = todayTasks.filter((task) => task.priority !== "low")
   const lowToday = todayTasks.filter((task) => task.priority === "low")
-
-  const mustDo = [
+  const todayToDo = [
     ...overdueTasks.map((task) => taskItem(task, `Overdue since ${task.due_date}`)),
     ...highOrMediumToday.map((task) => taskItem(task, "Due today")),
+    ...lowToday.map((task) => taskItem(task, "Low-priority task due today")),
+    ...overdueGoals.map((goal) => goalItem(goal, `Goal overdue since ${goal.target_date}`)),
+    ...todayGoals.map((goal) => goalItem(goal, "Goal due today")),
+    ...overdueProjects.map((project) => projectItem(project, `Project overdue since ${project.due_date}`)),
+    ...todayProjects.map((project) => projectItem(project, "Project due today")),
+    ...waitingDue.map((item) => {
+      const date = dateKey(item.follow_up_date || item.expected_date)
+      return waitingItem(item, date && date < planDate ? `Follow-up overdue since ${date}` : "Follow-up due today")
+    }),
+    ...commitmentsDue.map((item) => {
+      const date = dateKey(item.due_date)
+      return commitmentItem(item, date < planDate ? `Commitment overdue since ${date}` : "Commitment due today")
+    }),
+    ...maintenanceDue.map((item) => {
+      const date = dateKey(item.next_due_date)
+      return maintenanceItem(item, date < planDate ? `Maintenance overdue since ${date}` : "Maintenance due today")
+    }),
+  ].slice(0, 20)
+  const dueOrOverdueItemCount =
+    overdueTasks.length +
+    todayTasks.length +
+    overdueGoals.length +
+    todayGoals.length +
+    overdueProjects.length +
+    todayProjects.length +
+    waitingDue.length +
+    commitmentsDue.length +
+    maintenanceDue.length
+
+  const mustDo = [
+    ...todayToDo,
   ].slice(0, 12)
 
   const budgetReminders = [
@@ -432,7 +642,6 @@ async function getDerivedCandidates(userId: string, planDate: string) {
   ]
 
   const shouldDo = [
-    ...lowToday.map((task) => taskItem(task, "Low-priority task due today")),
     ...upcomingGoals.filter((goal) => goal.target_date <= sevenDays).map((goal) => goalItem(goal, `Goal due ${goal.target_date}`)),
     ...budgetReminders,
   ].slice(0, 12)
@@ -465,6 +674,7 @@ async function getDerivedCandidates(userId: string, planDate: string) {
 
   return {
     focusSuggestions,
+    todayToDo,
     mustDo,
     shouldDo,
     couldDo,
@@ -481,7 +691,16 @@ async function getDerivedCandidates(userId: string, planDate: string) {
       calendarToday: todayEvents.length,
       quickNotes: recentNotes.length,
       dueOrOverdueTasks: overdueTasks.length + todayTasks.length,
-      highPriorityDueTasks: [...overdueTasks, ...todayTasks].filter((task) => task.priority === "high").length,
+      dueOrOverdueItems: dueOrOverdueItemCount,
+      highPriorityDueTasks: [
+        ...overdueTasks,
+        ...todayTasks,
+        ...overdueGoals,
+        ...todayGoals,
+        ...overdueProjects,
+        ...todayProjects,
+        ...commitmentsDue.filter((item) => item.status === "at_risk"),
+      ].filter((item) => item.priority === "high" || item.status === "at_risk").length,
     },
   }
 }
@@ -502,11 +721,19 @@ export async function GET(request: Request) {
     safePlan(user.id, planDate!),
     getDerivedCandidates(user.id, planDate!),
   ])
+  const todayItemOrder = normalizeTodayItemOrder(savedPlan?.today_item_order)
+  const todayToDo = applyTodayItemOrder(candidates.todayToDo, todayItemOrder)
+  const orderedCandidates = {
+    ...candidates,
+    todayToDo,
+    mustDo: todayToDo.length ? todayToDo.slice(0, 12) : candidates.mustDo,
+  }
 
   const plan = {
     id: savedPlan?.id ? String(savedPlan.id) : null,
     plan_date: planDate,
     focus_items: normalizeFocusItems(savedPlan?.focus_items),
+    today_item_order: todayItemOrder,
     energy_level: cleanEnergyLevel(savedPlan?.energy_level),
     available_focus_minutes: cleanFocusMinutes(savedPlan?.available_focus_minutes),
     mood: cleanMood(savedPlan?.mood),
@@ -520,21 +747,67 @@ export async function GET(request: Request) {
     availableFocusMinutes: plan.available_focus_minutes,
     dayType: plan.day_type,
     focusCount: plan.focus_items.length,
-    dueOrOverdueTasks: candidates.summary.dueOrOverdueTasks,
+    dueOrOverdueItems: candidates.summary.dueOrOverdueItems,
     highPriorityDueTasks: candidates.summary.highPriorityDueTasks,
   })
 
   return NextResponse.json({
     plan,
-    candidates,
+    candidates: orderedCandidates,
     capacity,
     summary: {
       focusItems: plan.focus_items.length,
       dueOrOverdueTasks: candidates.summary.dueOrOverdueTasks,
+      dueOrOverdueItems: candidates.summary.dueOrOverdueItems,
       highPriorityDueTasks: candidates.summary.highPriorityDueTasks,
       calendarToday: candidates.summary.calendarToday,
     },
   })
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const user = await getUserFromSession()
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const planDate = text(body.plan_date)
+    if (!isValidDate(planDate)) {
+      return NextResponse.json({ error: "A valid plan_date is required" }, { status: 400 })
+    }
+
+    const todayItemOrder = normalizeTodayItemOrder(body.today_item_order)
+    const rows = await sql`
+      INSERT INTO daily_plans (
+        user_id,
+        plan_date,
+        today_item_order
+      )
+      VALUES (
+        ${user.id},
+        ${planDate},
+        ${JSON.stringify(todayItemOrder)}::jsonb
+      )
+      ON CONFLICT (user_id, plan_date)
+      DO UPDATE SET
+        today_item_order = EXCLUDED.today_item_order,
+        updated_at = NOW()
+      RETURNING id, plan_date, today_item_order
+    `
+
+    return NextResponse.json({
+      plan: {
+        id: String(rows[0].id),
+        plan_date: String(rows[0].plan_date).slice(0, 10),
+        today_item_order: normalizeTodayItemOrder(rows[0].today_item_order),
+      },
+    })
+  } catch (error) {
+    console.error("[today-plan] reorder save error:", error)
+    return NextResponse.json({ error: "Failed to save today order" }, { status: 500 })
+  }
 }
 
 export async function PUT(request: Request) {

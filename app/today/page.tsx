@@ -25,7 +25,7 @@ import {
 
 import { useAuth } from "@/components/auth-provider"
 import { DashboardLayout } from "@/components/dashboard-layout"
-import { HubGrid } from "@/components/hub-page"
+import { SortableList } from "@/components/sortable-list"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
+import { cn } from "@/lib/utils"
 
 type SaveState = "idle" | "saving" | "saved" | "error"
 
@@ -76,6 +77,7 @@ type TodayPlan = {
   id: string | null
   plan_date: string
   focus_items: TodayItem[]
+  today_item_order?: string[]
   energy_level: "low" | "medium" | "high"
   available_focus_minutes: number | null
   mood: string
@@ -105,10 +107,12 @@ type TodayResponse = {
   summary: {
     focusItems: number
     dueOrOverdueTasks: number
+    dueOrOverdueItems: number
     highPriorityDueTasks: number
     calendarToday: number
   }
   candidates: {
+    todayToDo: TodayItem[]
     focusSuggestions: TodayItem[]
     mustDo: TodayItem[]
     shouldDo: TodayItem[]
@@ -121,6 +125,7 @@ type TodayResponse = {
 }
 
 const emptyCandidates: TodayResponse["candidates"] = {
+  todayToDo: [],
   focusSuggestions: [],
   mustDo: [],
   shouldDo: [],
@@ -130,42 +135,6 @@ const emptyCandidates: TodayResponse["candidates"] = {
   quickNotes: [],
   unavailable: [],
 }
-
-const todayHubCards = [
-  {
-    title: "Today Plan",
-    description: "Focus items, must-do work, and end-of-day reflection.",
-    href: "/today",
-    icon: Star,
-    badge: "Current page",
-  },
-  {
-    title: "Tasks due today",
-    description: "Open the task list for due and overdue actions.",
-    href: "/tasks",
-    icon: ListChecks,
-    statusKey: "dueTasksToday",
-    statusLabel: "due",
-    zeroLabel: "Clear",
-  },
-  {
-    title: "Calendar today",
-    description: "Review events and time-specific commitments.",
-    href: "/calendar",
-    icon: CalendarDays,
-    statusKey: "calendarToday",
-    statusLabel: "today",
-  },
-  {
-    title: "Habits due today",
-    description: "Check in on habits and routines due today.",
-    href: "/habits",
-    icon: Flame,
-    statusKey: "habitsDueToday",
-    statusLabel: "due",
-    zeroLabel: "Clear",
-  },
-]
 
 const defaultCapacity: CapacityForm = {
   energy_level: "medium",
@@ -232,7 +201,7 @@ function baseRecommendedFocus(energyLevel: CapacityForm["energy_level"]) {
 function deriveCapacitySummary(input: {
   capacity: CapacityForm
   focusCount: number
-  dueOrOverdueTasks: number
+  dueOrOverdueItems: number
   highPriorityDueTasks: number
 }): CapacitySummary {
   const focusMinutes = focusMinutesValue(input.capacity.available_focus_minutes)
@@ -255,10 +224,10 @@ function deriveCapacitySummary(input: {
       message: `You picked ${input.focusCount} focus items; ${recommended} may fit better today.`,
     })
   }
-  if (input.dueOrOverdueTasks > estimatedTaskCapacity) {
+  if (input.dueOrOverdueItems > estimatedTaskCapacity) {
     warnings.push({
       type: "task_load",
-      message: `${input.dueOrOverdueTasks} due or overdue tasks may be too much for the focus time available.`,
+      message: `${input.dueOrOverdueItems} due or overdue items may be too much for the focus time available.`,
     })
   }
   if (input.highPriorityDueTasks >= 3) {
@@ -285,12 +254,14 @@ export default function TodayPage() {
   const [todaySummary, setTodaySummary] = useState<TodayResponse["summary"]>({
     focusItems: 0,
     dueOrOverdueTasks: 0,
+    dueOrOverdueItems: 0,
     highPriorityDueTasks: 0,
     calendarToday: 0,
   })
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState("")
   const [saveState, setSaveState] = useState<SaveState>("idle")
+  const [todayOrderState, setTodayOrderState] = useState<SaveState>("idle")
   const [customFocus, setCustomFocus] = useState("")
   const [reflection, setReflection] = useState({
     reflection_went_well: "",
@@ -322,6 +293,7 @@ export default function TodayPage() {
       setTodaySummary(data.summary || {
         focusItems: data.plan.focus_items?.length || 0,
         dueOrOverdueTasks: 0,
+        dueOrOverdueItems: 0,
         highPriorityDueTasks: 0,
         calendarToday: 0,
       })
@@ -466,11 +438,12 @@ export default function TodayPage() {
     () => deriveCapacitySummary({
       capacity,
       focusCount: focusItems.length,
-      dueOrOverdueTasks: todaySummary.dueOrOverdueTasks,
+      dueOrOverdueItems: todaySummary.dueOrOverdueItems || todaySummary.dueOrOverdueTasks,
       highPriorityDueTasks: todaySummary.highPriorityDueTasks,
     }),
-    [capacity, focusItems.length, todaySummary.dueOrOverdueTasks, todaySummary.highPriorityDueTasks],
+    [capacity, focusItems.length, todaySummary.dueOrOverdueItems, todaySummary.dueOrOverdueTasks, todaySummary.highPriorityDueTasks],
   )
+  const dueOrOverdueCount = todaySummary.dueOrOverdueItems || todaySummary.dueOrOverdueTasks
 
   const addFocus = async (item: TodayItem) => {
     if (focusItems.length >= 3 || focusIds.has(item.id)) return
@@ -556,6 +529,7 @@ export default function TodayPage() {
 
   const addPriorityToFocus = async (priorityId: string) => {
     const allItems = [
+      ...candidates.todayToDo,
       ...candidates.mustDo,
       ...candidates.shouldDo,
       ...candidates.couldDo,
@@ -581,6 +555,35 @@ export default function TodayPage() {
       // non-fatal; task creation is optional
     } finally {
       setCreatingTask(false)
+    }
+  }
+
+  const handleTodayToDoReorder = async (orderedItems: TodayItem[]) => {
+    const previousCandidates = candidates
+    setCandidates((current) => ({
+      ...current,
+      todayToDo: orderedItems,
+      mustDo: orderedItems.length ? orderedItems.slice(0, 12) : current.mustDo,
+    }))
+    setTodayOrderState("saving")
+
+    try {
+      const response = await fetch("/api/today-plan", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          plan_date: planDate,
+          today_item_order: orderedItems.map((item) => item.id),
+        }),
+      })
+
+      if (!response.ok) throw new Error("Today order could not be saved.")
+      setTodayOrderState("saved")
+      window.setTimeout(() => setTodayOrderState("idle"), 1200)
+    } catch (error) {
+      console.error("Failed to save Today To-Do order:", error)
+      setCandidates(previousCandidates)
+      setTodayOrderState("error")
     }
   }
 
@@ -613,7 +616,44 @@ export default function TodayPage() {
           </Card>
         ) : (
           <>
-            <HubGrid cards={todayHubCards} />
+            <Card className="border-primary/20">
+              <CardHeader>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <CalendarDays className="h-5 w-5 text-primary" />
+                      Today command center
+                    </CardTitle>
+                    <CardDescription>
+                      Focus, due items, calendar events, and habits are gathered here for {todayLabel}.
+                    </CardDescription>
+                  </div>
+                  <Badge variant={dueOrOverdueCount > 0 ? "secondary" : "outline"}>
+                    {dueOrOverdueCount > 0 ? `${dueOrOverdueCount} due item${dueOrOverdueCount === 1 ? "" : "s"}` : "Clear"}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="rounded-md border bg-background/70 p-3">
+                    <p className="text-2xl font-bold">{focusItems.length}/3</p>
+                    <p className="text-xs text-muted-foreground">focus items selected</p>
+                  </div>
+                  <div className="rounded-md border bg-background/70 p-3">
+                    <p className="text-2xl font-bold">{dueOrOverdueCount}</p>
+                    <p className="text-xs text-muted-foreground">due or overdue items</p>
+                  </div>
+                  <div className="rounded-md border bg-background/70 p-3">
+                    <p className="text-2xl font-bold">{todaySummary.calendarToday}</p>
+                    <p className="text-xs text-muted-foreground">calendar events today</p>
+                  </div>
+                  <div className="rounded-md border bg-background/70 p-3">
+                    <p className="text-2xl font-bold">{habitsToday.filter((habit) => habit.done).length}/{habitsToday.length}</p>
+                    <p className="text-xs text-muted-foreground">habits checked off</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
             {(candidates.unavailable?.length || 0) > 0 && (
               <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
@@ -993,10 +1033,13 @@ export default function TodayPage() {
             <div className="grid gap-4 xl:grid-cols-3">
               <SectionCard
                 icon={<ListChecks className="h-5 w-5 text-destructive" />}
-                title="Must Do"
-                description="Overdue tasks and higher-priority tasks due today."
-                items={candidates.mustDo}
-                empty="No urgent tasks. Pick one useful thing and keep the day light."
+                title="Today To-Do"
+                description="Due and overdue tasks, goals, projects, waiting items, commitments, and maintenance."
+                items={candidates.todayToDo.length ? candidates.todayToDo : candidates.mustDo}
+                empty="No due items today. Pick one useful thing and keep the day light."
+                reorderable
+                onReorder={handleTodayToDoReorder}
+                saveState={todayOrderState}
               />
               <SectionCard
                 icon={<CheckCircle2 className="h-5 w-5 text-primary" />}
@@ -1155,24 +1198,41 @@ function SectionCard({
   description,
   items,
   empty,
+  reorderable = false,
+  onReorder,
+  saveState = "idle",
 }: {
   icon: ReactNode
   title: string
   description: string
   items: TodayItem[]
   empty: string
+  reorderable?: boolean
+  onReorder?: (items: TodayItem[]) => void
+  saveState?: SaveState
 }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          {icon}
-          {title}
-        </CardTitle>
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle className="flex items-center gap-2">
+            {icon}
+            {title}
+          </CardTitle>
+          {reorderable && <SaveStatus state={saveState} />}
+        </div>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent>
-        <SectionList title={title} items={items} empty={empty} hideTitle compact />
+        <SectionList
+          title={title}
+          items={items}
+          empty={empty}
+          hideTitle
+          compact
+          reorderable={reorderable}
+          onReorder={onReorder}
+        />
       </CardContent>
     </Card>
   )
@@ -1185,6 +1245,8 @@ function SectionList({
   action,
   compact = false,
   hideTitle = false,
+  reorderable = false,
+  onReorder,
 }: {
   title: string
   items: TodayItem[]
@@ -1192,28 +1254,49 @@ function SectionList({
   action?: (item: TodayItem) => ReactNode
   compact?: boolean
   hideTitle?: boolean
+  reorderable?: boolean
+  onReorder?: (items: TodayItem[]) => void
 }) {
   if (items.length === 0) {
     return <EmptyPanel title={title} description={empty} />
   }
 
+  const renderItem = (item: TodayItem, dragHandle: ReactNode, isDragging = false) => (
+    <div
+      key={item.id}
+      className={cn(
+        "flex items-center justify-between gap-3 rounded-md border p-3 transition-shadow",
+        isDragging && "bg-background shadow-xl ring-2 ring-primary/30",
+      )}
+    >
+      {dragHandle}
+      <Link href={item.href} className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className={`truncate font-medium ${compact ? "text-sm" : ""}`}>{item.title}</p>
+          <Badge variant="outline">{sourceLabel(item.source_type)}</Badge>
+        </div>
+        <p className="mt-1 truncate text-xs text-muted-foreground">
+          {item.subtitle || formatDate(item.date) || "Open in LifeSort"}
+        </p>
+      </Link>
+      {action?.(item)}
+    </div>
+  )
+
   return (
     <div className="space-y-2">
       {!hideTitle && <p className="text-sm font-medium">{title}</p>}
-      {items.map((item) => (
-        <div key={item.id} className="flex items-center justify-between gap-3 rounded-md border p-3">
-          <Link href={item.href} className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className={`truncate font-medium ${compact ? "text-sm" : ""}`}>{item.title}</p>
-              <Badge variant="outline">{sourceLabel(item.source_type)}</Badge>
-            </div>
-            <p className="mt-1 truncate text-xs text-muted-foreground">
-              {item.subtitle || formatDate(item.date) || "Open in LifeSort"}
-            </p>
-          </Link>
-          {action?.(item)}
-        </div>
-      ))}
+      {reorderable && onReorder ? (
+        <SortableList
+          items={items}
+          getLabel={(item) => item.title}
+          onReorder={onReorder}
+          className="space-y-2"
+          renderItem={(item, { dragHandle, isDragging }) => renderItem(item, dragHandle, isDragging)}
+        />
+      ) : (
+        items.map((item) => renderItem(item, null))
+      )}
     </div>
   )
 }
