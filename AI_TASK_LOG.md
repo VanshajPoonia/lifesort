@@ -81,11 +81,8 @@ Current verification state:
 - The 3 indexes now have `scripts/migrations/2026-05-18-add-indexes.sql` (this entry).
 - Net: every change to `schema.sql` since the N4 consolidation has a matching forward migration file.
 
-#### Pending Production Migrations (in date order)
-1. `scripts/migrations/2026-05-18-agent-action-events.sql` — creates `agent_action_events` table + 3 indexes.
-2. `scripts/migrations/2026-05-18-add-indexes.sql` — creates 3 additive indexes on existing tables.
-
-Both are idempotent. Recommended run path: Neon SQL Editor (Option A in `scripts/README.md`).
+#### Production Migrations — APPLIED 2026-05-18
+All migrations applied to Neon production database via SQL Editor. Production DB now has 39 tables matching `scripts/schema.sql`. Tables created: `life_areas`, `ai_usage_events`, `habits`, `habit_checkins`, `routines`, `routine_steps`, `people`, `people_reminders`, `people_links`, `vault_items`, `notifications`, `custom_section_records`, `life_score_history`, `agent_action_events`. Also added `life_area_id` FK columns to `tasks`, `goals`, `notes`, `wishlist_items`, `budget_categories`, `income_sources`, `investments`, `custom_sections`, plus `description` and `fields` columns to `custom_sections`. All features (Habits, People, Vault, Notifications, Life Areas, LifeScore, Agents) are unblocked in prod.
 
 #### Commands Run
 - `npx tsc --noEmit` → passes (no TS changes)
