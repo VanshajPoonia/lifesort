@@ -15,17 +15,26 @@ import {
   Settings,
   LayoutGrid,
   CalendarCheck,
-  Wrench,
   Coffee,
   Crown,
   Wallet,
   LogOut,
   Plus,
   Activity,
-  Inbox,
+  Archive,
+  MoreHorizontal,
+  User,
+  HelpCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { ThemeSwitcher } from "@/components/theme-switcher"
 import { DailyPopup } from "@/components/daily-popup"
 import { QuickAddModal } from "@/components/quick-add-modal"
@@ -41,6 +50,8 @@ interface DashboardLayoutProps {
 
 const DEFAULT_SIDEBAR_PREFS = {
   home: true,
+  organize: true,
+  reflect: true,
   plan: true,
   money: true,
   life_admin: true,
@@ -97,18 +108,35 @@ const HUB_NAV_ITEMS: SidebarItem[] = [
   { id: "home", label: "Home", href: "/", icon: LayoutGrid, legacyFallback: "dashboard" },
   { id: "today", label: "Today", href: "/today", icon: CalendarCheck },
   {
-    id: "plan",
-    label: "Plan",
-    href: "/plan",
-    icon: Target,
-    aliases: ["/tasks", "/goals", "/projects", "/habits", "/calendar", "/waiting", "/commitments", "/someday", "/nuke", "/pomodoro"],
-  },
-  {
-    id: "capture",
-    label: "Capture",
-    href: "/capture",
-    icon: Inbox,
-    aliases: ["/inbox", "/notes", "/links", "/custom-sections", "/templates", "/daily-content"],
+    id: "organize",
+    label: "Organize",
+    href: "/organize",
+    icon: Archive,
+    aliases: [
+      "/plan",
+      "/capture",
+      "/life-admin",
+      "/tasks",
+      "/goals",
+      "/projects",
+      "/habits",
+      "/calendar",
+      "/waiting",
+      "/commitments",
+      "/someday",
+      "/nuke",
+      "/pomodoro",
+      "/inbox",
+      "/notes",
+      "/links",
+      "/custom-sections",
+      "/templates",
+      "/daily-content",
+      "/people",
+      "/vault",
+      "/maintenance",
+      "/notifications",
+    ],
   },
   {
     id: "money",
@@ -118,22 +146,19 @@ const HUB_NAV_ITEMS: SidebarItem[] = [
     aliases: ["/budget", "/income", "/investments", "/wishlist"],
   },
   {
-    id: "life_admin",
-    label: "Life Admin",
-    href: "/life-admin",
-    icon: Wrench,
-    aliases: ["/people", "/vault", "/maintenance", "/notifications"],
-  },
-  {
-    id: "insights",
-    label: "Insights",
-    href: "/insights",
+    id: "reflect",
+    label: "Reflect",
+    href: "/reflect",
     icon: Activity,
-    aliases: ["/review", "/timeline", "/reset", "/ai-chat", "/life-areas"],
+    aliases: ["/insights", "/review", "/timeline", "/reset", "/ai-chat", "/life-areas"],
   },
   { id: "settings", label: "Settings", href: "/settings", icon: Settings, aliases: ["/rules"] },
   { id: "admin", label: "Admin", href: "/admin", icon: Shield, adminOnly: true },
 ]
+
+const MOBILE_PRIMARY_ITEMS = HUB_NAV_ITEMS.filter((item) =>
+  ["home", "today", "organize", "money"].includes(item.id),
+)
 
 // Module-level cache — persists across client-side navigations so the
 // sidebar never re-fetches after the first successful load.
@@ -305,11 +330,11 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
                 className="block mb-3"
               >
                 <Button 
-                  className="w-full justify-start gap-3 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:via-orange-600 hover:to-amber-700 text-white shadow-lg shadow-amber-500/30"
+                  className="h-9 w-full justify-start gap-2 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-sm text-white shadow-lg shadow-amber-500/30 hover:from-amber-600 hover:via-orange-600 hover:to-amber-700 md:h-10 md:gap-3"
                 >
                   <Crown className="h-5 w-5" />
                   <span className="font-bold">Go Pro</span>
-                  <Coffee className="h-4 w-4 ml-auto" />
+                  <Coffee className="ml-auto hidden h-4 w-4 md:block" />
                 </Button>
               </a>
             )}
@@ -389,12 +414,96 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
       </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-auto p-4 md:p-6">
+        <main className="flex-1 overflow-auto p-4 pb-24 md:p-6">
           <div className="mx-auto max-w-7xl space-y-4 md:space-y-6">
             {children}
           </div>
         </main>
       </div>
+
+      <Button
+        className="fixed bottom-20 right-4 z-40 h-12 w-12 rounded-full shadow-lg md:hidden"
+        size="icon"
+        onClick={() => setQuickAddOpen(true)}
+        aria-label="Quick Add"
+        title="Quick Add"
+      >
+        <Plus className="h-5 w-5" />
+      </Button>
+
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 px-2 py-2 backdrop-blur md:hidden">
+        <div className="grid grid-cols-5 gap-1">
+          {MOBILE_PRIMARY_ITEMS.map((item) => {
+            const Icon = item.icon
+            const active = isActiveItem(item)
+            return (
+              <Link key={item.id} href={item.href} className="min-w-0" onClick={() => setSidebarOpen(false)}>
+                <span
+                  className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-md px-1 text-[11px] font-medium ${
+                    active ? "bg-secondary text-secondary-foreground" : "text-muted-foreground"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span className="truncate">{item.label}</span>
+                </span>
+              </Link>
+            )
+          })}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-md px-1 text-[11px] font-medium ${
+                  ["/reflect", "/insights", "/review", "/timeline", "/reset", "/ai-chat", "/life-areas", "/settings", "/rules", "/admin"].some(matchesPath)
+                    ? "bg-secondary text-secondary-foreground"
+                    : "text-muted-foreground"
+                }`}
+                aria-label="More navigation"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+                <span>More</span>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" sideOffset={12} className="w-56">
+              <DropdownMenuItem asChild>
+                <Link href="/reflect">
+                  <Activity className="mr-2 h-4 w-4" />
+                  Reflect
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/settings">
+                  <Settings className="mr-2 h-4 w-4" />
+                  Settings
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/settings?tab=profile">
+                  <User className="mr-2 h-4 w-4" />
+                  Profile
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/settings?tab=faqs">
+                  <HelpCircle className="mr-2 h-4 w-4" />
+                  Support
+                </Link>
+              </DropdownMenuItem>
+              {user?.is_admin && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin">
+                      <Shield className="mr-2 h-4 w-4" />
+                      Admin
+                    </Link>
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </nav>
     </div>
   )
 }
