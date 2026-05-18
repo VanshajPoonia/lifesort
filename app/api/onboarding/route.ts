@@ -47,8 +47,8 @@ export async function POST(request: Request) {
       UPDATE users 
       SET 
         onboarding_completed = true,
-        app_preferences = ${JSON.stringify(app_preferences)},
-        sidebar_preferences = ${JSON.stringify(sidebar_preferences)},
+        app_preferences = COALESCE(app_preferences, '{}'::jsonb) || ${JSON.stringify(app_preferences || {})}::jsonb,
+        sidebar_preferences = COALESCE(sidebar_preferences, '{}'::jsonb) || ${JSON.stringify(sidebar_preferences || {})}::jsonb,
         updated_at = NOW()
       WHERE id = ${user.id}
     `
