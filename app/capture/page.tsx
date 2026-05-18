@@ -24,7 +24,7 @@ import {
 
 import { useAuth } from "@/components/auth-provider"
 import { DashboardLayout } from "@/components/dashboard-layout"
-import { HubGrid } from "@/components/hub-page"
+import { HubGrid, type HubCard } from "@/components/hub-page"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -87,13 +87,14 @@ const ENDPOINT_MAP: Record<DraftActionType, string> = {
   calendar_event: "/api/calendar-events",
 }
 
-const captureHubCards = [
+const captureHubCards: HubCard[] = [
   {
     title: "AI Capture",
     description: "Parse messy text into editable draft actions.",
     href: "/capture",
     icon: Wand2,
-    badge: "Current page",
+    badge: "Primary",
+    priority: "primary",
   },
   {
     title: "Inbox",
@@ -102,13 +103,15 @@ const captureHubCards = [
     icon: Inbox,
     statusKey: "unsortedInbox",
     statusLabel: "unsorted",
-    zeroLabel: "Clear",
+    zeroLabel: "0 unsorted",
+    priority: "primary",
   },
   {
     title: "Notes",
     description: "Capture knowledge, folders, tags, and quick reference material.",
     href: "/notes",
     icon: FileText,
+    priority: "primary",
   },
   {
     title: "Links",
@@ -142,6 +145,7 @@ const captureHubCards = [
     href: "/daily-content",
     icon: Lightbulb,
     badge: "Utility",
+    priority: "secondary",
   },
 ]
 

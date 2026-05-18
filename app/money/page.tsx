@@ -3,15 +3,24 @@
 import { Heart, Target, TrendingUp, Wallet } from "lucide-react"
 
 import { DashboardLayout } from "@/components/dashboard-layout"
-import { FavoritesTodo, HubGrid, HubHero } from "@/components/hub-page"
+import { FavoritesTodo, HubGrid, HubHero, type HubCard } from "@/components/hub-page"
 
-const moneyCards = [
+const moneyCards: HubCard[] = [
+  {
+    title: "Overview",
+    description: "Use this page as the finance hub before jumping into a specific money tool.",
+    href: "/money",
+    icon: Wallet,
+    badge: "Current page",
+    priority: "primary",
+  },
   {
     title: "Budget",
     description: "Categories, transactions, goals, and spending context.",
     href: "/budget",
     icon: Wallet,
     badge: "Finance",
+    priority: "primary",
   },
   {
     title: "Income",
@@ -19,6 +28,7 @@ const moneyCards = [
     href: "/income",
     icon: Target,
     badge: "Sources",
+    priority: "primary",
   },
   {
     title: "Investments",
@@ -39,7 +49,7 @@ const moneyCards = [
 export default function MoneyHubPage() {
   return (
     <DashboardLayout title="Money" subtitle="Budget, income, investments, and wishlist">
-      <div className="space-y-6">
+      <div className="mx-auto max-w-6xl space-y-6">
         <HubHero
           eyebrow="Money"
           title="Keep financial decisions in one place"

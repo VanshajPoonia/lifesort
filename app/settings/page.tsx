@@ -23,37 +23,19 @@ import {
   MapPin,
   Cake,
   Camera,
-  ClipboardCheck,
   Save,
-  Wrench,
   Quote,
   Laugh,
   Gamepad2,
   Crown,
   Calendar,
-  Clock,
   Sparkles,
   Shield,
   LayoutDashboard,
   CalendarCheck,
-  Network,
-  CalendarDays,
-  Link,
-  FolderPlus,
-  FileText,
-  CheckSquare,
-  Target,
-  Wand2,
-  Bell,
-  Bookmark,
-  Heart,
   HelpCircle,
-  ChevronDown,
   Activity,
-  History,
-  Inbox,
-  Lightbulb,
-  RefreshCcw,
+  Archive,
   Settings2,
   Wallet,
 } from "lucide-react"
@@ -94,6 +76,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [activeTab, setActiveTab] = useState("profile")
   
   const [formData, setFormData] = useState({
     name: "",
@@ -114,6 +97,8 @@ export default function SettingsPage() {
 
   const [sidebarPrefs, setSidebarPrefs] = useState({
     home: true,
+    organize: true,
+    reflect: true,
     plan: true,
     money: true,
     life_admin: true,
@@ -156,9 +141,20 @@ export default function SettingsPage() {
   })
 
   useEffect(() => {
+    const tab = new URL(window.location.href).searchParams.get("tab")
+    if (tab && ["profile", "sidebar", "content", "faqs", "account"].includes(tab)) {
+      setActiveTab(tab)
+    }
     fetchProfile()
     fetchSidebarPrefs()
   }, [])
+
+  const changeSettingsTab = (tab: string) => {
+    setActiveTab(tab)
+    const url = new URL(window.location.href)
+    url.searchParams.set("tab", tab)
+    window.history.replaceState(null, "", `${url.pathname}?${url.searchParams.toString()}`)
+  }
 
   const fetchSidebarPrefs = async () => {
     try {
@@ -330,7 +326,7 @@ export default function SettingsPage() {
       subtitle="Manage your profile and preferences"
     >
       <div className="space-y-6">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Profile</CardTitle>
@@ -357,9 +353,27 @@ export default function SettingsPage() {
               <CardDescription>Account information and connected services.</CardDescription>
             </CardHeader>
           </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Billing / Subscription</CardTitle>
+              <CardDescription>Plan status, trial details, and subscription basics.</CardDescription>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Integrations / Connections</CardTitle>
+              <CardDescription>Connected calendar and service settings when available.</CardDescription>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">FAQs</CardTitle>
+              <CardDescription>Answers for account, preferences, billing, and support.</CardDescription>
+            </CardHeader>
+          </Card>
         </div>
 
-      <Tabs defaultValue="profile" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={changeSettingsTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-5 lg:w-[620px]">
           <TabsTrigger value="profile">
             <User className="h-4 w-4 mr-2" />
@@ -528,11 +542,9 @@ export default function SettingsPage() {
                 {[
                   { id: "home", label: "Home", icon: LayoutDashboard, description: "Dashboard, quick actions, LifeScore, and today snapshot" },
                   { id: "today", label: "Today", icon: CalendarCheck, description: "Today Plan, calendar today, habits due, and capacity planning" },
-                  { id: "plan", label: "Plan", icon: Target, description: "Tasks, goals, projects, habits, calendar, waiting, commitments, and someday" },
-                  { id: "capture", label: "Capture", icon: Inbox, description: "Inbox, notes, links, custom sections, Quick Add, and AI Capture" },
+                  { id: "organize", label: "Organize", icon: Archive, description: "Plan, Capture, and Life Admin workspaces" },
                   { id: "money", label: "Money", icon: Wallet, description: "Budget, income, investments, and wishlist" },
-                  { id: "life_admin", label: "Life Admin", icon: Wrench, description: "People, Life Vault, maintenance, and important reminders" },
-                  { id: "insights", label: "Insights", icon: Activity, description: "Weekly Review, Timeline, Reset, Coach, Life Areas, and LifeScore insights" },
+                  { id: "reflect", label: "Reflect", icon: Activity, description: "Life Balance, Weekly Review, Timeline, Reset, Coach, and LifeScore insights" },
                   { id: "settings", label: "Settings", icon: Settings2, description: "Profile, operating rules, preferences, integrations, and account settings" },
                   { id: "admin", label: "Admin", icon: Shield, description: "Admin subscription controls", adminOnly: true },
                 ].filter((item) => !item.adminOnly || user?.is_admin).map(({ id, label, icon: Icon, description }) => (

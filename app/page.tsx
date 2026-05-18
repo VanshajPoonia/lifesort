@@ -250,6 +250,7 @@ interface TodayPlanPreview {
   summary?: {
     focusItems?: number
     dueOrOverdueTasks?: number
+    dueOrOverdueItems?: number
     calendarToday?: number
   }
 }
@@ -280,6 +281,7 @@ interface LifeScoreComponent {
 }
 
 interface LifeScoreData {
+  ready: boolean
   score: number
   label: string
   previous_score: number | null
@@ -330,19 +332,11 @@ const apiEndpoints: Record<DashboardApiKey, string> = {
 }
 
 const quickActions = [
-  { title: "Reset my life", href: "/reset", icon: RefreshCcw },
-  { title: "Save someday", href: "/someday", icon: Lightbulb },
-  { title: "Capture inbox", href: "/inbox", icon: Inbox },
-  { title: "Track waiting", href: "/waiting", icon: Clock },
-  { title: "Add commitment", href: "/commitments", icon: ClipboardCheck },
-  { title: "Add maintenance", href: "/maintenance", icon: Wrench },
-  { title: "Add task", href: "/tasks", icon: ListTodo },
-  { title: "Add goal", href: "/goals", icon: Target },
-  { title: "Add project", href: "/projects", icon: FolderPlus },
-  { title: "Write note", href: "/notes", icon: NotebookText },
-  { title: "Track budget", href: "/budget", icon: Wallet },
-  { title: "Add wishlist", href: "/wishlist", icon: Heart },
-  { title: "Track investment", href: "/investments", icon: TrendingUp },
+  { title: "Today", href: "/today", icon: CalendarCheck },
+  { title: "Organize", href: "/organize", icon: FolderPlus },
+  { title: "AI Capture", href: "/capture", icon: Sparkles },
+  { title: "Money", href: "/money", icon: Wallet },
+  { title: "Reflect", href: "/reflect", icon: Activity },
 ]
 
 function toNumber(value: unknown) {
@@ -1097,7 +1091,7 @@ export default function Home() {
             <p className="text-sm text-muted-foreground">Today at a glance</p>
             <h1 className="mt-1 text-2xl font-bold text-foreground">Welcome back, {firstName}</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Your tasks, goals, notes, wishlist, and money summaries in one place.
+              Your LifeScore, today snapshot, recent activity, and most useful shortcuts in one calm place.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -1137,7 +1131,7 @@ export default function Home() {
                 variant="outline"
                 className="gap-2"
                 onClick={explainLifeScore}
-                disabled={lifeScoreAiLoading || lifeScoreLoading || Boolean(lifeScoreError)}
+                disabled={lifeScoreAiLoading || lifeScoreLoading || Boolean(lifeScoreError) || Boolean(lifeScore && !lifeScore.ready)}
               >
                 <Sparkles className="h-4 w-4" />
                 {lifeScoreAiLoading ? "Explaining..." : "Explain with AI"}
@@ -1156,7 +1150,7 @@ export default function Home() {
               </div>
             ) : lifeScoreError ? (
               <SectionUnavailable label="LifeScore" />
-            ) : lifeScore ? (
+            ) : lifeScore && lifeScore.ready ? (
               <div className="space-y-4">
                 <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
                   <div className="rounded-md border bg-muted/40 p-4">
@@ -1248,7 +1242,9 @@ export default function Home() {
                 )}
               </div>
             ) : (
-              <EmptyState>LifeScore will appear after your dashboard data is available.</EmptyState>
+              <EmptyState actionHref="/today" actionLabel="Start Today Plan">
+                LifeScore will appear after you add some LifeSort data, such as a task, focus item, habit, goal, review, commitment, maintenance item, or life-area activity.
+              </EmptyState>
             )}
           </CardContent>
         </Card>
@@ -1380,8 +1376,8 @@ export default function Home() {
                   <p className="text-xs text-muted-foreground">focus items selected</p>
                 </div>
                 <div className="rounded-md border bg-background/70 p-3">
-                  <p className="text-2xl font-bold">{todayPreview?.summary?.dueOrOverdueTasks || 0}</p>
-                  <p className="text-xs text-muted-foreground">due or overdue tasks</p>
+                  <p className="text-2xl font-bold">{todayPreview?.summary?.dueOrOverdueItems ?? todayPreview?.summary?.dueOrOverdueTasks ?? 0}</p>
+                  <p className="text-xs text-muted-foreground">due or overdue items</p>
                 </div>
                 <div className="rounded-md border bg-background/70 p-3">
                   <p className="text-2xl font-bold">{todayPreview?.summary?.calendarToday || 0}</p>
