@@ -205,7 +205,7 @@ State management is mostly local React state:
 - Themes include light, dark, ocean, forest, sunset, rose, and midnight tokens.
 - lucide-react is the icon library.
 - UI primitives live in `components/ui`.
-- Shared UX polish utilities live in `app/globals.css`: `surface-card`, `interactive-card`/`card-interactive`, `section-enter`, `tab-enter`, `list-item-enter`, `journal-enter`, and `save-feedback` provide calm card surfaces, subtle hover/press motion, page/tab/list entrance, Journal warmth, and reduced-motion-aware feedback without a separate animation library. Reusable motion class presets and timing tokens live in `lib/motion.ts`; `framer-motion` is intentionally not installed for routine LifeSort polish.
+- Shared UX polish utilities live in `app/globals.css`: `surface-card`, `interactive-card`/`card-interactive`, `section-enter`, `tab-enter`, `list-item-enter`, `journal-enter`, and `save-feedback` provide calm card surfaces, subtle hover/press motion, page/tab/list entrance, Journal warmth, and reduced-motion-aware feedback without a separate animation library. Journal-specific notebook utilities also live there and must stay scoped to `/journal` so the rest of LifeSort does not inherit the warm paper treatment. Reusable motion class presets and timing tokens live in `lib/motion.ts`; `framer-motion` is intentionally not installed for routine LifeSort polish.
 - Responsive foundation uses Tailwind breakpoints plus `hooks/use-breakpoint.ts` only where runtime behavior is needed: mobile `<640px`, tablet `640-1023px`, desktop `1024-1600px`, and wide `>1600px`. Signed-in pages use a centered app container capped around 1400px, a full desktop sidebar, a tablet icon rail, and mobile bottom navigation.
 
 ## Deployment Setup

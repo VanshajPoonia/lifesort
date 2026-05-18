@@ -109,8 +109,8 @@ export function SubscriptionChecker() {
                 </p>
                 <p className="hidden text-xs text-muted-foreground sm:block">
                   {isExpired
-                    ? 'You can keep using LifeSort here; support us when you are ready.'
-                    : 'Support us to continue using LifeSort after your trial ends'}
+                    ? 'You can keep using LifeSort here; upgrade when you are ready.'
+                    : 'Upgrade when you are ready to keep LifeSort supported.'}
                 </p>
               </div>
             </div>

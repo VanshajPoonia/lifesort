@@ -28,6 +28,7 @@ export function AppEmptyState({
   hint,
   primaryAction,
   secondaryAction,
+  allClear = false,
   children,
   className,
 }: {
@@ -36,14 +37,22 @@ export function AppEmptyState({
   hint?: string
   primaryAction?: EmptyStateAction
   secondaryAction?: EmptyStateAction
+  allClear?: boolean
   children?: ReactNode
   className?: string
 }) {
   return (
-    <Empty className={cn("border bg-muted/10", motionPresets.fadeInUp, className)}>
+    <Empty
+      className={cn(
+        "border bg-muted/10",
+        allClear && "border-emerald-500/20 bg-emerald-500/5",
+        motionPresets.fadeInUp,
+        className,
+      )}
+    >
       <EmptyHeader>
         {Icon && (
-          <EmptyMedia variant="icon" className="bg-primary/10 text-primary">
+          <EmptyMedia variant="icon" className={cn("bg-primary/10 text-primary", allClear && "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300")}>
             <Icon className="h-5 w-5" />
           </EmptyMedia>
         )}
@@ -54,7 +63,7 @@ export function AppEmptyState({
         <EmptyContent>
           {children}
           {(primaryAction || secondaryAction) && (
-            <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="flex w-full flex-col justify-center gap-2 sm:flex-row">
               {primaryAction && <EmptyAction action={primaryAction} />}
               {secondaryAction && <EmptyAction action={secondaryAction} variant="outline" />}
             </div>
@@ -68,14 +77,14 @@ export function AppEmptyState({
 function EmptyAction({ action, variant = "default" }: { action: EmptyStateAction; variant?: "default" | "outline" }) {
   if (action.href) {
     return (
-      <Button asChild variant={variant}>
+      <Button asChild variant={variant} className="w-full sm:w-auto">
         <Link href={action.href}>{action.label}</Link>
       </Button>
     )
   }
 
   return (
-    <Button type="button" variant={variant} onClick={action.onClick}>
+    <Button type="button" variant={variant} onClick={action.onClick} className="w-full sm:w-auto">
       {action.label}
     </Button>
   )

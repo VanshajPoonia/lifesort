@@ -127,7 +127,7 @@ function StatusBadge({
     return <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:transition-none" />
   }
 
-  if (loading) return <Badge variant="outline" className="shrink-0 bg-background/70">Checking</Badge>
+  if (loading) return <Badge variant="outline" className="shrink-0 bg-background/70">Checking...</Badge>
   if (summary?.unavailable?.includes(card.statusKey)) {
     return <Badge variant="outline" className="shrink-0 bg-background/70">No data yet</Badge>
   }
@@ -165,9 +165,9 @@ export function HubGrid({ cards }: { cards: HubCard[] }) {
         >
           <Card
             className={cn(
-              "surface-card interactive-card h-full overflow-hidden",
-              isPrimary && "border-primary/25 bg-primary/5",
-              isSecondary && "bg-muted/20 shadow-none",
+              "surface-card interactive-card h-full min-h-[150px] overflow-hidden",
+              isPrimary && "min-h-[178px] border-primary/25 bg-primary/5",
+              isSecondary && "min-h-[132px] bg-muted/20 shadow-none",
             )}
           >
             <CardHeader className={cn("space-y-3 p-4", isPrimary && "sm:p-5", isSecondary && "space-y-2")}>

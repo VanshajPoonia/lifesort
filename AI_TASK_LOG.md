@@ -17,6 +17,52 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-05-19 01:25 IST - Global UX Polish Pass
+
+- Agent/tool used: Codex (GPT-5 coding agent).
+- Task completed: Completed a scoped global UX polish pass after responsive/navigation/Journal work, with clearer empty states, calmer hub hierarchy, real-data Money summary, and softer trial wording. No routes, schemas, APIs, dependencies, OpenClaw, Agents, or sound effects were added.
+
+#### Files Modified
+- `app/money/page.tsx` — Added a compact finance summary using real `/api/income`, `/api/budget`, `/api/investments`, and `/api/wishlist` data, with explicit `No data` labels instead of fake values.
+- `app/page.tsx` — Marked clear Home empty states as calm all-clear panels.
+- `app/organize/page.tsx` — Replaced vague hub badges with clearer labels.
+- `app/insights/page.tsx` — Replaced the vague Reflect LifeScore card badge with `Open Home`.
+- `components/empty-state.tsx` — Added an optional `allClear` mode and improved action button layout.
+- `components/hub-page.tsx` — Tightened hub-card loading copy and strengthened primary/secondary card hierarchy.
+- `components/subscription-checker.tsx` — Softened trial banner copy while keeping hourly countdown and Go Pro/Upgrade wording.
+- `AI_PROJECT.md`, `AI_CHECKLIST.md`, `AI_TASK_LOG.md` — Updated project memory, recurring UX checks, and this handoff entry.
+
+#### Summary
+- Money now gives users a compact overview of monthly income, budget balance, portfolio, and wishlist totals when real records exist; empty accounts see a clear empty state.
+- Shared empty states can now distinguish genuine all-clear moments from missing data or errors.
+- Hub cards and badges are slightly clearer without changing navigation or deep links.
+- The existing Journal notebook polish from the previous commit remains preserved; this pass did not change Journal APIs, schema, Today integration, or Reflect integration.
+
+#### Commands Run
+- `git status --short --branch` → branch `main...origin/main [ahead 3]`; worktree contained scoped UX/docs changes.
+- `git diff --stat` → reviewed; changes scoped to global polish, Money summary, hub badges, trial copy, and memory docs.
+- `git diff --check` → passed.
+- `npx tsc --noEmit` → passed.
+- `npm run lint` → failed with the known repo-wide ESLint 10 blocker: no `eslint.config.(js|mjs|cjs)` file exists.
+- `npm run build` → passed. Build still skips type/lint validation through `next.config.mjs`.
+
+#### Bugs Found or Fixed
+- Fixed vague badges/copy in touched hub cards (`Home` → `Open Home`, `Primary` → `Start here`, `Focus` → `Deep focus`).
+- Fixed the Money hub feeling empty by showing a safe, real-data summary and explicit `No data` labels.
+
+#### Remaining Issues / Known Limitations
+- Browser/manual visual QA was not run in this environment, so mobile overflow, dark mode, console errors, and reduced-motion behavior should still be checked in a browser.
+- `npm run lint` remains blocked by the pre-existing missing ESLint flat config.
+- The Money summary is read-only and intentionally does not add new finance data sources or calculations beyond existing API data.
+
+#### Suggested Next Steps
+- Browser-check `/`, `/today`, `/journal`, `/organize`, `/money`, `/reflect`, and `/settings` at mobile and desktop widths, focusing on Journal readability and Money summary empty states.
+- Add an ESLint flat config so lint can become a reliable verification step.
+
+#### Handoff Notes
+- Keep the warm paper/notebook treatment scoped to `/journal`; do not move those utilities into the shared app shell.
+- For future global polish, use `AppEmptyState` with `allClear` only when the user is genuinely clear, not when data is missing or failed.
+
 ### 2026-05-19 01:22 IST - Daily Journal Premium Notebook Polish
 
 - Agent/tool used: Codex (GPT-5 coding agent).

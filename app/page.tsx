@@ -1374,6 +1374,7 @@ export default function Home() {
                   label: activePendingSource ? `Open ${activePendingSource.label}` : "Open Organize",
                   href: activePendingSource?.href || "/organize",
                 }}
+                allClear
                 className="border-dashed bg-background/70"
               />
             ) : (
@@ -1420,6 +1421,7 @@ export default function Home() {
                     title="No upcoming deadlines"
                     hint="Due tasks and dated goals will appear here when they need attention."
                     primaryAction={{ label: "Open Tasks", href: "/tasks" }}
+                    allClear
                     className="border-dashed bg-background/70"
                   />
                 ) : (

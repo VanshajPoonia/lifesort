@@ -156,6 +156,8 @@ Run after changes to `DashboardLayout`, command/search/capture UI, Home preferen
 7. Reuse `lib/motion.ts` presets for shared animation classes and keep `tailwind.config.js` scanning `lib/**/*.{ts,tsx}`.
 8. Do not add `framer-motion`, GSAP usage, sound, particles, or ambient motion for routine polish unless a future task explicitly justifies it.
 9. Reduced motion must leave every interaction understandable: no required state change should depend on animation.
+10. Prefer `AppEmptyState` for high-visibility empty panels; use `allClear` only for genuinely calm/clear states, not errors or missing data.
+11. Money summaries must show real loaded values or explicit `No data`/unavailable labels. Do not invent finance totals for empty accounts.
 
 ## Responsive Foundation Checklist
 
@@ -172,7 +174,8 @@ Run after changes to `DashboardLayout`, command/search/capture UI, Home preferen
 3. Journal autosave should debounce writes, show `Unsaved changes` / `Saving...` / `Saved` / error states, and keep a manual Save fallback.
 4. Do not add AI affirmation generation unless it follows the existing AI route pattern: session auth, usage caps, explicit provider env checks, and no automatic writes.
 5. Keep Journal-specific visual polish scoped to `/journal`: warm notebook surfaces, readable writing fields, accessible star ratings, reduced-motion-safe section motion, and no global theme drift.
-6. When changing Journal schema, update the forward migration, `scripts/schema.sql`, `scripts/fresh-install.sql`, and `AI_TASK_LOG.md`.
+6. Journal star ratings must keep radiogroup/radio semantics and comfortable touch targets after styling changes.
+7. When changing Journal schema, update the forward migration, `scripts/schema.sql`, `scripts/fresh-install.sql`, and `AI_TASK_LOG.md`.
 
 ## Environment Setup Checklist
 

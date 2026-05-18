@@ -107,7 +107,7 @@ const planCards: HubCard[] = [
     description: "Keep one intense goal visible when you need deep focus.",
     href: "/nuke",
     icon: Zap,
-    badge: "Focus",
+    badge: "Deep focus",
   },
   {
     title: "Pomodoro",
@@ -125,7 +125,7 @@ const captureCards: HubCard[] = [
     description: "Parse messy text into editable draft actions.",
     href: "/capture",
     icon: Wand2,
-    badge: "Primary",
+    badge: "Start here",
     priority: "primary",
   },
   {

@@ -300,7 +300,7 @@ function getReflectHubCards(currentHref: "/reflect" | "/insights") {
     description: "See the explainable organization signal on Home.",
     href: "/",
     icon: LayoutDashboard,
-    badge: "Home",
+    badge: "Open Home",
   },
   ]
 }
