@@ -2813,6 +2813,25 @@ After that, re-run the regression checkpoint and the schema-drift 500s should di
   - Added `GlobalCommandPalette` for Cmd/Ctrl+K, Ctrl+K, header search, desktop Quick Add, and mobile FAB. It groups Capture, Search, Navigate, and safe AI links while reusing `QuickAddModal` for writes.
   - Added `?` shortcuts dialog, with global shortcut handling disabled inside editable fields.
   - Added `AppEmptyState` as a small wrapper around existing empty primitives and used it on Home, Journal recent history, and command palette no-results.
+  - Refreshed onboarding into a compact skippable setup for important Life Areas, planning style/work hours, optional first task, optional first goal, and first journal gratitude.
+  - Changed onboarding persistence to merge `app_preferences`/`sidebar_preferences` instead of overwriting existing preference JSON.
+  - Added a compact Journal card on Home and a detailed Home mode with extra deadline/note context while keeping compact as the default.
+  - Renamed trial/support CTA wording to Go Pro/Upgrade and removed the orange sidebar Go Pro block; mobile More and the trial banner still expose upgrade paths.
+- Commands run:
+  - `git status --short --branch` - reviewed; branch was already ahead of `origin/main` by 3 prior commits before this task.
+  - `npx tsc --noEmit` - passed.
+  - `git diff --check` - initially found trailing whitespace in `app/settings/page.tsx`; fixed and reran successfully.
+  - `npm run lint` - failed before source linting because ESLint 10.3.0 cannot find `eslint.config.(js|mjs|cjs)`.
+  - `npm run build` - passed; generated 136 routes including `/api/app-preferences`; still skips type/lint validation through `next.config.mjs` and emits known unsupported `metadata.themeColor`/`metadata.viewport` warnings.
+- Bugs found or fixed:
+  - Fixed the onboarding preference overwrite risk by changing `/api/onboarding` to JSONB-merge preferences.
+  - Fixed trailing whitespace found by `git diff --check`.
+- Remaining issues and limitations:
+  - Browser/manual smoke testing was not run in this pass.
+  - `npm run lint` remains blocked by missing ESLint flat config.
+  - `npm run build` still hides TypeScript and lint failures through `next.config.mjs`.
+  - The command palette links to existing AI pages only; no inline AI assistant was added.
+  - Onboarding optional task/goal/journal writes are best-effort and can fail independently without blocking setup completion.
 
 ## 2026-05-17 23:27 IST - Energy And Capacity Planner
 
