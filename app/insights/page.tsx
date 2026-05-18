@@ -11,6 +11,8 @@ import {
   FileText,
   Flame,
   FolderPlus,
+  History,
+  LayoutDashboard,
   Loader2,
   Plus,
   Search,
@@ -20,6 +22,7 @@ import {
   Wallet,
 } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard-layout"
+import { HubGrid } from "@/components/hub-page"
 import { useAuth } from "@/components/auth-provider"
 import { LifeAreaIcon } from "@/components/life-area-controls"
 import { Badge } from "@/components/ui/badge"
@@ -178,6 +181,66 @@ const IGNORING_SOURCE_LABELS: Record<IgnoringSignalSource, string> = {
   vault: "Vault Renewals",
   finance: "Finance Review",
 }
+
+const insightsHubCards = [
+  {
+    title: "Life Balance",
+    description: "Area balance metrics and ignored-life signals.",
+    href: "/insights",
+    icon: Activity,
+    badge: "Current page",
+  },
+  {
+    title: "Weekly Review",
+    description: "Reflect on the week and save next-week focus.",
+    href: "/review",
+    icon: CheckSquare,
+    statusKey: "weeklyReviewPending",
+    statusLabel: "pending",
+    zeroLabel: "Saved",
+  },
+  {
+    title: "Life Timeline",
+    description: "Review milestones and meaningful activity over time.",
+    href: "/timeline",
+    icon: History,
+  },
+  {
+    title: "Reset My Life",
+    description: "Recover from stale, overdue, and overwhelming items.",
+    href: "/reset",
+    icon: ShieldAlert,
+    statusKey: "overdueTasks",
+    statusLabel: "overdue",
+    zeroLabel: "Clear",
+  },
+  {
+    title: "LifeSort Coach",
+    description: "Ask app-aware questions with read-only LifeSort context.",
+    href: "/ai-chat",
+    icon: Sparkles,
+  },
+  {
+    title: "Life Areas",
+    description: "Manage the areas used for balance and organization.",
+    href: "/life-areas",
+    icon: Target,
+  },
+  {
+    title: "What Am I Ignoring?",
+    description: "Review non-AI risk signals and optional read-only AI context.",
+    href: "/insights",
+    icon: Search,
+    badge: "Here",
+  },
+  {
+    title: "LifeScore",
+    description: "See the explainable organization signal on Home.",
+    href: "/",
+    icon: LayoutDashboard,
+    badge: "Home",
+  },
+]
 
 function formatDateLabel(value: string | null) {
   if (!value) return "No date"
@@ -386,6 +449,8 @@ export default function InsightsPage() {
   return (
     <DashboardLayout title="Insights" subtitle="See which parts of life are getting attention and which ones may need care.">
       <div className="space-y-6">
+        <HubGrid cards={insightsHubCards} />
+
         <section className="rounded-lg border bg-card p-5">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
