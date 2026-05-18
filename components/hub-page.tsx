@@ -7,6 +7,7 @@ import { ArrowRight, Pin } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { motionPresets } from "@/lib/motion"
 import { cn } from "@/lib/utils"
 
 type NavigationSummary = {
@@ -38,7 +39,7 @@ export function HubHero({
   children?: React.ReactNode
 }) {
   return (
-    <section className="section-enter surface-card rounded-lg border bg-card/95 p-4 sm:p-5">
+    <section className={cn("surface-card rounded-lg border bg-card/95 p-4 sm:p-5", motionPresets.fadeInUp)}>
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{eyebrow}</p>
@@ -63,7 +64,7 @@ export function SectionHeader({
   action?: React.ReactNode
 }) {
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div className={cn("flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between", motionPresets.fadeIn)}>
       <div>
         {eyebrow && <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{eyebrow}</p>}
         <h2 className="text-lg font-semibold tracking-tight text-foreground">{title}</h2>
@@ -151,7 +152,7 @@ export function HubGrid({ cards }: { cards: HubCard[] }) {
   const { summary, loading } = useNavigationSummary(cards)
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:gap-4 xl:grid-cols-4">
+    <div className={cn("grid grid-cols-1 gap-3 sm:grid-cols-2 lg:gap-4 xl:grid-cols-4", motionPresets.staggerContainer)}>
       {cards.map((card) => {
         const { title, description, href, icon: Icon } = card
         const isPrimary = card.priority === "primary"
@@ -160,7 +161,7 @@ export function HubGrid({ cards }: { cards: HubCard[] }) {
         <Link
           key={`${href}-${title}`}
           href={href}
-          className={cn("group block min-w-0", isPrimary && "sm:col-span-1", isSecondary && "xl:col-span-1")}
+          className={cn("group block min-w-0", motionPresets.pressable, isPrimary && "sm:col-span-1", isSecondary && "xl:col-span-1")}
         >
           <Card
             className={cn(

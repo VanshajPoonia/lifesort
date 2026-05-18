@@ -13,6 +13,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
+import { motionPresets } from "@/lib/motion"
 import { cn } from "@/lib/utils"
 
 type EmptyStateAction = {
@@ -39,7 +40,7 @@ export function AppEmptyState({
   className?: string
 }) {
   return (
-    <Empty className={cn("border bg-muted/10", className)}>
+    <Empty className={cn("border bg-muted/10", motionPresets.fadeInUp, className)}>
       <EmptyHeader>
         {Icon && (
           <EmptyMedia variant="icon" className="bg-primary/10 text-primary">

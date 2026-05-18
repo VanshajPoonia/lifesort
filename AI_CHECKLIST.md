@@ -148,11 +148,14 @@ Run after changes to `DashboardLayout`, command/search/capture UI, Home preferen
 ## UI Polish Checklist
 
 1. Keep polish passes frontend-only unless the task explicitly asks for data/API changes.
-2. Prefer shared Tailwind utilities (`surface-card`, `interactive-card`, `section-enter`) and existing shadcn/Radix primitives before adding page-local styles.
-3. Keep motion subtle and fast: transform/opacity only where practical, about 120-250ms, and always usable with reduced motion.
+2. Prefer shared Tailwind utilities (`surface-card`, `interactive-card`/`card-interactive`, `section-enter`, `tab-enter`, `list-item-enter`, `journal-enter`, `save-feedback`) and existing shadcn/Radix primitives before adding page-local styles.
+3. Keep motion subtle and fast: transform/opacity only where practical, about 120-250ms for routine interactions, up to 350ms for section entrance, and up to 650ms only for Journal-specific warmth.
 4. Verify mobile tabs, hub cards, and forms stack or scroll without horizontal overflow.
 5. Make primary workflows visually stronger than utilities, and replace vague badges such as "Clear" with useful status text like "0 due" or "No data yet".
 6. Keep Quick Add, Global Search, notification bell, and mobile More navigation reachable after shell changes.
+7. Reuse `lib/motion.ts` presets for shared animation classes and keep `tailwind.config.js` scanning `lib/**/*.{ts,tsx}`.
+8. Do not add `framer-motion`, GSAP usage, sound, particles, or ambient motion for routine polish unless a future task explicitly justifies it.
+9. Reduced motion must leave every interaction understandable: no required state change should depend on animation.
 
 ## Responsive Foundation Checklist
 

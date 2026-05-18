@@ -35,6 +35,7 @@ import { QuickAddModal, type QuickAddType } from "@/components/quick-add-modal"
 import { GlobalCommandPalette } from "@/components/global-command-palette"
 import { NotificationBell } from "@/components/notification-bell"
 import { useBreakpoint } from "@/hooks/use-breakpoint"
+import { motionPresets } from "@/lib/motion"
 import { cn } from "@/lib/utils"
 
 interface DashboardLayoutProps {
@@ -267,7 +268,7 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
   }
   const railMode = isTablet || sidebarCollapsed
   const navButtonClass = (item: SidebarItem) =>
-    `h-10 w-full rounded-lg border border-transparent text-sm transition-all duration-150 motion-reduce:transition-none ${
+    `h-10 w-full rounded-lg border border-transparent text-sm transition-all duration-150 ease-out active:scale-[0.99] motion-reduce:transition-none motion-reduce:transform-none ${
       railMode ? "justify-center gap-0 px-2" : "justify-start gap-3 px-3"
     } ${
       isActiveItem(item)
@@ -299,7 +300,7 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
 
   return (
     <div
-      className="flex overflow-hidden bg-background transition-[height,margin-top] duration-200"
+      className="flex overflow-hidden bg-background transition-[height,margin-top] duration-200 motion-reduce:transition-none"
       style={{
         height: "calc(100vh - var(--subscription-banner-offset, 0px))",
         marginTop: "var(--subscription-banner-offset, 0px)",
@@ -326,7 +327,7 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed bottom-0 left-0 top-[var(--subscription-banner-offset,0px)] z-50 hidden border-r border-border bg-card/95 shadow-sm backdrop-blur transition-[transform,width] duration-200 supports-[backdrop-filter]:bg-card/90 motion-reduce:transition-none sm:relative sm:bottom-auto sm:top-auto sm:flex sm:translate-x-0",
+          "fixed bottom-0 left-0 top-[var(--subscription-banner-offset,0px)] z-50 hidden border-r border-border bg-card/95 shadow-sm backdrop-blur transition-[transform,width] duration-200 ease-out supports-[backdrop-filter]:bg-card/90 motion-reduce:transition-none sm:relative sm:bottom-auto sm:top-auto sm:flex sm:translate-x-0",
           sidebarOpen ? "translate-x-0" : "-translate-x-full",
           railMode ? "w-20" : "w-64",
         )}
@@ -414,7 +415,7 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
       {/* Main Content */}
       <div className="flex flex-1 flex-col overflow-hidden">
       {/* Header */}
-      <header className="flex items-center justify-between border-b border-border/70 bg-card/85 px-3 py-3 backdrop-blur supports-[backdrop-filter]:bg-card/75 md:px-6">
+      <header className={cn("flex items-center justify-between border-b border-border/70 bg-card/85 px-3 py-3 backdrop-blur supports-[backdrop-filter]:bg-card/75 md:px-6", motionPresets.fadeIn)}>
         <div className="flex items-center gap-3">
           <div className="font-semibold text-foreground sm:hidden">LifeSort</div>
           {/* Greeting Section */}
@@ -463,7 +464,7 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
       </div>
 
       <Button
-        className="fixed bottom-20 right-4 z-40 h-12 w-12 rounded-full shadow-lg active:scale-95 sm:hidden"
+        className={cn("fixed bottom-20 right-4 z-40 h-12 w-12 rounded-full shadow-lg sm:hidden", motionPresets.scaleIn, motionPresets.pressable)}
         size="icon"
         onClick={() => openCommandPalette("capture")}
         aria-label="Quick Add"
@@ -472,7 +473,7 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
         <Plus className="h-5 w-5" />
       </Button>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-card/95 px-2 py-2 shadow-[0_-8px_24px_hsl(var(--foreground)_/_0.06)] backdrop-blur sm:hidden">
+      <nav className={cn("fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-card/95 px-2 py-2 shadow-[0_-8px_24px_hsl(var(--foreground)_/_0.06)] backdrop-blur sm:hidden", motionPresets.fadeInUp)}>
         <div className="grid grid-cols-5 gap-1">
           {MOBILE_PRIMARY_ITEMS.map((item) => {
             const Icon = item.icon
@@ -480,7 +481,7 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
             return (
               <Link key={item.id} href={item.href} className="min-w-0" onClick={() => setSidebarOpen(false)}>
                 <span
-                  className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[11px] font-medium transition-all duration-150 active:scale-[0.98] motion-reduce:transition-none ${
+                  className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[11px] font-medium transition-all duration-150 ease-out active:scale-[0.98] motion-reduce:transition-none motion-reduce:transform-none ${
                     active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/70"
                   }`}
                 >
@@ -492,7 +493,7 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
           })}
           <button
             type="button"
-            className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[11px] font-medium transition-all duration-150 active:scale-[0.98] motion-reduce:transition-none ${
+            className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[11px] font-medium transition-all duration-150 ease-out active:scale-[0.98] motion-reduce:transition-none motion-reduce:transform-none ${
               ["/journal", "/reflect", "/insights", "/review", "/timeline", "/reset", "/ai-chat", "/life-areas", "/settings", "/rules", "/admin"].some(matchesPath)
                 ? "bg-primary/10 text-primary"
                 : "text-muted-foreground hover:bg-muted/70"
@@ -526,7 +527,7 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
                   key={item.href}
                   href={item.href}
                   onClick={() => setMobileMoreOpen(false)}
-                  className="flex min-h-12 items-center gap-3 rounded-lg border border-border/70 px-3 text-sm font-medium transition-colors hover:bg-muted"
+                  className={cn("flex min-h-12 items-center gap-3 rounded-lg border border-border/70 px-3 text-sm font-medium transition-colors hover:bg-muted", motionPresets.listItem)}
                 >
                   <Icon className="h-4 w-4 text-primary" />
                   {item.label}
@@ -537,7 +538,7 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
               href="https://buymeacoffee.com/lifesort"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex min-h-12 items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-3 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+              className={cn("flex min-h-12 items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-3 text-sm font-medium text-primary transition-colors hover:bg-primary/10", motionPresets.listItem)}
               onClick={() => setMobileMoreOpen(false)}
             >
               <Coffee className="h-4 w-4" />
@@ -547,7 +548,7 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
               <Link
                 href="/admin"
                 onClick={() => setMobileMoreOpen(false)}
-                className="flex min-h-12 items-center gap-3 rounded-lg border border-border/70 px-3 text-sm font-medium transition-colors hover:bg-muted"
+                className={cn("flex min-h-12 items-center gap-3 rounded-lg border border-border/70 px-3 text-sm font-medium transition-colors hover:bg-muted", motionPresets.listItem)}
               >
                 <Shield className="h-4 w-4 text-primary" />
                 Admin

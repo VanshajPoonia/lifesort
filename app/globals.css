@@ -25,6 +25,11 @@
   --radius: 0.5rem;
   --success: 142 71% 45%;
   --warning: 38 92% 50%;
+  --motion-quick: 150ms;
+  --motion-base: 220ms;
+  --motion-slow: 350ms;
+  --motion-journal: 650ms;
+  --motion-ease: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .dark {
@@ -160,12 +165,23 @@
 }
 
 @layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
   button, a, [role="button"], .cursor-pointer {
     cursor: pointer;
   }
   
   input, textarea, select {
     cursor: text;
+  }
+
+  :where(a, button, [role="button"], input, textarea, select, summary):focus-visible {
+    outline: 2px solid hsl(var(--ring) / 0.85);
+    outline-offset: 2px;
   }
 }
 
@@ -192,31 +208,83 @@
 
   .surface-card {
     border-color: hsl(var(--border) / 0.75);
-    box-shadow: 0 1px 2px hsl(var(--foreground) / 0.04);
+    box-shadow: 0 1px 2px hsl(var(--foreground) / 0.04), 0 16px 40px hsl(var(--foreground) / 0.025);
   }
 
-  .interactive-card {
-    transition: transform 160ms ease, border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+  .interactive-card,
+  .card-interactive {
+    transform: translateZ(0);
+    transition:
+      transform var(--motion-quick) var(--motion-ease),
+      border-color var(--motion-quick) ease,
+      background-color var(--motion-quick) ease,
+      box-shadow var(--motion-quick) var(--motion-ease);
   }
 
-  .interactive-card:hover {
+  .interactive-card:hover,
+  .card-interactive:hover {
     transform: translateY(-2px);
     border-color: hsl(var(--primary) / 0.35);
-    box-shadow: 0 10px 24px hsl(var(--foreground) / 0.07);
+    box-shadow: 0 12px 28px hsl(var(--foreground) / 0.075);
   }
 
   .section-enter {
-    animation: lifesort-section-in 220ms ease-out both;
+    animation: lifesort-section-in var(--motion-base) var(--motion-ease) both;
+  }
+
+  .journal-enter {
+    animation: lifesort-journal-in var(--motion-journal) var(--motion-ease) both;
+  }
+
+  .tab-enter {
+    animation: lifesort-tab-in var(--motion-base) var(--motion-ease) both;
+  }
+
+  .list-item-enter {
+    animation: lifesort-list-in var(--motion-base) var(--motion-ease) both;
+  }
+
+  .save-feedback {
+    animation: lifesort-save-pop var(--motion-slow) var(--motion-ease) both;
+  }
+
+  .motion-stagger > * {
+    animation: lifesort-list-in var(--motion-slow) var(--motion-ease) both;
+  }
+
+  .motion-stagger > *:nth-child(1) { animation-delay: 0ms; }
+  .motion-stagger > *:nth-child(2) { animation-delay: 35ms; }
+  .motion-stagger > *:nth-child(3) { animation-delay: 70ms; }
+  .motion-stagger > *:nth-child(4) { animation-delay: 105ms; }
+  .motion-stagger > *:nth-child(5) { animation-delay: 140ms; }
+  .motion-stagger > *:nth-child(n + 6) { animation-delay: 160ms; }
+
+  .motion-soft-transition {
+    transition-duration: var(--motion-base);
+    transition-timing-function: var(--motion-ease);
   }
 
   @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      scroll-behavior: auto !important;
+    }
+
     .interactive-card,
-    .interactive-card:hover {
+    .interactive-card:hover,
+    .card-interactive,
+    .card-interactive:hover {
       transform: none;
       transition: none;
     }
 
-    .section-enter {
+    .section-enter,
+    .journal-enter,
+    .tab-enter,
+    .list-item-enter,
+    .save-feedback,
+    .motion-stagger > * {
       animation: none;
     }
   }
@@ -231,6 +299,56 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes lifesort-journal-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.99);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes lifesort-tab-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes lifesort-list-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes lifesort-save-pop {
+  0% {
+    transform: scale(0.97);
+  }
+
+  55% {
+    transform: scale(1.02);
+  }
+
+  100% {
+    transform: scale(1);
   }
 }
 

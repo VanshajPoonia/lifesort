@@ -32,6 +32,7 @@ import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import type { JournalEntry, JournalEntryInput, JournalTodoItem } from "@/lib/journal"
+import { motionPresets } from "@/lib/motion"
 import { cn } from "@/lib/utils"
 
 type SaveState = "idle" | "dirty" | "saving" | "saved" | "error"
@@ -255,7 +256,7 @@ export default function JournalPage() {
 
   return (
     <DashboardLayout title="Journal" subtitle={formatDateLabel(selectedDate)}>
-      <div className="space-y-5 md:space-y-6">
+      <div className={cn("space-y-5 md:space-y-6", motionPresets.journalEntrance)}>
         {loadError && (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-10 text-center">
@@ -269,7 +270,7 @@ export default function JournalPage() {
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
           <main className="space-y-5">
-            <Card className="surface-card section-enter border-amber-500/20 bg-amber-500/5">
+            <Card className={cn("surface-card border-amber-500/20 bg-amber-500/5", motionPresets.journalEntrance)}>
               <CardHeader>
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
@@ -317,7 +318,7 @@ export default function JournalPage() {
               </CardContent>
             </Card>
 
-            <Card className="surface-card section-enter">
+            <Card className={cn("surface-card", motionPresets.fadeInUp)}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Heart className="h-5 w-5 text-rose-500" />
@@ -347,7 +348,7 @@ export default function JournalPage() {
               </CardContent>
             </Card>
 
-            <Card className="surface-card section-enter">
+            <Card className={cn("surface-card", motionPresets.fadeInUp)}>
               <CardHeader>
                 <CardTitle>I am thankful for...</CardTitle>
                 <CardDescription>Three small anchors from today.</CardDescription>
@@ -373,7 +374,7 @@ export default function JournalPage() {
               </CardContent>
             </Card>
 
-            <Card className="surface-card section-enter">
+            <Card className={cn("surface-card", motionPresets.fadeInUp)}>
               <CardHeader>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
@@ -407,13 +408,13 @@ export default function JournalPage() {
               </CardContent>
             </Card>
 
-            <div className="grid gap-4 lg:grid-cols-3">
+            <div className={cn("grid gap-4 lg:grid-cols-3", motionPresets.staggerContainer)}>
               <IntentionCard title="Work" items={entry.work_todo} onChange={(items) => updateEntry("work_todo", items)} />
               <IntentionCard title="Personal" items={entry.personal_todo} onChange={(items) => updateEntry("personal_todo", items)} />
               <IntentionCard title="Family" items={entry.family_todo} onChange={(items) => updateEntry("family_todo", items)} />
             </div>
 
-            <Card className="surface-card section-enter">
+            <Card className={cn("surface-card", motionPresets.fadeInUp)}>
               <CardHeader>
                 <CardTitle>Evening Reflection</CardTitle>
                 <CardDescription>Available all day. Fill it whenever the signal is fresh.</CardDescription>
@@ -426,7 +427,7 @@ export default function JournalPage() {
               </CardContent>
             </Card>
 
-            <Card className="surface-card section-enter">
+            <Card className={cn("surface-card", motionPresets.fadeInUp)}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Star className="h-5 w-5 text-amber-500" />
@@ -460,7 +461,7 @@ export default function JournalPage() {
             </Card>
 
             <Collapsible open={tomorrowOpen} onOpenChange={setTomorrowOpen}>
-              <Card className="surface-card section-enter">
+              <Card className={cn("surface-card", motionPresets.fadeInUp)}>
                 <CardHeader>
                   <CollapsibleTrigger asChild>
                     <button type="button" className="flex w-full items-center justify-between gap-3 text-left">
@@ -486,7 +487,7 @@ export default function JournalPage() {
           </main>
 
           <aside className="space-y-4">
-            <Card className="surface-card section-enter">
+            <Card className={cn("surface-card", motionPresets.fadeInUp)}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <History className="h-5 w-5 text-primary" />
@@ -510,6 +511,7 @@ export default function JournalPage() {
                       onClick={() => setSelectedDate(recent.journal_date)}
                       className={cn(
                         "w-full rounded-md border p-3 text-left text-sm transition-colors hover:bg-muted/60",
+                        motionPresets.listItem,
                         selectedDate === recent.journal_date && "border-amber-500 bg-amber-500/10",
                       )}
                     >
@@ -526,7 +528,7 @@ export default function JournalPage() {
               </CardContent>
             </Card>
 
-            <Card className="surface-card border-dashed">
+            <Card className={cn("surface-card border-dashed", motionPresets.fadeIn)}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
                   <Lock className="h-4 w-4 text-muted-foreground" />
@@ -563,6 +565,7 @@ function SaveStatus({ state }: { state: SaveState }) {
       variant="outline"
       className={cn(
         "bg-background/70",
+        state === "saved" && "save-feedback",
         state === "dirty" && "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
         state === "saving" && "border-primary/30 bg-primary/10 text-primary",
         state === "saved" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
@@ -596,7 +599,7 @@ function IntentionCard({ title, items, onChange }: { title: string; items: Journ
     onChange(items.map((item) => (item.id === id ? { ...item, ...patch } : item)))
   }
   return (
-    <Card className="surface-card">
+    <Card className="surface-card interactive-card">
       <CardHeader>
         <CardTitle className="text-base">{title}</CardTitle>
         <CardDescription>Up to three intentions.</CardDescription>
@@ -606,7 +609,7 @@ function IntentionCard({ title, items, onChange }: { title: string; items: Journ
           <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">No intentions yet.</p>
         )}
         {items.map((item, index) => (
-          <div key={item.id} className="flex items-center gap-2">
+          <div key={item.id} className={cn("flex items-center gap-2", motionPresets.listItem)}>
             <Checkbox
               checked={item.done}
               onCheckedChange={(checked) => updateItem(item.id, { done: Boolean(checked) })}
@@ -666,6 +669,7 @@ function StarRow({
               onClick={() => onValueChange(value === star ? null : star)}
               className={cn(
                 "rounded-md p-1 text-muted-foreground transition-colors hover:text-amber-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                motionPresets.pressable,
                 value && star <= value && "text-amber-500",
               )}
             >

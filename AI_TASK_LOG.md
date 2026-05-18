@@ -2933,6 +2933,54 @@ After that, re-run the regression checkpoint and the schema-drift 500s should di
   - Disposable records were not created through the successful QA path. One attempted `/api/auth/register` returned `500` before creating an account because the database connection failed.
   - Do not print `.env.local` values while fixing the DB connectivity issue; only check variable names/presence unless explicitly authorized.
 
+## 2026-05-19 01:07 IST - Premium Motion System
+
+- Agent/tool used: Codex.
+- Task summary: Added a cohesive CSS/Tailwind-based LifeSort motion system without adding Framer Motion or any other animation dependency.
+- Files changed:
+  - `lib/motion.ts`
+  - `app/globals.css`
+  - `app/journal/page.tsx`
+  - `components/dashboard-layout.tsx`
+  - `components/empty-state.tsx`
+  - `components/hub-page.tsx`
+  - `components/ui/button.tsx`
+  - `components/ui/command.tsx`
+  - `components/ui/dialog.tsx`
+  - `components/ui/sheet.tsx`
+  - `components/ui/tabs.tsx`
+  - `tailwind.config.js`
+  - `AI_PROJECT.md`
+  - `AI_CHECKLIST.md`
+  - `AI_TASK_LOG.md`
+- Summary of changes:
+  - Added `lib/motion.ts` with reusable presets for fade, fade-up, stagger, scale-in, tab content, modal panels, list items, Journal entrance, press state, and shared duration/easing tokens.
+  - Added global motion CSS variables, font smoothing, stronger focus-visible defaults, refined interactive card lift, `card-interactive` alias, section/tab/list/Journal/save keyframes, staggered children, and reduced-motion fallbacks.
+  - Applied motion presets surgically to the app shell, mobile bottom nav, Quick Add FAB, mobile More sheet links, hub hero/grid/cards, tabs, dialogs, sheets, command palette items, empty states, and Journal sections/history/intentions/save feedback.
+  - Shortened shared sheet open timing from the previous 500ms default to a faster 220ms open / 150ms close rhythm.
+  - Updated Tailwind content scanning to include `lib/**/*.{ts,tsx}` so motion preset classes are generated.
+  - Documented that Framer Motion remains intentionally uninstalled and GSAP is not used for routine app polish.
+- Commands run:
+  - `git status --short --branch` - reviewed before edits; branch was clean and ahead of origin by 1 prior QA commit.
+  - `git diff --stat` - reviewed during implementation.
+  - `git diff --check` - passed.
+  - `npx tsc --noEmit` - passed.
+  - `npm run lint` - failed before source linting because ESLint 10.3.0 cannot find `eslint.config.(js|mjs|cjs)`.
+  - `npm run build` - passed; generated 136 routes. An initial build surfaced Tailwind ambiguity warnings for two arbitrary duration classes; those classes were replaced with standard duration utilities and the final build was clean.
+- Bugs found or fixed:
+  - Avoided adding `framer-motion`; existing CSS/Tailwind/Radix patterns covered the requested motion scope.
+  - Removed a would-be invalid tab-state utility before verification and kept `tab-enter` as a normal shared class.
+- Remaining issues and limitations:
+  - Stats count-up animation was intentionally not implemented in v1.
+  - Browser/manual smoke testing still depends on local browser automation or DB reachability for signed-in flows.
+  - `npm run lint` still fails until an ESLint flat config is added.
+- Suggested next steps:
+  - Visually smoke-test Home, Today, Organize tabs, Money, Reflect, Settings, Journal, command palette, Quick Add/FAB, tabs, dialogs, sheets, and reduced-motion mode in a browser.
+  - Add ESLint flat config and browser automation so motion regressions can be caught beyond build/type checks.
+- Handoff notes:
+  - Keep future motion additions routed through `lib/motion.ts` and the shared CSS utilities rather than page-local one-off durations.
+  - Do not introduce Framer Motion or GSAP for routine interactions unless a future task has a concrete interaction that CSS/Radix cannot cover cleanly.
+
 ## AI Handoff Summaries
 
 Future agents should start by reading all root memory files, then inspect the relevant code before editing. Keep changes small and update this file after every repo change.
