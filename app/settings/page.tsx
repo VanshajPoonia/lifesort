@@ -3,6 +3,7 @@
 import React from "react"
 
 import { useState, useEffect, useRef } from "react"
+import NextLink from "next/link"
 import { useRouter } from "next/navigation"
 import { DashboardLayout, clearSidebarPrefsCache } from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -54,6 +55,7 @@ import {
   Lightbulb,
   RefreshCcw,
   Settings2,
+  Wallet,
 } from "lucide-react"
 import {
   Accordion,
@@ -111,6 +113,12 @@ export default function SettingsPage() {
   })
 
   const [sidebarPrefs, setSidebarPrefs] = useState({
+    home: true,
+    plan: true,
+    money: true,
+    life_admin: true,
+    settings: true,
+    admin: true,
     dashboard: true,
     reset: true,
     rules: true,
@@ -321,6 +329,36 @@ export default function SettingsPage() {
       title="Settings"
       subtitle="Manage your profile and preferences"
     >
+      <div className="space-y-6">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Profile</CardTitle>
+              <CardDescription>Your identity, subscription, and account basics.</CardDescription>
+            </CardHeader>
+          </Card>
+          <NextLink href="/rules">
+            <Card className="h-full transition-colors hover:border-primary/60 hover:bg-muted/30">
+              <CardHeader>
+                <CardTitle className="text-base">Operating Rules</CardTitle>
+                <CardDescription>Visible planning preferences and AI context.</CardDescription>
+              </CardHeader>
+            </Card>
+          </NextLink>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">App Preferences</CardTitle>
+              <CardDescription>Sidebar sections, daily content, and help.</CardDescription>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Security</CardTitle>
+              <CardDescription>Account information and connected services.</CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
+
       <Tabs defaultValue="profile" className="space-y-6">
         <TabsList className="grid w-full grid-cols-5 lg:w-[620px]">
           <TabsTrigger value="profile">
@@ -488,41 +526,16 @@ export default function SettingsPage() {
             <CardContent className="space-y-6">
               <div className="grid gap-4 sm:grid-cols-2">
                 {[
-                  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, description: "Main dashboard view" },
-                  { id: "reset", label: "Reset My Life", icon: RefreshCcw, description: "Overwhelm recovery and safe bulk triage" },
-                  { id: "rules", label: "Operating Rules", icon: Settings2, description: "Visible preferences AI planning features can use" },
-                  { id: "someday", label: "Someday / Maybe", icon: Lightbulb, description: "Low-pressure ideas and possibilities" },
-                  { id: "inbox", label: "Inbox", icon: Inbox, description: "Universal capture queue for unsorted thoughts" },
-                  { id: "waiting", label: "Waiting For", icon: Clock, description: "Follow-ups, approvals, refunds, deliveries, and replies" },
-                  { id: "commitments", label: "Commitments", icon: ClipboardCheck, description: "Promises and obligations you made" },
-                  { id: "maintenance", label: "Maintenance", icon: Wrench, description: "Recurring renewals, checkups, repairs, reviews, and admin" },
-                  { id: "today", label: "Today Plan", icon: CalendarCheck, description: "Daily focus and reflection" },
-                  { id: "review", label: "Weekly Review", icon: CheckSquare, description: "Weekly summary and reflection" },
-                  { id: "insights", label: "Insights", icon: Activity, description: "Life balance metrics and AI analysis" },
-                  { id: "life_areas", label: "Life Areas", icon: Network, description: "Life area organization" },
-                  { id: "projects", label: "Projects", icon: FolderPlus, description: "Bigger life efforts and linked items" },
-                  { id: "people", label: "People", icon: CheckSquare, description: "Relationships, contacts, and reminders" },
-                  { id: "vault", label: "Life Vault", icon: Shield, description: "Important documents and renewal tracking" },
-                  { id: "calendar", label: "Calendar", icon: CalendarDays, description: "Calendar and events" },
-                  { id: "goals", label: "Goals", icon: Target, description: "Goal tracking" },
-                  { id: "habits", label: "Habits", icon: CheckSquare, description: "Habit tracking and routines" },
-                  { id: "tasks", label: "Daily Tasks", icon: CheckSquare, description: "To-do lists" },
-                  { id: "nuke", label: "Nuke Goal", icon: Target, description: "Intense goal focus" },
-                  { id: "pomodoro", label: "Pomodoro", icon: CalendarDays, description: "Focus timer" },
-                  { id: "notes", label: "Notes", icon: FileText, description: "Personal notes" },
-                  { id: "wishlist", label: "Wishlist", icon: Heart, description: "Wishlist items" },
-                  { id: "investments", label: "Investments", icon: Target, description: "Investment tracking" },
-                  { id: "income", label: "Income", icon: Target, description: "Income tracking" },
-                  { id: "budget", label: "Budget", icon: Target, description: "Expense tracking" },
-                  { id: "links", label: "My Links", icon: Link, description: "Saved links and images" },
-                  { id: "custom_sections", label: "Custom Sections", icon: FolderPlus, description: "Your custom sections" },
-                  { id: "daily_content", label: "Daily Quotes & Games", icon: Sparkles, description: "Daily quotes, jokes, games" },
-                  { id: "ai_assistant", label: "AI Assistant", icon: Sparkles, description: "AI chat assistant" },
-                  { id: "capture", label: "AI Capture", icon: Wand2, description: "Parse natural language into tasks, goals, habits, and more" },
-                  { id: "templates", label: "Smart Templates", icon: Sparkles, description: "Ready-made life systems you can apply in one click" },
-                  { id: "timeline", label: "Life Timeline", icon: History, description: "Chronological record of completed tasks, goals, habits, and milestones" },
-                  { id: "notifications", label: "Notifications", icon: Bell, description: "Reminders and alerts for tasks, habits, deadlines, and more" },
-                ].map(({ id, label, icon: Icon, description }) => (
+                  { id: "home", label: "Home", icon: LayoutDashboard, description: "Dashboard, quick actions, LifeScore, and today snapshot" },
+                  { id: "today", label: "Today", icon: CalendarCheck, description: "Today Plan, calendar today, habits due, and capacity planning" },
+                  { id: "plan", label: "Plan", icon: Target, description: "Tasks, goals, projects, habits, calendar, waiting, commitments, and someday" },
+                  { id: "capture", label: "Capture", icon: Inbox, description: "Inbox, notes, links, custom sections, Quick Add, and AI Capture" },
+                  { id: "money", label: "Money", icon: Wallet, description: "Budget, income, investments, and wishlist" },
+                  { id: "life_admin", label: "Life Admin", icon: Wrench, description: "People, Life Vault, maintenance, and important reminders" },
+                  { id: "insights", label: "Insights", icon: Activity, description: "Weekly Review, Timeline, Reset, Coach, Life Areas, and LifeScore insights" },
+                  { id: "settings", label: "Settings", icon: Settings2, description: "Profile, operating rules, preferences, integrations, and account settings" },
+                  { id: "admin", label: "Admin", icon: Shield, description: "Admin subscription controls", adminOnly: true },
+                ].filter((item) => !item.adminOnly || user?.is_admin).map(({ id, label, icon: Icon, description }) => (
                   <div
                     key={id}
                     className={`flex items-start gap-3 p-4 rounded-lg border transition-colors cursor-pointer ${
@@ -853,6 +866,7 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+      </div>
     </DashboardLayout>
   )
 }
