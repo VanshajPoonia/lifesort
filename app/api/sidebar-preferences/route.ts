@@ -5,6 +5,12 @@ import { getUserFromSession } from "@/lib/auth"
 const sql = neon(process.env.DATABASE_URL!)
 
 const DEFAULT_SIDEBAR_SECTIONS = {
+  home: true,
+  plan: true,
+  money: true,
+  life_admin: true,
+  settings: true,
+  admin: true,
   dashboard: true,
   reset: true,
   rules: true,
@@ -52,7 +58,10 @@ export async function GET() {
       SELECT sidebar_preferences FROM users WHERE id = ${user.id}
     `
 
-    const preferences = result[0]?.sidebar_preferences || DEFAULT_SIDEBAR_SECTIONS
+    const preferences = {
+      ...DEFAULT_SIDEBAR_SECTIONS,
+      ...(result[0]?.sidebar_preferences || {}),
+    }
 
     return NextResponse.json({ preferences })
   } catch (error) {
