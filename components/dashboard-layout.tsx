@@ -10,41 +10,19 @@ import { usePathname } from "next/navigation"
 import { useAuth } from "@/components/auth-provider"
 import {
   Target,
-  CheckSquare,
-  Timer,
-  Heart,
-  TrendingUp,
-  DollarSign,
-  Flame,
   Shield,
   Menu,
-  Bell,
   Settings,
   LayoutGrid,
   CalendarCheck,
-  Calendar as CalendarIcon,
-  ClipboardCheck,
-  Clock,
   Wrench,
-  Zap,
-  FileText,
-  Sparkles,
-  FolderPlus,
-  Link2,
   Coffee,
   Crown,
   Wallet,
   LogOut,
   Plus,
-  Network,
-  Users,
-  Wand2,
   Activity,
-  History,
   Inbox,
-  Lightbulb,
-  RefreshCcw,
-  Settings2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -62,6 +40,12 @@ interface DashboardLayoutProps {
 }
 
 const DEFAULT_SIDEBAR_PREFS = {
+  home: true,
+  plan: true,
+  money: true,
+  life_admin: true,
+  settings: true,
+  admin: true,
   dashboard: true,
   reset: true,
   rules: true,
@@ -98,6 +82,58 @@ const DEFAULT_SIDEBAR_PREFS = {
   timeline: true,
   notifications: true,
 }
+
+type SidebarItem = {
+  id: keyof typeof DEFAULT_SIDEBAR_PREFS
+  label: string
+  href: string
+  icon: React.ElementType
+  aliases?: string[]
+  adminOnly?: boolean
+  legacyFallback?: keyof typeof DEFAULT_SIDEBAR_PREFS
+}
+
+const HUB_NAV_ITEMS: SidebarItem[] = [
+  { id: "home", label: "Home", href: "/", icon: LayoutGrid, legacyFallback: "dashboard" },
+  { id: "today", label: "Today", href: "/today", icon: CalendarCheck },
+  {
+    id: "plan",
+    label: "Plan",
+    href: "/plan",
+    icon: Target,
+    aliases: ["/tasks", "/goals", "/projects", "/habits", "/calendar", "/waiting", "/commitments", "/someday", "/nuke", "/pomodoro"],
+  },
+  {
+    id: "capture",
+    label: "Capture",
+    href: "/capture",
+    icon: Inbox,
+    aliases: ["/inbox", "/notes", "/links", "/custom-sections", "/templates", "/daily-content"],
+  },
+  {
+    id: "money",
+    label: "Money",
+    href: "/money",
+    icon: Wallet,
+    aliases: ["/budget", "/income", "/investments", "/wishlist"],
+  },
+  {
+    id: "life_admin",
+    label: "Life Admin",
+    href: "/life-admin",
+    icon: Wrench,
+    aliases: ["/people", "/vault", "/maintenance", "/notifications"],
+  },
+  {
+    id: "insights",
+    label: "Insights",
+    href: "/insights",
+    icon: Activity,
+    aliases: ["/review", "/timeline", "/reset", "/ai-chat", "/life-areas"],
+  },
+  { id: "settings", label: "Settings", href: "/settings", icon: Settings, aliases: ["/rules"] },
+  { id: "admin", label: "Admin", href: "/admin", icon: Shield, adminOnly: true },
+]
 
 // Module-level cache — persists across client-side navigations so the
 // sidebar never re-fetches after the first successful load.
@@ -185,10 +221,17 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
   
   // Use defaults while loading, then use actual prefs
   const prefs = sidebarPrefs || DEFAULT_SIDEBAR_PREFS
-  const isActivePath = (href: string) => href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`)
-  const navButtonClass = (href: string) =>
-    `w-full justify-start gap-3 ${isActivePath(href) ? "text-secondary-foreground" : "text-foreground hover:text-foreground hover:bg-secondary"}`
-  const navIconClass = (href: string) => `h-5 w-5 ${isActivePath(href) ? "text-secondary-foreground" : "text-foreground"}`
+  const matchesPath = (href: string) => href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`)
+  const isActiveItem = (item: SidebarItem) => matchesPath(item.href) || Boolean(item.aliases?.some(matchesPath))
+  const isItemVisible = (item: SidebarItem) => {
+    if (item.adminOnly && !user?.is_admin) return false
+    if (prefs[item.id] !== undefined) return prefs[item.id]
+    if (item.legacyFallback && prefs[item.legacyFallback] !== undefined) return prefs[item.legacyFallback]
+    return true
+  }
+  const navButtonClass = (item: SidebarItem) =>
+    `w-full justify-start gap-3 ${isActiveItem(item) ? "text-secondary-foreground" : "text-foreground hover:text-foreground hover:bg-secondary"}`
+  const navIconClass = (item: SidebarItem) => `h-5 w-5 ${isActiveItem(item) ? "text-secondary-foreground" : "text-foreground"}`
 
   useEffect(() => {
     if (!user) return
@@ -271,279 +314,20 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
               </a>
             )}
 
-            {prefs.dashboard && (
-              <Link href="/">
-                <Button variant={isActivePath("/") ? "secondary" : "ghost"} className={navButtonClass("/")}>
-                  <LayoutGrid className={navIconClass("/")} />
-                  Dashboard
-                </Button>
-              </Link>
-            )}
-            {prefs.reset && (
-              <Link href="/reset">
-                <Button variant={isActivePath("/reset") ? "secondary" : "ghost"} className={navButtonClass("/reset")}>
-                  <RefreshCcw className={navIconClass("/reset")} />
-                  Reset My Life
-                </Button>
-              </Link>
-            )}
-            {prefs.rules && (
-              <Link href="/rules">
-                <Button variant={isActivePath("/rules") ? "secondary" : "ghost"} className={navButtonClass("/rules")}>
-                  <Settings2 className={navIconClass("/rules")} />
-                  Operating Rules
-                </Button>
-              </Link>
-            )}
-            {prefs.someday && (
-              <Link href="/someday">
-                <Button variant={isActivePath("/someday") ? "secondary" : "ghost"} className={navButtonClass("/someday")}>
-                  <Lightbulb className={navIconClass("/someday")} />
-                  Someday / Maybe
-                </Button>
-              </Link>
-            )}
-            {prefs.inbox && (
-              <Link href="/inbox">
-                <Button variant={isActivePath("/inbox") ? "secondary" : "ghost"} className={navButtonClass("/inbox")}>
-                  <Inbox className={navIconClass("/inbox")} />
-                  Inbox
-                </Button>
-              </Link>
-            )}
-            {prefs.waiting && (
-              <Link href="/waiting">
-                <Button variant={isActivePath("/waiting") ? "secondary" : "ghost"} className={navButtonClass("/waiting")}>
-                  <Clock className={navIconClass("/waiting")} />
-                  Waiting For
-                </Button>
-              </Link>
-            )}
-            {prefs.commitments && (
-              <Link href="/commitments">
-                <Button variant={isActivePath("/commitments") ? "secondary" : "ghost"} className={navButtonClass("/commitments")}>
-                  <ClipboardCheck className={navIconClass("/commitments")} />
-                  Commitments
-                </Button>
-              </Link>
-            )}
-            {prefs.maintenance && (
-              <Link href="/maintenance">
-                <Button variant={isActivePath("/maintenance") ? "secondary" : "ghost"} className={navButtonClass("/maintenance")}>
-                  <Wrench className={navIconClass("/maintenance")} />
-                  Maintenance
-                </Button>
-              </Link>
-            )}
-            {prefs.today && (
-              <Link href="/today">
-                <Button variant={isActivePath("/today") ? "secondary" : "ghost"} className={navButtonClass("/today")}>
-                  <CalendarCheck className={navIconClass("/today")} />
-                  Today Plan
-                </Button>
-              </Link>
-            )}
-            {prefs.review && (
-              <Link href="/review">
-                <Button variant={isActivePath("/review") ? "secondary" : "ghost"} className={navButtonClass("/review")}>
-                  <CheckSquare className={navIconClass("/review")} />
-                  Weekly Review
-                </Button>
-              </Link>
-            )}
-            {prefs.insights && (
-              <Link href="/insights">
-                <Button variant={isActivePath("/insights") ? "secondary" : "ghost"} className={navButtonClass("/insights")}>
-                  <Activity className={navIconClass("/insights")} />
-                  Insights
-                </Button>
-              </Link>
-            )}
-            {prefs.timeline && (
-              <Link href="/timeline">
-                <Button variant={isActivePath("/timeline") ? "secondary" : "ghost"} className={navButtonClass("/timeline")}>
-                  <History className={navIconClass("/timeline")} />
-                  Life Timeline
-                </Button>
-              </Link>
-            )}
-            {prefs.life_areas && (
-              <Link href="/life-areas">
-                <Button variant={isActivePath("/life-areas") ? "secondary" : "ghost"} className={navButtonClass("/life-areas")}>
-                  <Network className={navIconClass("/life-areas")} />
-                  Life Areas
-                </Button>
-              </Link>
-            )}
-            {prefs.projects && (
-              <Link href="/projects">
-                <Button variant={isActivePath("/projects") ? "secondary" : "ghost"} className={navButtonClass("/projects")}>
-                  <FolderPlus className={navIconClass("/projects")} />
-                  Projects
-                </Button>
-              </Link>
-            )}
-            {prefs.people && (
-              <Link href="/people">
-                <Button variant={isActivePath("/people") ? "secondary" : "ghost"} className={navButtonClass("/people")}>
-                  <Users className={navIconClass("/people")} />
-                  People
-                </Button>
-              </Link>
-            )}
-            {prefs.vault && (
-              <Link href="/vault">
-                <Button variant={isActivePath("/vault") ? "secondary" : "ghost"} className={navButtonClass("/vault")}>
-                  <Shield className={navIconClass("/vault")} />
-                  Life Vault
-                </Button>
-              </Link>
-            )}
-            {prefs.calendar && (
-              <Link href="/calendar">
-                <Button variant={isActivePath("/calendar") ? "secondary" : "ghost"} className={navButtonClass("/calendar")}>
-                  <CalendarIcon className={navIconClass("/calendar")} />
-                  Calendar
-                </Button>
-              </Link>
-            )}
-            {prefs.goals && (
-              <Link href="/goals">
-                <Button variant={isActivePath("/goals") ? "secondary" : "ghost"} className={navButtonClass("/goals")}>
-                  <Target className={navIconClass("/goals")} />
-                  Goals
-                </Button>
-              </Link>
-            )}
-            {prefs.habits && (
-              <Link href="/habits">
-                <Button variant={isActivePath("/habits") ? "secondary" : "ghost"} className={navButtonClass("/habits")}>
-                  <Flame className={navIconClass("/habits")} />
-                  Habits
-                </Button>
-              </Link>
-            )}
-            {prefs.tasks && (
-              <Link href="/tasks">
-                <Button variant={isActivePath("/tasks") ? "secondary" : "ghost"} className={navButtonClass("/tasks")}>
-                  <CheckSquare className={navIconClass("/tasks")} />
-                  Daily Tasks
-                </Button>
-              </Link>
-            )}
-            {prefs.nuke && (
-              <Link href="/nuke">
-                <Button variant={isActivePath("/nuke") ? "secondary" : "ghost"} className={navButtonClass("/nuke")}>
-                  <Zap className={navIconClass("/nuke")} />
-                  Nuke Goal
-                </Button>
-              </Link>
-            )}
-            {prefs.pomodoro && (
-              <Link href="/pomodoro">
-                <Button variant={isActivePath("/pomodoro") ? "secondary" : "ghost"} className={navButtonClass("/pomodoro")}>
-                  <Timer className={navIconClass("/pomodoro")} />
-                  Pomodoro
-                </Button>
-              </Link>
-            )}
-            {prefs.notes && (
-              <Link href="/notes">
-                <Button variant={isActivePath("/notes") ? "secondary" : "ghost"} className={navButtonClass("/notes")}>
-                  <FileText className={navIconClass("/notes")} />
-                  Notes
-                </Button>
-              </Link>
-            )}
-            {prefs.wishlist && (
-              <Link href="/wishlist">
-                <Button variant={isActivePath("/wishlist") ? "secondary" : "ghost"} className={navButtonClass("/wishlist")}>
-                  <Heart className={navIconClass("/wishlist")} />
-                  Wishlist
-                </Button>
-              </Link>
-            )}
-            {prefs.investments && (
-              <Link href="/investments">
-                <Button variant={isActivePath("/investments") ? "secondary" : "ghost"} className={navButtonClass("/investments")}>
-                  <TrendingUp className={navIconClass("/investments")} />
-                  Investments
-                </Button>
-              </Link>
-            )}
-            {prefs.income && (
-              <Link href="/income">
-                <Button variant={isActivePath("/income") ? "secondary" : "ghost"} className={navButtonClass("/income")}>
-                  <DollarSign className={navIconClass("/income")} />
-                  Income
-                </Button>
-              </Link>
-            )}
-            {prefs.budget && (
-              <Link href="/budget">
-                <Button variant={isActivePath("/budget") ? "secondary" : "ghost"} className={navButtonClass("/budget")}>
-                  <Wallet className={navIconClass("/budget")} />
-                  Budget
-                </Button>
-              </Link>
-            )}
-            <div className="my-2 h-px bg-border" />
-            {prefs.links && (
-              <Link href="/links">
-                <Button variant={isActivePath("/links") ? "secondary" : "ghost"} className={navButtonClass("/links")}>
-                  <Link2 className={navIconClass("/links")} />
-                  My Links
-                </Button>
-              </Link>
-            )}
-            {prefs.custom_sections && (
-              <Link href="/custom-sections">
-                <Button variant={isActivePath("/custom-sections") ? "secondary" : "ghost"} className={navButtonClass("/custom-sections")}>
-                  <FolderPlus className={navIconClass("/custom-sections")} />
-                  Custom Sections
-                </Button>
-              </Link>
-            )}
-            {prefs.daily_content && (
-              <Link href="/daily-content">
-                <Button variant={isActivePath("/daily-content") ? "secondary" : "ghost"} className={navButtonClass("/daily-content")}>
-                  <Sparkles className={navIconClass("/daily-content")} />
-                  Daily Quotes & Games
-                </Button>
-              </Link>
-            )}
-            {prefs.ai_assistant && (
-              <Link href="/ai-chat">
-                <Button variant={isActivePath("/ai-chat") ? "secondary" : "ghost"} className={navButtonClass("/ai-chat")}>
-                  <Sparkles className={navIconClass("/ai-chat")} />
-                  AI Assistant
-                </Button>
-              </Link>
-            )}
-            {prefs.capture && (
-              <Link href="/capture">
-                <Button variant={isActivePath("/capture") ? "secondary" : "ghost"} className={navButtonClass("/capture")}>
-                  <Wand2 className={navIconClass("/capture")} />
-                  AI Capture
-                </Button>
-              </Link>
-            )}
-            {prefs.templates && (
-              <Link href="/templates">
-                <Button variant={isActivePath("/templates") ? "secondary" : "ghost"} className={navButtonClass("/templates")}>
-                  <Sparkles className={navIconClass("/templates")} />
-                  Smart Templates
-                </Button>
-              </Link>
-            )}
-            {prefs.notifications && (
-              <Link href="/notifications">
-                <Button variant={isActivePath("/notifications") ? "secondary" : "ghost"} className={navButtonClass("/notifications")}>
-                  <Bell className={navIconClass("/notifications")} />
-                  Notifications
-                </Button>
-              </Link>
-            )}
+            <div className="space-y-1">
+              {HUB_NAV_ITEMS.filter(isItemVisible).map((item) => {
+                const Icon = item.icon
+                const active = isActiveItem(item)
+                return (
+                  <Link key={item.id} href={item.href} onClick={() => setSidebarOpen(false)}>
+                    <Button variant={active ? "secondary" : "ghost"} className={navButtonClass(item)}>
+                      <Icon className={navIconClass(item)} />
+                      {item.label}
+                    </Button>
+                  </Link>
+                )
+              })}
+            </div>
           </nav>
 
           {/* User Profile */}
