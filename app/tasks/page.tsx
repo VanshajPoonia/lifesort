@@ -13,6 +13,7 @@ import {
   Circle,
   Clock,
   Filter,
+  ArrowUpDown,
   Plus,
   Tag,
   Trash2,
@@ -25,6 +26,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { EditableText } from "@/components/editable-text"
 import { ReminderSettings } from "@/components/reminder-settings"
 import { LifeAreaBadge, LifeAreaSelect } from "@/components/life-area-controls"
+import { SortableList } from "@/components/sortable-list"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -33,11 +35,13 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { LifeArea } from "@/lib/life-areas"
 import { normalizeLifeArea } from "@/lib/life-areas"
+import { cn } from "@/lib/utils"
 
 type Priority = "low" | "medium" | "high"
 type TaskView = "today" | "upcoming" | "overdue" | "completed"
 type PriorityFilter = "all" | Priority
 type CompletionFilter = "all" | "open" | "completed"
+type SortMode = "manual" | "due_date"
 
 interface Task {
   id: number | string
@@ -53,6 +57,7 @@ interface Task {
   reminder_days?: number | null
   reminder_sent?: boolean | null
   life_area_id?: string | number | null
+  sort_order?: number | null
 }
 
 interface ReminderForm {
@@ -80,6 +85,11 @@ const completionOptions: Array<{ value: CompletionFilter; label: string }> = [
   { value: "all", label: "All statuses" },
   { value: "open", label: "Open" },
   { value: "completed", label: "Completed" },
+]
+
+const sortOptions: Array<{ value: SortMode; label: string }> = [
+  { value: "manual", label: "Manual" },
+  { value: "due_date", label: "Due date" },
 ]
 
 function dateInputValue(value?: string | null) {
@@ -167,6 +177,13 @@ function sortTasks(a: Task, b: Task) {
   return String(a.title).localeCompare(String(b.title))
 }
 
+function sortManualTasks(a: Task, b: Task) {
+  const aOrder = typeof a.sort_order === "number" ? a.sort_order : Number.MAX_SAFE_INTEGER
+  const bOrder = typeof b.sort_order === "number" ? b.sort_order : Number.MAX_SAFE_INTEGER
+  if (aOrder !== bOrder) return aOrder - bOrder
+  return sortTasks(a, b)
+}
+
 function getPriorityColor(priority: string) {
   const colors = {
     low: "bg-muted text-muted-foreground border-muted",
@@ -252,6 +269,7 @@ export default function TasksPage() {
   const [activeView, setActiveView] = useState<TaskView>("today")
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("all")
   const [completionFilter, setCompletionFilter] = useState<CompletionFilter>("all")
+  const [sortMode, setSortMode] = useState<SortMode>("manual")
   const [reminderDialogOpen, setReminderDialogOpen] = useState(false)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [reminderForm, setReminderForm] = useState<ReminderForm>({
@@ -435,8 +453,42 @@ export default function TasksPage() {
         if (completionFilter === "completed") return task.completed
         return true
       })
-      .sort(sortTasks)
-  }, [activeView, completionFilter, priorityFilter, tasks])
+      .sort(sortMode === "manual" ? sortManualTasks : sortTasks)
+  }, [activeView, completionFilter, priorityFilter, sortMode, tasks])
+
+  const handleReorderTasks = async (orderedVisibleTasks: Task[]) => {
+    if (sortMode !== "manual") return
+
+    const previousTasks = tasks
+    const visibleIds = new Set(visibleTasks.map((task) => String(task.id)))
+    const nextVisibleQueue = [...orderedVisibleTasks]
+    const fullManualOrder = [...tasks].sort(sortManualTasks)
+    const reorderedFull = fullManualOrder.map((task) => {
+      if (!visibleIds.has(String(task.id))) return task
+      return nextVisibleQueue.shift() || task
+    })
+    const normalized = reorderedFull.map((task, index) => ({ ...task, sort_order: index }))
+    const normalizedById = new Map(normalized.map((task) => [String(task.id), task]))
+
+    setTasks((current) => current.map((task) => normalizedById.get(String(task.id)) || task))
+
+    try {
+      const response = await fetch("/api/tasks", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderedIds: normalized.map((task) => task.id) }),
+      })
+
+      if (!response.ok) throw new Error("Task order could not be saved.")
+      const data = await response.json()
+      if (Array.isArray(data.tasks)) {
+        setTasks(data.tasks)
+      }
+    } catch (error) {
+      console.error("Failed to reorder tasks:", error)
+      setTasks(previousTasks)
+    }
+  }
 
   const emptyCopy = {
     today: {
@@ -571,7 +623,21 @@ export default function TasksPage() {
               ))}
             </TabsList>
 
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-2 sm:grid-cols-3">
+              <Select value={sortMode} onValueChange={(value) => setSortMode(value as SortMode)}>
+                <SelectTrigger className="min-w-[150px]">
+                  <ArrowUpDown className="mr-2 h-4 w-4" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {sortOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
               <Select value={priorityFilter} onValueChange={(value) => setPriorityFilter(value as PriorityFilter)}>
                 <SelectTrigger className="min-w-[170px]">
                   <Filter className="mr-2 h-4 w-4" />
@@ -621,13 +687,23 @@ export default function TasksPage() {
                   onAddTask={handleAddTask}
                 />
               ) : (
-                <div className="space-y-3">
-                  {visibleTasks.map((task) => (
+                <SortableList
+                  items={visibleTasks}
+                  getLabel={(task) => task.title}
+                  onReorder={handleReorderTasks}
+                  disabled={sortMode !== "manual"}
+                  className="space-y-3"
+                  renderItem={(task, { dragHandle, isDragging }) => (
                     <Card
                       key={task.id}
-                      className={`glass-strong border transition-all hover:shadow-lg ${task.completed ? "opacity-70" : ""}`}
+                      className={cn(
+                        "glass-strong border transition-all hover:shadow-lg",
+                        task.completed && "opacity-70",
+                        isDragging && "shadow-xl ring-2 ring-primary/30",
+                      )}
                     >
                       <CardContent className="flex flex-col gap-4 p-4 md:flex-row md:items-start">
+                        {dragHandle ? <div className="md:pt-0.5">{dragHandle}</div> : null}
                         <Checkbox
                           checked={task.completed}
                           onCheckedChange={() => handleToggleTask(task.id, !task.completed)}
@@ -742,8 +818,8 @@ export default function TasksPage() {
                         </div>
                       </CardContent>
                     </Card>
-                  ))}
-                </div>
+                  )}
+                />
               )}
             </TabsContent>
           ))}

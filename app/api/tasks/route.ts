@@ -9,6 +9,7 @@ const priorities = new Set(['low', 'medium', 'high'])
 
 type TaskBody = {
   id?: number | string
+  orderedIds?: Array<number | string>
   title?: string | null
   description?: string | null
   priority?: string | null
@@ -22,6 +23,7 @@ type TaskBody = {
   completed?: boolean | null
   goal_id?: number | string | null
   life_area_id?: number | string | null
+  sort_order?: number | string | null
 }
 
 function hasField(body: TaskBody, field: keyof TaskBody) {
@@ -66,6 +68,21 @@ function cleanId(value: unknown) {
   if (value === null || value === undefined || value === '') return null
   const parsed = typeof value === 'number' ? value : Number.parseInt(String(value), 10)
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+}
+
+function cleanOrderedIds(value: unknown) {
+  if (!Array.isArray(value)) return []
+  const seen = new Set<number>()
+  const ids: number[] = []
+
+  value.forEach((item) => {
+    const id = cleanId(item)
+    if (!id || seen.has(id)) return
+    seen.add(id)
+    ids.push(id)
+  })
+
+  return ids
 }
 
 function dateOnly(value: unknown) {
@@ -130,7 +147,7 @@ export async function GET() {
       SELECT *
       FROM tasks
       WHERE user_id = ${user.id}
-      ORDER BY completed ASC, due_date ASC NULLS LAST, created_at DESC
+      ORDER BY sort_order ASC, completed ASC, due_date ASC NULLS LAST, created_at DESC
     `
 
     return NextResponse.json(tasks)
@@ -161,6 +178,12 @@ export async function POST(request: Request) {
     const reminderAt = computeReminderAt(dueDate, dueTime, emailReminder, reminderDays)
     const goalId = await validateGoalId(cleanId(body.goal_id), user.id)
     const lifeAreaId = await validateLifeAreaId(normalizeLifeAreaId(body.life_area_id), user.id)
+    const orderRows = await sql`
+      SELECT COALESCE(MIN(sort_order), 0) - 1 AS sort_order
+      FROM tasks
+      WHERE user_id = ${user.id}
+    `
+    const sortOrder = Number(orderRows[0]?.sort_order ?? 0)
 
     if (goalId === undefined) {
       return NextResponse.json({ error: 'Goal not found' }, { status: 404 })
@@ -185,7 +208,8 @@ export async function POST(request: Request) {
         category,
         completed,
         goal_id,
-        life_area_id
+        life_area_id,
+        sort_order
       )
       VALUES (
         ${user.id},
@@ -201,7 +225,8 @@ export async function POST(request: Request) {
         ${cleanText(body.category)},
         ${Boolean(body.completed)},
         ${goalId},
-        ${lifeAreaId}
+        ${lifeAreaId},
+        ${sortOrder}
       )
       RETURNING *
     `
@@ -210,6 +235,64 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('[v0] Create task error:', error)
     return NextResponse.json({ error: 'Failed to create task' }, { status: 500 })
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const user = await getUserFromSession()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = (await request.json()) as TaskBody
+    const orderedIds = cleanOrderedIds(body.orderedIds)
+
+    if (orderedIds.length === 0) {
+      return NextResponse.json({ error: 'orderedIds is required' }, { status: 400 })
+    }
+
+    const existingRows = await sql`
+      SELECT id
+      FROM tasks
+      WHERE user_id = ${user.id}
+      ORDER BY sort_order ASC, completed ASC, due_date ASC NULLS LAST, created_at DESC
+    `
+    const existingIds = existingRows.map((row) => Number(row.id)).filter((id) => Number.isFinite(id))
+    const ownedIds = new Set(existingIds)
+    const invalidId = orderedIds.find((id) => !ownedIds.has(id))
+
+    if (invalidId) {
+      return NextResponse.json({ error: 'Task not found', id: invalidId }, { status: 404 })
+    }
+
+    const orderedSet = new Set(orderedIds)
+    const normalizedIds = [
+      ...orderedIds,
+      ...existingIds.filter((id) => !orderedSet.has(id)),
+    ]
+
+    await Promise.all(
+      normalizedIds.map((id, index) =>
+        sql`
+          UPDATE tasks
+          SET sort_order = ${index}, updated_at = NOW()
+          WHERE id = ${id} AND user_id = ${user.id}
+        `,
+      ),
+    )
+
+    const tasks = await sql`
+      SELECT *
+      FROM tasks
+      WHERE user_id = ${user.id}
+      ORDER BY sort_order ASC, completed ASC, due_date ASC NULLS LAST, created_at DESC
+    `
+
+    return NextResponse.json({ success: true, tasks })
+  } catch (error) {
+    console.error('[v0] Reorder tasks error:', error)
+    return NextResponse.json({ error: 'Failed to reorder tasks' }, { status: 500 })
   }
 }
 
