@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
   Activity,
   AlertCircle,
@@ -182,13 +182,15 @@ const IGNORING_SOURCE_LABELS: Record<IgnoringSignalSource, string> = {
   finance: "Finance Review",
 }
 
-const insightsHubCards = [
+function getReflectHubCards(currentHref: "/reflect" | "/insights") {
+  return [
   {
     title: "Life Balance",
     description: "Area balance metrics and ignored-life signals.",
-    href: "/insights",
+    href: currentHref,
     icon: Activity,
     badge: "Current page",
+    priority: "primary" as const,
   },
   {
     title: "Weekly Review",
@@ -197,13 +199,15 @@ const insightsHubCards = [
     icon: CheckSquare,
     statusKey: "weeklyReviewPending",
     statusLabel: "pending",
-    zeroLabel: "Saved",
+    zeroLabel: "0 pending",
+    priority: "primary" as const,
   },
   {
     title: "Life Timeline",
     description: "Review milestones and meaningful activity over time.",
     href: "/timeline",
     icon: History,
+    priority: "primary" as const,
   },
   {
     title: "Reset My Life",
@@ -212,7 +216,7 @@ const insightsHubCards = [
     icon: ShieldAlert,
     statusKey: "overdueTasks",
     statusLabel: "overdue",
-    zeroLabel: "Clear",
+    zeroLabel: "0 overdue",
   },
   {
     title: "LifeSort Coach",
@@ -229,9 +233,9 @@ const insightsHubCards = [
   {
     title: "What Am I Ignoring?",
     description: "Review non-AI risk signals and optional read-only AI context.",
-    href: "/insights",
+    href: currentHref,
     icon: Search,
-    badge: "Here",
+    badge: "Current page",
   },
   {
     title: "LifeScore",
@@ -240,7 +244,8 @@ const insightsHubCards = [
     icon: LayoutDashboard,
     badge: "Home",
   },
-]
+  ]
+}
 
 function formatDateLabel(value: string | null) {
   if (!value) return "No date"
@@ -249,9 +254,14 @@ function formatDateLabel(value: string | null) {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
 }
 
-export default function InsightsPage() {
+function ReflectExperience() {
   const { user, loading } = useAuth()
   const router = useRouter()
+  const pathname = usePathname()
+  const compatibility = pathname.startsWith("/insights")
+  const routeTitle = compatibility ? "Insights" : "Reflect"
+  const routeHref = compatibility ? "/insights" : "/reflect"
+  const reflectHubCards = useMemo(() => getReflectHubCards(routeHref), [routeHref])
   const [metrics, setMetrics] = useState<LifeBalanceMetrics | null>(null)
   const [analysis, setAnalysis] = useState<AiLifeBalanceResult | null>(null)
   const [ignoringInsights, setIgnoringInsights] = useState<IgnoringInsightsData | null>(null)
@@ -438,7 +448,7 @@ export default function InsightsPage() {
 
   if (loading || !user) {
     return (
-      <DashboardLayout title="Insights" subtitle="Life balance metrics and AI analysis">
+      <DashboardLayout title={routeTitle} subtitle="Life balance metrics and AI analysis">
         <div className="flex h-64 items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
@@ -447,9 +457,9 @@ export default function InsightsPage() {
   }
 
   return (
-    <DashboardLayout title="Insights" subtitle="See which parts of life are getting attention and which ones may need care.">
+    <DashboardLayout title={routeTitle} subtitle="See which parts of life are getting attention and which ones may need care.">
       <div className="space-y-6">
-        <HubGrid cards={insightsHubCards} />
+        <HubGrid cards={reflectHubCards} />
 
         <section className="rounded-lg border bg-card p-5">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -834,6 +844,10 @@ export default function InsightsPage() {
       </div>
     </DashboardLayout>
   )
+}
+
+export default function InsightsPage() {
+  return <ReflectExperience />
 }
 
 function InsightList({ title, items }: { title: string; items: string[] }) {
