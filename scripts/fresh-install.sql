@@ -661,6 +661,10 @@ CREATE TABLE IF NOT EXISTS custom_section_items (
   updated_at TIMESTAMP DEFAULT NOW()
 );
 
+-- api_usage is a SYSTEM-WIDE counter for external API quotas (e.g., the
+-- Alpha Vantage free-tier daily request cap). One row per (api_name, date).
+-- Intentionally has no user_id — used only by app/api/investments/background-fetch
+-- to throttle the shared backend integration. Do not "fix" this by adding user_id.
 CREATE TABLE IF NOT EXISTS api_usage (
   id SERIAL PRIMARY KEY,
   api_name VARCHAR(100) NOT NULL,
@@ -1052,6 +1056,10 @@ CREATE INDEX IF NOT EXISTS idx_agent_action_events_run
 CREATE INDEX IF NOT EXISTS idx_habits_user_frequency ON habits(user_id, frequency);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_type ON notifications(user_id, type);
 CREATE INDEX IF NOT EXISTS idx_routine_steps_routine_sort ON routine_steps(routine_id, sort_order);
+
+CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id ON password_reset_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_nuke_goals_user_id ON nuke_goals(user_id);
+CREATE INDEX IF NOT EXISTS idx_budget_goals_user_id ON budget_goals(user_id);
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Optional / future-use tables

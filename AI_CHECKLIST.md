@@ -116,6 +116,7 @@ Observed env var names include:
 - `ALPHA_VANTAGE_API_KEY`
 - `GROQ_API_KEY`
 - `OPENROUTER_API_KEY`
+- `OAUTH_TOKEN_ENCRYPTION_KEY`
 - Vercel/Neon/Postgres provisioned variables such as `POSTGRES_URL`, `POSTGRES_PRISMA_URL`, `PGHOST`, `PGUSER`, and related names.
 
 Check only names/presence unless explicitly authorized to inspect values.
@@ -126,6 +127,15 @@ AI route env notes:
 - `GROQ_API_KEY` powers `/api/investments/parse-screenshot`.
 - AI routes should use the main opaque `session` cookie via `getUserFromSession()`, not JWT auth.
 - The `ai_usage_events` migration must be applied before conservative per-user AI caps are enforced; code tolerates the table being absent so deploys do not fail before migration.
+
+OAuth token encryption env notes:
+
+- `OAUTH_TOKEN_ENCRYPTION_KEY` is required in production. Used by `lib/token-crypto.ts` to encrypt `calendar_integrations.access_token` and `refresh_token` at rest with AES-256-GCM.
+- Generate with: `openssl rand -base64 48`
+- Must be set in BOTH `.env.local` (local dev) and Vercel project env vars (prod) before the next deploy or `/api/calendar/google/callback` and `/api/calendar/sync` will throw.
+- In dev (`NODE_ENV !== 'production'`), a missing key triggers a one-time console warning and falls back to plaintext pass-through so local work isn't blocked.
+- Legacy plaintext rows are decrypted as pass-through; they self-encrypt on next token refresh (Google access tokens expire after ~1 hour).
+- Key rotation: the storage format starts with `v1:` so a future migration can re-encrypt with a new key.
 
 ## Commands
 

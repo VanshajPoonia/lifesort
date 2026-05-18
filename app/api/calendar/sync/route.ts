@@ -1,17 +1,23 @@
 import { NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
 import { getUserFromSession } from "@/lib/auth"
+import { encryptToken, decryptToken } from "@/lib/token-crypto"
 
 const sql = neon(process.env.DATABASE_URL!)
 
 async function refreshGoogleToken(integration: any) {
+  // integration.refresh_token may be encrypted (v1:...) or plaintext (legacy
+  // row pre-encryption). decryptToken passes through plaintext.
+  const refreshToken = decryptToken(integration.refresh_token)
+  if (!refreshToken) return null
+
   const response = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       client_id: process.env.GOOGLE_CLIENT_ID!,
       client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-      refresh_token: integration.refresh_token,
+      refresh_token: refreshToken,
       grant_type: "refresh_token",
     }),
   })
@@ -19,9 +25,10 @@ async function refreshGoogleToken(integration: any) {
   const tokens = await response.json()
   if (response.ok) {
     const expiresAt = new Date(Date.now() + tokens.expires_in * 1000)
+    const encryptedAccess = encryptToken(tokens.access_token)
     await sql`
-      UPDATE calendar_integrations 
-      SET access_token = ${tokens.access_token}, expires_at = ${expiresAt.toISOString()}, updated_at = NOW()
+      UPDATE calendar_integrations
+      SET access_token = ${encryptedAccess}, expires_at = ${expiresAt.toISOString()}, updated_at = NOW()
       WHERE id = ${integration.id}
     `
     return tokens.access_token
@@ -84,7 +91,8 @@ export async function GET(request: Request) {
   const allEvents: any[] = []
 
   for (const integration of integrations) {
-    let accessToken = integration.access_token
+    // Decrypt the stored access_token. Pass-through for legacy plaintext rows.
+    let accessToken = decryptToken(integration.access_token)
 
     // Check if token is expired
     if (new Date(integration.expires_at) < new Date()) {

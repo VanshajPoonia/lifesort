@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
 import { getUserFromSession } from "@/lib/auth"
+import { encryptToken } from "@/lib/token-crypto"
 
 const sql = neon(process.env.DATABASE_URL!)
 
@@ -72,16 +73,19 @@ export async function GET(request: Request) {
     })
     const userInfo = await userInfoResponse.json()
 
-    // Save or update integration
+    // Save or update integration. Tokens are encrypted at rest via
+    // lib/token-crypto.ts before being written to the DB.
     const expiresAt = new Date(Date.now() + tokens.expires_in * 1000)
+    const encryptedAccess = encryptToken(tokens.access_token)
+    const encryptedRefresh = encryptToken(tokens.refresh_token)
 
     await sql`
       INSERT INTO calendar_integrations (user_id, provider, access_token, refresh_token, expires_at, calendar_email)
-      VALUES (${userId}, 'google', ${tokens.access_token}, ${tokens.refresh_token}, ${expiresAt.toISOString()}, ${userInfo.email})
-      ON CONFLICT (user_id, provider) 
-      DO UPDATE SET 
-        access_token = ${tokens.access_token},
-        refresh_token = COALESCE(${tokens.refresh_token}, calendar_integrations.refresh_token),
+      VALUES (${userId}, 'google', ${encryptedAccess}, ${encryptedRefresh}, ${expiresAt.toISOString()}, ${userInfo.email})
+      ON CONFLICT (user_id, provider)
+      DO UPDATE SET
+        access_token = ${encryptedAccess},
+        refresh_token = COALESCE(${encryptedRefresh}, calendar_integrations.refresh_token),
         expires_at = ${expiresAt.toISOString()},
         calendar_email = ${userInfo.email},
         updated_at = NOW()

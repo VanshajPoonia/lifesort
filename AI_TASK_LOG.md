@@ -64,6 +64,41 @@ Current verification state:
 #### Notes
 - The pre-existing working-tree change in `saveContentToHistory` (inline expression replacing `safeContent` + guard) was reverted to HEAD's safer pattern. If that removal was intentional, it can be re-applied — but the guard is genuinely useful and there's no comment explaining why it was dropped.
 
+### 2026-05-18 - Audit-Followup Fixes: OAuth Encryption, api_usage Comment, Missing Indexes
+
+- Agent/tool used: Claude Code (coding agent mode).
+- Task: Fix all three open findings from today's schema audit.
+
+#### Files Created
+- `lib/token-crypto.ts` — AES-256-GCM `encryptToken` / `decryptToken` helpers. Key derived from `OAUTH_TOKEN_ENCRYPTION_KEY` env var via `scryptSync(secret, "lifesort-oauth-v1", 32)` and cached. Storage format `v1:<iv-b64>:<authTag-b64>:<ciphertext-b64>`. Backward-compatible: `decryptToken` returns the value as-is when there's no `v1:` prefix (legacy plaintext pass-through). Forward-compatible: format version prefix allows future key rotation. In production a missing/short key throws; in dev it warns once and falls back to plaintext pass-through so local work isn't blocked.
+- `scripts/migrations/2026-05-18-missing-user-id-indexes.sql` — `CREATE INDEX CONCURRENTLY IF NOT EXISTS` for `idx_password_reset_tokens_user_id`, `idx_nuke_goals_user_id`, `idx_budget_goals_user_id`. No `BEGIN/COMMIT` because `CREATE INDEX CONCURRENTLY` can't run inside a transaction.
+
+#### Files Modified
+- `app/api/calendar/google/callback/route.ts` — wraps `tokens.access_token` and `tokens.refresh_token` with `encryptToken()` before the INSERT / ON CONFLICT UPDATE. The `Authorization: Bearer ${tokens.access_token}` call to Google's userinfo endpoint uses the freshly-fetched plaintext directly (unchanged — no DB round trip).
+- `app/api/calendar/sync/route.ts` — `refreshGoogleToken()` now decrypts `integration.refresh_token` before sending to Google's token endpoint and encrypts the new `tokens.access_token` before UPDATE. The main loop decrypts `integration.access_token` from the SELECT * row before checking expiry / using it as the Bearer token.
+- `app/api/calendar/integrations/route.ts` — no change needed; the route already SELECTs only `provider, calendar_email, created_at, updated_at` (no token fields ever returned to the client).
+- `scripts/schema.sql` — added comment block above `CREATE TABLE IF NOT EXISTS api_usage` explaining the missing `user_id` is intentional (system-wide counter for Alpha Vantage quota). Added three `CREATE INDEX IF NOT EXISTS` for the new user_id indexes.
+- `scripts/fresh-install.sql` — regenerated from updated `schema.sql`.
+- `AI_CHECKLIST.md` — added `OAUTH_TOKEN_ENCRYPTION_KEY` to the env var list and a new "OAuth token encryption env notes" section covering generation, dev/prod behavior, legacy pass-through, and key rotation.
+
+#### Commands Run
+- `npx tsc --noEmit` → passes
+- `OAUTH_TOKEN_ENCRYPTION_KEY=$(openssl rand -base64 48) node /tmp/token-crypto-test.mjs` → all 5 cases ✓ (round-trip on real tokens, null/empty/undefined handling, legacy plaintext pass-through, IV randomness verified — two encryptions of same value produce different ciphertext).
+
+#### Production Deployment Steps
+1. **Generate a key**: `openssl rand -base64 48`
+2. **Add to `.env.local`** (local dev — optional but recommended): `OAUTH_TOKEN_ENCRYPTION_KEY=<paste>`
+3. **Add to Vercel project env vars** (prod — **REQUIRED before next deploy**): `OAUTH_TOKEN_ENCRYPTION_KEY=<same value>` for the Production environment.
+4. **Run the migration in Neon SQL Editor**: paste contents of `scripts/migrations/2026-05-18-missing-user-id-indexes.sql` and Run.
+5. Deploy. After deploy, smoke-test: disconnect + reconnect Google Calendar. Verify in Neon: `SELECT LEFT(access_token, 3) FROM calendar_integrations WHERE user_id = '<your-id>';` should return `v1:`.
+
+#### Migration of existing prod data
+- No backfill needed. Existing rows have plaintext tokens; `decryptToken` passes them through. They self-encrypt on next token refresh (Google access tokens TTL ~1 hour, so all rows self-encrypt within an hour of normal usage).
+- Refresh tokens persist longer but self-encrypt the next time a refresh fails and the user re-authorizes (or whenever `refresh_token` is rewritten by the callback route).
+
+#### Risks
+- If `OAUTH_TOKEN_ENCRYPTION_KEY` is NOT set in Vercel before deploy, the calendar callback and sync routes will throw `OAUTH_TOKEN_ENCRYPTION_KEY env var must be set...` on every request. Set the env var FIRST.
+
 ### 2026-05-18 - Canonical Schema Includes Pomodoro/Payment + fresh-install Bundle
 
 - Agent/tool used: Claude Code (coding agent mode).
