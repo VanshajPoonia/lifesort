@@ -22,9 +22,15 @@ export async function GET() {
     }, { status: 400 })
   }
 
+  // `openid` + `userinfo.email` are required so the callback's
+  // /oauth2/v2/userinfo call returns the user's address; without them
+  // `calendar_integrations.calendar_email` ends up null and the UI shows
+  // a blank "Connected as" label. calendar.events.readonly is a subset of
+  // calendar.readonly and is intentionally omitted.
   const scopes = [
+    "openid",
+    "https://www.googleapis.com/auth/userinfo.email",
     "https://www.googleapis.com/auth/calendar.readonly",
-    "https://www.googleapis.com/auth/calendar.events.readonly"
   ].join(" ")
 
   const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +

@@ -17,6 +17,39 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-05-18 22:30 IST - Google Calendar OAuth Scope Fix
+
+- Agent/tool used: Claude Code (Opus 4.7), acting as coding agent at user's request.
+- Task completed: Fixed Google Calendar connection so the user's email is captured during OAuth.
+
+#### Files Modified
+- `app/api/calendar/google/auth/route.ts` — Added `openid` and `userinfo.email` scopes; removed redundant `calendar.events.readonly` (subset of `calendar.readonly`).
+- `AI_TASK_LOG.md` — This entry.
+
+#### Summary
+- The callback at `app/api/calendar/google/callback/route.ts` calls `https://www.googleapis.com/oauth2/v2/userinfo` to populate `calendar_integrations.calendar_email`. That endpoint requires the `email`/`openid` OAuth scopes, which the auth route was not requesting. Result: `userInfo.email` came back undefined and the row stored `calendar_email = null`, so the UI's "Connected as ..." label was blank.
+- Adding `openid` + `https://www.googleapis.com/auth/userinfo.email` to the scope list resolves it. `prompt=consent` is already set, so existing connections will re-grant the new scopes on next pair.
+
+#### Commands Run
+- `npx tsc --noEmit` → passed (no output).
+- `npm run build` → passed.
+
+#### Bugs Found or Fixed
+- Fixed: blank `calendar_email` after Google Calendar pairing.
+- Noted (not code bugs, user-side config): `NEXT_PUBLIC_APP_URL` in local `.env.local` points to the production domain, so OAuth from `npm run dev` will redirect to prod. `OAUTH_TOKEN_ENCRYPTION_KEY` is set in Vercel production (confirmed by user) and is the only env required there beyond `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`.
+
+#### Remaining Issues / Known Limitations
+- Existing rows with `calendar_email = null` will only be repaired on re-pair (disconnect + reconnect). The callback uses `INSERT ... ON CONFLICT DO UPDATE` and updates `calendar_email`, so a single reconnect fixes the row.
+- Scopes remain read-only; LifeSort still cannot push events to Google Calendar. This matches `AI_PROJECT.md` scope.
+
+#### Suggested Next Steps
+- User pairs their Google profile from production (`https://lifesort.kreativvantage.com/calendar`); confirm the "Connected as <email>" label renders and that events sync.
+- If write access to Google Calendar is ever wanted, swap `calendar.readonly` for `calendar.events` and add a POST path in `app/api/calendar/sync` / a new write route.
+
+#### Handoff Notes
+- The Google OAuth redirect URI is derived from `NEXT_PUBLIC_APP_URL` at request time. The exact `${NEXT_PUBLIC_APP_URL}/api/calendar/google/callback` must be registered as an Authorized Redirect URI in the Google Cloud Console for the active client ID, or the callback will be rejected with `redirect_uri_mismatch` before any code in this repo runs.
+- Tokens are encrypted at rest via `lib/token-crypto.ts`. Legacy plaintext rows pass through and self-encrypt on next refresh.
+
 ### 2026-05-18 21:04 IST - Trial Banner Layout Offset Fix
 
 - Agent/tool used: Codex (GPT-5 coding agent).
