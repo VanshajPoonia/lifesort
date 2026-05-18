@@ -17,6 +17,57 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-05-18 15:00 IST - Grouped Navigation Hubs
+
+- Agent/tool used: Codex (GPT-5 coding agent).
+- Task completed: Consolidated the LifeSort website sidebar into grouped navigation hubs while preserving all existing feature routes.
+
+#### Files Modified
+- `components/dashboard-layout.tsx` — Replaced the long feature-by-feature sidebar with hub-level navigation, child-route active highlighting, admin-only Admin visibility, and hub preference handling.
+- `components/hub-page.tsx` — Added reusable hub hero/card helpers, lightweight status badge rendering, and a pinned-favorites TODO card.
+- `app/api/navigation-summary/route.ts` — Added authenticated read-only user-scoped hub summary counts with missing-schema tolerance.
+- `app/plan/page.tsx` — Added Plan hub cards for Tasks, Goals, Projects, Habits/Routines, Calendar, Waiting For, Commitments, Someday / Maybe, Nuke Goal, and Pomodoro.
+- `app/money/page.tsx` — Added Money hub cards for Budget, Income, Investments, and Wishlist.
+- `app/life-admin/page.tsx` — Added Life Admin hub cards for People, Life Vault, Life Maintenance, and Notifications.
+- `app/today/page.tsx` — Kept the Today Plan content and added hub cards for Today Plan, Tasks, Calendar, and Habits.
+- `app/capture/page.tsx` — Kept AI Capture and added hub cards for AI Capture, Inbox, Notes, Links, Custom Sections, Smart Templates, Quick Add guidance, and Daily Content.
+- `app/insights/page.tsx` — Kept existing Life Balance / ignored-life insight content and added hub cards for Weekly Review, Timeline, Reset, Coach Chat, Life Areas, What Am I Ignoring, and LifeScore.
+- `app/settings/page.tsx` — Switched sidebar customization to hub-level toggles and added Settings cards including a link to Personal Operating Rules.
+- `app/api/sidebar-preferences/route.ts` — Added hub preference defaults and merged stored preferences with new defaults.
+- `AI_PROJECT.md`, `AI_DECISIONS.md`, `AI_TASK_LOG.md` — Updated project memory for the grouped navigation model.
+
+#### Summary
+- The primary sidebar now shows only Home, Today, Plan, Capture, Money, Life Admin, Insights, Settings, and Admin for admin users.
+- Existing feature routes such as `/tasks`, `/goals`, `/notes`, `/budget`, `/maintenance`, `/ai-chat`, and `/reset` were not deleted or renamed.
+- Hidden feature routes still highlight their parent hub in the sidebar.
+- Hub cards now show safe lightweight badges for simple counts such as due tasks, calendar today, habits due, unsorted Inbox, waiting follow-ups, due commitments, overdue maintenance, weekly review status, unread notifications, and Someday reviews.
+- Global Search, Quick Add, notifications, and Daily Popup remain in the shared top bar.
+- Pinned Favorites were intentionally left as a TODO rather than adding new schema or customization complexity.
+
+#### Commands Run
+- `git status --short --branch` → branch `main...origin/main`; navigation consolidation files modified/untracked as expected.
+- `git diff --stat` → reviewed; scoped to navigation hubs, hub summary API, settings/sidebar preferences, and memory docs.
+- `git diff --check` → passed.
+- `npx tsc --noEmit` → passed.
+- `npm run lint` → failed with the known repo-wide ESLint 10 blocker: no `eslint.config.(js|mjs|cjs)` file exists.
+- `npm run build` → passed. Build still skips type/lint validation and emits known unsupported `metadata.themeColor` / `metadata.viewport` warnings.
+- `npm run dev` + HTTP smoke with `curl` → `/`, `/today`, `/plan`, `/capture`, `/money`, `/life-admin`, `/insights`, `/settings`, `/login`, `/register`, `/tasks`, and `/ai-chat` returned `200`.
+
+#### Remaining Issues / Known Limitations
+- Sidebar favorites are not implemented yet; hub pages show a TODO card for future pinned shortcuts.
+- Browser console, authenticated data isolation, and click-through Quick Add / Global Search flows were not fully exercised in this pass.
+- Settings still stores legacy per-feature sidebar preference keys when present, but the visible customization now controls hub keys.
+
+#### Suggested Next Steps
+- Browser smoke-test the sidebar on desktop and mobile, especially active hub highlighting from child routes.
+- Add an ESLint flat config so `npm run lint` can validate source files again.
+- Consider a future Pinned Favorites pass if users want 3–6 custom shortcuts under the hub navigation.
+
+#### Handoff Notes
+- No database migration was added or run.
+- `/api/navigation-summary` must remain read-only; it should not generate notifications or mutate source records.
+- New routes are `/plan`, `/money`, and `/life-admin`; old routes remain available as deep links and are now reached through hub cards/search.
+
 ### 2026-05-18 02:21 IST - Daily Popup Duplicate Close Button Fix
 
 - Agent/tool used: Codex (GPT-5 coding agent).
