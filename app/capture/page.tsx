@@ -10,8 +10,10 @@ import {
   FileText,
   FolderPlus,
   Inbox,
+  Link2,
   Lightbulb,
   Loader2,
+  Plus,
   Shield,
   ShoppingCart,
   Sparkles,
@@ -22,6 +24,7 @@ import {
 
 import { useAuth } from "@/components/auth-provider"
 import { DashboardLayout } from "@/components/dashboard-layout"
+import { HubGrid } from "@/components/hub-page"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -83,6 +86,64 @@ const ENDPOINT_MAP: Record<DraftActionType, string> = {
   wishlist_item:  "/api/wishlist",
   calendar_event: "/api/calendar-events",
 }
+
+const captureHubCards = [
+  {
+    title: "AI Capture",
+    description: "Parse messy text into editable draft actions.",
+    href: "/capture",
+    icon: Wand2,
+    badge: "Current page",
+  },
+  {
+    title: "Inbox",
+    description: "Save unsorted thoughts before deciding where they belong.",
+    href: "/inbox",
+    icon: Inbox,
+    statusKey: "unsortedInbox",
+    statusLabel: "unsorted",
+    zeroLabel: "Clear",
+  },
+  {
+    title: "Notes",
+    description: "Capture knowledge, folders, tags, and quick reference material.",
+    href: "/notes",
+    icon: FileText,
+  },
+  {
+    title: "Links",
+    description: "Save URLs, folders, resources, and visual bookmarks.",
+    href: "/links",
+    icon: Link2,
+  },
+  {
+    title: "Custom Sections",
+    description: "Create structured lists for anything LifeSort does not model yet.",
+    href: "/custom-sections",
+    icon: FolderPlus,
+  },
+  {
+    title: "Smart Templates",
+    description: "Apply prebuilt life systems after previewing their items.",
+    href: "/templates",
+    icon: Sparkles,
+    badge: "Systems",
+  },
+  {
+    title: "Quick Add",
+    description: "Use the top-bar button anywhere in LifeSort for fast capture.",
+    href: "/capture",
+    icon: Plus,
+    badge: "Top bar",
+  },
+  {
+    title: "Daily Content",
+    description: "Quotes, jokes, games, history, and daily lightness.",
+    href: "/daily-content",
+    icon: Lightbulb,
+    badge: "Utility",
+  },
+]
 
 // ─── Draft field editor ───────────────────────────────────────────────────────
 
@@ -499,7 +560,7 @@ export default function CapturePage() {
 
   if (authLoading) {
     return (
-      <DashboardLayout title="AI Capture">
+      <DashboardLayout title="Capture" subtitle="Inbox, notes, links, and structured capture">
         <div className="flex items-center justify-center py-24 text-muted-foreground">
           <Loader2 className="h-6 w-6 animate-spin" />
         </div>
@@ -508,8 +569,10 @@ export default function CapturePage() {
   }
 
   return (
-    <DashboardLayout title="AI Capture">
-      <div className="mx-auto max-w-3xl space-y-6">
+    <DashboardLayout title="Capture" subtitle="Inbox, notes, links, and structured capture">
+      <div className="mx-auto max-w-5xl space-y-6">
+        <HubGrid cards={captureHubCards} />
+
         {/* Header */}
         <Card>
           <CardHeader>
