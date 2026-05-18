@@ -6,14 +6,14 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
   AlertCircle,
+  ArrowRight,
+  BookOpenText,
   CalendarDays,
   Check,
-  CheckCircle2,
   Clock,
   FileText,
   Flame,
   Lightbulb,
-  ListChecks,
   Loader2,
   Plus,
   Save,
@@ -73,6 +73,14 @@ type TodayItem = {
   date?: string | null
 }
 
+type DailyPriority = "must" | "should" | "could"
+
+type PrioritizedTodayItem = TodayItem & {
+  dailyPriority: DailyPriority
+  priorityLabel: "Must" | "Should" | "Could"
+  priorityReason: string
+}
+
 type TodayPlan = {
   id: string | null
   plan_date: string
@@ -122,6 +130,16 @@ type TodayResponse = {
     quickNotes: TodayItem[]
     unavailable?: string[]
   }
+}
+
+type JournalPreview = {
+  id: number
+  journal_date: string
+  mood: number | null
+  gratitude: string[]
+  affirmation_text: string | null
+  notes_from_today: string | null
+  updated_at: string | null
 }
 
 const emptyCandidates: TodayResponse["candidates"] = {
@@ -262,6 +280,7 @@ export default function TodayPage() {
   const [loadError, setLoadError] = useState("")
   const [saveState, setSaveState] = useState<SaveState>("idle")
   const [todayOrderState, setTodayOrderState] = useState<SaveState>("idle")
+  const [dailyPriorityFilter, setDailyPriorityFilter] = useState<"all" | DailyPriority>("all")
   const [customFocus, setCustomFocus] = useState("")
   const [reflection, setReflection] = useState({
     reflection_went_well: "",
@@ -276,6 +295,8 @@ export default function TodayPage() {
   const [aiError, setAiError] = useState("")
   const [createTaskTitle, setCreateTaskTitle] = useState("")
   const [creatingTask, setCreatingTask] = useState(false)
+  const [journalPreview, setJournalPreview] = useState<JournalPreview | null>(null)
+  const [journalLoaded, setJournalLoaded] = useState(false)
 
   useEffect(() => {
     if (!authLoading && !user) router.push("/login")
@@ -321,6 +342,23 @@ export default function TodayPage() {
   useEffect(() => {
     if (user) fetchToday()
   }, [fetchToday, user])
+
+  const fetchJournalPreview = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/journal/${planDate}`)
+      if (!response.ok) return
+      const data = await response.json().catch(() => null)
+      setJournalPreview(data?.entry || null)
+    } catch {
+      // non-fatal
+    } finally {
+      setJournalLoaded(true)
+    }
+  }, [planDate])
+
+  useEffect(() => {
+    if (user) fetchJournalPreview()
+  }, [fetchJournalPreview, user])
 
   const fetchHabitsToday = useCallback(async () => {
     try {
@@ -444,6 +482,46 @@ export default function TodayPage() {
     [capacity, focusItems.length, todaySummary.dueOrOverdueItems, todaySummary.dueOrOverdueTasks, todaySummary.highPriorityDueTasks],
   )
   const dueOrOverdueCount = todaySummary.dueOrOverdueItems || todaySummary.dueOrOverdueTasks
+  const dailyItems = useMemo(() => {
+    const seen = new Set<string>()
+    const mark = (item: TodayItem, dailyPriority: DailyPriority, priorityLabel: PrioritizedTodayItem["priorityLabel"], priorityReason: string): PrioritizedTodayItem | null => {
+      if (seen.has(item.id)) return null
+      seen.add(item.id)
+      return { ...item, dailyPriority, priorityLabel, priorityReason }
+    }
+    const mustItems = [
+      ...focusItems.map((item) => mark(item, "must", "Must", "Focused today")),
+      ...(candidates.todayToDo.length ? candidates.todayToDo : candidates.mustDo).map((item) => mark(item, "must", "Must", "Due or overdue")),
+    ].filter(Boolean) as PrioritizedTodayItem[]
+    const shouldItems = candidates.shouldDo
+      .map((item) => mark(item, "should", "Should", "Helpful next action"))
+      .filter(Boolean) as PrioritizedTodayItem[]
+    const couldItems = candidates.couldDo
+      .map((item) => mark(item, "could", "Could", "Optional if capacity allows"))
+      .filter(Boolean) as PrioritizedTodayItem[]
+    const baseItems = [...mustItems, ...shouldItems, ...couldItems]
+    const order = plan?.today_item_order || []
+    if (order.length === 0) return baseItems
+    const byId = new Map(baseItems.map((item) => [item.id, item]))
+    const ordered = order.map((id) => byId.get(id)).filter(Boolean) as PrioritizedTodayItem[]
+    const orderedIds = new Set(ordered.map((item) => item.id))
+    return [...ordered, ...baseItems.filter((item) => !orderedIds.has(item.id))]
+  }, [candidates.couldDo, candidates.mustDo, candidates.shouldDo, candidates.todayToDo, focusItems, plan?.today_item_order])
+  const filteredDailyItems = dailyPriorityFilter === "all"
+    ? dailyItems
+    : dailyItems.filter((item) => item.dailyPriority === dailyPriorityFilter)
+  const dailyCounts = {
+    all: dailyItems.length,
+    must: dailyItems.filter((item) => item.dailyPriority === "must").length,
+    should: dailyItems.filter((item) => item.dailyPriority === "should").length,
+    could: dailyItems.filter((item) => item.dailyPriority === "could").length,
+  }
+  const journalMood = journalPreview?.mood ? ["😟", "😕", "😐", "🙂", "😊"][journalPreview.mood - 1] : null
+  const journalPreviewText =
+    journalPreview?.affirmation_text ||
+    journalPreview?.gratitude?.find(Boolean) ||
+    journalPreview?.notes_from_today ||
+    ""
 
   const addFocus = async (item: TodayItem) => {
     if (focusItems.length >= 3 || focusIds.has(item.id)) return
@@ -560,11 +638,20 @@ export default function TodayPage() {
 
   const handleTodayToDoReorder = async (orderedItems: TodayItem[]) => {
     const previousCandidates = candidates
+    const previousOrder = plan?.today_item_order || []
+    const orderedIds = orderedItems.map((item) => item.id)
+    const todayToDoIds = new Set(previousCandidates.todayToDo.map((item) => item.id))
+    const orderedTodayToDo = orderedItems.filter((item) => todayToDoIds.has(item.id))
+    const orderedTodayToDoIds = new Set(orderedTodayToDo.map((item) => item.id))
     setCandidates((current) => ({
       ...current,
-      todayToDo: orderedItems,
-      mustDo: orderedItems.length ? orderedItems.slice(0, 12) : current.mustDo,
+      todayToDo: [
+        ...orderedTodayToDo,
+        ...current.todayToDo.filter((item) => !orderedTodayToDoIds.has(item.id)),
+      ],
+      mustDo: orderedTodayToDo.length ? orderedTodayToDo.slice(0, 12) : current.mustDo,
     }))
+    setPlan((current) => (current ? { ...current, today_item_order: orderedIds } : current))
     setTodayOrderState("saving")
 
     try {
@@ -573,16 +660,21 @@ export default function TodayPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           plan_date: planDate,
-          today_item_order: orderedItems.map((item) => item.id),
+          today_item_order: orderedIds,
         }),
       })
 
       if (!response.ok) throw new Error("Today order could not be saved.")
+      const data = await response.json().catch(() => null)
+      if (data?.plan?.today_item_order) {
+        setPlan((current) => (current ? { ...current, today_item_order: data.plan.today_item_order } : current))
+      }
       setTodayOrderState("saved")
       window.setTimeout(() => setTodayOrderState("idle"), 1200)
     } catch (error) {
       console.error("Failed to save Today To-Do order:", error)
       setCandidates(previousCandidates)
+      setPlan((current) => (current ? { ...current, today_item_order: previousOrder } : current))
       setTodayOrderState("error")
     }
   }
@@ -592,7 +684,7 @@ export default function TodayPage() {
       <DashboardLayout title="Today" subtitle="Know what to focus on today">
         <div className="space-y-4">
           <Skeleton className="h-28 w-full" />
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <Skeleton className="h-64 w-full" />
             <Skeleton className="h-64 w-full" />
             <Skeleton className="h-64 w-full" />
@@ -622,7 +714,7 @@ export default function TodayPage() {
                   <div>
                     <CardTitle className="flex items-center gap-2">
                       <CalendarDays className="h-5 w-5 text-primary" />
-                      Today command center
+                      Today
                     </CardTitle>
                     <CardDescription>
                       Focus, due items, calendar events, and habits are gathered here for {todayLabel}.
@@ -664,6 +756,41 @@ export default function TodayPage() {
               </div>
             )}
 
+            <Card className="surface-card section-enter border-amber-500/20 bg-amber-500/5">
+              <CardHeader>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <BookOpenText className="h-5 w-5 text-amber-600 dark:text-amber-300" />
+                      Journal
+                    </CardTitle>
+                    <CardDescription>
+                      {journalLoaded && journalPreview
+                        ? "Your reflection for today has started."
+                        : "Capture gratitude, intentions, and a short end-of-day reflection."}
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className={journalPreview ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300" : "bg-background/70 text-muted-foreground"}>
+                      {journalLoaded ? (journalPreview ? "Started" : "Not started") : "Loading"}
+                    </Badge>
+                    {journalMood && <span className="text-xl" aria-label={`Mood ${journalPreview?.mood}`}>{journalMood}</span>}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-muted-foreground">
+                  {journalPreviewText || "No journal notes for this date yet."}
+                </p>
+                <Button asChild variant="outline" className="shrink-0 gap-2">
+                  <Link href={`/journal?date=${planDate}`}>
+                    Open Journal
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+
             <Card className="surface-card section-enter">
               <CardHeader>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -683,7 +810,7 @@ export default function TodayPage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   <div className="space-y-2">
                     <Label>Energy level</Label>
                     <Select
@@ -781,9 +908,9 @@ export default function TodayPage() {
                   <div>
                     <CardTitle className="flex items-center gap-2">
                       <Star className="h-5 w-5 text-primary" />
-                      Today's Focus
+                      Today
                     </CardTitle>
-                    <CardDescription>Pick 1-3 items that would make today feel successful.</CardDescription>
+                    <CardDescription>Must, Should, and Could items in one daily list.</CardDescription>
                   </div>
                   <div className="flex items-center gap-3">
                     <SaveStatus state={saveState} />
@@ -810,7 +937,7 @@ export default function TodayPage() {
                     description="Choose from your suggestions or add a simple custom focus."
                   />
                 ) : (
-                  <div className="grid gap-3 md:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {focusItems.map((item, index) => (
                       <div key={item.id} className="rounded-lg border bg-background p-3">
                         <div className="flex items-start justify-between gap-2">
@@ -851,22 +978,50 @@ export default function TodayPage() {
                   </Button>
                 </div>
 
-                <SectionList
-                  title="Suggested focus"
-                  items={candidates.focusSuggestions}
-                  empty="No suggestions yet. A custom focus works perfectly."
-                  action={(item) => (
-                    <Button
-                      size="sm"
-                      variant={focusIds.has(item.id) ? "secondary" : "outline"}
-                      disabled={focusIds.has(item.id) || focusItems.length >= 3}
-                      onClick={() => addFocus(item)}
-                    >
-                      {focusIds.has(item.id) ? "Added" : "Focus"}
-                    </Button>
-                  )}
-                  compact
-                />
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-medium">Prioritized daily list</p>
+                    <SaveStatus state={todayOrderState} />
+                  </div>
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {([
+                      ["all", "All", dailyCounts.all],
+                      ["must", "Must", dailyCounts.must],
+                      ["should", "Should", dailyCounts.should],
+                      ["could", "Could", dailyCounts.could],
+                    ] as const).map(([value, label, count]) => (
+                      <Button
+                        key={value}
+                        type="button"
+                        size="sm"
+                        variant={dailyPriorityFilter === value ? "default" : "outline"}
+                        className="shrink-0"
+                        onClick={() => setDailyPriorityFilter(value)}
+                      >
+                        {label} {count}
+                      </Button>
+                    ))}
+                  </div>
+                  <SectionList
+                    title="Today"
+                    items={filteredDailyItems}
+                    empty="No daily items yet. Add a custom focus if something is on your mind."
+                    action={(item) => (
+                      <Button
+                        size="sm"
+                        variant={focusIds.has(item.id) ? "secondary" : "outline"}
+                        disabled={(!focusIds.has(item.id) && focusItems.length >= 3) || item.source_type === "custom"}
+                        onClick={() => addFocus(item)}
+                      >
+                        {focusIds.has(item.id) ? "Focused" : "Focus"}
+                      </Button>
+                    )}
+                    compact
+                    hideTitle
+                    reorderable
+                    onReorder={handleTodayToDoReorder}
+                  />
+                </div>
               </CardContent>
             </Card>
 
@@ -1030,33 +1185,6 @@ export default function TodayPage() {
               </Card>
             )}
 
-            <div className="grid gap-4 xl:grid-cols-3">
-              <SectionCard
-                icon={<ListChecks className="h-5 w-5 text-destructive" />}
-                title="Today To-Do"
-                description="Due and overdue tasks, goals, projects, waiting items, commitments, and maintenance."
-                items={candidates.todayToDo.length ? candidates.todayToDo : candidates.mustDo}
-                empty="No due items today. Pick one useful thing and keep the day light."
-                reorderable
-                onReorder={handleTodayToDoReorder}
-                saveState={todayOrderState}
-              />
-              <SectionCard
-                icon={<CheckCircle2 className="h-5 w-5 text-primary" />}
-                title="Should Do"
-                description="Helpful next actions, goals, and money reminders."
-                items={candidates.shouldDo}
-                empty="Nothing pressing here. Nice little pocket of breathing room."
-              />
-              <SectionCard
-                icon={<Lightbulb className="h-5 w-5 text-warning" />}
-                title="Could Do"
-                description="Optional tasks, recent notes, and savings nudges."
-                items={candidates.couldDo}
-                empty="No optional ideas yet. Add a custom focus if something is on your mind."
-              />
-            </div>
-
             {habitsLoaded && habitsToday.length > 0 && (
               <Card>
                 <CardHeader>
@@ -1094,7 +1222,7 @@ export default function TodayPage() {
               </Card>
             )}
 
-            <div className="grid gap-4 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
               <SectionCard
                 icon={<Clock className="h-5 w-5 text-primary" />}
                 title="Upcoming Deadlines"
@@ -1127,7 +1255,7 @@ export default function TodayPage() {
                 <CardDescription>Capture the lesson while it is still fresh.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid gap-4 lg:grid-cols-3">
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                   <ReflectionField
                     label="What went well?"
                     value={reflection.reflection_went_well}
@@ -1261,27 +1389,35 @@ function SectionList({
     return <EmptyPanel title={title} description={empty} />
   }
 
-  const renderItem = (item: TodayItem, dragHandle: ReactNode, isDragging = false) => (
-    <div
-      key={item.id}
-      className={cn(
-        "flex items-center justify-between gap-3 rounded-md border p-3 transition-shadow",
-        isDragging && "bg-background shadow-xl ring-2 ring-primary/30",
-      )}
-    >
-      {dragHandle}
-      <Link href={item.href} className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className={`truncate font-medium ${compact ? "text-sm" : ""}`}>{item.title}</p>
-          <Badge variant="outline">{sourceLabel(item.source_type)}</Badge>
-        </div>
-        <p className="mt-1 truncate text-xs text-muted-foreground">
-          {item.subtitle || formatDate(item.date) || "Open in LifeSort"}
-        </p>
-      </Link>
-      {action?.(item)}
-    </div>
-  )
+  const renderItem = (item: TodayItem, dragHandle: ReactNode, isDragging = false) => {
+    const prioritized = item as TodayItem & Partial<PrioritizedTodayItem>
+    return (
+      <div
+        key={item.id}
+        className={cn(
+          "flex items-center justify-between gap-3 rounded-md border p-3 transition-shadow",
+          isDragging && "bg-background shadow-xl ring-2 ring-primary/30",
+        )}
+      >
+        {dragHandle}
+        <Link href={item.href} className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className={`truncate font-medium ${compact ? "text-sm" : ""}`}>{item.title}</p>
+            {prioritized.priorityLabel && (
+              <Badge variant={prioritized.dailyPriority === "must" ? "secondary" : "outline"}>
+                {prioritized.priorityLabel}
+              </Badge>
+            )}
+            <Badge variant="outline">{sourceLabel(item.source_type)}</Badge>
+          </div>
+          <p className="mt-1 truncate text-xs text-muted-foreground">
+            {prioritized.priorityReason || item.subtitle || formatDate(item.date) || "Open in LifeSort"}
+          </p>
+        </Link>
+        {action?.(item)}
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-2">
