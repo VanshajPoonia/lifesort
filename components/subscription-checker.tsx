@@ -42,10 +42,9 @@ export function SubscriptionChecker() {
 
       if (now < trialEnd && !user.is_subscribed) {
         const diff = trialEnd.getTime() - now.getTime()
-        const hours = Math.floor(diff / (1000 * 60 * 60))
-        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+        const hours = Math.max(1, Math.ceil(diff / (1000 * 60 * 60)))
         
-        setTimeLeft(`${hours}h ${minutes}m`)
+        setTimeLeft(`${hours}h`)
         setSubscriptionState('trial')
       }
     }
@@ -97,9 +96,15 @@ export function SubscriptionChecker() {
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">
                   {isExpired ? (
-                    <>Free trial ended</>
+                    <>
+                      <span className="sm:hidden">Trial ended</span>
+                      <span className="hidden sm:inline">Free trial ended</span>
+                    </>
                   ) : (
-                    <>Free Trial: <span className="text-primary">{timeLeft}</span> remaining</>
+                    <>
+                      <span className="sm:hidden">Trial: <span className="text-primary">{timeLeft}</span> left</span>
+                      <span className="hidden sm:inline">Free Trial: <span className="text-primary">{timeLeft}</span> remaining</span>
+                    </>
                   )}
                 </p>
                 <p className="hidden text-xs text-muted-foreground sm:block">
@@ -117,8 +122,8 @@ export function SubscriptionChecker() {
               >
                 <Button size="sm" className="h-8 bg-gradient-to-r from-primary to-accent px-3 hover:opacity-90">
                   <Coffee className="mr-2 h-4 w-4" />
-                  <span className="hidden sm:inline">Support Us</span>
-                  <span className="sm:hidden">Support</span>
+                  <span className="hidden sm:inline">Go Pro</span>
+                  <span className="sm:hidden">Upgrade</span>
                 </Button>
               </a>
               <Button 
