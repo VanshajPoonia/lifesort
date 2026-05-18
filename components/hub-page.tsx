@@ -151,7 +151,7 @@ export function HubGrid({ cards }: { cards: HubCard[] }) {
   const { summary, loading } = useNavigationSummary(cards)
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:gap-4 xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:gap-4 xl:grid-cols-4">
       {cards.map((card) => {
         const { title, description, href, icon: Icon } = card
         const isPrimary = card.priority === "primary"
