@@ -98,6 +98,19 @@ Use this checklist when implementing the regression prompt:
 5. Verify protected APIs return `401` without cookies.
 6. Smoke create/edit/delete paths through APIs when browser automation is unavailable.
 7. Record browser-automation gaps separately from API/HTTP failures.
+
+## Global UX Smoke Checks
+
+Run after changes to `DashboardLayout`, command/search/capture UI, Home preferences, onboarding, or trial/subscription UI:
+
+- Cmd/Ctrl+K opens the global command palette.
+- `?` opens the shortcuts dialog and does not fire while typing in inputs, textareas, selects, or contenteditable fields.
+- Header search trigger, desktop Quick Add, and mobile FAB all open the command palette.
+- Capture commands still route through the existing `QuickAddModal` or existing feature pages; no capture data is silently written by the palette itself.
+- `/api/search?q=...` results still navigate to the expected records.
+- Home compact/detailed mode persists through `/api/app-preferences` and refresh.
+- Onboarding completion merges `app_preferences` instead of erasing existing preference keys.
+- Trial banner uses hourly precision and "Go Pro" or "Upgrade" wording.
 8. Treat 500s from missing columns/tables as schema drift and list exact missing objects.
 9. Do not run migrations or direct database cleanup without explicit target confirmation.
 10. After testing, delete temporary records through app APIs when possible and document anything left behind.
@@ -107,11 +120,13 @@ Use this checklist when implementing the regression prompt:
 
 1. Preserve deep links when consolidating navigation; hide routes from the sidebar only, never delete feature pages.
 2. Keep the primary sidebar hub-level: Home, Today, Organize, Money, Reflect, Settings, and admin-only Admin.
-3. Preserve compatibility routes: `/plan` should lead to Organize > Plan, `/life-admin` should lead to Organize > Admin, `/capture` remains the AI Capture feature page, and `/insights` remains a Reflect compatibility feature route.
-4. Keep Quick Add, Global Search, notifications, profile/settings, and sign-out reachable from the shared layout.
-5. Keep mobile navigation compact: Home, Today, Organize, Money, and More. More should include Reflect, Settings/Profile, Support/FAQs, and admin-only Admin.
-6. Keep hub summary endpoints read-only, authenticated, user-scoped, and missing-schema tolerant.
-7. Add hub cards for any feature hidden from the sidebar so discoverability is not lost.
+3. Keep Home short and attention-focused; do not re-add full module dashboards there when a hub or deep feature route already owns the workflow.
+4. Keep Today as the primary daily focus surface, with focus/due/suggested items unified into Must/Should/Could priority filters.
+5. Preserve compatibility routes: `/plan` should lead to Organize > Plan, `/life-admin` should lead to Organize > Admin, `/capture` remains the AI Capture feature page, and `/insights` remains a Reflect compatibility feature route.
+6. Keep Quick Add, Global Search, notifications, profile/settings, and sign-out reachable from the shared layout.
+7. Keep mobile navigation compact: Home, Today, Organize, Money, and More. More should include Reflect, Settings/Profile, Support/FAQs, and admin-only Admin.
+8. Keep hub summary endpoints read-only, authenticated, user-scoped, and missing-schema tolerant.
+9. Add hub cards or tab links for any feature hidden from the sidebar so discoverability is not lost.
 
 ## UI Polish Checklist
 
@@ -121,6 +136,22 @@ Use this checklist when implementing the regression prompt:
 4. Verify mobile tabs, hub cards, and forms stack or scroll without horizontal overflow.
 5. Make primary workflows visually stronger than utilities, and replace vague badges such as "Clear" with useful status text like "0 due" or "No data yet".
 6. Keep Quick Add, Global Search, notification bell, and mobile More navigation reachable after shell changes.
+
+## Responsive Foundation Checklist
+
+1. Use the LifeSort breakpoint contract consistently: mobile `<640px`, tablet `640-1023px`, desktop `1024-1600px`, wide `>1600px`.
+2. Prefer Tailwind responsive classes; use `useBreakpoint()` only for runtime behavior such as shell mode or expand/collapse detail rows.
+3. Signed-in shell expectations: desktop full sidebar, tablet icon rail, mobile bottom nav, and centered content capped around 1400px.
+4. High-risk grids should start as one column, move to two columns at `sm`, and use three/four columns only from `lg` when the content fits.
+5. Check 375px, 414px, 768px, 1024px, 1280px, 1440px, and 1920px widths for horizontal overflow, reachable Quick Add/Search, compact trial banner, and comfortable tap targets.
+
+## Journal Feature Checklist
+
+1. Journal entries must stay user-scoped through `user_id` and one row per `(user_id, journal_date)`.
+2. Journal APIs should validate dates and request bodies with Zod, return `{ entry: null }` for missing dates, and never show fake saved data.
+3. Journal autosave should debounce writes, show `Unsaved changes` / `Saving...` / `Saved` / error states, and keep a manual Save fallback.
+4. Do not add AI affirmation generation unless it follows the existing AI route pattern: session auth, usage caps, explicit provider env checks, and no automatic writes.
+5. When changing Journal schema, update the forward migration, `scripts/schema.sql`, `scripts/fresh-install.sql`, and `AI_TASK_LOG.md`.
 
 ## Environment Setup Checklist
 
