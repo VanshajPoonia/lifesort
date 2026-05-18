@@ -121,6 +121,7 @@ Architecture and product decision memory for LifeSort.
 - Organize is the primary workspace hub at `/organize`, with `?tab=plan|capture|admin` tabs. `/plan` and `/life-admin` are compatibility route files that redirect to the matching Organize tab. `/capture` remains a full AI Capture feature page because it contains unique workflow logic.
 - Reflect is the primary insight/review surface at `/reflect`. `/insights` remains a compatibility feature route with the same Life Balance / What Am I Ignoring workflow so old deep links do not break.
 - Mobile navigation uses a bottom bar for Home, Today, Organize, Money, and More. More exposes Reflect, Settings, Profile, Support/FAQs, and admin-only Admin while the header still keeps Global Search, Quick Add, notifications, profile/settings, and sign-out reachable.
+- UI polish should use the shared Tailwind utilities in `app/globals.css` before introducing page-local one-offs: `surface-card` for calm bordered surfaces, `interactive-card` for subtle hover lift, and `section-enter` for short page/section entrance motion. These utilities must stay transform/opacity based, fast (roughly 120-250ms), and reduced-motion aware. Do not add a separate animation library for routine product polish.
 - Theme state is stored in `localStorage` and applied via root class/data attributes.
 - `sessionStorage` is used for transient UI caching such as onboarding completion and sidebar preferences.
 - lucide-react is the icon source.

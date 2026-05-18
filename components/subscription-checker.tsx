@@ -87,22 +87,22 @@ export function SubscriptionChecker() {
     const isExpired = subscriptionState === 'expired'
 
     return (
-      <div ref={bannerRef} className="fixed left-0 right-0 top-0 z-40 glass-strong border-b border-primary/20">
-        <div className="px-4 py-3">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3 flex-1">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <Clock className="h-5 w-5 text-primary" />
+      <div ref={bannerRef} className="fixed left-0 right-0 top-0 z-40 border-b border-primary/10 bg-card/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/85">
+        <div className="px-3 py-2 sm:px-4 sm:py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <div className="hidden h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 sm:flex">
+                <Clock className="h-4 w-4 text-primary" />
               </div>
-              <div>
-                <p className="font-medium text-sm">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">
                   {isExpired ? (
                     <>Free trial ended</>
                   ) : (
                     <>Free Trial: <span className="text-primary">{timeLeft}</span> remaining</>
                   )}
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="hidden text-xs text-muted-foreground sm:block">
                   {isExpired
                     ? 'You can keep using LifeSort here; support us when you are ready.'
                     : 'Support us to continue using LifeSort after your trial ends'}
@@ -115,9 +115,10 @@ export function SubscriptionChecker() {
                 target="_blank" 
                 rel="noopener noreferrer"
               >
-                <Button size="sm" className="bg-gradient-to-r from-primary to-accent hover:opacity-90">
+                <Button size="sm" className="h-8 bg-gradient-to-r from-primary to-accent px-3 hover:opacity-90">
                   <Coffee className="mr-2 h-4 w-4" />
-                  Support Us
+                  <span className="hidden sm:inline">Support Us</span>
+                  <span className="sm:hidden">Support</span>
                 </Button>
               </a>
               <Button 

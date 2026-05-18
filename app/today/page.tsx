@@ -604,7 +604,7 @@ export default function TodayPage() {
 
   return (
     <DashboardLayout title="Today" subtitle={todayLabel}>
-      <div className="space-y-6">
+      <div className="space-y-5 md:space-y-6">
         {loadError ? (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-12 text-center">
@@ -616,7 +616,7 @@ export default function TodayPage() {
           </Card>
         ) : (
           <>
-            <Card className="border-primary/20">
+            <Card className="surface-card section-enter border-primary/20">
               <CardHeader>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
@@ -628,26 +628,26 @@ export default function TodayPage() {
                       Focus, due items, calendar events, and habits are gathered here for {todayLabel}.
                     </CardDescription>
                   </div>
-                  <Badge variant={dueOrOverdueCount > 0 ? "secondary" : "outline"}>
-                    {dueOrOverdueCount > 0 ? `${dueOrOverdueCount} due item${dueOrOverdueCount === 1 ? "" : "s"}` : "Clear"}
+                  <Badge variant={dueOrOverdueCount > 0 ? "secondary" : "outline"} className={dueOrOverdueCount > 0 ? "bg-primary/10 text-primary" : "bg-background/70 text-muted-foreground"}>
+                    {dueOrOverdueCount > 0 ? `${dueOrOverdueCount} due item${dueOrOverdueCount === 1 ? "" : "s"}` : "0 due"}
                   </Badge>
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  <div className="rounded-md border bg-background/70 p-3">
+                  <div className="surface-card rounded-md border bg-background/70 p-3">
                     <p className="text-2xl font-bold">{focusItems.length}/3</p>
                     <p className="text-xs text-muted-foreground">focus items selected</p>
                   </div>
-                  <div className="rounded-md border bg-background/70 p-3">
+                  <div className="surface-card rounded-md border bg-background/70 p-3">
                     <p className="text-2xl font-bold">{dueOrOverdueCount}</p>
                     <p className="text-xs text-muted-foreground">due or overdue items</p>
                   </div>
-                  <div className="rounded-md border bg-background/70 p-3">
+                  <div className="surface-card rounded-md border bg-background/70 p-3">
                     <p className="text-2xl font-bold">{todaySummary.calendarToday}</p>
                     <p className="text-xs text-muted-foreground">calendar events today</p>
                   </div>
-                  <div className="rounded-md border bg-background/70 p-3">
+                  <div className="surface-card rounded-md border bg-background/70 p-3">
                     <p className="text-2xl font-bold">{habitsToday.filter((habit) => habit.done).length}/{habitsToday.length}</p>
                     <p className="text-xs text-muted-foreground">habits checked off</p>
                   </div>
@@ -664,7 +664,7 @@ export default function TodayPage() {
               </div>
             )}
 
-            <Card>
+            <Card className="surface-card section-enter">
               <CardHeader>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
@@ -675,7 +675,7 @@ export default function TodayPage() {
                     <CardDescription>Plan around the time and energy you actually have today.</CardDescription>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Badge variant={capacitySummary.overload ? "destructive" : "secondary"}>
+                    <Badge variant={capacitySummary.overload ? "outline" : "secondary"} className={capacitySummary.overload ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300" : "bg-primary/10 text-primary"}>
                       {capacitySummary.recommended_focus_count} focus item{capacitySummary.recommended_focus_count === 1 ? "" : "s"} recommended
                     </Badge>
                     <SaveStatus state={saveState} />
@@ -744,11 +744,11 @@ export default function TodayPage() {
                 </div>
 
                 {capacitySummary.overload ? (
-                  <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+                  <div className="rounded-lg border border-amber-500/25 bg-amber-500/10 p-4">
                     <div className="flex items-start gap-2">
-                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-300" />
                       <div>
-                        <p className="text-sm font-medium text-destructive">Today may be overloaded.</p>
+                        <p className="text-sm font-medium text-amber-700 dark:text-amber-300">Today may be overloaded.</p>
                         <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
                           {capacitySummary.warnings.map((warning) => (
                             <li key={warning.type}>{warning.message}</li>
@@ -758,7 +758,7 @@ export default function TodayPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                  <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4 text-sm text-muted-foreground">
                     Your current plan looks realistic for the capacity you entered.
                   </div>
                 )}
@@ -775,7 +775,7 @@ export default function TodayPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-primary/20 bg-primary/5">
+            <Card className="surface-card section-enter border-primary/20 bg-primary/5">
               <CardHeader>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
@@ -790,9 +790,9 @@ export default function TodayPage() {
                     <Button
                       onClick={generateAiPlan}
                       disabled={generatingAi || loading}
-                      variant="outline"
+                      variant="secondary"
                       size="sm"
-                      className="gap-2"
+                      className="gap-2 bg-background/80"
                     >
                       {generatingAi
                         ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1160,14 +1160,14 @@ export default function TodayPage() {
 function SaveStatus({ state }: { state: SaveState }) {
   if (state === "saving") {
     return (
-      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+      <span className="flex items-center gap-1 text-xs text-muted-foreground transition-opacity duration-150 motion-reduce:transition-none">
         <Loader2 className="h-3.5 w-3.5 animate-spin" />
         Saving
       </span>
     )
   }
   if (state === "saved") {
-    return <span className="text-xs text-muted-foreground">Saved</span>
+    return <span className="animate-in fade-in text-xs text-emerald-600 duration-150 motion-reduce:animate-none">Saved</span>
   }
   if (state === "error") {
     return <span className="text-xs text-destructive">Save failed</span>
@@ -1212,7 +1212,7 @@ function SectionCard({
   saveState?: SaveState
 }) {
   return (
-    <Card>
+    <Card className="surface-card section-enter">
       <CardHeader>
         <div className="flex items-center justify-between gap-3">
           <CardTitle className="flex items-center gap-2">

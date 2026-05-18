@@ -113,6 +113,15 @@ Use this checklist when implementing the regression prompt:
 6. Keep hub summary endpoints read-only, authenticated, user-scoped, and missing-schema tolerant.
 7. Add hub cards for any feature hidden from the sidebar so discoverability is not lost.
 
+## UI Polish Checklist
+
+1. Keep polish passes frontend-only unless the task explicitly asks for data/API changes.
+2. Prefer shared Tailwind utilities (`surface-card`, `interactive-card`, `section-enter`) and existing shadcn/Radix primitives before adding page-local styles.
+3. Keep motion subtle and fast: transform/opacity only where practical, about 120-250ms, and always usable with reduced motion.
+4. Verify mobile tabs, hub cards, and forms stack or scroll without horizontal overflow.
+5. Make primary workflows visually stronger than utilities, and replace vague badges such as "Clear" with useful status text like "0 due" or "No data yet".
+6. Keep Quick Add, Global Search, notification bell, and mobile More navigation reachable after shell changes.
+
 ## Environment Setup Checklist
 
 Observed env var names include:

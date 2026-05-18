@@ -49,7 +49,7 @@ const moneyCards: HubCard[] = [
 export default function MoneyHubPage() {
   return (
     <DashboardLayout title="Money" subtitle="Budget, income, investments, and wishlist">
-      <div className="mx-auto max-w-6xl space-y-6">
+      <div className="mx-auto max-w-6xl space-y-5 md:space-y-6">
         <HubHero
           eyebrow="Money"
           title="Keep financial decisions in one place"

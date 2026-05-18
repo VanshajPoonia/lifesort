@@ -325,47 +325,47 @@ export default function SettingsPage() {
       title="Settings"
       subtitle="Manage your profile and preferences"
     >
-      <div className="space-y-6">
+      <div className="space-y-5 md:space-y-6">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Card>
+          <Card className="surface-card">
             <CardHeader>
               <CardTitle className="text-base">Profile</CardTitle>
               <CardDescription>Your identity, subscription, and account basics.</CardDescription>
             </CardHeader>
           </Card>
           <NextLink href="/rules">
-            <Card className="h-full transition-colors hover:border-primary/60 hover:bg-muted/30">
+            <Card className="surface-card interactive-card h-full">
               <CardHeader>
                 <CardTitle className="text-base">Operating Rules</CardTitle>
                 <CardDescription>Visible planning preferences and AI context.</CardDescription>
               </CardHeader>
             </Card>
           </NextLink>
-          <Card>
+          <Card className="surface-card">
             <CardHeader>
               <CardTitle className="text-base">App Preferences</CardTitle>
               <CardDescription>Sidebar sections, daily content, and help.</CardDescription>
             </CardHeader>
           </Card>
-          <Card>
+          <Card className="surface-card">
             <CardHeader>
               <CardTitle className="text-base">Security</CardTitle>
               <CardDescription>Account information and connected services.</CardDescription>
             </CardHeader>
           </Card>
-          <Card>
+          <Card className="surface-card">
             <CardHeader>
               <CardTitle className="text-base">Billing / Subscription</CardTitle>
               <CardDescription>Plan status, trial details, and subscription basics.</CardDescription>
             </CardHeader>
           </Card>
-          <Card>
+          <Card className="surface-card">
             <CardHeader>
               <CardTitle className="text-base">Integrations / Connections</CardTitle>
               <CardDescription>Connected calendar and service settings when available.</CardDescription>
             </CardHeader>
           </Card>
-          <Card>
+          <Card className="surface-card">
             <CardHeader>
               <CardTitle className="text-base">FAQs</CardTitle>
               <CardDescription>Answers for account, preferences, billing, and support.</CardDescription>
@@ -373,33 +373,33 @@ export default function SettingsPage() {
           </Card>
         </div>
 
-      <Tabs value={activeTab} onValueChange={changeSettingsTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5 lg:w-[620px]">
-          <TabsTrigger value="profile">
-            <User className="h-4 w-4 mr-2" />
+      <Tabs value={activeTab} onValueChange={changeSettingsTab} className="space-y-5 md:space-y-6">
+        <TabsList className="flex w-full justify-start overflow-x-auto rounded-lg bg-muted/70 p-1 lg:w-fit">
+          <TabsTrigger value="profile" className="min-w-max">
+            <User className="mr-2 h-4 w-4" />
             Profile
           </TabsTrigger>
-          <TabsTrigger value="sidebar">
-            <LayoutDashboard className="h-4 w-4 mr-2" />
+          <TabsTrigger value="sidebar" className="min-w-max">
+            <LayoutDashboard className="mr-2 h-4 w-4" />
             Sidebar
           </TabsTrigger>
-          <TabsTrigger value="content">
-            <Sparkles className="h-4 w-4 mr-2" />
+          <TabsTrigger value="content" className="min-w-max">
+            <Sparkles className="mr-2 h-4 w-4" />
             Content
           </TabsTrigger>
-          <TabsTrigger value="faqs">
-            <HelpCircle className="h-4 w-4 mr-2" />
+          <TabsTrigger value="faqs" className="min-w-max">
+            <HelpCircle className="mr-2 h-4 w-4" />
             FAQs
           </TabsTrigger>
-          <TabsTrigger value="account">
-            <Shield className="h-4 w-4 mr-2" />
+          <TabsTrigger value="account" className="min-w-max">
+            <Shield className="mr-2 h-4 w-4" />
             Account
           </TabsTrigger>
         </TabsList>
 
         {/* Profile Tab */}
-        <TabsContent value="profile" className="space-y-6">
-          <Card>
+        <TabsContent value="profile" className="section-enter space-y-5 md:space-y-6">
+          <Card className="surface-card">
             <CardHeader>
               <CardTitle>Profile Information</CardTitle>
               <CardDescription>
@@ -408,7 +408,7 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Avatar Section */}
-              <div className="flex items-center gap-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
                 <div className="relative">
                   <Avatar className="h-24 w-24">
                     <AvatarImage src={formData.avatar || undefined} />
@@ -529,8 +529,8 @@ export default function SettingsPage() {
         </TabsContent>
 
         {/* Sidebar Customization Tab */}
-        <TabsContent value="sidebar" className="space-y-6">
-          <Card>
+        <TabsContent value="sidebar" className="section-enter space-y-5 md:space-y-6">
+          <Card className="surface-card">
             <CardHeader>
               <CardTitle>Sidebar Sections</CardTitle>
               <CardDescription>
@@ -550,7 +550,7 @@ export default function SettingsPage() {
                 ].filter((item) => !item.adminOnly || user?.is_admin).map(({ id, label, icon: Icon, description }) => (
                   <div
                     key={id}
-                    className={`flex items-start gap-3 p-4 rounded-lg border transition-colors cursor-pointer ${
+                    className={`interactive-card flex cursor-pointer items-start gap-3 rounded-lg border p-4 ${
                       sidebarPrefs[id as keyof typeof sidebarPrefs] 
                         ? "border-primary bg-primary/5" 
                         : "border-border hover:border-muted-foreground/50"
@@ -588,8 +588,8 @@ export default function SettingsPage() {
         </TabsContent>
 
         {/* Content Preferences Tab */}
-        <TabsContent value="content" className="space-y-6">
-          <Card>
+        <TabsContent value="content" className="section-enter space-y-5 md:space-y-6">
+          <Card className="surface-card">
             <CardHeader>
               <CardTitle>Daily Content Preferences</CardTitle>
               <CardDescription>
@@ -713,8 +713,8 @@ export default function SettingsPage() {
 
         {/* Account Tab */}
         {/* FAQs Tab */}
-        <TabsContent value="faqs" className="space-y-6">
-          <Card>
+        <TabsContent value="faqs" className="section-enter space-y-5 md:space-y-6">
+          <Card className="surface-card">
             <CardHeader>
               <CardTitle>Frequently Asked Questions</CardTitle>
               <CardDescription>
@@ -819,8 +819,8 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="account" className="space-y-6">
-          <Card>
+        <TabsContent value="account" className="section-enter space-y-5 md:space-y-6">
+          <Card className="surface-card">
             <CardHeader>
               <CardTitle>Account Information</CardTitle>
               <CardDescription>

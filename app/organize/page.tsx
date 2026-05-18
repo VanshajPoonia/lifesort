@@ -258,7 +258,7 @@ export default function OrganizePage() {
 
   return (
     <DashboardLayout title="Organize" subtitle="Plan, capture, and life admin in one workspace">
-      <div className="mx-auto max-w-6xl space-y-6">
+      <div className="mx-auto max-w-6xl space-y-5 md:space-y-6">
         <HubHero
           eyebrow="Organize"
           title={tabCopy[activeTab].title}
@@ -266,14 +266,14 @@ export default function OrganizePage() {
         />
 
         <Tabs value={activeTab} onValueChange={changeTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3 overflow-x-auto sm:w-[420px]">
-            <TabsTrigger value="plan">Plan</TabsTrigger>
-            <TabsTrigger value="capture">Capture</TabsTrigger>
-            <TabsTrigger value="admin">Admin</TabsTrigger>
+          <TabsList className="flex w-full justify-start overflow-x-auto rounded-lg bg-muted/70 p-1 sm:inline-flex sm:w-auto">
+            <TabsTrigger value="plan" className="min-w-24 flex-1 sm:flex-none">Plan</TabsTrigger>
+            <TabsTrigger value="capture" className="min-w-24 flex-1 sm:flex-none">Capture</TabsTrigger>
+            <TabsTrigger value="admin" className="min-w-24 flex-1 sm:flex-none">Admin</TabsTrigger>
           </TabsList>
 
           {(["plan", "capture", "admin"] as OrganizeTab[]).map((tab) => (
-            <TabsContent key={tab} value={tab} className="space-y-6">
+            <TabsContent key={tab} value={tab} className="section-enter space-y-5 md:space-y-6">
               <HubGrid cards={tabCopy[tab].cards} />
               <FavoritesTodo />
             </TabsContent>

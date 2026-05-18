@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
+import { cn } from "@/lib/utils"
 
 type AreaMetrics = {
   key: string
@@ -152,7 +153,7 @@ function formatCurrency(value: number) {
 
 function EmptyState({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+    <div className="rounded-md border border-dashed bg-muted/20 p-4 text-sm text-muted-foreground">
       {children}
     </div>
   )
@@ -160,7 +161,7 @@ function EmptyState({ children }: { children: React.ReactNode }) {
 
 function MetricPill({ icon: Icon, label, value }: { icon: typeof Activity; label: string; value: string | number }) {
   return (
-    <div className="rounded-md border bg-muted/40 p-3">
+    <div className="surface-card rounded-md border bg-muted/30 p-3">
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <Icon className="h-3.5 w-3.5" />
         {label}
@@ -458,14 +459,16 @@ function ReflectExperience() {
 
   return (
     <DashboardLayout title={routeTitle} subtitle="See which parts of life are getting attention and which ones may need care.">
-      <div className="space-y-6">
-        <HubGrid cards={reflectHubCards} />
+      <div className="space-y-5 md:space-y-6">
+        <div className="section-enter">
+          <HubGrid cards={reflectHubCards} />
+        </div>
 
-        <section className="rounded-lg border bg-card p-5">
+        <section className="surface-card section-enter rounded-lg border bg-card/95 p-4 md:p-5">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Life Balance</p>
-              <h1 className="mt-1 text-2xl font-bold">Where your energy is going</h1>
+              <h1 className="mt-1 text-xl font-bold sm:text-2xl">Where your energy is going</h1>
               <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
                 Metrics are calculated locally from your Life Areas, tasks, goals, habits, projects, notes, budget, and weekly reviews.
               </p>
@@ -512,7 +515,7 @@ function ReflectExperience() {
             </div>
 
             <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-              <Card>
+              <Card className="surface-card">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Activity className="h-5 w-5 text-primary" />
@@ -618,7 +621,7 @@ function ReflectExperience() {
           </>
         ) : null}
 
-        <Card className="border-primary/20">
+        <Card className="surface-card section-enter border-primary/20">
           <CardHeader>
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
               <div>
@@ -674,14 +677,14 @@ function ReflectExperience() {
                 ) : (
                   <div className="space-y-4">
                     {ignoringGroups.map(([source, signals]) => (
-                      <div key={source} className="rounded-md border p-4">
+                      <div key={source} className="surface-card rounded-md border p-4">
                         <div className="flex items-center justify-between gap-3">
                           <h3 className="font-semibold">{IGNORING_SOURCE_LABELS[source]}</h3>
                           <Badge variant="secondary">{signals.length}</Badge>
                         </div>
                         <div className="mt-3 grid gap-3 lg:grid-cols-2">
                           {signals.slice(0, 6).map((signal) => (
-                            <div key={signal.id} className="rounded-md bg-muted/40 p-3">
+                            <div key={signal.id} className="rounded-md bg-muted/30 p-3">
                               <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
                                   <p className="font-medium">{signal.title}</p>
@@ -689,7 +692,12 @@ function ReflectExperience() {
                                   <p className="mt-1 text-xs text-muted-foreground">{signal.evidence}</p>
                                 </div>
                                 <Badge
-                                  variant={signal.severity === "high" ? "destructive" : signal.severity === "medium" ? "default" : "outline"}
+                                  variant="outline"
+                                  className={cn(
+                                    signal.severity === "high" && "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+                                    signal.severity === "medium" && "border-primary/25 bg-primary/10 text-primary",
+                                    signal.severity === "low" && "bg-background/70 text-muted-foreground",
+                                  )}
                                 >
                                   {signal.severity}
                                 </Badge>
@@ -777,7 +785,7 @@ function ReflectExperience() {
         </Card>
 
         {(analysisError || analysis) && (
-          <Card className="border-primary/20">
+          <Card className="surface-card section-enter border-primary/20">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-primary" />

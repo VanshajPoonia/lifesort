@@ -204,6 +204,7 @@ State management is mostly local React state:
 - Themes include light, dark, ocean, forest, sunset, rose, and midnight tokens.
 - lucide-react is the icon library.
 - UI primitives live in `components/ui`.
+- Shared UX polish utilities live in `app/globals.css`: `surface-card`, `interactive-card`, and `section-enter` provide calm card surfaces, subtle hover/press motion, and reduced-motion-aware section entrance animation without a separate animation library.
 
 ## Deployment Setup
 

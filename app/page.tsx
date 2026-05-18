@@ -1085,18 +1085,18 @@ export default function Home() {
         }}
       />
 
-      <div className="space-y-6">
-        <section className="flex flex-col gap-4 rounded-lg border bg-card p-5 md:flex-row md:items-center md:justify-between">
+      <div className="space-y-5 md:space-y-6">
+        <section className="surface-card section-enter flex flex-col gap-4 rounded-lg border bg-card/95 p-4 md:flex-row md:items-center md:justify-between md:p-5">
           <div>
             <p className="text-sm text-muted-foreground">Today at a glance</p>
-            <h1 className="mt-1 text-2xl font-bold text-foreground">Welcome back, {firstName}</h1>
+            <h1 className="mt-1 text-xl font-bold text-foreground sm:text-2xl">Welcome back, {firstName}</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               Your LifeScore, today snapshot, recent activity, and most useful shortcuts in one calm place.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             {quickActions.map((action) => (
-              <Button asChild key={action.href} variant="outline" size="sm">
+              <Button asChild key={action.href} variant="outline" size="sm" className="bg-background/70">
                 <Link href={action.href} className="gap-2">
                   <action.icon className="h-4 w-4" />
                   {action.title}
@@ -1115,7 +1115,7 @@ export default function Home() {
           </div>
         )}
 
-        <Card className="border-primary/20">
+        <Card className="surface-card section-enter border-primary/20">
           <CardHeader>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
@@ -1153,7 +1153,7 @@ export default function Home() {
             ) : lifeScore && lifeScore.ready ? (
               <div className="space-y-4">
                 <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
-                  <div className="rounded-md border bg-muted/40 p-4">
+                  <div className="surface-card rounded-md border bg-muted/30 p-4">
                     <div className="flex items-end gap-2">
                       <p className="text-5xl font-bold leading-none">{lifeScore.score}</p>
                       <p className="pb-1 text-sm text-muted-foreground">/100</p>
@@ -1177,7 +1177,7 @@ export default function Home() {
                   <div className="space-y-3">
                     <div className="grid gap-2 md:grid-cols-2">
                       {lifeScore.components.map((item) => (
-                        <Link key={item.key} href={item.href} className="rounded-md border p-3 hover:bg-secondary">
+                        <Link key={item.key} href={item.href} className="interactive-card surface-card rounded-md border p-3 hover:bg-secondary">
                           <div className="flex items-center justify-between gap-3">
                             <p className="truncate text-sm font-medium">{item.label}</p>
                             <span className="text-sm font-semibold">{item.score}</span>
@@ -1249,7 +1249,7 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="section-enter grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {dashboardLoading ? (
             <>
               <LoadingCard />
@@ -1259,7 +1259,7 @@ export default function Home() {
             </>
           ) : (
             <>
-              <Card>
+              <Card className="surface-card">
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-sm font-medium">
                     <CheckCircle2 className="h-4 w-4 text-primary" />
@@ -1280,7 +1280,7 @@ export default function Home() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="surface-card">
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-sm font-medium">
                     <Target className="h-4 w-4 text-primary" />
@@ -1301,7 +1301,7 @@ export default function Home() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="surface-card">
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-sm font-medium">
                     <Wallet className="h-4 w-4 text-primary" />
@@ -1320,7 +1320,7 @@ export default function Home() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="surface-card">
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-sm font-medium">
                     <TrendingUp className="h-4 w-4 text-primary" />
@@ -1342,7 +1342,7 @@ export default function Home() {
           )}
         </div>
 
-        <Card className="border-primary/20 bg-primary/5">
+        <Card className="surface-card section-enter border-primary/20 bg-primary/5">
           <CardHeader>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>

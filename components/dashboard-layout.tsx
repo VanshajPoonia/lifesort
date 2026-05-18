@@ -1,8 +1,6 @@
 "use client"
 
 import React from "react"
-import { X } from "lucide-react" // Import X from lucide-react
-
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
@@ -25,6 +23,7 @@ import {
   MoreHorizontal,
   User,
   HelpCircle,
+  X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -255,8 +254,12 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
     return true
   }
   const navButtonClass = (item: SidebarItem) =>
-    `w-full justify-start gap-3 ${isActiveItem(item) ? "text-secondary-foreground" : "text-foreground hover:text-foreground hover:bg-secondary"}`
-  const navIconClass = (item: SidebarItem) => `h-5 w-5 ${isActiveItem(item) ? "text-secondary-foreground" : "text-foreground"}`
+    `h-10 w-full justify-start gap-3 rounded-lg border border-transparent px-3 text-sm transition-all duration-150 motion-reduce:transition-none ${
+      isActiveItem(item)
+        ? "border-primary/20 bg-primary/10 text-primary shadow-sm"
+        : "text-muted-foreground hover:border-border hover:bg-muted/70 hover:text-foreground"
+    }`
+  const navIconClass = (item: SidebarItem) => `h-4 w-4 ${isActiveItem(item) ? "text-primary" : "text-muted-foreground"}`
 
   useEffect(() => {
     if (!user) return
@@ -297,11 +300,11 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
       <aside
         className={`${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } fixed bottom-0 left-0 top-[var(--subscription-banner-offset,0px)] z-50 w-64 border-r border-border bg-card transition-transform duration-300 md:relative md:bottom-auto md:top-auto md:translate-x-0`}
+        } fixed bottom-0 left-0 top-[var(--subscription-banner-offset,0px)] z-50 w-64 border-r border-border bg-card/95 shadow-sm backdrop-blur transition-transform duration-200 supports-[backdrop-filter]:bg-card/90 motion-reduce:transition-none md:relative md:bottom-auto md:top-auto md:translate-x-0`}
       >
         <div className="flex h-full flex-col">
           {/* Logo */}
-          <div className="flex items-center justify-between border-b border-border p-4">
+          <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
             <div className="flex items-center gap-3">
               <Image
                 src="/lifesort-logo.png"
@@ -320,23 +323,24 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
               size="icon" 
               className="md:hidden"
               onClick={() => setSidebarOpen(false)}
+              aria-label="Close navigation"
             >
               <X className="h-5 w-5" />
             </Button>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 space-y-1 overflow-y-auto p-4">
+          <nav className="flex-1 space-y-1 overflow-y-auto p-3">
             {/* Go Pro Button - Highlighted for non-premium users */}
             {showUpgrade && (
-              <a 
+              <a
                 href="https://buymeacoffee.com/lifesort" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="block mb-3"
+                className="mb-3 block"
               >
                 <Button 
-                  className="h-9 w-full justify-start gap-2 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-sm text-white shadow-lg shadow-amber-500/30 hover:from-amber-600 hover:via-orange-600 hover:to-amber-700 md:h-10 md:gap-3"
+                  className="h-9 w-full justify-start gap-2 rounded-lg bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-sm text-white shadow-sm shadow-amber-500/20 hover:from-amber-600 hover:via-orange-600 hover:to-amber-700 md:h-10 md:gap-3"
                 >
                   <Crown className="h-5 w-5" />
                   <span className="font-bold">Go Pro</span>
@@ -362,7 +366,7 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
           </nav>
 
           {/* User Profile */}
-          <div className="border-t border-border p-4">
+          <div className="border-t border-border/70 p-4">
             <div className="flex items-center gap-3">
               <Avatar>
                 <AvatarFallback className="bg-primary text-primary-foreground">
@@ -389,9 +393,9 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
       {/* Main Content */}
       <div className="flex flex-1 flex-col overflow-hidden">
       {/* Header */}
-      <header className="flex items-center justify-between border-b border-border bg-card px-4 md:px-6 py-4">
+      <header className="flex items-center justify-between border-b border-border/70 bg-card/85 px-3 py-3 backdrop-blur supports-[backdrop-filter]:bg-card/75 md:px-6">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)} className="md:hidden">
+          <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)} className="md:hidden" aria-label="Open navigation">
             <Menu className="h-5 w-5 text-foreground" />
           </Button>
           {/* Greeting Section */}
@@ -421,14 +425,14 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
 
         {/* Page Content */}
         <main className="flex-1 overflow-auto p-4 pb-24 md:p-6">
-          <div className="mx-auto max-w-7xl space-y-4 md:space-y-6">
+          <div className="mx-auto max-w-7xl space-y-5 md:space-y-6">
             {children}
           </div>
         </main>
       </div>
 
       <Button
-        className="fixed bottom-20 right-4 z-40 h-12 w-12 rounded-full shadow-lg md:hidden"
+        className="fixed bottom-20 right-4 z-40 h-12 w-12 rounded-full shadow-lg active:scale-95 md:hidden"
         size="icon"
         onClick={() => setQuickAddOpen(true)}
         aria-label="Quick Add"
@@ -437,7 +441,7 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
         <Plus className="h-5 w-5" />
       </Button>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 px-2 py-2 backdrop-blur md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-card/95 px-2 py-2 shadow-[0_-8px_24px_hsl(var(--foreground)_/_0.06)] backdrop-blur md:hidden">
         <div className="grid grid-cols-5 gap-1">
           {MOBILE_PRIMARY_ITEMS.map((item) => {
             const Icon = item.icon
@@ -445,8 +449,8 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
             return (
               <Link key={item.id} href={item.href} className="min-w-0" onClick={() => setSidebarOpen(false)}>
                 <span
-                  className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-md px-1 text-[11px] font-medium ${
-                    active ? "bg-secondary text-secondary-foreground" : "text-muted-foreground"
+                  className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[11px] font-medium transition-all duration-150 active:scale-[0.98] motion-reduce:transition-none ${
+                    active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/70"
                   }`}
                 >
                   <Icon className="h-4 w-4" />
@@ -459,10 +463,10 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-md px-1 text-[11px] font-medium ${
+                className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[11px] font-medium transition-all duration-150 active:scale-[0.98] motion-reduce:transition-none ${
                   ["/reflect", "/insights", "/review", "/timeline", "/reset", "/ai-chat", "/life-areas", "/settings", "/rules", "/admin"].some(matchesPath)
-                    ? "bg-secondary text-secondary-foreground"
-                    : "text-muted-foreground"
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted/70"
                 }`}
                 aria-label="More navigation"
               >

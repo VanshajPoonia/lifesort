@@ -17,6 +17,64 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-05-18 22:45 IST - LifeSort UX Polish Pass
+
+- Agent/tool used: Codex (GPT-5 coding agent).
+- Task completed: Completed a frontend-only product polish pass for the shared shell, hub pages, Home, Today, Reflect, Money, and Settings without adding routes, schemas, APIs, features, or animation libraries.
+
+#### Files Modified
+- `app/globals.css` — Added shared `surface-card`, `interactive-card`, and `section-enter` polish utilities with reduced-motion support.
+- `components/ui/button.tsx` — Added subtle press motion and reduced-motion handling to the shared button primitive.
+- `components/dashboard-layout.tsx` — Refined sidebar surface, active nav state, hover/press behavior, header surface, mobile bottom nav, and accessibility labels.
+- `components/subscription-checker.tsx` — Made the trial/support banner more compact on mobile while preserving the measured shell offset behavior.
+- `components/hub-page.tsx` — Polished HubHero, HubGrid, HubCard status badges, primary/secondary card hierarchy, and the pinned favorites placeholder.
+- `app/page.tsx` — Tightened Home dashboard hierarchy, calmer hero/card surfaces, LifeScore card presentation, and Today Plan emphasis.
+- `app/today/page.tsx` — Polished the daily planner flow, status badges, capacity attention styling, AI plan button prominence, save feedback, and section card surfaces.
+- `app/organize/page.tsx` — Improved Organize tab styling and mobile horizontal tab behavior.
+- `app/money/page.tsx` — Aligned the Money hub spacing with the polished hub rhythm.
+- `app/insights/page.tsx` — Softened Reflect/Insights warning badges, added calmer metric surfaces, and improved section rhythm.
+- `app/settings/page.tsx` — Improved settings card surfaces, mobile-scrollable tabs, profile form stacking, and settings tab content spacing.
+- `AI_PROJECT.md` — Documented the shared UX polish utilities.
+- `AI_DECISIONS.md` — Recorded the UI polish convention to use fast Tailwind/CSS utilities before adding animation libraries.
+- `AI_CHECKLIST.md` — Added a recurring UI polish checklist for motion, mobile overflow, hierarchy, and reachability.
+- `AI_TASK_LOG.md` — This entry.
+
+#### Summary
+- Preserved the six-item navigation model: Home, Today, Organize, Money, Reflect, Settings, with admin-only Admin unchanged.
+- Kept all feature and compatibility routes intact; this pass only adjusted shared layout and presentation.
+- Added a small shared polish layer rather than a new design system: calm card surfaces, subtle interactive lift, short section entrance motion, and reduced-motion fallbacks.
+- Made hub cards more scannable by separating primary workflows from secondary utilities and replacing vague/harsh statuses with calmer labels such as `0 due` and softer attention badges.
+- Improved mobile behavior for the trial banner, bottom navigation, Organize tabs, Settings tabs, profile form layout, and stacked cards.
+
+#### Commands Run
+- `git status --short --branch` → started from synced `main...origin/main`; after edits showed only scoped polish/docs changes.
+- `git diff --stat` → reviewed 14 changed files, all frontend/docs.
+- `git diff --check` → passed.
+- `npx tsc --noEmit` → passed.
+- `npm run lint` → failed with the known repo-wide ESLint 10 blocker: no `eslint.config.(js|mjs|cjs)` file exists.
+- `npm run build` → passed. Build still skips type/lint validation and emits the known unsupported `metadata.themeColor` / `metadata.viewport` warnings.
+- `npm run dev` → started successfully on port 3000 for smoke checking; `/login` returned `200` via curl. A broader scripted localhost route smoke hit sandbox/local networking issues (`EPERM`/connection refusal), so visual/manual route verification was not completed in this environment. The dev server was stopped afterward.
+
+#### Bugs Found or Fixed
+- Fixed overly heavy/vague UI states in the polished areas, including the Today "Clear" badge now reading `0 due`.
+- Fixed mobile pressure in Settings tabs by switching from a fixed 5-column tab grid to a horizontally scrollable tab list.
+- Fixed product-facing TODO language in the pinned favorites placeholder.
+
+#### Remaining Issues / Known Limitations
+- `npm run lint` remains blocked by the pre-existing missing ESLint flat config.
+- Browser visual verification was not completed; only build, typecheck, and a limited local curl check were possible.
+- Existing Next metadata warnings remain unchanged and are unrelated to this polish pass.
+
+#### Suggested Next Steps
+- Browser-check `/`, `/today`, `/organize?tab=plan`, `/organize?tab=capture`, `/organize?tab=admin`, `/money`, `/reflect`, and `/settings` on desktop and mobile.
+- Add the missing ESLint flat config so lint can become part of the reliable verification loop.
+- Next polish prompt: "Do a browser-verified responsive QA pass for LifeSort at desktop, tablet, and mobile widths; fix only layout overflow, tap-target, and visual hierarchy issues found in screenshots."
+
+#### Handoff Notes
+- Use `surface-card`, `interactive-card`, and `section-enter` for future small polish work instead of adding page-specific animation classes.
+- Keep motion optional and reduced-motion aware; do not add Framer Motion for routine LifeSort app polish unless a specific future interaction needs it.
+- The trial banner offset contract from the previous task remains intact; future fixed-position shell UI should continue respecting `--subscription-banner-offset`.
+
 ### 2026-05-18 22:30 IST - Google Calendar OAuth Scope Fix
 
 - Agent/tool used: Claude Code (Opus 4.7), acting as coding agent at user's request.

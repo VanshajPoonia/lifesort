@@ -7,6 +7,7 @@ import { ArrowRight, Pin } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { cn } from "@/lib/utils"
 
 type NavigationSummary = {
   counts?: Record<string, number>
@@ -29,17 +30,47 @@ export function HubHero({
   eyebrow,
   title,
   description,
+  children,
 }: {
   eyebrow: string
   title: string
   description: string
+  children?: React.ReactNode
 }) {
   return (
-    <section className="rounded-lg border bg-card p-5">
-      <p className="text-sm text-muted-foreground">{eyebrow}</p>
-      <h1 className="mt-1 text-2xl font-bold">{title}</h1>
-      <p className="mt-2 max-w-3xl text-sm text-muted-foreground">{description}</p>
+    <section className="section-enter surface-card rounded-lg border bg-card/95 p-4 sm:p-5">
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{eyebrow}</p>
+          <h1 className="mt-1 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">{title}</h1>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{description}</p>
+        </div>
+        {children}
+      </div>
     </section>
+  )
+}
+
+export function SectionHeader({
+  eyebrow,
+  title,
+  description,
+  action,
+}: {
+  eyebrow?: string
+  title: string
+  description?: string
+  action?: React.ReactNode
+}) {
+  return (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        {eyebrow && <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{eyebrow}</p>}
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">{title}</h2>
+        {description && <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">{description}</p>}
+      </div>
+      {action}
+    </div>
   )
 }
 
@@ -84,21 +115,33 @@ function StatusBadge({
   summary: NavigationSummary | null
   loading: boolean
 }) {
-  if (card.badge) return <Badge variant="secondary">{card.badge}</Badge>
+  if (card.badge) {
+    return (
+      <Badge variant="secondary" className="shrink-0 bg-secondary/80 text-secondary-foreground">
+        {card.badge}
+      </Badge>
+    )
+  }
   if (!card.statusKey) {
-    return <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+    return <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:transition-none" />
   }
 
-  if (loading) return <Badge variant="outline">Loading</Badge>
-  if (summary?.unavailable?.includes(card.statusKey)) return <Badge variant="outline">Unavailable</Badge>
+  if (loading) return <Badge variant="outline" className="shrink-0 bg-background/70">Checking</Badge>
+  if (summary?.unavailable?.includes(card.statusKey)) {
+    return <Badge variant="outline" className="shrink-0 bg-background/70">No data yet</Badge>
+  }
 
   const count = Number(summary?.counts?.[card.statusKey] || 0)
   if (count <= 0) {
-    return card.zeroLabel ? <Badge variant="outline">{card.zeroLabel}</Badge> : <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+    return card.zeroLabel ? (
+      <Badge variant="outline" className="shrink-0 bg-background/70 text-muted-foreground">{card.zeroLabel}</Badge>
+    ) : (
+      <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:transition-none" />
+    )
   }
 
   return (
-    <Badge variant="secondary">
+    <Badge variant="secondary" className="shrink-0 bg-primary/10 text-primary">
       {count} {card.statusLabel || "open"}
     </Badge>
   )
@@ -108,26 +151,39 @@ export function HubGrid({ cards }: { cards: HubCard[] }) {
   const { summary, loading } = useNavigationSummary(cards)
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-3 sm:grid-cols-2 lg:gap-4 xl:grid-cols-4">
       {cards.map((card) => {
         const { title, description, href, icon: Icon } = card
+        const isPrimary = card.priority === "primary"
+        const isSecondary = card.priority === "secondary"
         return (
-        <Link key={`${href}-${title}`} href={href} className="group">
+        <Link
+          key={`${href}-${title}`}
+          href={href}
+          className={cn("group block min-w-0", isPrimary && "sm:col-span-1", isSecondary && "xl:col-span-1")}
+        >
           <Card
-            className={`h-full transition-colors hover:border-primary/60 hover:bg-muted/30 ${
-              card.priority === "primary" ? "border-primary/30 bg-primary/5" : ""
-            }`}
+            className={cn(
+              "surface-card interactive-card h-full overflow-hidden",
+              isPrimary && "border-primary/25 bg-primary/5",
+              isSecondary && "bg-muted/20 shadow-none",
+            )}
           >
-            <CardHeader className="space-y-3">
+            <CardHeader className={cn("space-y-3 p-4", isPrimary && "sm:p-5", isSecondary && "space-y-2")}>
               <div className="flex items-start justify-between gap-3">
-                <div className={`rounded-lg p-2 text-primary ${card.priority === "primary" ? "bg-primary/15" : "bg-primary/10"}`}>
-                  <Icon className="h-5 w-5" />
+                <div
+                  className={cn(
+                    "rounded-lg p-2 text-primary transition-colors duration-150 group-hover:bg-primary/15",
+                    isPrimary ? "bg-primary/15" : "bg-muted",
+                  )}
+                >
+                  <Icon className={cn("h-5 w-5", isSecondary && "h-4 w-4")} />
                 </div>
                 <StatusBadge card={card} summary={summary} loading={loading} />
               </div>
               <div>
-                <CardTitle className="text-base">{title}</CardTitle>
-                <CardDescription className="mt-1">{description}</CardDescription>
+                <CardTitle className={cn("text-base leading-snug", isPrimary && "text-lg", isSecondary && "text-sm")}>{title}</CardTitle>
+                <CardDescription className={cn("mt-1 leading-6", isSecondary && "text-xs leading-5")}>{description}</CardDescription>
               </div>
             </CardHeader>
           </Card>
@@ -139,7 +195,7 @@ export function HubGrid({ cards }: { cards: HubCard[] }) {
 
 export function FavoritesTodo() {
   return (
-    <Card className="border-dashed">
+    <Card className="surface-card border-dashed bg-muted/20">
       <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
           <div className="rounded-lg bg-muted p-2 text-muted-foreground">
@@ -148,7 +204,7 @@ export function FavoritesTodo() {
           <div>
             <p className="font-medium">Pinned favorites</p>
             <p className="text-sm text-muted-foreground">
-              TODO: Add user-selected shortcut pins after the hub navigation settles.
+              Reserved for the shortcuts you use most often once the hub navigation settles.
             </p>
           </div>
         </div>
