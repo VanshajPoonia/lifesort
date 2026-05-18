@@ -25,6 +25,7 @@ import {
 
 import { useAuth } from "@/components/auth-provider"
 import { DashboardLayout } from "@/components/dashboard-layout"
+import { HubGrid } from "@/components/hub-page"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -129,6 +130,42 @@ const emptyCandidates: TodayResponse["candidates"] = {
   quickNotes: [],
   unavailable: [],
 }
+
+const todayHubCards = [
+  {
+    title: "Today Plan",
+    description: "Focus items, must-do work, and end-of-day reflection.",
+    href: "/today",
+    icon: Star,
+    badge: "Current page",
+  },
+  {
+    title: "Tasks due today",
+    description: "Open the task list for due and overdue actions.",
+    href: "/tasks",
+    icon: ListChecks,
+    statusKey: "dueTasksToday",
+    statusLabel: "due",
+    zeroLabel: "Clear",
+  },
+  {
+    title: "Calendar today",
+    description: "Review events and time-specific commitments.",
+    href: "/calendar",
+    icon: CalendarDays,
+    statusKey: "calendarToday",
+    statusLabel: "today",
+  },
+  {
+    title: "Habits due today",
+    description: "Check in on habits and routines due today.",
+    href: "/habits",
+    icon: Flame,
+    statusKey: "habitsDueToday",
+    statusLabel: "due",
+    zeroLabel: "Clear",
+  },
+]
 
 const defaultCapacity: CapacityForm = {
   energy_level: "medium",
@@ -549,7 +586,7 @@ export default function TodayPage() {
 
   if (authLoading || loading) {
     return (
-      <DashboardLayout title="Today Plan" subtitle="Know what to focus on today">
+      <DashboardLayout title="Today" subtitle="Know what to focus on today">
         <div className="space-y-4">
           <Skeleton className="h-28 w-full" />
           <div className="grid gap-4 lg:grid-cols-3">
@@ -563,7 +600,7 @@ export default function TodayPage() {
   }
 
   return (
-    <DashboardLayout title="Today Plan" subtitle={todayLabel}>
+    <DashboardLayout title="Today" subtitle={todayLabel}>
       <div className="space-y-6">
         {loadError ? (
           <Card className="border-dashed">
@@ -576,6 +613,8 @@ export default function TodayPage() {
           </Card>
         ) : (
           <>
+            <HubGrid cards={todayHubCards} />
+
             {(candidates.unavailable?.length || 0) > 0 && (
               <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2">
