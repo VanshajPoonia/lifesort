@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS daily_plans (
   user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   plan_date DATE NOT NULL,
   focus_items JSONB NOT NULL DEFAULT '[]'::jsonb,
+  today_item_order JSONB NOT NULL DEFAULT '[]'::jsonb,
   energy_level TEXT NOT NULL DEFAULT 'medium' CHECK (energy_level IN ('low', 'medium', 'high')),
   available_focus_minutes INTEGER CHECK (
     available_focus_minutes IS NULL OR (available_focus_minutes >= 0 AND available_focus_minutes <= 1440)
@@ -407,6 +408,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   reminder_sent BOOLEAN DEFAULT FALSE,
   goal_id INTEGER REFERENCES goals(id) ON DELETE SET NULL,
   life_area_id INTEGER REFERENCES life_areas(id) ON DELETE SET NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -790,6 +792,7 @@ CREATE INDEX IF NOT EXISTS idx_tasks_category ON tasks(category);
 CREATE INDEX IF NOT EXISTS idx_tasks_reminder_at ON tasks(reminder_at);
 CREATE INDEX IF NOT EXISTS idx_tasks_goal_id ON tasks(goal_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_life_area_id ON tasks(life_area_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_user_sort_order ON tasks(user_id, sort_order, id);
 CREATE INDEX IF NOT EXISTS idx_calendar_events_user_date ON calendar_events(user_id, event_date);
 CREATE INDEX IF NOT EXISTS idx_note_folders_user_name ON note_folders(user_id, name);
 CREATE INDEX IF NOT EXISTS idx_notes_user_updated ON notes(user_id, updated_at DESC);
