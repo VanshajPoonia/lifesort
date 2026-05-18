@@ -144,6 +144,22 @@ ORDER BY table_name;
 ```
 Should return 10 rows. If any are missing, apply the matching `legacy/add-*.sql` content for the missing tables only (do NOT run the legacy file wholesale — copy the `CREATE TABLE` block for the missing table into the SQL editor).
 
+## Creating the first admin user after a fresh install
+
+The `/register` flow always creates regular (non-admin) users. To bootstrap an admin account on a fresh database, use `scripts/bootstrap-admin.mjs`:
+
+```bash
+node --env-file=.env.local scripts/bootstrap-admin.mjs '<email>' '<password>' '<name>'
+```
+
+Behavior:
+- Creates the user with `is_admin = TRUE` if the email doesn't exist.
+- Promotes an existing account to admin if it does (password is NOT changed).
+- Seeds the 13 default life areas (idempotent).
+- bcryptjs hash, 12 salt rounds — matches `lib/auth.ts`.
+
+Wrap the password in single quotes to avoid your shell interpreting `!`, `$`, etc.
+
 ## Notes
 
 - `payment_logs`, `pomodoro_sessions`, and `pomodoro_settings` are not currently queried by `app/api` code, but are included in `schema.sql` for potential future use. Their `user_id` columns have been rewritten to `VARCHAR(255)` for consistency (legacy versions used `INTEGER`/`UUID` which were incompatible with `users.id`).
