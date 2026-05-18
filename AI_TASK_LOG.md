@@ -17,6 +17,152 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-05-18 20:28 IST - Safe Navigation Consolidation to Six Hubs
+
+- Agent/tool used: Codex (GPT-5 coding agent).
+- Task completed: Consolidated the LifeSort website navigation from eight top-level sidebar items to six without deleting feature routes or removing implementation.
+
+#### Files Modified
+- `components/dashboard-layout.tsx` — Replaced the top-level sidebar with Home, Today, Organize, Money, Reflect, Settings, and admin-only Admin; added child-route active states, mobile bottom navigation, and a mobile More menu.
+- `components/hub-page.tsx` — Added primary/secondary card emphasis so hub pages can make core workflows stronger than utilities.
+- `app/api/sidebar-preferences/route.ts` — Added default sidebar preference keys for Organize and Reflect while keeping legacy keys merge-safe.
+- `app/organize/page.tsx` — Added the new tabbed Organize hub with Plan, Capture, and Admin tabs and useful status badges.
+- `app/reflect/page.tsx` — Added the new primary Reflect route that reuses the preserved insights workflow.
+- `app/plan/page.tsx` — Preserved the route file as a compatibility redirect to `/organize?tab=plan`.
+- `app/life-admin/page.tsx` — Preserved the route file as a compatibility redirect to `/organize?tab=admin`.
+- `app/insights/page.tsx` — Preserved the feature route and adjusted it to support Reflect as the primary route while keeping `/insights` compatible.
+- `app/capture/page.tsx` — Kept AI Capture implementation intact and polished hub card priority/status labels.
+- `app/money/page.tsx` — Added an Overview hub card and primary card emphasis for core finance workflows.
+- `app/settings/page.tsx` — Updated settings cards, sidebar customization, and query-tab support for Profile/FAQs links from mobile More.
+- `app/page.tsx` — Reduced Home quick actions to a smaller set and pointed users toward the new hubs.
+- `AI_PROJECT.md`, `AI_DECISIONS.md`, `AI_CHECKLIST.md`, `AI_TASK_LOG.md` — Updated project memory for the six-hub navigation model.
+
+#### Summary
+- The primary sidebar now shows only Home, Today, Organize, Money, Reflect, Settings, and Admin for admin users.
+- `/organize` groups Plan, Capture, and Admin workflows into tabs while leaving all underlying feature routes live.
+- `/reflect` is now the primary insight/review surface, and `/insights` remains a compatibility feature route with the same workflow.
+- Mobile now has a bottom nav for Home, Today, Organize, Money, and More; More links to Reflect, Settings, Profile, Support/FAQs, and Admin when applicable.
+- Quick Add, Global Search, notifications, profile/settings, and sign-out remain reachable from the shared layout.
+
+#### Commands Run
+- `git status --short --branch` → branch `main...origin/main [ahead 2]`; worktree was clean before edits.
+- `git diff --stat` → reviewed; changes scoped to navigation layout, hubs, compatibility routes, Home/Settings polish, and memory docs.
+- `npx tsc --noEmit` → failed once because the App Router page exported an extra named component from `app/insights/page.tsx`; passed after making that component internal and reusing the default page from `/reflect`.
+- `npm run lint` → failed with the known repo-wide ESLint 10 blocker: no `eslint.config.(js|mjs|cjs)` file exists.
+- `npm run build` → passed. Build still skips type/lint validation and emits the known unsupported `metadata.themeColor` / `metadata.viewport` warnings.
+- `npm run dev` + HTTP smoke checks → `/`, `/today`, `/organize`, `/money`, `/reflect`, `/settings`, `/plan`, `/capture`, `/life-admin`, `/insights`, `/tasks`, `/notes`, `/budget`, `/vault`, `/review`, and `/login` returned `200`.
+
+#### Bugs Found or Fixed
+- Fixed an App Router type error caused by exporting a non-page helper from `app/insights/page.tsx`.
+- Replaced vague hub badges such as `Clear` with more useful zero/count labels where the touched hub cards expose status.
+
+#### Remaining Issues / Known Limitations
+- `npm run lint` is still blocked by the pre-existing missing ESLint flat config.
+- Browser/mobile visual verification was not fully automated in this pass; HTTP route smoke checks and build/typecheck passed.
+- `/plan` and `/life-admin` are compatibility redirects, not full hub pages. Their route files remain in place.
+- No database migration was added or run.
+
+#### Suggested Next Steps
+- Browser-test the mobile bottom navigation and More menu on a real narrow viewport.
+- Add an ESLint flat config so `npm run lint` can validate source files again.
+- Consider a focused Pinned Favorites implementation if users want custom shortcuts beyond the placeholder.
+
+#### Handoff Notes
+- Do not delete `/capture` or `/insights`; both remain feature routes with real workflow logic.
+- Keep `/organize?tab=plan|capture|admin` as the canonical grouped workspace route.
+- Keep `/reflect` as the primary user-facing label for insight/review work, with `/insights` preserved for compatibility.
+
+### 2026-05-18 17:05 IST - Draggable Task and Today Ordering
+
+- Agent/tool used: Codex (GPT-5 coding agent).
+- Task completed: Implemented Spotify-style drag handle sorting for Todo/Tasks and Today To-Do with persisted order.
+
+#### Files Modified
+- `components/sortable-list.tsx` — Added a shared `@dnd-kit` sortable list wrapper with grip handles, pointer/touch activation, and keyboard sorting support.
+- `app/tasks/page.tsx` — Added Manual/Due date sort control, drag handles in Manual mode, optimistic reorder, and rollback on save failure.
+- `app/api/tasks/route.ts` — Added task `sort_order` reads/writes, new task insertion at the top of manual order, and user-scoped `PATCH` reorder support.
+- `app/today/page.tsx` — Made Today To-Do reorderable and saved per-date item order through `/api/today-plan`.
+- `app/api/today-plan/route.ts` — Added `today_item_order` normalization, saved-order application for derived Today To-Do items, and `PATCH` upsert support.
+- `scripts/migrations/2026-05-18-draggable-ordering.sql` — Added forward migration for `tasks.sort_order`, `daily_plans.today_item_order`, task order backfill, and index.
+- `scripts/schema.sql`, `scripts/fresh-install.sql` — Mirrored the new ordering columns and task order index in the canonical/fresh schema.
+- `package.json`, `pnpm-lock.yaml` — Added `@dnd-kit/core`, `@dnd-kit/sortable`, and `@dnd-kit/utilities`.
+- `AI_PROJECT.md`, `AI_DECISIONS.md`, `AI_CHECKLIST.md`, `AI_TASK_LOG.md` — Updated project memory and dependency/schema notes.
+
+#### Summary
+- `/tasks` now defaults to Manual order with draggable grip handles and still offers Due date sorting.
+- Task reorder saves to `tasks.sort_order`; new tasks are inserted near the top of manual order.
+- `/today` now lets users drag Today To-Do items from mixed sources while saving only the selected day’s item id order on `daily_plans`.
+- Derived Today items that disappear later are ignored safely; newly due items append after the saved ordered items.
+
+#### Commands Run
+- `git status --short --branch` → branch `main...origin/main [ahead 1]`; worktree was clean before this task.
+- `pnpm add @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities --store-dir /Users/vanshajpoonia/Library/pnpm/store/v11` → added dependencies and lockfile entries, but exited `1` because pnpm requires build-script approval for existing `bufferutil` and `sharp`.
+- `rm -rf .pnpm-store` → removed untracked pnpm store cache created by the first failed install attempt.
+- `npx tsc --noEmit` → passed.
+- `git diff --check` → passed.
+- `npm run build` → passed. Build still skips type/lint validation and emits the known unsupported `metadata.themeColor` / `metadata.viewport` warnings.
+
+#### Remaining Issues / Known Limitations
+- The new migration was created but not run; apply `scripts/migrations/2026-05-18-draggable-ordering.sql` before deploying code that expects the new columns.
+- Browser drag behavior was not manually exercised in this pass.
+- `npm run lint` was not run; it remains blocked by the known missing ESLint flat config.
+- pnpm still reports ignored build scripts for existing packages until `pnpm approve-builds` is handled intentionally.
+
+#### Suggested Next Steps
+- Apply the migration in Neon, then browser-test `/tasks` Manual/Due date sorting and `/today` Today To-Do drag persistence on desktop and mobile.
+- Consider adding the shared sortable wrapper to other ordered list pages if users want the same interaction beyond Todo and Today.
+
+#### Handoff Notes
+- Today To-Do order is per date and stores derived ids like `task-123` or `project-45`; it intentionally does not mutate project, goal, commitment, waiting, or maintenance source records.
+- Task reorder `PATCH /api/tasks` accepts a full or partial ordered id list, validates ownership, and normalizes the authenticated user’s full task order.
+
+### 2026-05-18 16:47 IST - Onboarding, Today, LifeScore, Finance Signal, and Notification Fixes
+
+- Agent/tool used: Codex (GPT-5 coding agent).
+- Task completed: Implemented the approved plan to fix onboarding close overlap, hide empty-account LifeScore placeholders, suppress empty finance warnings, consolidate Today due items, and make the Notification Center easier to reach.
+
+#### Files Modified
+- `components/onboarding-modal.tsx` — Hid the default injected dialog close button so it no longer overlaps the custom Skip button.
+- `lib/life-score.ts` — Added `ready` to LifeScore data, included score components only when the user has meaningful source data, and skipped snapshot writes for empty/new accounts.
+- `app/page.tsx` — Updated dashboard LifeScore empty state/AI button behavior and changed Today preview wording/counts to due or overdue items.
+- `app/api/ai/life-score/route.ts` — Returned a clear 400 without calling the AI provider when LifeScore is not ready.
+- `lib/ignoring-insights.ts` — Suppressed finance-not-reviewed signals when the user has no finance data.
+- `app/api/today-plan/route.ts` — Added same-day/overdue goals, projects, waiting items, commitments, and maintenance to derived Today candidates and capacity counts.
+- `app/today/page.tsx` — Replaced separate Today hub cards with a unified command-center summary and added the combined Today To-Do section.
+- `components/notification-bell.tsx` — Made the notification bell visible on mobile and added an accessible label/title.
+- `app/life-admin/page.tsx` — Renamed the Life Admin card from Reminders to Notification Center.
+- `AI_PROJECT.md`, `AI_DECISIONS.md`, `AI_TASK_LOG.md` — Updated project memory for the new behavior.
+
+#### Summary
+- Onboarding now keeps only the visible Skip action in the top-right area.
+- Empty/new accounts no longer see apparently meaningful LifeScore numbers or AI explanations before adding data.
+- Finance ignored-life warnings now require existing finance records that have gone stale.
+- Today now clubs due tasks with dated work from goals, projects, waiting, commitments, and maintenance in one Today To-Do flow while keeping habits check-off separate.
+- The existing `/notifications` page remains the Notification Center, with the header bell available on mobile.
+
+#### Commands Run
+- `git status --short --branch` → branch `main...origin/main`; worktree was clean before edits.
+- `npx tsc --noEmit` → failed once on a renamed Today capacity property, then passed after the fix.
+- `npm run build` → passed. Build still skips type/lint validation and emits the known unsupported `metadata.themeColor` / `metadata.viewport` warnings.
+- `npm run dev` → started on `http://localhost:3000`.
+- `curl` HTTP smoke checks → `/`, `/today`, `/life-admin`, and `/notifications` returned `200`.
+- `agent-browser open http://localhost:3000` → failed because `agent-browser` is not installed in this workspace.
+- `kill 16454` → stopped the local dev server after smoke checks.
+
+#### Remaining Issues / Known Limitations
+- Visual browser automation was not run because `agent-browser` is unavailable in this workspace.
+- `npm run lint` was not run; it remains blocked by the known missing ESLint flat config.
+- No database migration was added or run.
+
+#### Suggested Next Steps
+- Browser-check `/today` with seeded due task/goal/project/commitment/maintenance data and confirm the combined Today To-Do list feels right.
+- Browser-check onboarding and the mobile header notification bell.
+- Add ESLint flat config so source linting can run again.
+
+#### Handoff Notes
+- `dueOrOverdueTasks` remains in the Today API response for compatibility; `dueOrOverdueItems` is the richer count new UI should prefer.
+- LifeScore returns `ready: false` with empty components until at least one scored source has real user data; downstream callers should check `ready` before rendering a score or requesting AI explanation.
+
 ### 2026-05-18 15:00 IST - Grouped Navigation Hubs
 
 - Agent/tool used: Codex (GPT-5 coding agent).

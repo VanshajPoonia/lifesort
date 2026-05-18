@@ -106,10 +106,12 @@ Use this checklist when implementing the regression prompt:
 ## Navigation / Information Architecture Checklist
 
 1. Preserve deep links when consolidating navigation; hide routes from the sidebar only, never delete feature pages.
-2. Keep the primary sidebar hub-level: Home, Today, Plan, Capture, Money, Life Admin, Insights, Settings, and admin-only Admin.
-3. Keep Quick Add, Global Search, notifications, profile/settings, and sign-out reachable from the shared layout.
-4. Keep hub summary endpoints read-only, authenticated, user-scoped, and missing-schema tolerant.
-5. Add hub cards for any feature hidden from the sidebar so discoverability is not lost.
+2. Keep the primary sidebar hub-level: Home, Today, Organize, Money, Reflect, Settings, and admin-only Admin.
+3. Preserve compatibility routes: `/plan` should lead to Organize > Plan, `/life-admin` should lead to Organize > Admin, `/capture` remains the AI Capture feature page, and `/insights` remains a Reflect compatibility feature route.
+4. Keep Quick Add, Global Search, notifications, profile/settings, and sign-out reachable from the shared layout.
+5. Keep mobile navigation compact: Home, Today, Organize, Money, and More. More should include Reflect, Settings/Profile, Support/FAQs, and admin-only Admin.
+6. Keep hub summary endpoints read-only, authenticated, user-scoped, and missing-schema tolerant.
+7. Add hub cards for any feature hidden from the sidebar so discoverability is not lost.
 
 ## Environment Setup Checklist
 
@@ -152,6 +154,10 @@ OAuth token encryption env notes:
 - Build: `npm run build`
 - Start production server: `npm run start`
 - Lint: `npm run lint`
+
+Dependency notes:
+
+- Drag-and-drop list sorting uses `@dnd-kit/core`, `@dnd-kit/sortable`, and `@dnd-kit/utilities`. Prefer the shared `components/sortable-list.tsx` wrapper before adding another drag implementation.
 
 Unavailable scripts:
 
