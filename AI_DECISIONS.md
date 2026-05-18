@@ -182,9 +182,29 @@ Decisions made while implementing N5 (audit follow-up). These shape how the Life
   - When adding a new schema change: write the migration file AND mirror the CREATE/ALTER content into `schema.sql` so fresh-DB setup stays complete.
   - `scripts/README.md` documents the workflow.
 
-- **Decision: `payment_logs`, `pomodoro_sessions`, `pomodoro_settings` are NOT in the canonical schema.**
-  - Rationale: zero code references found (`grep` across `app/`, `lib/`, `components/`). Including them would propagate type-mismatch drift (legacy `INTEGER`/`UUID` user_id vs current `VARCHAR(255)`).
-  - If a pomodoro feature is built later, write a new migration with the correct user_id type.
+- **Decision: `payment_logs`, `pomodoro_sessions`, `pomodoro_settings` ARE included in the canonical schema with rewritten `user_id VARCHAR(255)`.** (Updated 2026-05-18 — supersedes the original "not in canonical schema" decision.)
+  - Rationale: user requested keeping these tables for potential future feature work. They are not currently queried by `app/api` code, but the schema is now self-consistent (all user_id columns uniformly `VARCHAR(255)`, no INTEGER/UUID drift).
+  - If/when these features are wired up, the schema is ready.
+
+- **Decision: `api_usage` intentionally has no `user_id`.**
+  - Rationale: it's a system-wide quota counter for shared external APIs (Alpha Vantage daily request cap), one row per (api_name, date). Used only by `app/api/investments/background-fetch`. A comment in `schema.sql` documents this so future agents don't "fix" it by adding `user_id`.
+
+## OAuth Token Encryption at Rest (2026-05-18)
+
+- **Decision: OAuth tokens stored in `calendar_integrations` (`access_token`, `refresh_token`) are encrypted at the application layer using AES-256-GCM before being written to the database.**
+  - Rationale: closes the plaintext-OAuth-tokens finding from the schema audit. If the Neon DB is ever leaked (backup, snapshot, compromised credential), attackers cannot directly use the tokens to access user calendars — they would need the encryption key as well.
+  - Implementation: `lib/token-crypto.ts` exports `encryptToken` / `decryptToken`. Key derived via `scryptSync(process.env.OAUTH_TOKEN_ENCRYPTION_KEY, "lifesort-oauth-v1", 32)` and cached. Storage format: `v1:<iv-base64>:<authTag-base64>:<ciphertext-base64>`.
+  - Format version prefix (`v1:`) enables future key rotation: a migration can detect the prefix, decrypt with the old key, re-encrypt with the new key, bump to `v2:`.
+
+- **Decision: Backward-compatible decrypt — legacy plaintext rows pass through unchanged.**
+  - Rationale: avoids a destructive backfill. `decryptToken` returns the value as-is when the `v1:` prefix is absent. Existing rows self-encrypt on next token refresh (Google access tokens TTL ~1 hour), so the prod DB transitions naturally with no operator action.
+
+- **Decision: In production, missing/short `OAUTH_TOKEN_ENCRYPTION_KEY` throws; in development, it warns once and falls back to plaintext pass-through.**
+  - Rationale: production must enforce encryption; local dev should not be blocked when the key isn't configured (e.g., when a contributor first clones the repo).
+  - Operational note: `OAUTH_TOKEN_ENCRYPTION_KEY` MUST be set in Vercel env vars before any deploy that includes this code, or `/api/calendar/google/callback` and `/api/calendar/sync` will throw on every request.
+
+- **Anti-pattern: do NOT encrypt `sessions.session_token` or `password_reset_tokens.token` with the same helper.**
+  - Rationale: sessions need plaintext cookie comparison; password reset tokens are short-lived and should be hashed on write (a separate future improvement, different from symmetric encryption). The token-crypto helper is specifically for OAuth tokens that need to be decrypted and re-sent to a third-party API.
 
 ## Pre-Agents Audit Decisions (2026-05-17)
 
