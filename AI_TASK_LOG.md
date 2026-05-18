@@ -2885,6 +2885,54 @@ After that, re-run the regression checkpoint and the schema-drift 500s should di
   - Keep `/api/app-preferences` allowlisted. Do not expose arbitrary client-writable `users.app_preferences` keys.
   - `components/global-search.tsx` still exists for compatibility but is no longer mounted by `DashboardLayout`.
 
+## 2026-05-19 00:49 IST - Full QA And Hardening Pass
+
+- Agent/tool used: Codex.
+- Task summary: Ran a full local QA and hardening pass for the LifeSort website app, fixed the low-risk Next metadata warning, and documented remaining verification blockers.
+- Files changed:
+  - `app/layout.tsx`
+  - `AI_CHECKLIST.md`
+  - `AI_TASK_LOG.md`
+- Summary of changes:
+  - Moved `themeColor` and viewport settings from the root `metadata` export into the supported Next.js `viewport` export.
+  - Kept the PWA/apple metadata intact and cleaned the root metadata generator formatting.
+  - Added a reusable full-QA checklist section so future agents can repeat the same coverage without exposing secrets or mutating the database directly.
+- Commands run:
+  - `git status --short --branch` - clean and synced before the task; later showed only the QA hardening/docs edits.
+  - `git diff --stat` - reviewed before and during the task.
+  - `git diff --check` - passed.
+  - `npx tsc --noEmit` - initial concurrent run failed because `next build` was regenerating `.next/types`; rerun after build completed passed.
+  - `npm run lint` - failed before source linting because ESLint 10.3.0 cannot find `eslint.config.(js|mjs|cjs)`.
+  - `npm run build` - passed; generated 136 routes. After the `viewport` fix, the previous unsupported `metadata.themeColor` / `metadata.viewport` warnings were gone.
+  - `command -v agent-browser`, `command -v lighthouse`, `command -v playwright` - no binaries found on PATH.
+  - `npm run dev` - started locally on `http://localhost:3000`; retried with escalated permissions for DB-backed QA, but Neon DNS still failed inside the app runtime.
+  - HTTP page smoke checks with `curl` - all requested main/deep/compatibility routes returned `200`.
+  - Unauthenticated protected API checks with `curl` - `/api/tasks`, `/api/journal/2026-05-19`, `/api/search?q=qa`, `/api/today-plan?date=2026-05-19`, and `/api/auth/me` returned `401`.
+- Pages/routes checked:
+  - Main routes: `/`, `/today`, `/journal`, `/organize`, `/money`, `/reflect`, `/settings`.
+  - Deep routes: `/tasks`, `/goals`, `/projects`, `/habits`, `/calendar`, `/inbox`, `/notes`, `/links`, `/custom-sections`, `/people`, `/vault`, `/maintenance`, `/budget`, `/income`, `/investments`, `/wishlist`, `/review`, `/timeline`, `/reset`, `/rules`, `/ai-chat`.
+  - Compatibility/auth routes: `/capture`, `/insights`, `/plan`, `/life-admin`, `/notifications`, `/login`, `/register`.
+- Bugs found or fixed:
+  - Fixed the Next.js metadata warning by exporting viewport config from `app/layout.tsx`.
+  - Confirmed protected APIs return `401` without a session rather than `500`.
+- Remaining issues and limitations:
+  - Authenticated register/login and two-user isolation QA could not complete locally because the app runtime could not resolve the configured Neon API host (`getaddrinfo ENOTFOUND api.c-3.us-east-1.aws.neon.tech`), even after restarting the dev server with escalated permissions. No direct database mutations or migrations were run.
+  - Journal autosave/history, Today persistence, Quick Add writes, command palette write flows, Search scoping, and cross-user leak checks remain pending until the local runtime can reach the database or a local DB is provided.
+  - Browser automation was not available: `agent-browser`, `playwright`, and `lighthouse` were not installed on PATH.
+  - Responsive width, dark mode, reduced motion, keyboard focus, and console-error checks were limited to build/page HTTP smoke coverage because authenticated browser QA was blocked.
+  - No `test` script exists in `package.json`.
+  - `npm run lint` remains blocked by missing ESLint flat config.
+  - `npm run build` still skips TypeScript and lint validation through `next.config.mjs`.
+- Suggested next steps:
+  - Run the same QA matrix in an environment where the app can reach Neon, or provision a disposable local database and point `DATABASE_URL` at it.
+  - Add an ESLint flat config so `npm run lint` can actually inspect source files.
+  - Add Playwright or the Vercel agent-browser CLI to repo tooling for repeatable authenticated responsive checks at 375, 414, 768, 1024, 1280, 1440, and 1920 px.
+  - Run Lighthouse when tooling is available with commands such as `npx lighthouse http://localhost:3000/ --view --preset=desktop`, repeated for `/today`, `/journal`, `/organize`, `/money`, and `/reflect`.
+- Handoff notes:
+  - Treat this pass as a hardening and partial QA pass, not a full signed-in product acceptance pass, because DB-backed local auth was blocked by network/DNS.
+  - Disposable records were not created through the successful QA path. One attempted `/api/auth/register` returned `500` before creating an account because the database connection failed.
+  - Do not print `.env.local` values while fixing the DB connectivity issue; only check variable names/presence unless explicitly authorized.
+
 ## AI Handoff Summaries
 
 Future agents should start by reading all root memory files, then inspect the relevant code before editing. Keep changes small and update this file after every repo change.

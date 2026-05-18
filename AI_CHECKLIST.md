@@ -98,6 +98,27 @@ Use this checklist when implementing the regression prompt:
 5. Verify protected APIs return `401` without cookies.
 6. Smoke create/edit/delete paths through APIs when browser automation is unavailable.
 7. Record browser-automation gaps separately from API/HTTP failures.
+8. Treat 500s from missing columns/tables as schema drift and list exact missing objects.
+9. Do not run migrations or direct database cleanup without explicit target confirmation.
+10. After testing, delete temporary records through app APIs when possible and document anything left behind.
+11. Capture/promotion features must keep APIs user-scoped, update migration baselines, validate optional linked ownership, and require explicit confirmation before creating linked records.
+
+## Full QA And Hardening Checklist
+
+Use this checklist for broad QA passes after responsive, IA, Journal, command palette, or auth-affecting work:
+
+1. Start by checking `git status --short --branch`, `git diff --stat`, and available scripts in `package.json`.
+2. Run `npx tsc --noEmit`, `npm run lint`, and `npm run build`; record known caveats separately from new regressions.
+3. Do not run migrations or directly mutate the database unless the user explicitly confirms the target environment.
+4. Use disposable users and app/API flows for data setup; clean up temporary task/note/inbox-style records through app APIs where practical.
+5. Verify unauthenticated protected APIs return `401`, not `500`.
+6. Verify two-user isolation for Search, Journal, Today, tasks, notes/inbox, and any newly touched data surface when the database is reachable.
+7. Smoke main routes: `/`, `/today`, `/journal`, `/organize`, `/money`, `/reflect`, `/settings`.
+8. Smoke representative deep routes: `/tasks`, `/goals`, `/projects`, `/habits`, `/calendar`, `/inbox`, `/notes`, `/links`, `/custom-sections`, `/people`, `/vault`, `/maintenance`, `/budget`, `/income`, `/investments`, `/wishlist`, `/review`, `/timeline`, `/reset`, `/rules`, `/ai-chat`.
+9. Smoke compatibility/auth routes: `/capture`, `/insights`, `/plan`, `/life-admin`, `/notifications`, `/login`, `/register`.
+10. If browser automation is available, check 375px, 414px, 768px, 1024px, 1280px, 1440px, and 1920px widths for horizontal overflow, mobile nav, Quick Add/FAB, command palette, search, notification bell, trial banner, dark mode, reduced motion, focus states, and console errors.
+11. If Lighthouse is available, run desktop audits for Home, Today, Journal, Organize, Money, and Reflect. Example: `npx lighthouse http://localhost:3000/ --view --preset=desktop`.
+12. If DB/network/browser tooling is unavailable, document the exact blocker and list which checks were not completed. Do not mark those checks as passed.
 
 ## Global UX Smoke Checks
 
@@ -111,10 +132,6 @@ Run after changes to `DashboardLayout`, command/search/capture UI, Home preferen
 - Home compact/detailed mode persists through `/api/app-preferences` and refresh.
 - Onboarding completion merges `app_preferences` instead of erasing existing preference keys.
 - Trial banner uses hourly precision and "Go Pro" or "Upgrade" wording.
-8. Treat 500s from missing columns/tables as schema drift and list exact missing objects.
-9. Do not run migrations or direct database cleanup without explicit target confirmation.
-10. After testing, delete temporary records through app APIs when possible and document anything left behind.
-11. Capture/promotion features must keep APIs user-scoped, update migration baselines, validate optional linked ownership, and require explicit confirmation before creating linked records.
 
 ## Navigation / Information Architecture Checklist
 
