@@ -37,8 +37,10 @@ To regenerate after editing `schema.sql`:
   echo ""; \
   echo "DROP SCHEMA IF EXISTS public CASCADE;"; \
   echo "CREATE SCHEMA public;"; \
-  echo "GRANT ALL ON SCHEMA public TO postgres;"; \
-  echo "GRANT ALL ON SCHEMA public TO public;"; \
+  echo "-- The role that just created the schema owns it and has all privileges."; \
+  echo "-- We do NOT issue an explicit GRANT to a named role like \"postgres\" because"; \
+  echo "-- Neon uses a custom owner role (e.g., neondb_owner). The connecting user"; \
+  echo "-- already has full permissions after CREATE SCHEMA."; \
   echo ""; \
   echo "-- ── Begin schema.sql ────────────────────────────────────────────────────────"; \
   cat scripts/schema.sql; \

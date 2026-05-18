@@ -7,8 +7,10 @@
 
 DROP SCHEMA IF EXISTS public CASCADE;
 CREATE SCHEMA public;
-GRANT ALL ON SCHEMA public TO postgres;
-GRANT ALL ON SCHEMA public TO public;
+-- The role that just created the schema owns it and has all privileges.
+-- We do NOT issue an explicit GRANT to a named role like "postgres" because
+-- Neon uses a custom owner role (e.g., neondb_owner). The connecting user
+-- already has full permissions after CREATE SCHEMA.
 
 -- ── Begin schema.sql ────────────────────────────────────────────────────────
 -- LifeSort website canonical schema baseline
