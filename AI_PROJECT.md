@@ -15,6 +15,7 @@ LifeSort is a personal life-management application for organizing today plans, w
 Implemented feature areas found in the repo:
 
 - Dashboard at `app/page.tsx`, aggregating tasks, goals, notes, budget, investments, wishlist, income, and habits widget.
+- Grouped navigation hubs in the main sidebar: Home, Today, Plan, Capture, Money, Life Admin, Insights, Settings, and admin-only Admin. Existing feature routes remain deep-linkable; hub pages at `/plan`, `/money`, and `/life-admin` plus enhanced `/today`, `/capture`, and `/insights` provide card navigation into the underlying modules. `/api/navigation-summary` supplies lightweight user-scoped hub badges for due tasks, today events, habits due, unsorted Inbox, waiting/commitment/maintenance pressure, weekly review status, notifications, and Someday reviews.
 - Explainable LifeScore on the dashboard through `/api/life-score` and `/api/ai/life-score`: derives a daily 0-100 organization signal from focus completion, overdue task load, habits, goals, weekly review status, commitments, maintenance/vault dates, and Life Area balance. Daily snapshots are stored in `life_score_history` when the migration is applied. Optional AI explanation is read-only, rate-limited, and receives only the derived score summary/components.
 - Habits & Routines at `app/habits/page.tsx`, with per-habit CRUD, daily check-ins, streak tracking (current/best), weekly/monthly completion %, and routine builder with ordered steps.
 - Today Plan at `app/today/page.tsx`, providing a non-AI daily command center with focus items, energy/capacity planning, overload warnings, habits due today (with check-off), derived task/goal/calendar/note/budget/wishlist suggestions, and end-of-day reflection.
@@ -155,6 +156,7 @@ The frontend uses App Router pages under `app/`. Most feature pages are client c
 Important pages:
 
 - `/`: dashboard with Today Plan preview and Life Balance entry point
+- `/plan`, `/money`, `/life-admin`: grouped navigation hubs for planning, finance, and life-admin modules.
 - `/today`
 - `/review`
 - `/someday`
