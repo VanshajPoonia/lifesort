@@ -171,7 +171,8 @@ Run after changes to `DashboardLayout`, command/search/capture UI, Home preferen
 2. Journal APIs should validate dates and request bodies with Zod, return `{ entry: null }` for missing dates, and never show fake saved data.
 3. Journal autosave should debounce writes, show `Unsaved changes` / `Saving...` / `Saved` / error states, and keep a manual Save fallback.
 4. Do not add AI affirmation generation unless it follows the existing AI route pattern: session auth, usage caps, explicit provider env checks, and no automatic writes.
-5. When changing Journal schema, update the forward migration, `scripts/schema.sql`, `scripts/fresh-install.sql`, and `AI_TASK_LOG.md`.
+5. Keep Journal-specific visual polish scoped to `/journal`: warm notebook surfaces, readable writing fields, accessible star ratings, reduced-motion-safe section motion, and no global theme drift.
+6. When changing Journal schema, update the forward migration, `scripts/schema.sql`, `scripts/fresh-install.sql`, and `AI_TASK_LOG.md`.
 
 ## Environment Setup Checklist
 

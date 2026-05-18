@@ -256,9 +256,9 @@ export default function JournalPage() {
 
   return (
     <DashboardLayout title="Journal" subtitle={formatDateLabel(selectedDate)}>
-      <div className={cn("space-y-5 md:space-y-6", motionPresets.journalEntrance)}>
+      <div className={cn("journal-page rounded-lg border border-amber-900/10 p-3 sm:p-4 lg:p-6", motionPresets.journalEntrance)}>
         {loadError && (
-          <Card className="border-dashed">
+          <Card className="journal-paper-card border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-10 text-center">
               <BookOpenText className="h-10 w-10 text-muted-foreground" />
               <h2 className="mt-4 text-lg font-semibold">{loadError}</h2>
@@ -268,19 +268,24 @@ export default function JournalPage() {
           </Card>
         )}
 
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <main className="space-y-5">
-            <Card className={cn("surface-card border-amber-500/20 bg-amber-500/5", motionPresets.journalEntrance)}>
-              <CardHeader>
+        <div className="mx-auto grid max-w-[1180px] gap-5 lg:grid-cols-[minmax(0,760px)_320px] xl:grid-cols-[minmax(0,800px)_340px]">
+          <main className="min-w-0 space-y-5">
+            <Card className={cn("journal-paper-card journal-cover surface-card relative border-amber-500/20", motionPresets.journalEntrance)}>
+              <CardHeader className="relative">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
-                    <CardTitle className="flex items-center gap-2">
+                    <p className="mb-2 text-sm font-medium uppercase tracking-[0.18em] text-amber-700/80 dark:text-amber-200/80">
+                      {formatDateLabel(selectedDate)}
+                    </p>
+                    <CardTitle className="flex items-center gap-2 text-2xl sm:text-3xl">
                       <BookOpenText className="h-5 w-5 text-amber-600 dark:text-amber-300" />
                       Daily Journal
                     </CardTitle>
-                    <CardDescription>A quiet place to notice the day, set intentions, and leave tomorrow a clue.</CardDescription>
+                    <CardDescription className="mt-2 max-w-xl text-base leading-7">
+                      A quiet place to notice the day, set intentions, and leave tomorrow a clue.
+                    </CardDescription>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2 rounded-md border border-amber-900/10 bg-background/45 p-2 backdrop-blur-sm">
                     <Button variant="outline" size="icon" onClick={() => setSelectedDate(addDays(selectedDate, -1))} aria-label="Previous day">
                       <ArrowLeft className="h-4 w-4" />
                     </Button>
@@ -288,7 +293,7 @@ export default function JournalPage() {
                       type="date"
                       value={selectedDate}
                       onChange={(event) => setSelectedDate(event.target.value || localDateString())}
-                      className="w-[11rem]"
+                      className="journal-date-input w-full sm:w-[11rem]"
                       aria-label="Journal date"
                     />
                     <Button variant="outline" size="icon" onClick={() => setSelectedDate(addDays(selectedDate, 1))} aria-label="Next day">
@@ -302,23 +307,23 @@ export default function JournalPage() {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="grid gap-4 sm:grid-cols-3">
-                <div className="rounded-md border bg-background/75 p-3">
+              <CardContent className="relative grid gap-3 sm:grid-cols-3">
+                <div className="journal-stat rounded-md border p-3">
                   <p className="text-2xl font-semibold">{started ? "Started" : "Fresh"}</p>
                   <p className="text-xs text-muted-foreground">journal status</p>
                 </div>
-                <div className="rounded-md border bg-background/75 p-3">
+                <div className="journal-stat rounded-md border p-3">
                   <p className="text-2xl font-semibold">{streak}</p>
                   <p className="text-xs text-muted-foreground">day streak</p>
                 </div>
-                <div className="rounded-md border bg-background/75 p-3">
+                <div className="journal-stat rounded-md border p-3">
                   <p className="text-2xl font-semibold">{completedIntentions}</p>
                   <p className="text-xs text-muted-foreground">intentions checked</p>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className={cn("surface-card", motionPresets.fadeInUp)}>
+            <Card className={cn("journal-paper-card surface-card", motionPresets.fadeInUp)}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Heart className="h-5 w-5 text-rose-500" />
@@ -336,8 +341,8 @@ export default function JournalPage() {
                       aria-checked={entry.mood === mood.value}
                       onClick={() => updateEntry("mood", entry.mood === mood.value ? null : mood.value)}
                       className={cn(
-                        "interactive-card rounded-lg border bg-background p-3 text-center transition-colors",
-                        entry.mood === mood.value && "border-amber-500 bg-amber-500/10",
+                        "journal-mood-button rounded-lg border bg-background/70 p-3 text-center shadow-sm",
+                        entry.mood === mood.value && "border-amber-500 bg-amber-500/10 shadow-amber-900/10",
                       )}
                     >
                       <span className="block text-2xl" aria-hidden="true">{mood.icon}</span>
@@ -348,7 +353,7 @@ export default function JournalPage() {
               </CardContent>
             </Card>
 
-            <Card className={cn("surface-card", motionPresets.fadeInUp)}>
+            <Card className={cn("journal-paper-card surface-card", motionPresets.fadeInUp)}>
               <CardHeader>
                 <CardTitle>I am thankful for...</CardTitle>
                 <CardDescription>Three small anchors from today.</CardDescription>
@@ -368,13 +373,14 @@ export default function JournalPage() {
                       }}
                       placeholder={gratitudePlaceholders[index]}
                       maxLength={240}
+                      className="journal-input"
                     />
                   </div>
                 ))}
               </CardContent>
             </Card>
 
-            <Card className={cn("surface-card", motionPresets.fadeInUp)}>
+            <Card className={cn("journal-paper-card surface-card", motionPresets.fadeInUp)}>
               <CardHeader>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
@@ -393,6 +399,7 @@ export default function JournalPage() {
                   onChange={(event) => updateEntry("affirmation_text", event.target.value.slice(0, 140) || null)}
                   placeholder="I can move through today with steadiness."
                   maxLength={140}
+                  className="journal-input"
                 />
                 <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
                   <span>{(entry.affirmation_text || "").length}/140</span>
@@ -414,7 +421,7 @@ export default function JournalPage() {
               <IntentionCard title="Family" items={entry.family_todo} onChange={(items) => updateEntry("family_todo", items)} />
             </div>
 
-            <Card className={cn("surface-card", motionPresets.fadeInUp)}>
+            <Card className={cn("journal-paper-card surface-card", motionPresets.fadeInUp)}>
               <CardHeader>
                 <CardTitle>Evening Reflection</CardTitle>
                 <CardDescription>Available all day. Fill it whenever the signal is fresh.</CardDescription>
@@ -427,7 +434,7 @@ export default function JournalPage() {
               </CardContent>
             </Card>
 
-            <Card className={cn("surface-card", motionPresets.fadeInUp)}>
+            <Card className={cn("journal-paper-card surface-card", motionPresets.fadeInUp)}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Star className="h-5 w-5 text-amber-500" />
@@ -461,7 +468,7 @@ export default function JournalPage() {
             </Card>
 
             <Collapsible open={tomorrowOpen} onOpenChange={setTomorrowOpen}>
-              <Card className={cn("surface-card", motionPresets.fadeInUp)}>
+              <Card className={cn("journal-paper-card surface-card", motionPresets.fadeInUp)}>
                 <CardHeader>
                   <CollapsibleTrigger asChild>
                     <button type="button" className="flex w-full items-center justify-between gap-3 text-left">
@@ -473,11 +480,11 @@ export default function JournalPage() {
                     </button>
                   </CollapsibleTrigger>
                 </CardHeader>
-                <CollapsibleContent>
+                <CollapsibleContent className="journal-collapsible-content">
                   <CardContent className="grid gap-4 lg:grid-cols-2">
                     <JournalTextarea label="One thing I want tomorrow to be about" value={entry.tomorrow_focus} onChange={(value) => updateEntry("tomorrow_focus", value)} />
                     <JournalTextarea label="One thing I want to avoid" value={entry.tomorrow_avoid} onChange={(value) => updateEntry("tomorrow_avoid", value)} />
-                    <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground lg:col-span-2">
+                    <div className="rounded-md border border-dashed border-amber-900/20 bg-background/45 p-3 text-sm text-muted-foreground lg:col-span-2">
                       Creating this as tomorrow&apos;s focus is planned for a future pass so Journal does not silently write into Today.
                     </div>
                   </CardContent>
@@ -486,8 +493,8 @@ export default function JournalPage() {
             </Collapsible>
           </main>
 
-          <aside className="space-y-4">
-            <Card className={cn("surface-card", motionPresets.fadeInUp)}>
+          <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
+            <Card className={cn("journal-paper-card journal-side-panel surface-card", motionPresets.fadeInUp)}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <History className="h-5 w-5 text-primary" />
@@ -510,7 +517,7 @@ export default function JournalPage() {
                       type="button"
                       onClick={() => setSelectedDate(recent.journal_date)}
                       className={cn(
-                        "w-full rounded-md border p-3 text-left text-sm transition-colors hover:bg-muted/60",
+                        "w-full rounded-md border border-amber-900/10 bg-background/45 p-3 text-left text-sm transition-colors hover:bg-amber-500/10",
                         motionPresets.listItem,
                         selectedDate === recent.journal_date && "border-amber-500 bg-amber-500/10",
                       )}
@@ -528,7 +535,7 @@ export default function JournalPage() {
               </CardContent>
             </Card>
 
-            <Card className={cn("surface-card border-dashed", motionPresets.fadeIn)}>
+            <Card className={cn("journal-paper-card surface-card border-dashed", motionPresets.fadeIn)}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
                   <Lock className="h-4 w-4 text-muted-foreground" />
@@ -557,14 +564,15 @@ function SaveStatus({ state }: { state: SaveState }) {
     idle: "Ready",
     dirty: "Unsaved changes",
     saving: "Saving...",
-    saved: "Saved",
-    error: "Save failed",
+    saved: "Saved just now",
+    error: "Error saving",
   }
   return (
     <Badge
       variant="outline"
+      aria-live="polite"
       className={cn(
-        "bg-background/70",
+        "journal-save-status bg-background/70",
         state === "saved" && "save-feedback",
         state === "dirty" && "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
         state === "saving" && "border-primary/30 bg-primary/10 text-primary",
@@ -588,7 +596,7 @@ function JournalTextarea({ label, value, onChange }: { label: string; value?: st
         id={id}
         value={value || ""}
         onChange={(event) => onChange(event.target.value || null)}
-        className="min-h-28 resize-y bg-background/80 leading-6"
+        className="journal-textarea resize-y"
       />
     </div>
   )
@@ -599,27 +607,29 @@ function IntentionCard({ title, items, onChange }: { title: string; items: Journ
     onChange(items.map((item) => (item.id === id ? { ...item, ...patch } : item)))
   }
   return (
-    <Card className="surface-card interactive-card">
+    <Card className="journal-paper-card interactive-card">
       <CardHeader>
         <CardTitle className="text-base">{title}</CardTitle>
         <CardDescription>Up to three intentions.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         {items.length === 0 && (
-          <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">No intentions yet.</p>
+          <p className="rounded-md border border-dashed border-amber-900/20 bg-background/35 p-3 text-sm text-muted-foreground">No intentions yet.</p>
         )}
         {items.map((item, index) => (
-          <div key={item.id} className={cn("flex items-center gap-2", motionPresets.listItem)}>
+          <div key={item.id} className={cn("journal-intention-row flex items-center gap-2 rounded-md border border-transparent p-1", motionPresets.listItem)}>
             <Checkbox
               checked={item.done}
               onCheckedChange={(checked) => updateItem(item.id, { done: Boolean(checked) })}
               aria-label={`${title} intention ${index + 1} complete`}
+              className="h-5 w-5 data-[state=checked]:border-amber-500 data-[state=checked]:bg-amber-500"
             />
             <Input
               value={item.text}
               onChange={(event) => updateItem(item.id, { text: event.target.value })}
               placeholder={`${title} intention`}
               maxLength={240}
+              className={cn("journal-input", item.done && "text-muted-foreground line-through")}
             />
             <Button
               type="button"
@@ -655,10 +665,10 @@ function StarRow({
   onNoteChange: (value: string | null) => void
 }) {
   return (
-    <div className="rounded-md border p-3">
+    <div className="rounded-md border border-amber-900/15 bg-background/35 p-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Label className="font-medium">{label}</Label>
-        <div role="radiogroup" aria-label={`${label} star rating`} className="flex items-center gap-1">
+        <div role="radiogroup" aria-label={`${label} star rating`} className="flex items-center gap-1.5">
           {[1, 2, 3, 4, 5].map((star) => (
             <button
               key={star}
@@ -667,8 +677,9 @@ function StarRow({
               aria-checked={value === star}
               aria-label={`${label} ${star} star${star === 1 ? "" : "s"}`}
               onClick={() => onValueChange(value === star ? null : star)}
+              data-selected={Boolean(value && star <= value)}
               className={cn(
-                "rounded-md p-1 text-muted-foreground transition-colors hover:text-amber-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "journal-star-button rounded-md p-1.5 text-muted-foreground hover:text-amber-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 motionPresets.pressable,
                 value && star <= value && "text-amber-500",
               )}
@@ -682,7 +693,7 @@ function StarRow({
         value={note || ""}
         onChange={(event) => onNoteChange(event.target.value || null)}
         placeholder="Why?"
-        className="mt-3"
+        className="journal-input mt-3"
         maxLength={1000}
       />
     </div>

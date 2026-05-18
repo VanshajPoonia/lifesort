@@ -17,6 +17,48 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-05-19 01:22 IST - Daily Journal Premium Notebook Polish
+
+- Agent/tool used: Codex (GPT-5 coding agent).
+- Task completed: Upgraded the Daily Journal page into a warmer, calmer notebook-style writing surface without changing Journal data models, APIs, autosave behavior, Today integration, or Reflect integration.
+
+#### Files Modified
+- `app/globals.css` — Added Journal-scoped paper, texture, writing-field, star, intention, collapsible, and reduced-motion-safe polish utilities.
+- `app/journal/page.tsx` — Applied the notebook visual system to the Journal cover/header, date/save controls, mood selector, gratitude, affirmation, intentions, reflection fields, star ratings, Tomorrow setup, and recent-history panel.
+- `AI_CHECKLIST.md` — Added a recurring Journal visual-polish check.
+- `AI_TASK_LOG.md` — This entry.
+
+#### Summary
+- Kept the existing 2-second autosave state machine, manual Save fallback, authenticated `/api/journal/[date]` writes, recent-entry fetches, and date query behavior intact.
+- Scoped the new warm paper background, dotted texture, ruled textareas, amber focus states, and soft dark-mode surfaces to `/journal` only.
+- Improved the header into a notebook-style daily cover with date label, date controls, Save status, journal status, streak, and intention count.
+- Improved writing comfort with larger ruled textareas, warmer inputs, clearer focus rings, a sticky desktop history panel, and single-column mobile behavior.
+- Preserved accessible radiogroup semantics for mood and star ratings while adding small CSS-only selection/press feedback.
+
+#### Commands Run
+- `git status --short --branch` → branch `main...origin/main [ahead 2]`; several unrelated local changes are present in the worktree and were not part of this task.
+- `git diff --check` → passed.
+- `npx tsc --noEmit` → passed.
+- `npm run lint` → failed with the known repo-wide ESLint 10 blocker: no `eslint.config.(js|mjs|cjs)` file exists.
+- `npm run build` → passed. Build still skips type/lint validation through `next.config.mjs`.
+
+#### Bugs Found or Fixed
+- No functional Journal bugs were found.
+- Tightened mobile overflow risk by avoiding negative Journal container margins and keeping the notebook layout width-capped.
+
+#### Remaining Issues / Known Limitations
+- Browser/manual verification was not run in this environment.
+- `npm run lint` remains blocked by the pre-existing missing ESLint flat config.
+- Several non-Journal files are dirty from unrelated local work and should be reviewed separately before any broad commit.
+
+#### Suggested Next Steps
+- Browser-check `/journal` on mobile and desktop in light and dark mode, including autosave, date switching, star keyboard access, and reduced motion.
+- Add the missing ESLint flat config so source linting can run normally.
+
+#### Handoff Notes
+- Journal APIs, schema, Today preview, and Reflect digest were intentionally left untouched.
+- Future Journal polish should keep styles under the Journal-scoped CSS utilities rather than changing global cards or app theme tokens.
+
 ### 2026-05-18 23:30 IST - Daily Journal Feature
 
 - Agent/tool used: Codex (GPT-5 coding agent).
