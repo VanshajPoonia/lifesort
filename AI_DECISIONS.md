@@ -116,7 +116,7 @@ Architecture and product decision memory for LifeSort.
 ## UI and Component Decisions
 
 - App pages generally render inside `DashboardLayout`.
-- Signed-in pages use sidebar navigation with feature visibility controlled by sidebar preferences.
+- Signed-in pages use `DashboardLayout` with hub-level sidebar navigation. The primary sidebar intentionally shows only Home, Today, Plan, Capture, Money, Life Admin, Insights, Settings, and admin-only Admin. Individual feature routes remain deep-linkable and are reached from hub cards, Global Search, Quick Add, or direct URLs. Sidebar preferences now control hub visibility while legacy per-feature preference keys remain harmless for stored user JSON. Hub badges use `/api/navigation-summary`, a read-only user-scoped aggregate endpoint with missing-schema tolerance and no new tables.
 - Theme state is stored in `localStorage` and applied via root class/data attributes.
 - `sessionStorage` is used for transient UI caching such as onboarding completion and sidebar preferences.
 - lucide-react is the icon source.
