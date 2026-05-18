@@ -1,318 +1,358 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { useState } from "react"
+import { BookOpenText, BriefcaseBusiness, CheckSquare, ChevronLeft, ChevronRight, Heart, Target } from "lucide-react"
+
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
-import {
-  CalendarDays,
-  Target,
-  CheckSquare,
-  Wallet,
-  FileText,
-  Heart,
-  TrendingUp,
-  DollarSign,
-  Link2,
-  FolderPlus,
-  Sparkles,
-  Timer,
-  Zap,
-  ChevronRight,
-  ChevronLeft,
-  Settings,
-  Quote,
-  Gamepad2,
-} from "lucide-react"
 
 interface OnboardingModalProps {
   isOpen: boolean
   onComplete: () => void
 }
 
-const FEATURES = [
-  { id: "dashboard", label: "Dashboard", icon: Target, description: "Overview of your day" },
-  { id: "calendar", label: "Calendar", icon: CalendarDays, description: "Schedule events and reminders" },
-  { id: "goals", label: "Goals", icon: Target, description: "Track long-term goals" },
-  { id: "tasks", label: "Daily Tasks", icon: CheckSquare, description: "To-do lists and task management" },
-  { id: "budget", label: "Budget", icon: Wallet, description: "Track income and expenses" },
-  { id: "notes", label: "Notes", icon: FileText, description: "Quick notes and ideas" },
-  { id: "wishlist", label: "Wishlist", icon: Heart, description: "Track items you want" },
-  { id: "investments", label: "Investments", icon: TrendingUp, description: "Track your portfolio" },
-  { id: "income", label: "Income", icon: DollarSign, description: "Track income sources" },
-  { id: "links", label: "My Links", icon: Link2, description: "Save links and images" },
-  { id: "custom_sections", label: "Custom Sections", icon: FolderPlus, description: "Create custom lists" },
-  { id: "daily_content", label: "Daily Quotes & Games", icon: Sparkles, description: "Fun daily activities" },
-  { id: "pomodoro", label: "Pomodoro Timer", icon: Timer, description: "Focus sessions" },
-  { id: "nuke", label: "Nuke Goal", icon: Zap, description: "Intense goal focus" },
-  { id: "ai_assistant", label: "AI Assistant", icon: Sparkles, description: "AI-powered help" },
+const LIFE_AREAS = [
+  "Health",
+  "Work",
+  "Money",
+  "Relationships",
+  "Home",
+  "Learning",
+  "Admin",
+  "Fun",
 ]
+
+const planningStyles = [
+  { id: "light", label: "Light", description: "A short list and gentle reminders." },
+  { id: "structured", label: "Structured", description: "Clear must-do work and regular reviews." },
+  { id: "flexible", label: "Flexible", description: "Loose priorities that can adapt during the day." },
+]
+
+function localDateString() {
+  const date = new Date()
+  const offset = date.getTimezoneOffset()
+  const local = new Date(date.getTime() - offset * 60000)
+  return local.toISOString().slice(0, 10)
+}
+
+async function bestEffortWrite(url: string, body: unknown) {
+  try {
+    await fetch(url, {
+      method: url.includes("/journal/") ? "PUT" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+  } catch (error) {
+    console.warn("Optional onboarding write failed:", error)
+  }
+}
 
 export function OnboardingModal({ isOpen, onComplete }: OnboardingModalProps) {
   const [step, setStep] = useState(1)
-  const [selectedFeatures, setSelectedFeatures] = useState<Set<string>>(
-    new Set(["dashboard", "calendar", "tasks", "notes"])
-  )
+  const [selectedLifeAreas, setSelectedLifeAreas] = useState<Set<string>>(new Set(["Work", "Health", "Money"]))
+  const [planningStyle, setPlanningStyle] = useState("light")
+  const [workStart, setWorkStart] = useState("09:00")
+  const [workEnd, setWorkEnd] = useState("17:00")
+  const [firstTask, setFirstTask] = useState("")
+  const [firstGoal, setFirstGoal] = useState("")
+  const [firstGratitude, setFirstGratitude] = useState("")
   const [dailyPopupEnabled, setDailyPopupEnabled] = useState(true)
   const [saving, setSaving] = useState(false)
 
-  const totalSteps = 3
+  const totalSteps = 4
 
-  const toggleFeature = (id: string) => {
-    const newSelected = new Set(selectedFeatures)
-    if (newSelected.has(id)) {
-      newSelected.delete(id)
-    } else {
-      newSelected.add(id)
-    }
-    setSelectedFeatures(newSelected)
+  const toggleLifeArea = (area: string) => {
+    setSelectedLifeAreas((current) => {
+      const next = new Set(current)
+      if (next.has(area)) {
+        next.delete(area)
+      } else {
+        next.add(area)
+      }
+      return next
+    })
   }
 
-  const handleComplete = async () => {
+  const completeOnboarding = async (skipped = false) => {
+    if (saving) return
     setSaving(true)
-    try {
-      // Build sidebar preferences from selected features
-      const sidebarPrefs: Record<string, boolean> = {}
-      FEATURES.forEach((f) => {
-        sidebarPrefs[f.id] = selectedFeatures.has(f.id)
-      })
 
-      const appPrefs = {
-        daily_popup_enabled: dailyPopupEnabled,
-        onboarding_date: new Date().toISOString(),
+    try {
+      if (!skipped) {
+        const optionalWrites = []
+
+        if (firstTask.trim()) {
+          optionalWrites.push(bestEffortWrite("/api/tasks", { title: firstTask.trim(), priority: "medium" }))
+        }
+
+        if (firstGoal.trim()) {
+          optionalWrites.push(bestEffortWrite("/api/goals", { title: firstGoal.trim(), priority: "medium", status: "active" }))
+        }
+
+        if (firstGratitude.trim()) {
+          optionalWrites.push(
+            bestEffortWrite(`/api/journal/${localDateString()}`, {
+              mood: null,
+              gratitude: [firstGratitude.trim(), "", ""],
+              affirmation_text: null,
+              affirmation_pinned_until: null,
+              work_todo: [],
+              personal_todo: [],
+              family_todo: [],
+              what_went_well: null,
+              what_could_be_better: null,
+              notes_from_today: null,
+              how_to_make_tomorrow_better: null,
+              work_stars: null,
+              work_stars_note: null,
+              personal_stars: null,
+              personal_stars_note: null,
+              family_stars: null,
+              family_stars_note: null,
+              tomorrow_focus: null,
+              tomorrow_avoid: null,
+              energy_level: null,
+              tags: ["onboarding"],
+            }),
+          )
+        }
+
+        await Promise.allSettled(optionalWrites)
       }
 
       const response = await fetch("/api/onboarding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          app_preferences: appPrefs,
-          sidebar_preferences: sidebarPrefs,
+          app_preferences: {
+            daily_popup_enabled: dailyPopupEnabled,
+            onboarding_date: new Date().toISOString(),
+            onboarding_skipped: skipped,
+            important_life_areas: Array.from(selectedLifeAreas),
+            planning_style: planningStyle,
+            work_hours_start: workStart,
+            work_hours_end: workEnd,
+          },
+          sidebar_preferences: {},
         }),
       })
 
       if (!response.ok) {
-        alert("Failed to save preferences. Please try again or contact support.")
+        alert("Failed to save setup. Please try again or contact support.")
         return
       }
 
       onComplete()
     } catch (error) {
       console.error("Error saving onboarding:", error)
-      alert("Failed to save preferences. Please check your connection and try again.")
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const handleSkip = async () => {
-    if (saving) return
-    
-    setSaving(true)
-    try {
-      const response = await fetch("/api/onboarding", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          app_preferences: { daily_popup_enabled: true },
-          sidebar_preferences: {},
-        }),
-      })
-      
-      if (!response.ok) {
-        alert("Failed to skip onboarding. Please try again or contact support.")
-        return
-      }
-
-      onComplete()
-    } catch (error) {
-      console.error("Error skipping onboarding:", error)
-      alert("Failed to skip onboarding. Please check your connection and try again.")
+      alert("Failed to save setup. Please check your connection and try again.")
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && handleSkip()}>
-      <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden [&>button]:hidden">
-        {/* Progress bar */}
-        <div className="px-6 pt-6">
-          <div className="flex items-center gap-4 mb-2">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && completeOnboarding(true)}>
+      <DialogContent className="max-h-[92vh] overflow-y-auto p-0 sm:max-w-[680px] [&>button]:hidden">
+        <div className="sticky top-0 z-10 border-b bg-background/95 px-6 pt-6 backdrop-blur">
+          <div className="mb-2 flex items-center gap-4">
             <Progress value={(step / totalSteps) * 100} className="h-2 flex-1" />
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleSkip}
-              className="shrink-0 text-xs bg-transparent"
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => completeOnboarding(true)}
+              className="shrink-0 bg-transparent text-xs"
               disabled={saving}
             >
               {saving ? "Saving..." : "Skip"}
             </Button>
           </div>
-          <p className="text-sm text-muted-foreground">Step {step} of {totalSteps}</p>
+          <p className="pb-4 text-sm text-muted-foreground">Step {step} of {totalSteps}</p>
         </div>
 
-        {/* Step 1: Welcome */}
         {step === 1 && (
-          <div className="p-6 space-y-6">
-            <div className="text-center space-y-2">
-              <h2 className="text-2xl font-bold">Welcome to Your Personal Dashboard!</h2>
-              <p className="text-muted-foreground">
-                Let's set up your workspace. We'll customize the app based on what you need.
-              </p>
+          <div className="space-y-6 p-6">
+            <div className="space-y-2 text-center">
+              <h2 className="text-2xl font-bold">Set up your LifeSort focus</h2>
+              <p className="text-muted-foreground">Choose the Life Areas you want LifeSort to keep close at hand.</p>
             </div>
 
-            <div className="bg-muted/50 rounded-lg p-4 space-y-3">
-              <h3 className="font-semibold">Here's what you can do:</h3>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-start gap-2">
-                  <Settings className="h-4 w-4 mt-0.5 text-primary" />
-                  <span><strong>Customize your sidebar</strong> - Show only the features you need</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <Quote className="h-4 w-4 mt-0.5 text-primary" />
-                  <span><strong>Daily quotes & games</strong> - Get inspired with quotes, jokes, or play mini-games every 2 hours</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <Sparkles className="h-4 w-4 mt-0.5 text-primary" />
-                  <span><strong>Choose your themes</strong> - Pick motivational, religious, funny content and more</span>
-                </li>
-              </ul>
-              <p className="text-xs text-muted-foreground/70 pt-2 border-t">
-                You can change all these settings anytime in <strong>Settings</strong> (cog icon in sidebar)
-              </p>
-            </div>
-
-            <Button className="w-full" onClick={() => setStep(2)}>
-              Let's Get Started
-              <ChevronRight className="h-4 w-4 ml-2" />
-            </Button>
-          </div>
-        )}
-
-        {/* Step 2: Feature Selection */}
-        {step === 2 && (
-          <div className="p-6 space-y-4">
-            <div className="text-center space-y-1">
-              <h2 className="text-xl font-bold">What would you like to use?</h2>
-              <p className="text-sm text-muted-foreground">
-                Select the features you want in your sidebar. You can change this later in Settings.
-              </p>
-            </div>
-
-            <div className="flex gap-2 justify-end">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSelectedFeatures(new Set(FEATURES.map(f => f.id)))}
-                className="text-xs"
-              >
-                Select All
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSelectedFeatures(new Set())}
-                className="text-xs"
-              >
-                Deselect All
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[350px] overflow-y-auto pr-2">
-              {FEATURES.map((feature) => {
-                const Icon = feature.icon
-                const isSelected = selectedFeatures.has(feature.id)
-
+            <div className="grid gap-2 sm:grid-cols-2">
+              {LIFE_AREAS.map((area) => {
+                const selected = selectedLifeAreas.has(area)
                 return (
                   <Card
-                    key={feature.id}
-                    className={`cursor-pointer transition-all ${
-                      isSelected ? "border-primary bg-primary/5" : "hover:border-muted-foreground/50"
+                    key={area}
+                    className={`interactive-card cursor-pointer transition-colors ${
+                      selected ? "border-primary bg-primary/5" : "hover:bg-secondary"
                     }`}
-                    onClick={() => toggleFeature(feature.id)}
+                    onClick={() => toggleLifeArea(area)}
                   >
-                    <CardContent className="p-3 flex items-start gap-2">
-                      <Checkbox checked={isSelected} className="mt-0.5" />
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <Icon className="h-3.5 w-3.5 text-primary flex-shrink-0" />
-                          <span className="font-medium text-sm truncate">{feature.label}</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground truncate">{feature.description}</p>
-                      </div>
+                    <CardContent className="flex items-center gap-3 p-4">
+                      <Checkbox checked={selected} aria-label={`Use ${area} as an important Life Area`} />
+                      <span className="font-medium">{area}</span>
                     </CardContent>
                   </Card>
                 )
               })}
             </div>
 
+            <Button className="w-full gap-2" onClick={() => setStep(2)}>
+              Continue
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+
+        {step === 2 && (
+          <div className="space-y-6 p-6">
+            <div className="space-y-2 text-center">
+              <h2 className="text-2xl font-bold">How should Today feel?</h2>
+              <p className="text-muted-foreground">Pick a planning style and your usual work window.</p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              {planningStyles.map((style) => (
+                <button
+                  key={style.id}
+                  type="button"
+                  className={`interactive-card rounded-lg border p-4 text-left transition-colors ${
+                    planningStyle === style.id ? "border-primary bg-primary/5" : "hover:bg-secondary"
+                  }`}
+                  onClick={() => setPlanningStyle(style.id)}
+                >
+                  <span className="flex items-center gap-2 font-medium">
+                    <BriefcaseBusiness className="h-4 w-4 text-primary" />
+                    {style.label}
+                  </span>
+                  <span className="mt-2 block text-sm text-muted-foreground">{style.description}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="work-start">Work starts</Label>
+                <Input id="work-start" type="time" value={workStart} onChange={(event) => setWorkStart(event.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="work-end">Work ends</Label>
+                <Input id="work-end" type="time" value={workEnd} onChange={(event) => setWorkEnd(event.target.value)} />
+              </div>
+            </div>
+
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setStep(1)}>
-                <ChevronLeft className="h-4 w-4 mr-2" />
+                <ChevronLeft className="mr-2 h-4 w-4" />
                 Back
               </Button>
-              <Button className="flex-1" onClick={() => setStep(3)}>
+              <Button className="flex-1 gap-2" onClick={() => setStep(3)}>
                 Continue
-                <ChevronRight className="h-4 w-4 ml-2" />
+                <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
           </div>
         )}
 
-        {/* Step 3: Daily Content Preferences */}
         {step === 3 && (
-          <div className="p-6 space-y-6">
-            <div className="text-center space-y-1">
-              <h2 className="text-xl font-bold">Daily Fun Activity</h2>
-              <p className="text-sm text-muted-foreground">
-                Would you like to receive daily quotes, jokes, or mini-games?
-              </p>
+          <div className="space-y-6 p-6">
+            <div className="space-y-2 text-center">
+              <h2 className="text-2xl font-bold">Create your first anchors</h2>
+              <p className="text-muted-foreground">Optional, but helpful: one task and one goal to make the app feel yours.</p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="first-task" className="flex items-center gap-2">
+                  <CheckSquare className="h-4 w-4 text-primary" />
+                  First task
+                </Label>
+                <Input
+                  id="first-task"
+                  value={firstTask}
+                  onChange={(event) => setFirstTask(event.target.value)}
+                  placeholder="Example: Plan tomorrow morning"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="first-goal" className="flex items-center gap-2">
+                  <Target className="h-4 w-4 text-primary" />
+                  First goal
+                </Label>
+                <Input
+                  id="first-goal"
+                  value={firstGoal}
+                  onChange={(event) => setFirstGoal(event.target.value)}
+                  placeholder="Example: Build a calm routine"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setStep(2)}>
+                <ChevronLeft className="mr-2 h-4 w-4" />
+                Back
+              </Button>
+              <Button className="flex-1 gap-2" onClick={() => setStep(4)}>
+                Continue
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {step === 4 && (
+          <div className="space-y-6 p-6">
+            <div className="space-y-2 text-center">
+              <h2 className="text-2xl font-bold">Start gently</h2>
+              <p className="text-muted-foreground">Add one gratitude note and choose whether to keep daily content on.</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="first-gratitude" className="flex items-center gap-2">
+                <BookOpenText className="h-4 w-4 text-amber-600" />
+                First journal gratitude
+              </Label>
+              <Input
+                id="first-gratitude"
+                value={firstGratitude}
+                onChange={(event) => setFirstGratitude(event.target.value)}
+                placeholder="I am thankful for..."
+              />
             </div>
 
             <Card
-              className={`cursor-pointer transition-all ${
-                dailyPopupEnabled ? "border-primary bg-primary/5" : ""
+              className={`interactive-card cursor-pointer transition-colors ${
+                dailyPopupEnabled ? "border-primary bg-primary/5" : "hover:bg-secondary"
               }`}
-              onClick={() => setDailyPopupEnabled(!dailyPopupEnabled)}
+              onClick={() => setDailyPopupEnabled((enabled) => !enabled)}
             >
-              <CardContent className="p-4 flex items-start gap-3">
-                <Checkbox checked={dailyPopupEnabled} />
+              <CardContent className="flex items-start gap-3 p-4">
+                <Checkbox checked={dailyPopupEnabled} aria-label="Enable daily content" />
                 <div>
-                  <div className="flex items-center gap-2">
-                    <Gamepad2 className="h-4 w-4 text-primary" />
-                    <span className="font-medium">Enable Daily Popup</span>
+                  <div className="flex items-center gap-2 font-medium">
+                    <Heart className="h-4 w-4 text-primary" />
+                    Keep daily quotes, jokes, and games on
                   </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Get a random quote, joke, or mini-game every 2 hours when you use the app.
-                    Includes Wordle, Snake, riddles, trivia, and more!
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    You can always change this later in Settings.
                   </p>
                 </div>
               </CardContent>
             </Card>
 
-            <div className="bg-muted/50 rounded-lg p-4 space-y-2 text-sm">
-              <h4 className="font-semibold">Quick Tips:</h4>
-              <ul className="space-y-1 text-muted-foreground">
-                <li>• Customize quote/joke themes in <strong>Settings &gt; Content Preferences</strong></li>
-                <li>• Hide/show sidebar sections in <strong>Settings &gt; Sidebar</strong></li>
-                <li>• Your game scores are saved in <strong>Daily Quotes & Games</strong></li>
-                <li>• Need help? Check the <strong>FAQs</strong> in your Profile settings</li>
-              </ul>
-            </div>
-
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setStep(2)}>
-                <ChevronLeft className="h-4 w-4 mr-2" />
+              <Button variant="outline" onClick={() => setStep(3)}>
+                <ChevronLeft className="mr-2 h-4 w-4" />
                 Back
               </Button>
-              <Button className="flex-1" onClick={handleComplete} disabled={saving}>
-                {saving ? (
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent mr-2" />
-                ) : null}
+              <Button className="flex-1" onClick={() => completeOnboarding(false)} disabled={saving}>
+                {saving && <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent" />}
                 Complete Setup
               </Button>
             </div>
