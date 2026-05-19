@@ -742,13 +742,15 @@ export function DailyPopup() {
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="sm:max-w-md p-0 overflow-hidden bg-transparent border-0 shadow-none [&>button]:hidden">
+      <DialogContent className="max-h-[calc(100dvh-1.5rem)] w-[calc(100vw-1.5rem)] max-w-md overflow-y-auto border-0 bg-transparent p-0 shadow-none sm:max-w-md [&>button]:hidden">
         <Card className="relative overflow-hidden border-2 border-primary/20">
           <Button
             variant="ghost"
             size="icon"
-            className="absolute top-2 right-2 z-10 h-8 w-8 rounded-full bg-background/80 hover:bg-background"
+            className="absolute right-2 top-2 z-10 h-8 w-8 rounded-full border border-border/80 bg-background/95 text-foreground shadow-sm backdrop-blur hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             onClick={handleClose}
+            aria-label="Close daily content"
+            title="Close"
           >
             <X className="h-4 w-4" />
           </Button>

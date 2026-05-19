@@ -11,11 +11,52 @@ LifeSort is a broad Next.js App Router application with many implemented product
 Current verification state:
 
 - `npm run build` passes, but skips type validation and linting through `next.config.mjs`.
-- `npm run build` emits Next warnings about unsupported `metadata.themeColor` and `metadata.viewport` fields.
+- The previous unsupported `metadata.themeColor` / `metadata.viewport` build warnings have been fixed.
 - `npm run lint` fails because no `eslint.config.*` file exists for ESLint 10.
 - No test, typecheck, formatter, or database migration runner script is defined in `package.json`.
 
 ## Completed Work
+
+### 2026-05-19 23:31 IST - Responsive Shell And Daily Popup Contrast Fix
+
+- Agent/tool used: Codex (GPT-5 coding agent).
+- Task completed: Fixed the visible sidebar active-item overflow and improved the daily message popup close-button contrast/responsive sizing. No routes, schemas, APIs, dependencies, or product features were changed.
+
+#### Files Modified
+- `components/dashboard-layout.tsx` — Clamped sidebar/rail overflow, added `min-w-0` containment to shell layers, converted sidebar nav links to the shadcn `Button asChild` pattern, and made nav icons/text truncate safely.
+- `components/daily-popup.tsx` — Made the daily popup responsive within the viewport and changed the custom close button to a bordered, theme-aware control with clear hover/focus contrast.
+- `AI_TASK_LOG.md` — Recorded this handoff and verification results.
+
+#### Summary
+- The active sidebar item should now stay inside the fixed `w-64` sidebar or `w-20` rail instead of stretching across the page.
+- Sidebar content now hides horizontal overflow and preserves truncation for long labels/user IDs.
+- The daily quote/game popup close button now keeps visible foreground/background contrast on white/light content and has explicit `aria-label`/`title`.
+- The popup is capped to the viewport with internal scrolling so it remains usable on smaller screens.
+
+#### Commands Run
+- `git status --short --branch` — branch started clean and synced with `origin/main`.
+- `git diff --stat` — reviewed scoped source/docs changes.
+- `git diff --check` — passed.
+- `npx tsc --noEmit` — passed.
+- `npm run lint` — failed before source linting because ESLint 10.3.0 cannot find `eslint.config.(js|mjs|cjs)`. This is a known existing repo caveat.
+- `npm run build` — passed; generated 136 routes.
+
+#### Bugs Found Or Fixed
+- Fixed invalid/fragile sidebar markup where a `Link` wrapped a `Button`; the nav now renders the link through `Button asChild`.
+- Fixed a contrast-prone popup close control that could disappear against light dialog content on hover.
+
+#### Remaining Issues And Limitations
+- Browser screenshot verification was not run in this pass; the fix was verified through code review, TypeScript, and production build.
+- Full responsive QA at every target width should still be performed in a real browser, especially for signed-in Journal pages with live data.
+- `npm run lint` remains blocked until an ESLint flat config is added.
+
+#### Suggested Next Steps
+- Smoke-test `/journal`, `/today`, `/`, and the daily popup at mobile, tablet, and desktop widths in a browser.
+- Add the missing ESLint flat config so style and accessibility regressions can be caught by CI.
+
+#### Handoff Notes
+- If any sidebar overflow remains, inspect parent flex sizing first; the shell now uses `min-w-0`/`overflow-hidden`, so remaining issues are likely page-local fixed-width content.
+- Keep future sidebar nav edits on the `Button asChild` pattern to avoid nested interactive elements.
 
 ### 2026-05-19 01:25 IST - Global UX Polish Pass
 

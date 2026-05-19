@@ -268,14 +268,14 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
   }
   const railMode = isTablet || sidebarCollapsed
   const navButtonClass = (item: SidebarItem) =>
-    `h-10 w-full rounded-lg border border-transparent text-sm transition-all duration-150 ease-out active:scale-[0.99] motion-reduce:transition-none motion-reduce:transform-none ${
+    `h-10 w-full max-w-full min-w-0 overflow-hidden rounded-lg border border-transparent text-sm transition-all duration-150 ease-out active:scale-[0.99] motion-reduce:transition-none motion-reduce:transform-none ${
       railMode ? "justify-center gap-0 px-2" : "justify-start gap-3 px-3"
     } ${
       isActiveItem(item)
         ? "border-primary/20 bg-primary/10 text-primary shadow-sm"
         : "text-muted-foreground hover:border-border hover:bg-muted/70 hover:text-foreground"
     }`
-  const navIconClass = (item: SidebarItem) => `h-4 w-4 ${isActiveItem(item) ? "text-primary" : "text-muted-foreground"}`
+  const navIconClass = (item: SidebarItem) => `h-4 w-4 shrink-0 ${isActiveItem(item) ? "text-primary" : "text-muted-foreground"}`
   const toggleSidebarCollapsed = () => {
     setSidebarCollapsed((current) => {
       const next = !current
@@ -327,12 +327,12 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed bottom-0 left-0 top-[var(--subscription-banner-offset,0px)] z-50 hidden border-r border-border bg-card/95 shadow-sm backdrop-blur transition-[transform,width] duration-200 ease-out supports-[backdrop-filter]:bg-card/90 motion-reduce:transition-none sm:relative sm:bottom-auto sm:top-auto sm:flex sm:translate-x-0",
+          "fixed bottom-0 left-0 top-[var(--subscription-banner-offset,0px)] z-50 hidden shrink-0 overflow-hidden border-r border-border bg-card/95 shadow-sm backdrop-blur transition-[transform,width] duration-200 ease-out supports-[backdrop-filter]:bg-card/90 motion-reduce:transition-none sm:relative sm:bottom-auto sm:top-auto sm:flex sm:translate-x-0",
           sidebarOpen ? "translate-x-0" : "-translate-x-full",
           railMode ? "w-20" : "w-64",
         )}
       >
-        <div className="flex h-full flex-col">
+        <div className="flex h-full w-full min-w-0 flex-col overflow-hidden">
           {/* Logo */}
           <div className={cn("flex items-center justify-between border-b border-border/70 px-4 py-3", railMode && "px-3")}>
             <div className={cn("flex min-w-0 items-center gap-3", railMode && "justify-center")}>
@@ -370,26 +370,33 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
           </div>
 
           {/* Navigation */}
-          <nav className={cn("flex-1 space-y-1 overflow-y-auto p-3", railMode && "px-2")}>
-            <div className="space-y-1">
+          <nav className={cn("flex-1 space-y-1 overflow-y-auto overflow-x-hidden p-3", railMode && "px-2")}>
+            <div className="min-w-0 space-y-1">
               {HUB_NAV_ITEMS.filter(isItemVisible).map((item) => {
                 const Icon = item.icon
                 const active = isActiveItem(item)
                 return (
-                  <Link key={item.id} href={item.href} onClick={() => setSidebarOpen(false)} title={item.label} aria-label={item.label}>
-                    <Button variant={active ? "secondary" : "ghost"} className={navButtonClass(item)} aria-label={item.label} title={item.label}>
+                  <Button
+                    key={item.id}
+                    asChild
+                    variant={active ? "secondary" : "ghost"}
+                    className={navButtonClass(item)}
+                    aria-label={item.label}
+                    title={item.label}
+                  >
+                    <Link href={item.href} onClick={() => setSidebarOpen(false)} title={item.label} aria-label={item.label}>
                       <Icon className={navIconClass(item)} />
-                      <span className={cn("truncate", railMode && "hidden")}>{item.label}</span>
-                    </Button>
-                  </Link>
+                      <span className={cn("min-w-0 truncate", railMode && "hidden")}>{item.label}</span>
+                    </Link>
+                  </Button>
                 )
               })}
             </div>
           </nav>
 
           {/* User Profile */}
-          <div className={cn("border-t border-border/70 p-4", railMode && "p-3")}>
-            <div className={cn("flex items-center gap-3", railMode && "flex-col justify-center gap-2")}>
+          <div className={cn("min-w-0 overflow-hidden border-t border-border/70 p-4", railMode && "p-3")}>
+            <div className={cn("flex min-w-0 items-center gap-3", railMode && "flex-col justify-center gap-2")}>
               <Avatar>
                 <AvatarFallback className="bg-primary text-primary-foreground">
                   {user?.name?.charAt(0).toUpperCase() || 'U'}
@@ -413,7 +420,7 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
       </aside>
 
       {/* Main Content */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
       {/* Header */}
       <header className={cn("flex items-center justify-between border-b border-border/70 bg-card/85 px-3 py-3 backdrop-blur supports-[backdrop-filter]:bg-card/75 md:px-6", motionPresets.fadeIn)}>
         <div className="flex items-center gap-3">
