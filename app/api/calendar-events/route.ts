@@ -4,6 +4,24 @@ import { getUserFromSession } from "@/lib/auth"
 
 const sql = neon(process.env.DATABASE_URL!)
 
+const categories = new Set(["personal", "work", "health", "finance"])
+
+function cleanText(value: unknown, fallback: string | null = null) {
+  if (typeof value !== "string") return fallback
+  const trimmed = value.trim()
+  return trimmed || fallback
+}
+
+function cleanCategory(value: unknown) {
+  return typeof value === "string" && categories.has(value) ? value : "personal"
+}
+
+function cleanReminderDays(value: unknown, fallback = 1) {
+  const parsed = typeof value === "number" ? value : Number.parseInt(String(value), 10)
+  if (!Number.isFinite(parsed)) return fallback
+  return Math.min(365, Math.max(0, parsed))
+}
+
 export async function GET() {
   try {
     const user = await getUserFromSession()
@@ -32,11 +50,52 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { title, description, event_date, start_time, end_time } = body
+    const {
+      title,
+      description,
+      event_date,
+      start_time,
+      end_time,
+      category,
+      location,
+      attendees,
+      email_reminder,
+      reminder_days,
+    } = body
+
+    const eventTitle = cleanText(title)
+
+    if (!eventTitle) {
+      return NextResponse.json({ error: "Title is required" }, { status: 400 })
+    }
 
     const result = await sql`
-      INSERT INTO calendar_events (user_id, title, description, event_date, start_time, end_time)
-      VALUES (${user.id}, ${title}, ${description || null}, ${event_date}, ${start_time}, ${end_time})
+      INSERT INTO calendar_events (
+        user_id,
+        title,
+        description,
+        event_date,
+        start_time,
+        end_time,
+        category,
+        location,
+        attendees,
+        email_reminder,
+        reminder_days
+      )
+      VALUES (
+        ${user.id},
+        ${eventTitle},
+        ${cleanText(description)},
+        ${event_date},
+        ${start_time},
+        ${end_time},
+        ${cleanCategory(category)},
+        ${cleanText(location)},
+        ${cleanText(attendees)},
+        ${Boolean(email_reminder)},
+        ${cleanReminderDays(reminder_days)}
+      )
       RETURNING *
     `
 
@@ -55,12 +114,35 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json()
-    const { id, title, description, event_date, start_time, end_time } = body
+    const {
+      id,
+      title,
+      description,
+      event_date,
+      start_time,
+      end_time,
+      category,
+      location,
+      attendees,
+      email_reminder,
+      reminder_days,
+    } = body
+
+    const eventTitle = cleanText(title)
+
+    if (!id || !eventTitle) {
+      return NextResponse.json({ error: "Event ID and title are required" }, { status: 400 })
+    }
 
     const result = await sql`
       UPDATE calendar_events
-      SET title = ${title}, description = ${description || null}, 
+      SET title = ${eventTitle}, description = ${cleanText(description)},
           event_date = ${event_date}, start_time = ${start_time}, end_time = ${end_time},
+          category = ${cleanCategory(category)},
+          location = ${cleanText(location)},
+          attendees = ${cleanText(attendees)},
+          email_reminder = ${Boolean(email_reminder)},
+          reminder_days = ${cleanReminderDays(reminder_days)},
           updated_at = NOW()
       WHERE id = ${id} AND user_id = ${user.id}
       RETURNING *
