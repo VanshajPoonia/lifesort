@@ -11,7 +11,6 @@ import {
   CalendarCheck,
   ClipboardCheck,
   Clock,
-  FileText,
   FolderPlus,
   Gauge,
   Heart,
@@ -38,8 +37,6 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 type DashboardApiKey = "tasks" | "goals" | "notes" | "budget" | "investments" | "wishlist" | "income" | "projects"
 type DashboardErrorKey = DashboardApiKey | "today" | "journal"
-type HomeViewMode = "compact" | "detailed"
-
 interface Task {
   id: number | string
   title: string
@@ -327,8 +324,8 @@ const apiEndpoints: Record<DashboardApiKey, string> = {
 
 const quickActions = [
   { title: "Today", href: "/today", icon: CalendarCheck },
-  { title: "Organize", href: "/organize", icon: FolderPlus },
-  { title: "AI Capture", href: "/capture", icon: Sparkles },
+  { title: "Workspace", href: "/workspace", icon: FolderPlus },
+  { title: "Universal Capture", href: "/capture", icon: Sparkles },
   { title: "Money", href: "/money", icon: Wallet },
   { title: "Reflect", href: "/reflect", icon: Activity },
 ]
@@ -457,10 +454,6 @@ function sortByDueDate<T extends { date: string }>(items: T[]) {
   return [...items].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 }
 
-function getGoalDate(goal: Goal) {
-  return goal.target_date || goal.deadline || null
-}
-
 function getGoalProgress(goal: Goal) {
   const explicitProgress = toNumber(goal.progress)
   const targetValue = toNumber(goal.target_value)
@@ -550,8 +543,6 @@ export default function Home() {
   const { user, loading } = useAuth()
   const router = useRouter()
   const [showOnboarding, setShowOnboarding] = useState(false)
-  const [homeViewMode, setHomeViewMode] = useState<HomeViewMode>("compact")
-  const [homePreferenceSaving, setHomePreferenceSaving] = useState(false)
   const [sources, setSources] = useState<DashboardSources>(emptySources)
   const [todayPreview, setTodayPreview] = useState<TodayPlanPreview | null>(null)
   const [journalPreview, setJournalPreview] = useState<JournalPreviewResponse["entry"]>(null)
@@ -578,41 +569,10 @@ export default function Home() {
 
     if (user) {
       checkOnboarding()
-      fetchHomePreferences()
       fetchDashboard()
       fetchLifeScore()
     }
   }, [user, loading, router])
-
-  const fetchHomePreferences = async () => {
-    try {
-      const response = await fetch("/api/app-preferences")
-      if (!response.ok) return
-      const data = await response.json()
-      setHomeViewMode(data.preferences?.home_view_mode === "detailed" ? "detailed" : "compact")
-    } catch (error) {
-      console.error("Error loading home preferences:", error)
-    }
-  }
-
-  const saveHomeViewMode = async (mode: HomeViewMode) => {
-    setHomeViewMode(mode)
-    setHomePreferenceSaving(true)
-    try {
-      const response = await fetch("/api/app-preferences", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ home_view_mode: mode }),
-      })
-      if (!response.ok) {
-        throw new Error("Could not save Home view preference.")
-      }
-    } catch (error) {
-      console.error("Error saving home preferences:", error)
-    } finally {
-      setHomePreferenceSaving(false)
-    }
-  }
 
   const checkOnboarding = async () => {
     try {
@@ -833,31 +793,6 @@ export default function Home() {
     : 0
   const projectNextActions = sources.projects.reduce((total, project) => total + toNumber(project.next_action_count), 0)
 
-  const upcomingDeadlines = sortByDueDate([
-    ...activeGoals
-      .filter((goal) => getGoalDate(goal))
-      .map((goal) => ({
-        id: `goal-${goal.id}`,
-        title: goal.title,
-        type: "Goal",
-        date: getGoalDate(goal) || "",
-        href: "/goals",
-      })),
-    ...openDueSoonTasks
-      .filter((task) => task.due_date)
-      .map((task) => ({
-        id: `task-${task.id}`,
-        title: task.title,
-        type: "Task",
-        date: task.due_date || "",
-        href: "/tasks",
-      })),
-  ]).slice(0, 7)
-
-  const recentNotes = [...sources.notes]
-    .sort((a, b) => new Date(getTimestamp(b)).getTime() - new Date(getTimestamp(a)).getTime())
-    .slice(0, 4)
-
   const recentActivityFull: ActivityItem[] = [
     ...sources.tasks.map((task) => ({
       id: `task-${task.id}`,
@@ -1050,33 +985,17 @@ export default function Home() {
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:items-end">
-            <div className="inline-flex rounded-md border bg-background/80 p-1">
-              {(["compact", "detailed"] as const).map((mode) => (
-                <Button
-                  key={mode}
-                  type="button"
-                  size="sm"
-                  variant={homeViewMode === mode ? "default" : "ghost"}
-                  className="h-8 rounded-sm px-3 capitalize transition-colors active:scale-[0.98] motion-reduce:transform-none"
-                  onClick={() => saveHomeViewMode(mode)}
-                  disabled={homePreferenceSaving && homeViewMode === mode}
-                >
-                  {mode}
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Quick Access</p>
+            <div className="flex flex-wrap justify-start gap-2 sm:justify-end">
+              {quickActions.map((action) => (
+                <Button asChild key={action.href} variant="outline" size="sm" className="bg-background/70">
+                  <Link href={action.href} className="gap-2">
+                    <action.icon className="h-4 w-4" />
+                    {action.title}
+                  </Link>
                 </Button>
               ))}
             </div>
-            {homeViewMode === "detailed" && (
-              <div className="flex flex-wrap justify-end gap-2">
-                {quickActions.map((action) => (
-                  <Button asChild key={action.href} variant="outline" size="sm" className="bg-background/70">
-                    <Link href={action.href} className="gap-2">
-                      <action.icon className="h-4 w-4" />
-                      {action.title}
-                    </Link>
-                  </Button>
-                ))}
-              </div>
-            )}
           </div>
         </section>
 
@@ -1371,8 +1290,8 @@ export default function Home() {
                     : "No pending items are asking for attention here."
                 }
                 primaryAction={{
-                  label: activePendingSource ? `Open ${activePendingSource.label}` : "Open Organize",
-                  href: activePendingSource?.href || "/organize",
+                  label: activePendingSource ? `Open ${activePendingSource.label}` : "Open Workspace",
+                  href: activePendingSource?.href || "/workspace",
                 }}
                 allClear
                 className="border-dashed bg-background/70"
@@ -1399,80 +1318,6 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        {homeViewMode === "detailed" && (
-          <div className="section-enter grid gap-4 lg:grid-cols-2">
-            <Card className="surface-card">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="h-5 w-5 text-primary" />
-                  Upcoming Deadlines
-                </CardTitle>
-                <CardDescription>Tasks and goals with dates coming into view.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {dashboardLoading ? (
-                  <>
-                    <Skeleton className="h-14 w-full" />
-                    <Skeleton className="h-14 w-full" />
-                  </>
-                ) : upcomingDeadlines.length === 0 ? (
-                  <AppEmptyState
-                    icon={CalendarCheck}
-                    title="No upcoming deadlines"
-                    hint="Due tasks and dated goals will appear here when they need attention."
-                    primaryAction={{ label: "Open Tasks", href: "/tasks" }}
-                    allClear
-                    className="border-dashed bg-background/70"
-                  />
-                ) : (
-                  upcomingDeadlines.map((deadline) => (
-                    <Link key={deadline.id} href={deadline.href} className="flex items-center justify-between gap-3 rounded-md border p-3 text-sm hover:bg-secondary">
-                      <span className="min-w-0">
-                        <span className="block truncate font-medium">{deadline.title}</span>
-                        <span className="block text-xs text-muted-foreground">{deadline.type}</span>
-                      </span>
-                      <span className="shrink-0 text-xs text-muted-foreground">{formatDate(deadline.date)}</span>
-                    </Link>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="surface-card">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-primary" />
-                  Recent Notes
-                </CardTitle>
-                <CardDescription>Latest notes without turning Home into a notes page.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {dashboardLoading ? (
-                  <>
-                    <Skeleton className="h-14 w-full" />
-                    <Skeleton className="h-14 w-full" />
-                  </>
-                ) : recentNotes.length === 0 ? (
-                  <AppEmptyState
-                    icon={FileText}
-                    title="No notes yet"
-                    hint="Quick thoughts, meeting notes, and ideas will show up here after you add them."
-                    primaryAction={{ label: "Add a note", href: "/notes" }}
-                    className="border-dashed bg-background/70"
-                  />
-                ) : (
-                  recentNotes.map((note) => (
-                    <Link key={note.id} href="/notes" className="block rounded-md border p-3 text-sm hover:bg-secondary">
-                      <p className="truncate font-medium">{note.title || "Untitled note"}</p>
-                      <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{note.content || "No preview"}</p>
-                    </Link>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
         <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
           <Card className="surface-card section-enter">
             <CardHeader>
@@ -1496,7 +1341,7 @@ export default function Home() {
                   icon={Zap}
                   title="No recent activity yet"
                   hint="Updates will appear here after you add or change tasks, goals, notes, money items, or projects."
-                  primaryAction={{ label: "Open Organize", href: "/organize" }}
+                  primaryAction={{ label: "Open Workspace", href: "/workspace" }}
                   className="border-dashed bg-background/70"
                 />
               ) : (
