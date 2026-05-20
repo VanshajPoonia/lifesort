@@ -24,7 +24,7 @@ export const journalEntryInputSchema = z.object({
   family_todo: z.array(journalTodoItemSchema).max(3).default([]),
   what_went_well: nullableText(),
   what_could_be_better: nullableText(),
-  notes_from_today: nullableText(8000),
+  notes_from_today: nullableText(12000),
   how_to_make_tomorrow_better: nullableText(),
   work_stars: z.number().int().min(1).max(5).nullable().optional(),
   work_stars_note: nullableText(1000),

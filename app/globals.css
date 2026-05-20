@@ -372,6 +372,118 @@
     background-image: linear-gradient(to bottom, transparent calc(1.75rem - 1px), rgba(251, 191, 36, 0.11) 1px);
   }
 
+  .rich-text-editor {
+    transition:
+      border-color var(--motion-quick) ease,
+      box-shadow var(--motion-quick) var(--motion-ease);
+  }
+
+  .rich-text-editor:focus-within {
+    border-color: hsl(var(--ring));
+    box-shadow: 0 0 0 3px hsl(var(--ring) / 0.16);
+  }
+
+  .rich-text-toolbar {
+    scrollbar-width: thin;
+  }
+
+  .rich-text-content .ProseMirror {
+    min-height: 100%;
+    padding: 1rem;
+    color: hsl(var(--foreground));
+    outline: none;
+  }
+
+  .rich-text-content .ProseMirror > * + * {
+    margin-top: 0.85rem;
+  }
+
+  .rich-text-content .ProseMirror h1 {
+    font-size: 1.875rem;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  .rich-text-content .ProseMirror h2 {
+    font-size: 1.35rem;
+    font-weight: 650;
+    line-height: 1.3;
+  }
+
+  .rich-text-content .ProseMirror ul,
+  .rich-text-content .ProseMirror ol {
+    padding-left: 1.35rem;
+  }
+
+  .rich-text-content .ProseMirror ul {
+    list-style: disc;
+  }
+
+  .rich-text-content .ProseMirror ol {
+    list-style: decimal;
+  }
+
+  .rich-text-content .ProseMirror blockquote {
+    border-left: 3px solid hsl(var(--primary) / 0.45);
+    color: hsl(var(--muted-foreground));
+    padding-left: 0.9rem;
+  }
+
+  .rich-text-content .ProseMirror hr {
+    border: 0;
+    border-top: 1px solid hsl(var(--border));
+    margin: 1.25rem 0;
+  }
+
+  .rich-text-content .ProseMirror a,
+  .rich-text-link {
+    color: hsl(var(--primary));
+    text-decoration: underline;
+    text-underline-offset: 0.18em;
+  }
+
+  .rich-text-content .ProseMirror p.is-editor-empty:first-child::before,
+  .rich-text-content .ProseMirror .is-empty::before {
+    content: attr(data-placeholder);
+    color: hsl(var(--muted-foreground));
+    float: left;
+    height: 0;
+    pointer-events: none;
+  }
+
+  .rich-text-bubble-menu {
+    z-index: 50;
+  }
+
+  .rich-text-editor-compact .rich-text-content .ProseMirror {
+    min-height: 8rem;
+    padding: 0.75rem;
+  }
+
+  .journal-rich-text,
+  .rich-text-editor-journal {
+    border-color: rgba(180, 83, 9, 0.18);
+    background-color: rgba(255, 251, 235, 0.72);
+  }
+
+  .dark .journal-rich-text,
+  .dark .rich-text-editor-journal {
+    border-color: rgba(251, 191, 36, 0.15);
+    background-color: rgba(41, 32, 25, 0.76);
+  }
+
+  .rich-text-editor-journal .rich-text-content .ProseMirror {
+    background-image: linear-gradient(to bottom, transparent calc(1.85rem - 1px), rgba(180, 83, 9, 0.12) 1px);
+    background-size: 100% 1.85rem;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1rem;
+    line-height: 1.85rem;
+  }
+
+  .dark .rich-text-editor-journal .rich-text-content .ProseMirror {
+    background-image: linear-gradient(to bottom, transparent calc(1.85rem - 1px), rgba(251, 191, 36, 0.11) 1px);
+  }
+
   .journal-mood-button,
   .journal-intention-row,
   .journal-star-button {
