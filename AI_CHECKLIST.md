@@ -130,6 +130,7 @@ Run after changes to `DashboardLayout`, command/search/capture UI, Home preferen
 - Capture commands still route through the existing `QuickAddModal` or existing feature pages; no capture data is silently written by the palette itself.
 - `/api/search?q=...` results still navigate to the expected records.
 - Home stays calm and short; `home_view_mode` may remain stored for backward compatibility but must not turn Home into a module directory.
+- Home Quick Access stays compact: 4-6 primary shortcuts, secondary actions in More actions, mobile horizontal scrolling without page overflow, and localStorage recents that never block navigation.
 - Onboarding completion merges `app_preferences` instead of erasing existing preference keys.
 - Trial banner uses hourly precision and "Go Pro" or "Upgrade" wording.
 
