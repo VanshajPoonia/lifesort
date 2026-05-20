@@ -146,7 +146,7 @@ export default function PomodoroPage() {
   }
 
   return (
-    <DashboardLayout title="Pomodoro Timer" subtitle="Focus and productivity technique">
+    <DashboardLayout title="Focus Timer" subtitle="Focused work sessions and breaks">
       <div className="space-y-6">
         {/* Stats Overview */}
         <div className="grid gap-4 md:grid-cols-3">
@@ -326,12 +326,12 @@ export default function PomodoroPage() {
         <Card>
           <CardHeader>
             <CardTitle>Session History</CardTitle>
-            <CardDescription>Your recent Pomodoro sessions</CardDescription>
+            <CardDescription>Your recent focus sessions</CardDescription>
           </CardHeader>
           <CardContent>
             {history.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                No sessions completed yet. Start your first Pomodoro!
+                No sessions completed yet. Start your first focus session.
               </div>
             ) : (
               <div className="space-y-3">

@@ -191,7 +191,7 @@ export async function GET() {
       .map(goal => ({
         id: `nuke-${goal.id}`,
         title: goal.title,
-        type: "Nuke Goal",
+        type: "Focus Goal",
         date: goal.deadline,
         href: "/nuke",
       })),

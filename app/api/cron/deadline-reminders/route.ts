@@ -123,7 +123,7 @@ export async function GET(request: Request) {
       try {
         const typeLabels = {
           goal: 'Goal',
-          nuke: 'Nuke Goal',
+          nuke: 'Focus Goal',
           task: 'Task',
           event: 'Event'
         }

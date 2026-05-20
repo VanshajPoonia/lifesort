@@ -165,7 +165,7 @@ export default function NukeGoalPage() {
 
   if (authLoading || loading) {
     return (
-      <DashboardLayout title="Nuke Goal" subtitle="Your one massive goal to dominate">
+      <DashboardLayout title="Focus Goal" subtitle="Your one main goal for deep focus">
         <div className="flex h-screen items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
@@ -174,21 +174,21 @@ export default function NukeGoalPage() {
   }
 
   return (
-    <DashboardLayout title="Nuke Goal" subtitle="Your one massive goal to dominate">
+    <DashboardLayout title="Focus Goal" subtitle="Your one main goal for deep focus">
       <div className="space-y-6">
         {!nukeGoal.title ? (
           <Card className="border-2 border-dashed">
             <CardHeader className="text-center">
               <Zap className="h-16 w-16 mx-auto mb-4 text-primary" />
-              <CardTitle className="text-2xl">Set Your Nuke Goal</CardTitle>
+              <CardTitle className="text-2xl">Set Your Focus Goal</CardTitle>
               <CardDescription>
-                Choose ONE massive goal to focus all your energy on. This is your nuclear option - your main mission.
+                Choose one important goal to focus your energy on. This is your main mission.
               </CardDescription>
             </CardHeader>
             <CardContent className="flex justify-center">
               <Button onClick={() => setIsEditMode(true)} size="lg">
                 <Target className="mr-2 h-5 w-5" />
-                Create Nuke Goal
+                Create Focus Goal
               </Button>
             </CardContent>
           </Card>
@@ -330,7 +330,7 @@ export default function NukeGoalPage() {
         <Dialog open={isEditMode} onOpenChange={setIsEditMode}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>{nukeGoal.title ? "Edit Nuke Goal" : "Create Nuke Goal"}</DialogTitle>
+            <DialogTitle>{nukeGoal.title ? "Edit Focus Goal" : "Create Focus Goal"}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div>

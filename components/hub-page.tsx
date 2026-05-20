@@ -25,6 +25,7 @@ export type HubCard = {
   statusLabel?: string
   zeroLabel?: string
   priority?: "primary" | "secondary"
+  disabled?: boolean
 }
 
 export function HubHero({
@@ -157,17 +158,13 @@ export function HubGrid({ cards }: { cards: HubCard[] }) {
         const { title, description, href, icon: Icon } = card
         const isPrimary = card.priority === "primary"
         const isSecondary = card.priority === "secondary"
-        return (
-        <Link
-          key={`${href}-${title}`}
-          href={href}
-          className={cn("group block min-w-0", motionPresets.pressable, isPrimary && "sm:col-span-1", isSecondary && "xl:col-span-1")}
-        >
+        const cardContent = (
           <Card
             className={cn(
               "surface-card interactive-card h-full min-h-[150px] overflow-hidden",
               isPrimary && "min-h-[178px] border-primary/25 bg-primary/5",
               isSecondary && "min-h-[132px] bg-muted/20 shadow-none",
+              card.disabled && "border-dashed bg-muted/20 opacity-80 shadow-none hover:translate-y-0 hover:shadow-sm",
             )}
           >
             <CardHeader className={cn("space-y-3 p-4", isPrimary && "sm:p-5", isSecondary && "space-y-2")}>
@@ -176,6 +173,7 @@ export function HubGrid({ cards }: { cards: HubCard[] }) {
                   className={cn(
                     "rounded-lg p-2 text-primary transition-colors duration-150 group-hover:bg-primary/15",
                     isPrimary ? "bg-primary/15" : "bg-muted",
+                    card.disabled && "text-muted-foreground",
                   )}
                 >
                   <Icon className={cn("h-5 w-5", isSecondary && "h-4 w-4")} />
@@ -188,6 +186,27 @@ export function HubGrid({ cards }: { cards: HubCard[] }) {
               </div>
             </CardHeader>
           </Card>
+        )
+
+        if (card.disabled) {
+          return (
+            <div
+              key={`${href}-${title}`}
+              className={cn("group block min-w-0 cursor-not-allowed", motionPresets.pressable, isPrimary && "sm:col-span-1", isSecondary && "xl:col-span-1")}
+              aria-disabled="true"
+            >
+              {cardContent}
+            </div>
+          )
+        }
+
+        return (
+        <Link
+          key={`${href}-${title}`}
+          href={href}
+          className={cn("group block min-w-0", motionPresets.pressable, isPrimary && "sm:col-span-1", isSecondary && "xl:col-span-1")}
+        >
+          {cardContent}
         </Link>
       )})}
     </div>
