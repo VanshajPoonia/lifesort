@@ -50,9 +50,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
+import { RichTextEditor } from "@/components/editor/rich-text-editor"
 import type { LifeArea } from "@/lib/life-areas"
 import { normalizeLifeArea } from "@/lib/life-areas"
+import { richTextCharacterCount, richTextToPlainText } from "@/lib/rich-text"
 
 interface NoteFolder {
   id: string
@@ -132,7 +133,7 @@ function noteMatchesSearch(note: Note, query: string, areaName = "") {
 
   const haystack = [
     note.title,
-    note.content,
+    richTextToPlainText(note.content),
     note.folder_name || "",
     areaName,
     ...note.tags,
@@ -579,7 +580,7 @@ export default function NotesPage() {
   }
 
   const getPreviewText = (content: string) => {
-    const text = content.replace(/<[^>]*>/g, "").trim()
+    const text = richTextToPlainText(content)
     return text.slice(0, 100) || "No content"
   }
 
@@ -979,19 +980,25 @@ export default function NotesPage() {
                   </div>
                 </div>
 
-                <div className="flex-1 overflow-auto p-4">
-                  <Textarea
+                <div className="flex-1 overflow-hidden p-4">
+                  <RichTextEditor
+                    key={selectedNote.id}
                     value={selectedNote.content}
-                    onChange={(event) => handleContentChange(event.target.value)}
+                    onChange={handleContentChange}
                     placeholder="Start writing your note..."
-                    className="min-h-full w-full resize-none border-none text-base leading-relaxed shadow-none focus-visible:ring-0"
-                    style={{ minHeight: "calc(100vh - 430px)" }}
+                    mode="standard"
+                    ariaLabel="Note content"
+                    className="h-full min-h-[calc(100vh-430px)] border-none shadow-none"
+                    editorClassName="min-h-0"
+                    aiRefineEnabled
+                    dictationEnabled
+                    dictationLabel="Speak to Note"
                   />
                 </div>
 
                 <div className="flex items-center justify-between border-t border-border px-4 py-2 text-xs text-muted-foreground">
                   <span>Last edited {formatDate(selectedNote.updated_at)}</span>
-                  <span>{selectedNote.content.length} characters</span>
+                  <span>{richTextCharacterCount(selectedNote.content)} characters</span>
                 </div>
               </>
             ) : (

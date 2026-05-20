@@ -21,6 +21,7 @@ import {
 
 import { useAuth } from "@/components/auth-provider"
 import { DashboardLayout } from "@/components/dashboard-layout"
+import { RichTextEditor } from "@/components/editor/rich-text-editor"
 import { AppEmptyState } from "@/components/empty-state"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -33,6 +34,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import type { JournalEntry, JournalEntryInput, JournalTodoItem } from "@/lib/journal"
 import { motionPresets } from "@/lib/motion"
+import { richTextToPlainText } from "@/lib/rich-text"
 import { cn } from "@/lib/utils"
 
 type SaveState = "idle" | "dirty" | "saving" | "saved" | "error"
@@ -430,7 +432,11 @@ export default function JournalPage() {
                 <JournalTextarea label="What went well today?" value={entry.what_went_well} onChange={(value) => updateEntry("what_went_well", value)} />
                 <JournalTextarea label="What could I have done better?" value={entry.what_could_be_better} onChange={(value) => updateEntry("what_could_be_better", value)} />
                 <JournalTextarea label="How could I have made today better?" value={entry.how_to_make_tomorrow_better} onChange={(value) => updateEntry("how_to_make_tomorrow_better", value)} />
-                <JournalTextarea label="Notes from today" value={entry.notes_from_today} onChange={(value) => updateEntry("notes_from_today", value)} />
+                <JournalRichTextField
+                  label="Notes from today"
+                  value={entry.notes_from_today}
+                  onChange={(value) => updateEntry("notes_from_today", value)}
+                />
               </CardContent>
             </Card>
 
@@ -527,7 +533,7 @@ export default function JournalPage() {
                         {recent.mood && <span aria-label={`Mood ${recent.mood}`}>{moods.find((mood) => mood.value === recent.mood)?.icon}</span>}
                       </div>
                       <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                        {recent.affirmation_text || recent.gratitude.find(Boolean) || recent.notes_from_today || "Journal entry"}
+                        {recent.affirmation_text || recent.gratitude.find(Boolean) || richTextToPlainText(recent.notes_from_today) || "Journal entry"}
                       </p>
                     </button>
                   ))
@@ -597,6 +603,27 @@ function JournalTextarea({ label, value, onChange }: { label: string; value?: st
         value={value || ""}
         onChange={(event) => onChange(event.target.value || null)}
         className="journal-textarea resize-y"
+      />
+    </div>
+  )
+}
+
+function JournalRichTextField({ label, value, onChange }: { label: string; value?: string | null; onChange: (value: string | null) => void }) {
+  return (
+    <div className="space-y-2 lg:col-span-2">
+      <Label>{label}</Label>
+      <RichTextEditor
+        value={value || ""}
+        onChange={(html) => onChange(html || null)}
+        placeholder="Capture anything else worth remembering from today..."
+        mode="journal"
+        ariaLabel={label}
+        className="journal-rich-text min-h-[18rem]"
+        editorClassName="min-h-[13rem]"
+        debounceMs={350}
+        aiRefineEnabled
+        dictationEnabled
+        dictationLabel="Speak to Journal"
       />
     </div>
   )
