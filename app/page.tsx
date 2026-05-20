@@ -7,15 +7,20 @@ import {
   Activity,
   AlertCircle,
   ArrowRight,
+  Bot,
+  CalendarDays,
   BookOpenText,
   CalendarCheck,
+  CheckSquare,
   ClipboardCheck,
   Clock,
-  FolderPlus,
+  FileText,
   Gauge,
   Heart,
   Inbox,
   Lightbulb,
+  MoreHorizontal,
+  Paintbrush,
   PiggyBank,
   Sparkles,
   Target,
@@ -23,6 +28,7 @@ import {
   Wallet,
   Wrench,
   Zap,
+  type LucideIcon,
 } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { AppEmptyState } from "@/components/empty-state"
@@ -32,8 +38,17 @@ import { useAuth } from "@/components/auth-provider"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
+import { cn } from "@/lib/utils"
 
 type DashboardApiKey = "tasks" | "goals" | "notes" | "budget" | "investments" | "wishlist" | "income" | "projects"
 type DashboardErrorKey = DashboardApiKey | "today" | "journal"
@@ -322,13 +337,96 @@ const apiEndpoints: Record<DashboardApiKey, string> = {
   projects: "/api/projects",
 }
 
-const quickActions = [
-  { title: "Today", href: "/today", icon: CalendarCheck },
-  { title: "Workspace", href: "/workspace", icon: FolderPlus },
-  { title: "Universal Capture", href: "/capture", icon: Sparkles },
-  { title: "Money", href: "/money", icon: Wallet },
-  { title: "Reflect", href: "/reflect", icon: Activity },
+const QUICK_ACCESS_RECENTS_KEY = "lifesort:home-quick-access-recents"
+
+type QuickAccessAction = {
+  id: string
+  title: string
+  description: string
+  href: string
+  icon: LucideIcon
+  accent: string
+}
+
+const primaryQuickActions: QuickAccessAction[] = [
+  {
+    id: "capture",
+    title: "Capture something",
+    description: "Drop a thought into Universal Capture.",
+    href: "/capture",
+    icon: Sparkles,
+    accent: "border-primary/25 bg-primary/10 text-primary",
+  },
+  {
+    id: "task",
+    title: "Add task",
+    description: "Open tasks and add the next action.",
+    href: "/tasks",
+    icon: CheckSquare,
+    accent: "border-sky-500/25 bg-sky-500/10 text-sky-700 dark:text-sky-300",
+  },
+  {
+    id: "today",
+    title: "Open Today",
+    description: "Focus items, schedule, and reflection.",
+    href: "/today",
+    icon: CalendarCheck,
+    accent: "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+  },
+  {
+    id: "calendar",
+    title: "Open Calendar",
+    description: "See events and planned time blocks.",
+    href: "/calendar",
+    icon: CalendarDays,
+    accent: "border-cyan-500/25 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
+  },
+  {
+    id: "note",
+    title: "Write note",
+    description: "Save a useful detail or draft.",
+    href: "/notes",
+    icon: FileText,
+    accent: "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+  },
+  {
+    id: "whiteboard",
+    title: "Open Whiteboard",
+    description: "Sketch plans and maps with others.",
+    href: "/whiteboard",
+    icon: Paintbrush,
+    accent: "border-fuchsia-500/25 bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300",
+  },
 ]
+
+const moreQuickActions: QuickAccessAction[] = [
+  {
+    id: "journal",
+    title: "Open Journal",
+    description: "Reflect on the day.",
+    href: "/journal",
+    icon: BookOpenText,
+    accent: "border-orange-500/25 bg-orange-500/10 text-orange-700 dark:text-orange-300",
+  },
+  {
+    id: "money",
+    title: "Open Money",
+    description: "Review budget, income, and investing.",
+    href: "/money",
+    icon: Wallet,
+    accent: "border-teal-500/25 bg-teal-500/10 text-teal-700 dark:text-teal-300",
+  },
+  {
+    id: "coach",
+    title: "Ask LifeSort Coach",
+    description: "Ask app-aware questions safely.",
+    href: "/ai-chat",
+    icon: Bot,
+    accent: "border-violet-500/25 bg-violet-500/10 text-violet-700 dark:text-violet-300",
+  },
+]
+
+const allQuickActions = [...primaryQuickActions, ...moreQuickActions]
 
 type PendingFilter = "all" | "inbox" | "someday" | "waiting" | "commitments" | "maintenance"
 
@@ -526,6 +624,96 @@ function SectionUnavailable({ label }: { label: string }) {
   )
 }
 
+function QuickAccessSection({
+  recentActions,
+  onActionClick,
+}: {
+  recentActions: QuickAccessAction[]
+  onActionClick: (action: QuickAccessAction) => void
+}) {
+  return (
+    <Card className="surface-card section-enter overflow-hidden border-primary/15">
+      <CardHeader className="space-y-3 pb-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Zap className="h-5 w-5 text-primary" />
+              Quick Access
+            </CardTitle>
+            <CardDescription>Start, capture, or jump back into the places you use most.</CardDescription>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="w-fit gap-2 bg-background/80">
+                <MoreHorizontal className="h-4 w-4" />
+                More actions
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuLabel>More actions</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {moreQuickActions.map((action) => (
+                <DropdownMenuItem asChild key={action.id}>
+                  <Link href={action.href} className="gap-3" onClick={() => onActionClick(action)}>
+                    <span className={cn("rounded-md border p-1.5", action.accent)}>
+                      <action.icon className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium">{action.title}</span>
+                      <span className="block truncate text-xs text-muted-foreground">{action.description}</span>
+                    </span>
+                  </Link>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-2 sm:px-0 lg:grid-cols-3 xl:grid-cols-6">
+          {primaryQuickActions.map((action) => (
+            <Link
+              key={action.id}
+              href={action.href}
+              onClick={() => onActionClick(action)}
+              className="interactive-card group min-w-[10.75rem] rounded-lg border bg-background/80 p-3 shadow-sm transition-colors hover:bg-secondary/60 sm:min-w-0"
+            >
+              <div className={cn("mb-3 inline-flex rounded-lg border p-2", action.accent)}>
+                <action.icon className="h-4 w-4" />
+              </div>
+              <p className="text-sm font-semibold leading-tight text-foreground">{action.title}</p>
+              <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{action.description}</p>
+            </Link>
+          ))}
+        </div>
+
+        <div className="flex flex-col gap-3 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Recently used</p>
+            {recentActions.length > 0 ? (
+              <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+                {recentActions.map((action) => (
+                  <Button asChild key={action.id} size="sm" variant="outline" className="shrink-0 gap-2 bg-background/80">
+                    <Link href={action.href} onClick={() => onActionClick(action)}>
+                      <action.icon className="h-3.5 w-3.5" />
+                      {action.title}
+                    </Link>
+                  </Button>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-1 text-sm text-muted-foreground">Your most used shortcuts will appear here after a few clicks.</p>
+            )}
+          </div>
+          <div className="rounded-lg border border-dashed bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">Pinned favorites</span> are reserved for your saved shortcuts.
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 function lifeScoreStatusClass(status: LifeScoreComponent["status"]) {
   if (status === "supportive") return "bg-emerald-500"
   if (status === "steady") return "bg-primary"
@@ -560,6 +748,7 @@ export default function Home() {
   const [activePendingFilter, setActivePendingFilter] = useState<PendingFilter>("all")
   const [dashboardLoading, setDashboardLoading] = useState(true)
   const [errors, setErrors] = useState<Partial<Record<DashboardErrorKey, string>>>({})
+  const [recentQuickAccessIds, setRecentQuickAccessIds] = useState<string[]>([])
 
   useEffect(() => {
     if (!loading && !user) {
@@ -573,6 +762,39 @@ export default function Home() {
       fetchLifeScore()
     }
   }, [user, loading, router])
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(QUICK_ACCESS_RECENTS_KEY)
+      if (!stored) return
+      const parsed = JSON.parse(stored)
+      if (Array.isArray(parsed)) {
+        setRecentQuickAccessIds(parsed.filter((id): id is string => typeof id === "string").slice(0, 3))
+      }
+    } catch {
+      setRecentQuickAccessIds([])
+    }
+  }, [])
+
+  const recordQuickAccess = (action: QuickAccessAction) => {
+    setRecentQuickAccessIds((current) => {
+      const next = [action.id, ...current.filter((id) => id !== action.id)].slice(0, 3)
+      try {
+        window.localStorage.setItem(QUICK_ACCESS_RECENTS_KEY, JSON.stringify(next))
+      } catch {
+        // localStorage is a convenience cache; navigation should never depend on it.
+      }
+      return next
+    })
+  }
+
+  const recentQuickActions = useMemo(
+    () =>
+      recentQuickAccessIds
+        .map((id) => allQuickActions.find((action) => action.id === id))
+        .filter((action): action is QuickAccessAction => Boolean(action)),
+    [recentQuickAccessIds],
+  )
 
   const checkOnboarding = async () => {
     try {
@@ -984,20 +1206,15 @@ export default function Home() {
               What needs your attention right now, with deeper detail only when you ask for it.
             </p>
           </div>
-          <div className="flex flex-col gap-2 sm:items-end">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Quick Access</p>
-            <div className="flex flex-wrap justify-start gap-2 sm:justify-end">
-              {quickActions.map((action) => (
-                <Button asChild key={action.href} variant="outline" size="sm" className="bg-background/70">
-                  <Link href={action.href} className="gap-2">
-                    <action.icon className="h-4 w-4" />
-                    {action.title}
-                  </Link>
-                </Button>
-              ))}
-            </div>
-          </div>
+          <Button asChild className="w-fit gap-2">
+            <Link href="/capture" onClick={() => recordQuickAccess(primaryQuickActions[0])}>
+              <Sparkles className="h-4 w-4" />
+              Capture something
+            </Link>
+          </Button>
         </section>
+
+        <QuickAccessSection recentActions={recentQuickActions} onActionClick={recordQuickAccess} />
 
         {hasAnyErrors && (
           <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
