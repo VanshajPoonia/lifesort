@@ -41,6 +41,9 @@ export function ThemeSwitcher() {
     // Apply new theme
     if (newTheme === "dark") {
       root.classList.add("dark")
+    } else if (newTheme === "midnight") {
+      root.classList.add("dark")
+      root.setAttribute("data-theme", "midnight")
     } else if (newTheme !== "light") {
       root.setAttribute("data-theme", newTheme)
     }
