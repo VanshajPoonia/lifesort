@@ -25,6 +25,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   BookOpenText,
+  Paintbrush,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -64,6 +65,7 @@ const DEFAULT_SIDEBAR_PREFS = {
   maintenance: true,
   today: true,
   journal: true,
+  whiteboard: true,
   review: true,
   insights: true,
   life_areas: true,
@@ -137,6 +139,7 @@ const HUB_NAV_ITEMS: SidebarItem[] = [
       "/notifications",
     ],
   },
+  { id: "whiteboard", label: "Whiteboard", href: "/whiteboard", icon: Paintbrush },
   {
     id: "money",
     label: "Money",
@@ -501,7 +504,7 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
           <button
             type="button"
             className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[11px] font-medium transition-all duration-150 ease-out active:scale-[0.98] motion-reduce:transition-none motion-reduce:transform-none ${
-              ["/journal", "/reflect", "/insights", "/review", "/timeline", "/reset", "/ai-chat", "/life-areas", "/settings", "/rules", "/admin"].some(matchesPath)
+              ["/journal", "/whiteboard", "/reflect", "/insights", "/review", "/timeline", "/reset", "/ai-chat", "/life-areas", "/settings", "/rules", "/admin"].some(matchesPath)
                 ? "bg-primary/10 text-primary"
                 : "text-muted-foreground hover:bg-muted/70"
             }`}
@@ -523,6 +526,7 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
           <div className="mt-4 grid gap-2">
             {[
               { href: "/journal", label: "Journal", icon: BookOpenText },
+              { href: "/whiteboard", label: "Whiteboard", icon: Paintbrush },
               { href: "/reflect", label: "Reflect", icon: Activity },
               { href: "/settings", label: "Settings", icon: Settings },
               { href: "/settings?tab=profile", label: "Profile", icon: User },

@@ -23,6 +23,7 @@ const DEFAULT_SIDEBAR_SECTIONS = {
   maintenance: true,
   today: true,
   journal: true,
+  whiteboard: true,
   review: true,
   insights: true,
   life_areas: true,
