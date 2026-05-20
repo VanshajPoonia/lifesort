@@ -20,6 +20,7 @@ Implemented feature areas found in the repo:
 - Habits & Routines at `app/habits/page.tsx`, with per-habit CRUD, daily check-ins, streak tracking (current/best), weekly/monthly completion %, and routine builder with ordered steps.
 - Today Plan at `app/today/page.tsx`, providing a non-AI daily planner with focus items, energy/capacity planning, overload warnings, one priority-filtered draggable daily list (Must/Should/Could) across focus items and derived due/suggested items, habits due today (with check-off), derived calendar/note/budget/wishlist suggestions, and end-of-day reflection.
 - Daily Journal at `app/journal/page.tsx`, with one user-owned entry per date for mood, gratitude, affirmation, Work/Personal/Family intentions, evening reflection, star ratings, tomorrow setup, recent-entry history, and 2-second autosave with a manual save fallback. `/today` links to the selected day's journal preview, and `/reflect` plus compatibility `/insights` show a weekly Journal digest tab. Migration: `scripts/migrations/2026-05-18-daily-journal.sql`.
+- Collaborative Whiteboard at `app/whiteboard/page.tsx`, `app/whiteboard/[id]/page.tsx`, and login-gated share route `app/whiteboard/share/[token]/page.tsx`. Whiteboard metadata is user-scoped in Postgres, while realtime canvas state and presence use Liveblocks rooms with secure server-side auth through `/api/liveblocks-auth`. MVP tools include select/move, pan/zoom, pen, rectangle, ellipse, line, text, sticky notes, eraser/delete, color, stroke width, undo/redo, collaborator cursors, and viewer read-only mode. Migration: `scripts/migrations/2026-05-20-whiteboards.sql`.
 - Weekly Review at `app/review/page.tsx`, providing a non-AI Monday-Sunday review across tasks, goals, habits, projects, notes, finance, Life Areas, and saved energy/capacity patterns with saved reflections and previous-review history.
 - Reflect / Life Balance Insights at `app/reflect/page.tsx` and compatibility route `app/insights/page.tsx`, showing tabbed review/insight navigation for Weekly Review, Life Balance, Ignored Signals, Timeline, LifeScore, and Reset. Life Balance and Ignored Signals keep the existing non-AI metrics plus optional read-only AI analysis.
 - Life Areas at `app/life-areas/page.tsx`, providing user-owned cross-module organization with default areas, icons, colors, descriptions, and ordering.
@@ -77,6 +78,7 @@ Implemented feature areas found in the repo:
 - Resend for transactional/reminder emails
 - Alpha Vantage external API for quotes and symbol search
 - Groq OpenAI-compatible vision API for authenticated portfolio screenshot parsing.
+- Liveblocks for collaborative whiteboard presence and room storage via `@liveblocks/client`, `@liveblocks/react`, and `@liveblocks/node`.
 - Vercel deployment, analytics dependency, and cron configuration
 
 ## Package Manager

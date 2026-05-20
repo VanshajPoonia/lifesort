@@ -158,6 +158,8 @@ Run after changes to `DashboardLayout`, command/search/capture UI, Home preferen
 9. Reduced motion must leave every interaction understandable: no required state change should depend on animation.
 10. Prefer `AppEmptyState` for high-visibility empty panels; use `allClear` only for genuinely calm/clear states, not errors or missing data.
 11. Money summaries must show real loaded values or explicit `No data`/unavailable labels. Do not invent finance totals for empty accounts.
+12. Theme contrast checks must include selected/focused command, select, and dropdown rows; nested `text-muted-foreground` icons/descriptions should inherit the selected foreground.
+13. Prefer theme semantic status tokens (`text-success`, `text-warning`, `text-destructive`, `text-primary`) for high-traffic status text instead of raw `text-green-*` / `text-amber-*` / `text-red-*` classes.
 
 ## Responsive Foundation Checklist
 
@@ -191,6 +193,7 @@ Observed env var names include:
 - `GROQ_API_KEY`
 - `OPENROUTER_API_KEY`
 - `OAUTH_TOKEN_ENCRYPTION_KEY`
+- `LIVEBLOCKS_SECRET_KEY`
 - Vercel/Neon/Postgres provisioned variables such as `POSTGRES_URL`, `POSTGRES_PRISMA_URL`, `PGHOST`, `PGUSER`, and related names.
 
 Check only names/presence unless explicitly authorized to inspect values.
@@ -211,6 +214,13 @@ OAuth token encryption env notes:
 - Legacy plaintext rows are decrypted as pass-through; they self-encrypt on next token refresh (Google access tokens expire after ~1 hour).
 - Key rotation: the storage format starts with `v1:` so a future migration can re-encrypt with a new key.
 
+Liveblocks env notes:
+
+- `LIVEBLOCKS_SECRET_KEY` is server-only and powers `/api/liveblocks-auth` for collaborative Whiteboard rooms.
+- Do not expose the secret through `NEXT_PUBLIC_*`, client code, docs, or committed files.
+- Whiteboard room ids use `lifesort:whiteboard:{whiteboardId}` and must be authorized exactly, never with wildcard access.
+- Public Whiteboard share links are login-gated and grant viewer access only unless a separate collaborator row grants editor.
+
 ## Commands
 
 - Install: `pnpm install`
@@ -222,6 +232,7 @@ OAuth token encryption env notes:
 Dependency notes:
 
 - Drag-and-drop list sorting uses `@dnd-kit/core`, `@dnd-kit/sortable`, and `@dnd-kit/utilities`. Prefer the shared `components/sortable-list.tsx` wrapper before adding another drag implementation.
+- Collaborative Whiteboard uses `@liveblocks/client`, `@liveblocks/react`, and `@liveblocks/node`; do not add a large canvas/whiteboard dependency unless a future task explicitly justifies it.
 
 Unavailable scripts:
 
@@ -239,6 +250,15 @@ Database scripts:
 - Legacy SQL files: `scripts/legacy/` — kept for archaeology only, do NOT run.
 - `scripts/legacy/setup-database.sql` is incompatible with the current schema (uses `SERIAL` user_id). Never run it.
 - See `scripts/README.md` for the full workflow.
+
+## Whiteboard Feature Checklist
+
+1. Apply `scripts/migrations/2026-05-20-whiteboards.sql` before testing create/open flows against a database.
+2. Confirm `LIVEBLOCKS_SECRET_KEY` is set before testing realtime room join; missing local secret should show a friendly setup error.
+3. Verify `/api/liveblocks-auth` returns 401 unauthenticated and never grants wildcard access.
+4. Verify owner/editor can draw while viewer can only pan/zoom/watch.
+5. Verify two tabs show presence cursors and committed elements persist after refresh.
+6. Verify login-gated share links create viewer access only, and explicit collaborator roles control edit access.
 
 ## Current Command Behavior
 
