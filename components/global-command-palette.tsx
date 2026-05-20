@@ -109,14 +109,14 @@ const captureActions: Array<{
   { label: "Add Note", description: "Save a thought", icon: FileText, type: "note" },
   { label: "Add Inbox Item", description: "Capture something messy", icon: Inbox, type: "inbox" },
   { label: "Journal Today", description: "Open today's journal", icon: BookOpenText, href: "/journal" },
-  { label: "More Quick Add", description: "Open the full add form", icon: Plus, type: "task" },
+  { label: "Universal Capture", description: "Parse text or open the full add form", icon: Plus, href: "/capture" },
 ]
 
 const navigationActions = [
   { label: "Home", description: "Dashboard", href: "/", icon: Home },
   { label: "Today", description: "Daily planner", href: "/today", icon: CalendarCheck },
   { label: "Journal", description: "Daily reflection", href: "/journal", icon: BookOpenText },
-  { label: "Organize", description: "Plan, capture, admin", href: "/organize", icon: FolderPlus },
+  { label: "Workspace", description: "Plan, capture, visual tools, systems, and follow-ups", href: "/workspace", icon: FolderPlus },
   { label: "Whiteboard", description: "Sketch and collaborate", href: "/whiteboard", icon: Paintbrush },
   { label: "Money", description: "Finance hub", href: "/money", icon: Wallet },
   { label: "Reflect", description: "Review and insight", href: "/reflect", icon: Activity },
@@ -129,7 +129,7 @@ const navigationActions = [
 
 const aiActions = [
   { label: "LifeSort Coach", description: "Ask app-aware questions", href: "/ai-chat", icon: Sparkles },
-  { label: "AI Capture", description: "Parse messy text into drafts", href: "/capture", icon: Sparkles },
+  { label: "Capture with AI", description: "Parse messy text into drafts", href: "/capture", icon: Sparkles },
 ]
 
 function isTypingTarget(target: EventTarget | null) {

@@ -89,7 +89,7 @@ const ENDPOINT_MAP: Record<DraftActionType, string> = {
 
 const captureHubCards: HubCard[] = [
   {
-    title: "AI Capture",
+    title: "Universal Capture",
     description: "Parse messy text into editable draft actions.",
     href: "/capture",
     icon: Wand2,
