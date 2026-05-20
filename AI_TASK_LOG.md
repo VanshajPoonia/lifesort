@@ -17,6 +17,59 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-05-20 16:05 IST - Dark Theme Contrast And Safety Pass
+
+- Agent/tool used: Codex (GPT-5 coding agent).
+- Task completed: Implemented the planned dark/theme contrast pass for selected command/menu rows, midnight theme state, semantic status colors, and high-traffic status text. No schemas, database scripts, dependencies, or product workflows were changed.
+
+#### Files Modified
+- `tailwind.config.js` — Added `success` and `warning` theme colors backed by existing CSS variables.
+- `app/globals.css` — Tuned success/warning variables for readable light/dark contrast and added dark overrides.
+- `components/theme-provider.tsx` — Centralized theme application and made stored `midnight` apply both `dark` and `data-theme="midnight"`.
+- `components/theme-switcher.tsx` — Made live `midnight` switching apply both `dark` and `data-theme="midnight"`.
+- `components/ui/command.tsx` — Made selected command rows override nested muted/icon colors for readable selected-state contrast.
+- `components/ui/select.tsx`, `components/ui/dropdown-menu.tsx` — Made focused menu/select rows override nested muted/icon colors.
+- `app/budget/page.tsx`, `app/investments/page.tsx`, `app/calendar/page.tsx`, `app/ai-chat/page.tsx`, `app/capture/page.tsx`, `app/links/page.tsx`, `app/vault/page.tsx`, `app/admin/page.tsx`, `app/page.tsx`, `app/today/page.tsx`, `app/people/page.tsx`, `app/forgot-password/page.tsx`, `app/reset-password/page.tsx` — Replaced contrast-prone raw status text colors with semantic theme tokens or explicit dark-safe variants on high-traffic surfaces.
+- `AI_CHECKLIST.md` — Added recurring contrast checks for selected/focused rows and semantic status tokens.
+- `AI_TASK_LOG.md` — Recorded this handoff and verification results.
+
+#### Summary
+- Fixed the command palette selected-row contrast issue where icons/descriptions kept `text-muted-foreground` on a selected accent background.
+- Fixed live `midnight` theme switching so Tailwind `dark:` variants are active in the midnight theme, matching the stored-theme behavior.
+- Made `text-success`, `text-warning`, `bg-success/*`, and related semantic classes real Tailwind colors; existing uses in calendar/tasks/goals/income/pomodoro now render consistently.
+- Cleaned up high-traffic finance, auth, calendar, links, capture, AI chat, vault, and dashboard status text to avoid low-contrast raw color classes across dark and colored themes.
+- Re-checked the known security audit items; cron wrong-secret handling, OAuth state/session validation, and URL preview safe fetching remain fixed.
+
+#### Commands Run
+- `git status --short --branch` — branch started clean and synced with `origin/main`.
+- `git diff --check` — passed.
+- `npx tsc --noEmit` — passed.
+- `npm run lint` — failed with the known existing ESLint 10 blocker: no `eslint.config.(js|mjs|cjs)` file exists.
+- `npm run build` — passed; generated 136 routes.
+- `npm run dev` — started successfully on port 3000 for smoke checks, then was stopped.
+- `curl http://127.0.0.1:3000/login` — returned 200 before route smoke.
+- Targeted route smoke via `curl` — `/`, `/today`, `/money`, `/budget`, `/investments`, `/wishlist`, `/calendar`, `/notifications`, `/people`, `/vault`, `/settings`, and `/login` all returned 200.
+- Security smoke via `curl` — `/api/cron/deadline-reminders` with a wrong bearer token returned 401; `/api/url-preview` rejected `http://localhost:3000` and `http://169.254.169.254/latest/meta-data` with 400 `UNSUPPORTED_PROTOCOL`; `/api/calendar/google/callback?code=fake&state=fake-user` redirected to `/login?error=session_required` with 307.
+
+#### Bugs Found Or Fixed
+- Fixed selected command/search rows losing readable contrast for secondary text and icons.
+- Fixed midnight theme live-switch behavior not applying the `dark` class, which could prevent dark variants from activating.
+- Fixed a Tailwind configuration gap where existing `success`/`warning` utility classes were referenced by code but not defined in `tailwind.config.js`.
+- Fixed several high-traffic status labels using raw light-theme color classes without dark-safe or theme-semantic alternatives.
+
+#### Remaining Issues And Limitations
+- Automated browser screenshot verification was not available because `agent-browser` is not installed or exposed as a callable tool in this environment.
+- `npm run lint` remains blocked by the pre-existing missing ESLint flat config.
+- The route smoke was HTTP-level; it does not prove every authenticated in-app widget has ideal visual contrast with live user data.
+
+#### Suggested Next Steps
+- Browser-check the command palette selected row in all themes, especially `dark`, `midnight`, and the colored light themes.
+- Add the missing ESLint flat config so style and accessibility regressions can be linted normally.
+
+#### Handoff Notes
+- Prefer semantic status classes for new prominent status text: `text-success`, `text-warning`, `text-destructive`, and `text-primary`.
+- If future theme work touches `midnight`, keep both `dark` and `data-theme="midnight"` on the root element so `dark:` variants and midnight tokens work together.
+
 ### 2026-05-19 23:31 IST - Responsive Shell And Daily Popup Contrast Fix
 
 - Agent/tool used: Codex (GPT-5 coding agent).
@@ -3109,6 +3162,79 @@ After that, re-run the regression checkpoint and the schema-drift 500s should di
 - Handoff notes:
   - Keep future motion additions routed through `lib/motion.ts` and the shared CSS utilities rather than page-local one-off durations.
   - Do not introduce Framer Motion or GSAP for routine interactions unless a future task has a concrete interaction that CSS/Radix cannot cover cleanly.
+
+## 2026-05-20 16:45 IST - Collaborative Whiteboard With Liveblocks
+
+- Agent/tool used: Codex.
+- Task summary: Added a website-only collaborative Whiteboard feature backed by Liveblocks room storage/presence and LifeSort session-scoped metadata APIs.
+- Files changed:
+  - `package.json`
+  - `pnpm-lock.yaml`
+  - `liveblocks.config.ts`
+  - `lib/whiteboards.ts`
+  - `app/api/liveblocks-auth/route.ts`
+  - `app/api/whiteboards/route.ts`
+  - `app/api/whiteboards/[id]/route.ts`
+  - `app/api/whiteboards/[id]/share/route.ts`
+  - `app/api/whiteboards/[id]/collaborators/route.ts`
+  - `app/api/whiteboards/[id]/collaborators/[collaboratorId]/route.ts`
+  - `app/api/whiteboards/share/[token]/route.ts`
+  - `app/api/whiteboards/share/[token]/accept/route.ts`
+  - `app/whiteboard/page.tsx`
+  - `app/whiteboard/[id]/page.tsx`
+  - `app/whiteboard/share/[token]/page.tsx`
+  - `components/whiteboard/whiteboard-room.tsx`
+  - `components/whiteboard/whiteboard-editor.tsx`
+  - `components/whiteboard/share-dialog.tsx`
+  - `components/dashboard-layout.tsx`
+  - `components/global-command-palette.tsx`
+  - `app/api/sidebar-preferences/route.ts`
+  - `app/settings/page.tsx`
+  - `scripts/migrations/2026-05-20-whiteboards.sql`
+  - `scripts/schema.sql`
+  - `scripts/fresh-install.sql`
+  - `AI_PROJECT.md`
+  - `AI_DECISIONS.md`
+  - `AI_CHECKLIST.md`
+  - `AI_TASK_LOG.md`
+- Summary of changes:
+  - Added `@liveblocks/client`, `@liveblocks/react`, and `@liveblocks/node`; no drawing/canvas dependency was added.
+  - Added whiteboard metadata schema and mirrored it into the canonical fresh-install schema files. The migration was not run.
+  - Added `lib/whiteboards.ts` with Zod validation, row mapping, role checks, stable user colors, share-token generation, room-id generation, and `getWhiteboardAccess()`.
+  - Added secure `/api/liveblocks-auth` using LifeSort sessions, `LIVEBLOCKS_SECRET_KEY`, exact `lifesort:whiteboard:{whiteboardId}` room authorization, and owner/editor full access vs viewer read-only access. No public key or wildcard grants are used.
+  - Added metadata APIs for listing/creating boards, reading/updating/archiving a board, rotating share links, collaborator invite/update/remove, public token metadata, and authenticated share-token acceptance.
+  - Added `/whiteboard`, `/whiteboard/[id]`, and `/whiteboard/share/[token]` routes plus a custom SVG editor with select/move, pan/zoom, pen, rectangle, ellipse, line, text, sticky notes, eraser/delete, color, stroke width, undo/redo, collaborator cursors, and viewer read-only mode.
+  - Added desktop/tablet Whiteboard navigation between Organize and Money, added Whiteboard under mobile More, added command-palette navigation, and added Sidebar Preferences support.
+  - Documented `LIVEBLOCKS_SECRET_KEY`, room id pattern, login-gated share links, owner/editor/viewer permissions, and whiteboard verification steps.
+- Commands run:
+  - `pnpm add @liveblocks/client @liveblocks/react @liveblocks/node --store-dir /Users/vanshajpoonia/Library/pnpm/store/v11` - packages were added; pnpm exited with `ERR_PNPM_IGNORED_BUILDS` for pre-existing/native build scripts (`bufferutil`, `sharp`), but the Liveblocks packages were installed and later build/type checks passed.
+  - `git status --short --branch` - reviewed; branch was ahead of origin with expected whiteboard/docs/package changes.
+  - `git diff --stat` - reviewed before staging; untracked new files are included after staging in the commit.
+  - `git diff --check` - passed.
+  - `npx tsc --noEmit` - passed. One earlier parallel run failed while `next build` was regenerating `.next/types`; the sequential rerun passed.
+  - `npm run lint` - failed before source linting because ESLint 10.3.0 cannot find `eslint.config.(js|mjs|cjs)`, matching the known project blocker.
+  - `npm run build` - passed; generated 138 routes including the new whiteboard pages and APIs.
+  - `npm run dev` - started on `http://localhost:3000` for smoke checks, then was stopped.
+  - HTTP smoke with `curl` - `/`, `/whiteboard`, `/whiteboard/share/not-a-real-token`, `/today`, `/settings`, `/money`, `/organize`, and `/login` returned `200`.
+  - Unauthenticated API smoke with `curl` - `/api/whiteboards` returned `401`; `POST /api/liveblocks-auth` returned `401`.
+- Bugs found or fixed:
+  - Added missing user-scoped authorization for all whiteboard metadata and room access paths from the start.
+  - Added graceful missing-Liveblocks-secret handling in the board editor page instead of crashing the whole app.
+  - Kept mobile bottom navigation at the existing five slots by placing Whiteboard in More.
+- Remaining issues and limitations:
+  - Database migration `scripts/migrations/2026-05-20-whiteboards.sql` still needs to be applied before real create/open/collaborator flows can be tested against a database.
+  - Realtime two-tab testing, drawing persistence after refresh, and viewer/editor role checks need a reachable database plus a valid `LIVEBLOCKS_SECRET_KEY`.
+  - Email delivery for collaborator invites is intentionally not implemented; invites create collaborator rows by email/user id only.
+  - Browser automation was unavailable (`agent-browser` was not on PATH), so visual responsive checks were limited to build and HTTP route smoke.
+  - `npm run lint` remains blocked by missing ESLint flat config.
+- Suggested next steps:
+  - Add `LIVEBLOCKS_SECRET_KEY` in Vercel and local development, apply the whiteboard migration, then run authenticated create/open/share/collaborator tests.
+  - Do a real two-browser/two-tab Liveblocks acceptance pass for cursors, storage persistence, undo/redo, and read-only viewer behavior.
+  - Add an ESLint flat config so source linting can run.
+- Handoff notes:
+  - Public whiteboard share links are login-gated and grant viewer access only; editor access requires an explicit collaborator row.
+  - Liveblocks room auth must continue to authorize exact stored `liveblocks_room_id` values only. Do not add wildcard room access.
+  - Do not run the migration without confirming the target database/environment.
 
 ## AI Handoff Summaries
 
