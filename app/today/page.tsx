@@ -756,6 +756,129 @@ export default function TodayPage() {
               </div>
             )}
 
+            <Card className="surface-card section-enter border-primary/20 bg-primary/5">
+              <CardHeader>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Star className="h-5 w-5 text-primary" />
+                      Today
+                    </CardTitle>
+                    <CardDescription>Must, Should, and Could items in one daily list.</CardDescription>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <SaveStatus state={saveState} />
+                    <Button
+                      onClick={generateAiPlan}
+                      disabled={generatingAi || loading}
+                      variant="secondary"
+                      size="sm"
+                      className="gap-2 bg-background/80"
+                    >
+                      {generatingAi
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        : <Sparkles className="h-3.5 w-3.5" />}
+                      Plan My Day with AI
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {focusItems.length === 0 ? (
+                  <EmptyPanel
+                    icon={<Target className="h-5 w-5" />}
+                    title="No focus selected yet"
+                    description="Choose from your suggestions or add a simple custom focus."
+                  />
+                ) : (
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {focusItems.map((item, index) => (
+                      <div key={item.id} className="rounded-lg border bg-background p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <Badge variant="secondary">Focus {index + 1}</Badge>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => removeFocus(item.id)}
+                            aria-label={`Remove ${item.title} from today's focus`}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                        <p className="mt-2 text-sm font-medium">{item.title}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{sourceLabel(item.source_type)}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Input
+                    value={customFocus}
+                    onChange={(event) => setCustomFocus(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault()
+                        addCustomFocus()
+                      }
+                    }}
+                    placeholder="Add a custom focus for today"
+                    aria-label="Add a custom focus for today"
+                  />
+                  <Button onClick={addCustomFocus} disabled={!customFocus.trim() || focusItems.length >= 3} className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Add
+                  </Button>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-medium">Prioritized daily list</p>
+                    <SaveStatus state={todayOrderState} />
+                  </div>
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {([
+                      ["all", "All", dailyCounts.all],
+                      ["must", "Must", dailyCounts.must],
+                      ["should", "Should", dailyCounts.should],
+                      ["could", "Could", dailyCounts.could],
+                    ] as const).map(([value, label, count]) => (
+                      <Button
+                        key={value}
+                        type="button"
+                        size="sm"
+                        variant={dailyPriorityFilter === value ? "default" : "outline"}
+                        className="shrink-0"
+                        onClick={() => setDailyPriorityFilter(value)}
+                      >
+                        {label} {count}
+                      </Button>
+                    ))}
+                  </div>
+                  <SectionList
+                    title="Today"
+                    items={filteredDailyItems}
+                    empty="No daily items yet. Add a custom focus if something is on your mind."
+                    action={(item) => (
+                      <Button
+                        size="sm"
+                        variant={focusIds.has(item.id) ? "secondary" : "outline"}
+                        disabled={(!focusIds.has(item.id) && focusItems.length >= 3) || item.source_type === "custom"}
+                        onClick={() => addFocus(item)}
+                      >
+                        {focusIds.has(item.id) ? "Focused" : "Focus"}
+                      </Button>
+                    )}
+                    compact
+                    hideTitle
+                    reorderable
+                    onReorder={handleTodayToDoReorder}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
             <Card className="surface-card section-enter border-amber-500/20 bg-amber-500/5">
               <CardHeader>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -898,129 +1021,6 @@ export default function TodayPage() {
                   <p className="text-xs text-muted-foreground">
                     Estimated task capacity: {capacitySummary.estimated_task_capacity} item{capacitySummary.estimated_task_capacity === 1 ? "" : "s"}.
                   </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="surface-card section-enter border-primary/20 bg-primary/5">
-              <CardHeader>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Star className="h-5 w-5 text-primary" />
-                      Today
-                    </CardTitle>
-                    <CardDescription>Must, Should, and Could items in one daily list.</CardDescription>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <SaveStatus state={saveState} />
-                    <Button
-                      onClick={generateAiPlan}
-                      disabled={generatingAi || loading}
-                      variant="secondary"
-                      size="sm"
-                      className="gap-2 bg-background/80"
-                    >
-                      {generatingAi
-                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        : <Sparkles className="h-3.5 w-3.5" />}
-                      Plan My Day with AI
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {focusItems.length === 0 ? (
-                  <EmptyPanel
-                    icon={<Target className="h-5 w-5" />}
-                    title="No focus selected yet"
-                    description="Choose from your suggestions or add a simple custom focus."
-                  />
-                ) : (
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    {focusItems.map((item, index) => (
-                      <div key={item.id} className="rounded-lg border bg-background p-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <Badge variant="secondary">Focus {index + 1}</Badge>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => removeFocus(item.id)}
-                            aria-label={`Remove ${item.title} from today's focus`}
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                        <p className="mt-2 text-sm font-medium">{item.title}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">{sourceLabel(item.source_type)}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <Input
-                    value={customFocus}
-                    onChange={(event) => setCustomFocus(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault()
-                        addCustomFocus()
-                      }
-                    }}
-                    placeholder="Add a custom focus for today"
-                    aria-label="Add a custom focus for today"
-                  />
-                  <Button onClick={addCustomFocus} disabled={!customFocus.trim() || focusItems.length >= 3} className="gap-2">
-                    <Plus className="h-4 w-4" />
-                    Add
-                  </Button>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-medium">Prioritized daily list</p>
-                    <SaveStatus state={todayOrderState} />
-                  </div>
-                  <div className="flex gap-2 overflow-x-auto pb-1">
-                    {([
-                      ["all", "All", dailyCounts.all],
-                      ["must", "Must", dailyCounts.must],
-                      ["should", "Should", dailyCounts.should],
-                      ["could", "Could", dailyCounts.could],
-                    ] as const).map(([value, label, count]) => (
-                      <Button
-                        key={value}
-                        type="button"
-                        size="sm"
-                        variant={dailyPriorityFilter === value ? "default" : "outline"}
-                        className="shrink-0"
-                        onClick={() => setDailyPriorityFilter(value)}
-                      >
-                        {label} {count}
-                      </Button>
-                    ))}
-                  </div>
-                  <SectionList
-                    title="Today"
-                    items={filteredDailyItems}
-                    empty="No daily items yet. Add a custom focus if something is on your mind."
-                    action={(item) => (
-                      <Button
-                        size="sm"
-                        variant={focusIds.has(item.id) ? "secondary" : "outline"}
-                        disabled={(!focusIds.has(item.id) && focusItems.length >= 3) || item.source_type === "custom"}
-                        onClick={() => addFocus(item)}
-                      >
-                        {focusIds.has(item.id) ? "Focused" : "Focus"}
-                      </Button>
-                    )}
-                    compact
-                    hideTitle
-                    reorderable
-                    onReorder={handleTodayToDoReorder}
-                  />
                 </div>
               </CardContent>
             </Card>

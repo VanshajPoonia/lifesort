@@ -39,6 +39,7 @@ import {
   Settings2,
   Wallet,
   BookOpenText,
+  Paintbrush,
 } from "lucide-react"
 import {
   Accordion,
@@ -583,8 +584,10 @@ export default function SettingsPage() {
                   { id: "today", label: "Today", icon: CalendarCheck, description: "Today Plan, calendar today, habits due, and capacity planning" },
                   { id: "journal", label: "Journal", icon: BookOpenText, description: "Daily reflection, gratitude, intentions, and tomorrow setup" },
                   { id: "workspace", label: "Workspace", icon: Archive, description: "Plan, Capture, Visual, Systems, and Follow-ups" },
+                  { id: "whiteboard", label: "Whiteboard", icon: Paintbrush, description: "Collaborative visual planning and sketches" },
                   { id: "money", label: "Money", icon: Wallet, description: "Budget, income, investments, and wishlist" },
                   { id: "reflect", label: "Reflect", icon: Activity, description: "Life Balance, Weekly Review, Timeline, Reset, Coach, and LifeScore insights" },
+                  { id: "ai_assistant", label: "Coach", icon: Sparkles, description: "LifeSort Coach for app-aware planning questions" },
                   { id: "settings", label: "Settings", icon: Settings2, description: "Profile, operating rules, preferences, integrations, and account settings" },
                   { id: "admin", label: "Admin", icon: Shield, description: "Admin subscription controls", adminOnly: true },
                 ].filter((item) => !item.adminOnly || user?.is_admin).map(({ id, label, icon: Icon, description }) => (

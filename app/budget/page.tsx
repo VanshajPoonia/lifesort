@@ -5,6 +5,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import dynamic from "next/dynamic"
 import { DashboardLayout } from "@/components/dashboard-layout"
+import { MoneyBackNav } from "@/components/money-back-nav"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -485,6 +486,7 @@ export default function BudgetPage() {
 
   return (
     <DashboardLayout title="Finance Hub" subtitle="Your complete financial picture">
+      <MoneyBackNav current="Budget" className="mb-4" />
 
       {/* ── Top summary cards ── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-4">

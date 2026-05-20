@@ -110,7 +110,7 @@ function entryStarted(entry: JournalEntryInput) {
       entry.family_todo.some((item) => item.text.trim()) ||
       entry.what_went_well ||
       entry.what_could_be_better ||
-      entry.notes_from_today ||
+      richTextToPlainText(entry.notes_from_today).trim() ||
       entry.how_to_make_tomorrow_better ||
       entry.work_stars ||
       entry.personal_stars ||
@@ -121,7 +121,7 @@ function entryStarted(entry: JournalEntryInput) {
 }
 
 function calculateStreak(entries: JournalEntry[]) {
-  const dates = new Set(entries.map((entry) => entry.journal_date))
+  const dates = new Set(entries.filter(entryStarted).map((entry) => entry.journal_date))
   let cursor = localDateString()
   let count = 0
   while (dates.has(cursor)) {

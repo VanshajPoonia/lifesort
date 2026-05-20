@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth-provider"
 import { DashboardLayout } from "@/components/dashboard-layout"
+import { MoneyBackNav } from "@/components/money-back-nav"
 import {
   DollarSign,
   Plus,
@@ -293,6 +294,8 @@ export default function IncomePage() {
   return (
     <DashboardLayout title="Income Sources" subtitle="Track all your revenue streams">
       <div className="space-y-6">
+        <MoneyBackNav current="Income" />
+
         {/* Income Overview */}
         <div className="grid gap-4 md:grid-cols-4">
           <Card>

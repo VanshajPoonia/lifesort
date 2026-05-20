@@ -17,6 +17,58 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-05-20 20:47 IST - Money Navigation, Today Ordering, And Discovery Fixes
+
+- Agent/tool used: Codex (GPT-5 coding agent).
+- Task completed: Added a clear return path from Money subpages, moved the main Today planning section above the Journal preview, fixed Journal streak counting for empty rich-text entries, and made Whiteboard/Coach easier to find.
+
+#### Files Modified
+- `components/money-back-nav.tsx` - Added a reusable finance subpage navigation bar with `Back to Money` and sibling finance links.
+- `app/budget/page.tsx` - Added the Money return/sibling navigation.
+- `app/income/page.tsx` - Added the Money return/sibling navigation.
+- `app/investments/page.tsx` - Added the Money return/sibling navigation.
+- `app/wishlist/page.tsx` - Added the Money return/sibling navigation.
+- `app/today/page.tsx` - Moved the main Today priority section above the Journal preview.
+- `app/journal/page.tsx` - Changed streak calculations to count only journal entries with non-empty user content after stripping rich-text HTML.
+- `components/dashboard-layout.tsx` - Added visible desktop sidebar entries for Whiteboard and LifeSort Coach, plus mobile More links.
+- `app/settings/page.tsx` - Added sidebar preference toggles for Whiteboard and Coach.
+- `AI_PROJECT.md`, `AI_DECISIONS.md`, `AI_CHECKLIST.md`, `AI_TASK_LOG.md` - Documented the navigation/discovery changes and validation results.
+
+#### Summary
+- Money subpages now provide an in-page way back to `/money` plus quick access to Budget, Income, Investments, and Wishlist.
+- Today now prioritizes the actual daily planning/checklist surface before Journal so the page opens on today's work instead of the reflection preview.
+- Journal streaks no longer increment from empty rich-text shells such as `<p></p>`; they require meaningful entry content.
+- Whiteboard and LifeSort Coach are now discoverable from the desktop sidebar, mobile More menu, and sidebar preference settings while keeping existing routes intact.
+
+#### Commands Run
+- `git status --short --branch` - branch started as `main...origin/main` with a clean worktree before this task.
+- `git diff --stat` - reviewed scoped source/docs changes.
+- `npx tsc --noEmit` - passed.
+- `npm run lint` - failed with the known existing ESLint 10 blocker: no `eslint.config.(js|mjs|cjs)` file exists.
+- `npm run build` - passed; generated 144 routes including `/today`, `/money`, `/budget`, `/whiteboard`, and `/ai-chat`.
+- `npm run dev` - started successfully on port 3000 for route smoke checks, then was stopped.
+- HTTP route smoke via `curl` - `/today`, `/money`, `/budget`, `/income`, `/investments`, `/wishlist`, `/journal`, `/workspace`, `/whiteboard`, and `/ai-chat` returned 200.
+- `git diff --check` - passed.
+
+#### Bugs Found Or Fixed
+- Fixed the missing in-page back path from Money-owned subpages.
+- Fixed Today's content order so Journal no longer appears before the main Today section.
+- Fixed Journal streak inflation from empty rich-text HTML.
+- Fixed discoverability for Whiteboard and LifeSort Coach by adding direct navigation surfaces.
+
+#### Remaining Issues And Limitations
+- `npm run lint` remains blocked by the pre-existing missing ESLint flat config.
+- The changes were smoke-tested by route status; authenticated visual/manual QA in the browser is still recommended for exact sidebar preference behavior.
+
+#### Suggested Next Steps
+- Add an ESLint flat config so source linting can run normally.
+- In a signed-in browser session, verify the new Money subpage nav, mobile More links, and sidebar preference toggles visually across light/dark themes.
+
+#### Handoff Notes
+- Whiteboard remains part of Workspace > Visual, but it now also has direct navigation for discoverability.
+- Coach links to the existing `/ai-chat` route and does not introduce a new AI surface.
+- No database changes, migrations, or route removals were made.
+
 ### 2026-05-20 20:22 IST - Notes And Journal Writing Assistance
 
 - Agent/tool used: Codex (GPT-5 coding agent).

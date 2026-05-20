@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth-provider"
 import { DashboardLayout } from "@/components/dashboard-layout"
+import { MoneyBackNav } from "@/components/money-back-nav"
 import { gsap } from "gsap"
 import {
   Plus,
@@ -572,6 +573,8 @@ export default function InvestmentsPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        <MoneyBackNav current="Investments" />
+
         {/* Header */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>

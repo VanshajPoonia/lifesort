@@ -137,12 +137,12 @@ Run after changes to `DashboardLayout`, command/search/capture UI, Home preferen
 ## Navigation / Information Architecture Checklist
 
 1. Preserve deep links when consolidating navigation; hide routes from the sidebar only, never delete feature pages.
-2. Keep the primary sidebar hub-level: Home, Today, Workspace, Money, Reflect, Settings, and admin-only Admin.
+2. Keep the primary sidebar focused but discoverable: Home, Today, Journal, Workspace, Whiteboard, Money, Reflect, Coach, Settings, and admin-only Admin.
 3. Keep Home short and attention-focused; do not re-add full module dashboards there when a hub or deep feature route already owns the workflow.
 4. Keep Today as the primary daily focus surface, with focus/due/suggested items unified into Must/Should/Could priority filters.
 5. Preserve compatibility routes: `/organize` should lead to Workspace, `/plan` should lead to Workspace > Plan, `/life-admin` should lead to Workspace > Systems, `/capture` remains the Universal Capture feature page, and `/insights` remains a Reflect compatibility feature route.
 6. Keep Quick Add, Global Search, notifications, profile/settings, and sign-out reachable from the shared layout.
-7. Keep mobile navigation compact: Home, Today, Workspace, Money, and More. More should include Reflect, Settings/Profile, Support/FAQs, and admin-only Admin.
+7. Keep mobile navigation compact: Home, Today, Workspace, Money, and More. More should include Journal, Whiteboard, LifeSort Coach, Reflect, Settings/Profile, Support/FAQs, and admin-only Admin.
 8. Keep hub summary endpoints read-only, authenticated, user-scoped, and missing-schema tolerant.
 9. Add hub cards or tab links for any feature hidden from the sidebar so discoverability is not lost.
 
@@ -159,8 +159,9 @@ Run after changes to `DashboardLayout`, command/search/capture UI, Home preferen
 9. Reduced motion must leave every interaction understandable: no required state change should depend on animation.
 10. Prefer `AppEmptyState` for high-visibility empty panels; use `allClear` only for genuinely calm/clear states, not errors or missing data.
 11. Money summaries must show real loaded values or explicit `No data`/unavailable labels. Do not invent finance totals for empty accounts.
-12. Theme contrast checks must include selected/focused command, select, and dropdown rows; nested `text-muted-foreground` icons/descriptions should inherit the selected foreground.
-13. Prefer theme semantic status tokens (`text-success`, `text-warning`, `text-destructive`, `text-primary`) for high-traffic status text instead of raw `text-green-*` / `text-amber-*` / `text-red-*` classes.
+12. Money subpages (`/budget`, `/income`, `/investments`, `/wishlist`) should keep a visible `Back to Money` path and lightweight sibling finance links.
+13. Theme contrast checks must include selected/focused command, select, and dropdown rows; nested `text-muted-foreground` icons/descriptions should inherit the selected foreground.
+14. Prefer theme semantic status tokens (`text-success`, `text-warning`, `text-destructive`, `text-primary`) for high-traffic status text instead of raw `text-green-*` / `text-amber-*` / `text-red-*` classes.
 
 ## Responsive Foundation Checklist
 
