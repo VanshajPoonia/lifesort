@@ -162,11 +162,10 @@ const visualCards: HubCard[] = [
   },
   {
     title: "Spaces",
-    description: "A future canvas for grouping work, notes, plans, and resources by context.",
-    href: "#",
+    description: "Group related notes, whiteboards, tasks, links, projects, and systems by context.",
+    href: "/spaces",
     icon: Map,
-    badge: "Coming later",
-    disabled: true,
+    priority: "primary",
   },
 ]
 
@@ -187,11 +186,10 @@ const systemsCards: HubCard[] = [
   },
   {
     title: "AI Template Builder",
-    description: "A future builder for generating editable system templates from your goals.",
-    href: "#",
+    description: "Generate an editable LifeSort system from a prompt, then preview before creating.",
+    href: "/templates?mode=ai",
     icon: Wand2,
-    badge: "Coming later",
-    disabled: true,
+    priority: "secondary",
   },
   {
     title: "People",
@@ -255,7 +253,7 @@ const tabCopy: Record<WorkspaceTab, { title: string; description: string; cards:
   },
   visual: {
     title: "Map ideas visually",
-    description: "Whiteboards and future Spaces help you plan beyond lists.",
+    description: "Whiteboards and Spaces help you plan beyond lists.",
     cards: visualCards,
   },
   systems: {
