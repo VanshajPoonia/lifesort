@@ -25,13 +25,11 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   BookOpenText,
-  Paintbrush,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { ThemeSwitcher } from "@/components/theme-switcher"
-import { DailyPopup } from "@/components/daily-popup"
 import { QuickAddModal, type QuickAddType } from "@/components/quick-add-modal"
 import { GlobalCommandPalette } from "@/components/global-command-palette"
 import { NotificationBell } from "@/components/notification-bell"
@@ -48,6 +46,7 @@ interface DashboardLayoutProps {
 
 const DEFAULT_SIDEBAR_PREFS = {
   home: true,
+  workspace: true,
   organize: true,
   reflect: true,
   plan: true,
@@ -109,11 +108,12 @@ const HUB_NAV_ITEMS: SidebarItem[] = [
   { id: "today", label: "Today", href: "/today", icon: CalendarCheck },
   { id: "journal", label: "Journal", href: "/journal", icon: BookOpenText },
   {
-    id: "organize",
-    label: "Organize",
-    href: "/organize",
+    id: "workspace",
+    label: "Workspace",
+    href: "/workspace",
     icon: Archive,
     aliases: [
+      "/organize",
       "/plan",
       "/capture",
       "/life-admin",
@@ -137,9 +137,10 @@ const HUB_NAV_ITEMS: SidebarItem[] = [
       "/vault",
       "/maintenance",
       "/notifications",
+      "/whiteboard",
     ],
+    legacyFallback: "organize",
   },
-  { id: "whiteboard", label: "Whiteboard", href: "/whiteboard", icon: Paintbrush },
   {
     id: "money",
     label: "Money",
@@ -159,12 +160,19 @@ const HUB_NAV_ITEMS: SidebarItem[] = [
 ]
 
 const MOBILE_PRIMARY_ITEMS = HUB_NAV_ITEMS.filter((item) =>
-  ["home", "today", "organize", "money"].includes(item.id),
+  ["home", "today", "workspace", "money"].includes(item.id),
 )
 
 // Module-level cache — persists across client-side navigations so the
 // sidebar never re-fetches after the first successful load.
 let _sidebarPrefsCache: Record<string, boolean> | null = null
+
+function applyWorkspacePreferenceFallback(preferences: Record<string, boolean>) {
+  if (preferences.workspace === undefined && preferences.organize !== undefined) {
+    return { ...preferences, workspace: preferences.organize }
+  }
+  return preferences
+}
 
 export function clearSidebarPrefsCache() {
   _sidebarPrefsCache = null
@@ -224,7 +232,7 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
       const stored = sessionStorage.getItem("sidebar_prefs")
       if (stored) {
         const parsed = JSON.parse(stored)
-        const prefs = { ...DEFAULT_SIDEBAR_PREFS, ...parsed }
+        const prefs = { ...DEFAULT_SIDEBAR_PREFS, ...applyWorkspacePreferenceFallback(parsed) }
         _sidebarPrefsCache = prefs
         setSidebarPrefs(prefs)
         setPrefsLoaded(true)
@@ -240,7 +248,7 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
       if (response.ok) {
         const data = await response.json()
         if (data.preferences && typeof data.preferences === "object") {
-          const prefs = { ...DEFAULT_SIDEBAR_PREFS, ...data.preferences }
+          const prefs = { ...DEFAULT_SIDEBAR_PREFS, ...applyWorkspacePreferenceFallback(data.preferences) }
           _sidebarPrefsCache = prefs
           sessionStorage.setItem("sidebar_prefs", JSON.stringify(data.preferences))
           setSidebarPrefs(prefs)
@@ -309,8 +317,6 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
         marginTop: "var(--subscription-banner-offset, 0px)",
       }}
     >
-      {/* Daily Content Popup */}
-      <DailyPopup />
       <QuickAddModal open={quickAddOpen} onOpenChange={setQuickAddOpen} initialType={quickAddInitialType} />
       <GlobalCommandPalette
         open={commandPaletteOpen}
@@ -504,7 +510,7 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
           <button
             type="button"
             className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[11px] font-medium transition-all duration-150 ease-out active:scale-[0.98] motion-reduce:transition-none motion-reduce:transform-none ${
-              ["/journal", "/whiteboard", "/reflect", "/insights", "/review", "/timeline", "/reset", "/ai-chat", "/life-areas", "/settings", "/rules", "/admin"].some(matchesPath)
+              ["/journal", "/reflect", "/insights", "/review", "/timeline", "/reset", "/ai-chat", "/life-areas", "/settings", "/rules", "/admin"].some(matchesPath)
                 ? "bg-primary/10 text-primary"
                 : "text-muted-foreground hover:bg-muted/70"
             }`}
@@ -526,7 +532,6 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
           <div className="mt-4 grid gap-2">
             {[
               { href: "/journal", label: "Journal", icon: BookOpenText },
-              { href: "/whiteboard", label: "Whiteboard", icon: Paintbrush },
               { href: "/reflect", label: "Reflect", icon: Activity },
               { href: "/settings", label: "Settings", icon: Settings },
               { href: "/settings?tab=profile", label: "Profile", icon: User },

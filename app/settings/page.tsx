@@ -39,7 +39,6 @@ import {
   Settings2,
   Wallet,
   BookOpenText,
-  Paintbrush,
 } from "lucide-react"
 import {
   Accordion,
@@ -103,6 +102,7 @@ export default function SettingsPage() {
 
   const [sidebarPrefs, setSidebarPrefs] = useState({
     home: true,
+    workspace: true,
     organize: true,
     reflect: true,
     plan: true,
@@ -302,7 +302,7 @@ export default function SettingsPage() {
       const response = await fetch("/api/sidebar-preferences", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(sidebarPrefs),
+        body: JSON.stringify({ ...sidebarPrefs, organize: sidebarPrefs.workspace }),
       })
 
       if (response.ok) {
@@ -582,8 +582,7 @@ export default function SettingsPage() {
                   { id: "home", label: "Home", icon: LayoutDashboard, description: "Dashboard, quick actions, LifeScore, and today snapshot" },
                   { id: "today", label: "Today", icon: CalendarCheck, description: "Today Plan, calendar today, habits due, and capacity planning" },
                   { id: "journal", label: "Journal", icon: BookOpenText, description: "Daily reflection, gratitude, intentions, and tomorrow setup" },
-                  { id: "organize", label: "Organize", icon: Archive, description: "Plan, Capture, and Life Admin workspaces" },
-                  { id: "whiteboard", label: "Whiteboard", icon: Paintbrush, description: "Collaborative sketching, planning, and visual brainstorming" },
+                  { id: "workspace", label: "Workspace", icon: Archive, description: "Plan, Capture, Visual, Systems, and Follow-ups" },
                   { id: "money", label: "Money", icon: Wallet, description: "Budget, income, investments, and wishlist" },
                   { id: "reflect", label: "Reflect", icon: Activity, description: "Life Balance, Weekly Review, Timeline, Reset, Coach, and LifeScore insights" },
                   { id: "settings", label: "Settings", icon: Settings2, description: "Profile, operating rules, preferences, integrations, and account settings" },
@@ -634,7 +633,7 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle>Home View</CardTitle>
               <CardDescription>
-                Choose whether Home stays focused or shows extra dashboard detail.
+                Home now stays focused on the main workspace overview.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -642,13 +641,13 @@ export default function SettingsPage() {
                 {[
                   {
                     id: "compact" as const,
-                    title: "Compact",
+                    title: "Calm",
                     description: "Greeting, Today, Pending, Journal, LifeScore, Money, and Recent Activity.",
                   },
                   {
                     id: "detailed" as const,
                     title: "Detailed",
-                    description: "Adds extra deadline and note context for deeper dashboard review.",
+                    description: "Saved for future dashboard context. The current Home stays intentionally calm.",
                   },
                 ].map((option) => (
                   <button

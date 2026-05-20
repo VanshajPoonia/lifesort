@@ -6,6 +6,7 @@ const sql = neon(process.env.DATABASE_URL!)
 
 const DEFAULT_SIDEBAR_SECTIONS = {
   home: true,
+  workspace: true,
   organize: true,
   reflect: true,
   plan: true,
@@ -51,6 +52,13 @@ const DEFAULT_SIDEBAR_SECTIONS = {
   notifications: true,
 }
 
+function applyWorkspacePreferenceFallback(preferences: Record<string, boolean>) {
+  if (preferences.workspace === undefined && preferences.organize !== undefined) {
+    return { ...preferences, workspace: preferences.organize }
+  }
+  return preferences
+}
+
 export async function GET() {
   try {
     const user = await getUserFromSession()
@@ -62,9 +70,10 @@ export async function GET() {
       SELECT sidebar_preferences FROM users WHERE id = ${user.id}
     `
 
+    const storedPreferences = (result[0]?.sidebar_preferences || {}) as Record<string, boolean>
     const preferences = {
       ...DEFAULT_SIDEBAR_SECTIONS,
-      ...(result[0]?.sidebar_preferences || {}),
+      ...applyWorkspacePreferenceFallback(storedPreferences),
     }
 
     return NextResponse.json({ preferences })
@@ -82,6 +91,9 @@ export async function PUT(request: Request) {
     }
 
     const preferences = await request.json()
+    if (preferences.workspace !== undefined && preferences.organize === undefined) {
+      preferences.organize = preferences.workspace
+    }
 
     await sql`
       UPDATE users 
