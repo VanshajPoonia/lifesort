@@ -643,7 +643,7 @@ function PersonDetail({
             </div>
           )}
           {person.birthday && (
-            <div className={`flex items-center gap-2 text-sm ${daysUntil !== null && daysUntil <= 7 ? "text-pink-600" : "text-muted-foreground"}`}>
+            <div className={`flex items-center gap-2 text-sm ${daysUntil !== null && daysUntil <= 7 ? "text-pink-700 dark:text-pink-300" : "text-muted-foreground"}`}>
               <Cake className="h-4 w-4" />
               {formatBirthday(person.birthday)}
               {daysUntil !== null && (

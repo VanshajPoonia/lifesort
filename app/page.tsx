@@ -1234,7 +1234,7 @@ export default function Home() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <CardTitle className="flex items-center gap-2">
-                    <BookOpenText className="h-5 w-5 text-amber-600" />
+                    <BookOpenText className="h-5 w-5 text-amber-600 dark:text-amber-300" />
                     Journal
                   </CardTitle>
                   <CardDescription>Gratitude, reflection, and tomorrow setup.</CardDescription>

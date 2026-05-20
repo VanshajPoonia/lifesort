@@ -492,16 +492,16 @@ export default function BudgetPage() {
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Monthly Income</CardTitle>
             <div className="rounded-full bg-green-500/20 p-2">
-              <TrendingUp className="h-4 w-4 text-green-500" />
+              <TrendingUp className="h-4 w-4 text-success" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-green-600">${fmt(monthlyIncome)}</div>
+            <div className="text-3xl font-bold text-success">${fmt(monthlyIncome)}</div>
             <p className="mt-1 text-xs text-muted-foreground">
               From {incomeSources.filter(s => s.active).length} active source{incomeSources.filter(s => s.active).length !== 1 ? "s" : ""}
             </p>
             {summary.income > 0 && (
-              <p className="mt-2 text-xs text-green-600">+${fmt(summary.income)} recorded this month</p>
+              <p className="mt-2 text-xs text-success">+${fmt(summary.income)} recorded this month</p>
             )}
           </CardContent>
         </Card>
@@ -510,11 +510,11 @@ export default function BudgetPage() {
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Monthly Expenses</CardTitle>
             <div className="rounded-full bg-red-500/20 p-2">
-              <TrendingDown className="h-4 w-4 text-red-500" />
+              <TrendingDown className="h-4 w-4 text-destructive" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-red-600">${fmt(summary.expenses)}</div>
+            <div className="text-3xl font-bold text-destructive">${fmt(summary.expenses)}</div>
             <p className="mt-1 text-xs text-muted-foreground">This month's tracked spending</p>
             {monthlyIncome > 0 && (
               <div className="mt-3">
@@ -532,11 +532,11 @@ export default function BudgetPage() {
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Monthly Surplus</CardTitle>
             <div className="rounded-full bg-blue-500/20 p-2">
-              <Wallet className="h-4 w-4 text-blue-500" />
+              <Wallet className="h-4 w-4 text-primary" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className={`text-3xl font-bold ${monthlySurplus >= 0 ? "text-green-600" : "text-red-600"}`}>
+            <div className={`text-3xl font-bold ${monthlySurplus >= 0 ? "text-success" : "text-destructive"}`}>
               {monthlySurplus >= 0 ? "" : "-"}${fmt(Math.abs(monthlySurplus))}
             </div>
             <p className="mt-1 text-xs text-muted-foreground">Income minus expenses</p>
@@ -559,13 +559,13 @@ export default function BudgetPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Investments</CardTitle>
-            <TrendingUp className="h-4 w-4 text-emerald-500" />
+            <TrendingUp className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
             <div className="text-xl font-bold">${fmt(investmentsTotal)}</div>
             <p className="text-xs text-muted-foreground">{investments.length} position{investments.length !== 1 ? "s" : ""}</p>
             {investmentsCost > 0 && (
-              <p className={`mt-1 text-xs font-medium ${investmentsTotal >= investmentsCost ? "text-green-600" : "text-red-600"}`}>
+              <p className={`mt-1 text-xs font-medium ${investmentsTotal >= investmentsCost ? "text-success" : "text-destructive"}`}>
                 {investmentsTotal >= investmentsCost ? "+" : ""}${fmt(investmentsTotal - investmentsCost)} vs cost
               </p>
             )}
@@ -602,10 +602,10 @@ export default function BudgetPage() {
         <Card className="bg-gradient-to-br from-violet-500/10 to-purple-500/10 border-violet-500/20">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Est. Net Worth</CardTitle>
-            <BarChart3 className="h-4 w-4 text-violet-500" />
+            <BarChart3 className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className={`text-xl font-bold ${netWorth >= 0 ? "text-violet-600" : "text-red-600"}`}>
+            <div className={`text-xl font-bold ${netWorth >= 0 ? "text-primary" : "text-destructive"}`}>
               {netWorth >= 0 ? "" : "-"}${fmt(Math.abs(netWorth))}
             </div>
             <p className="text-xs text-muted-foreground">Investments + savings − wishlist</p>
@@ -616,8 +616,8 @@ export default function BudgetPage() {
       {/* ── Quick links ── */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-6">
         {[
-          { href: "/income",      label: "Income Sources",  desc: `${incomeSources.length} source${incomeSources.length !== 1 ? "s" : ""}`,   icon: <TrendingUp className="h-4 w-4 text-green-500" /> },
-          { href: "/investments", label: "Investments",     desc: `${investments.length} position${investments.length !== 1 ? "s" : ""}`,      icon: <BarChart3 className="h-4 w-4 text-emerald-500" /> },
+          { href: "/income",      label: "Income Sources",  desc: `${incomeSources.length} source${incomeSources.length !== 1 ? "s" : ""}`,   icon: <TrendingUp className="h-4 w-4 text-success" /> },
+          { href: "/investments", label: "Investments",     desc: `${investments.length} position${investments.length !== 1 ? "s" : ""}`,      icon: <BarChart3 className="h-4 w-4 text-success" /> },
           { href: "/wishlist",    label: "Wishlist",        desc: `${wishlistItems.filter(i=>!i.purchased).length} item${wishlistItems.filter(i=>!i.purchased).length !== 1 ? "s" : ""} pending`, icon: <Heart className="h-4 w-4 text-pink-500" /> },
           { href: "#categories",  label: "Budget Categories", desc: `${categories.length} categor${categories.length !== 1 ? "ies" : "y"}`, icon: <ShoppingCart className="h-4 w-4 text-purple-500" /> },
         ].map(({ href, label, desc, icon }) => (
@@ -745,30 +745,30 @@ export default function BudgetPage() {
                 <div>
                   <div className="mb-1 flex justify-between text-sm">
                     <span className="text-muted-foreground">Income</span>
-                    <span className="font-medium text-green-600">${fmt(monthlyIncome)}</span>
+                    <span className="font-medium text-success">${fmt(monthlyIncome)}</span>
                   </div>
-                  <Progress value={100} className="h-3 [&>div]:bg-green-500" />
+                  <Progress value={100} className="h-3 [&>div]:bg-success" />
                 </div>
                 <div>
                   <div className="mb-1 flex justify-between text-sm">
                     <span className="text-muted-foreground">Expenses</span>
-                    <span className="font-medium text-red-600">${fmt(summary.expenses)}</span>
+                    <span className="font-medium text-destructive">${fmt(summary.expenses)}</span>
                   </div>
                   <Progress
                     value={monthlyIncome > 0 ? Math.min(100, (summary.expenses / monthlyIncome) * 100) : 0}
-                    className="h-3 [&>div]:bg-red-500"
+                    className="h-3 [&>div]:bg-destructive"
                   />
                 </div>
                 <div>
                   <div className="mb-1 flex justify-between text-sm">
                     <span className="text-muted-foreground">Surplus</span>
-                    <span className={`font-medium ${monthlySurplus >= 0 ? "text-blue-600" : "text-red-600"}`}>
+                    <span className={`font-medium ${monthlySurplus >= 0 ? "text-primary" : "text-destructive"}`}>
                       ${fmt(Math.max(0, monthlySurplus))}
                     </span>
                   </div>
                   <Progress
                     value={monthlyIncome > 0 ? Math.max(0, Math.min(100, (monthlySurplus / monthlyIncome) * 100)) : 0}
-                    className="h-3 [&>div]:bg-blue-500"
+                    className="h-3 [&>div]:bg-primary"
                   />
                 </div>
               </CardContent>
@@ -815,7 +815,7 @@ export default function BudgetPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className={`font-semibold tabular-nums ${t.type === "income" ? "text-green-600" : "text-red-600"}`}>
+                        <span className={`font-semibold tabular-nums ${t.type === "income" ? "text-success" : "text-destructive"}`}>
                           {t.type === "income" ? "+" : "−"}${parseFloat(String(t.amount)).toFixed(2)}
                         </span>
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteTransaction(t.id)}>

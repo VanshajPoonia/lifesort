@@ -684,7 +684,7 @@ export default function CapturePage() {
                               {meta.label}
                             </span>
                             {status === "created" && (
-                              <Badge variant="outline" className="border-green-500 text-green-600 text-xs">Created</Badge>
+                              <Badge variant="outline" className="border-success/30 text-success text-xs">Created</Badge>
                             )}
                             {status === "failed" && (
                               <Badge variant="destructive" className="text-xs">Failed</Badge>
@@ -743,7 +743,7 @@ export default function CapturePage() {
               <div className="rounded-lg border bg-card p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-2 text-sm">
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    <CheckCircle2 className="h-4 w-4 text-success" />
                     <span>
                       {doneCount} of {selectedDrafts.length} item{selectedDrafts.length === 1 ? "" : "s"} created successfully.
                     </span>

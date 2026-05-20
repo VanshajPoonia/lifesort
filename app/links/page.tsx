@@ -1125,8 +1125,8 @@ export default function LinksPage() {
           <div className="space-y-4 py-4">
             {sharingItem?.is_public && sharingItem.share_token ? (
               <>
-                <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
-                  <div className="flex items-center gap-2 text-green-600 mb-2">
+                <div className="p-4 bg-success/10 border border-success/20 rounded-lg">
+                  <div className="flex items-center gap-2 text-success mb-2">
                     <Unlock className="h-5 w-5" />
                     <span className="font-medium">Public Link Active</span>
                   </div>

@@ -538,19 +538,19 @@ export default function VaultPage() {
             </Card>
             <Card className="text-center">
               <CardContent className="pt-4 pb-4">
-                <p className="text-2xl font-bold text-red-500">{expired.length}</p>
+                <p className="text-2xl font-bold text-destructive">{expired.length}</p>
                 <p className="text-xs text-muted-foreground mt-1">Expired</p>
               </CardContent>
             </Card>
             <Card className="text-center">
               <CardContent className="pt-4 pb-4">
-                <p className="text-2xl font-bold text-orange-500">{expiringSoon.length}</p>
+                <p className="text-2xl font-bold text-warning">{expiringSoon.length}</p>
                 <p className="text-xs text-muted-foreground mt-1">Expiring ≤60d</p>
               </CardContent>
             </Card>
             <Card className="text-center">
               <CardContent className="pt-4 pb-4">
-                <p className="text-2xl font-bold text-amber-500">{renewalsDue.length}</p>
+                <p className="text-2xl font-bold text-warning">{renewalsDue.length}</p>
                 <p className="text-xs text-muted-foreground mt-1">Renewals ≤60d</p>
               </CardContent>
             </Card>
@@ -630,7 +630,7 @@ export default function VaultPage() {
           <TabsContent value="expiring" className="mt-4 space-y-4">
             {expired.length > 0 && (
               <div>
-                <p className="text-xs font-medium text-red-600 uppercase tracking-wide mb-2">
+                <p className="text-xs font-medium text-destructive uppercase tracking-wide mb-2">
                   Expired ({expired.length})
                 </p>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -642,7 +642,7 @@ export default function VaultPage() {
             )}
             {expiringSoon.length > 0 && (
               <div>
-                <p className="text-xs font-medium text-orange-600 uppercase tracking-wide mb-2">
+                <p className="text-xs font-medium text-warning uppercase tracking-wide mb-2">
                   Expiring within 60 days ({expiringSoon.length})
                 </p>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

@@ -1295,7 +1295,7 @@ function SaveStatus({ state }: { state: SaveState }) {
     )
   }
   if (state === "saved") {
-    return <span className="animate-in fade-in text-xs text-emerald-600 duration-150 motion-reduce:animate-none">Saved</span>
+    return <span className="animate-in fade-in text-xs text-success duration-150 motion-reduce:animate-none">Saved</span>
   }
   if (state === "error") {
     return <span className="text-xs text-destructive">Save failed</span>

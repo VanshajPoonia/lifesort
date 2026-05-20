@@ -758,8 +758,8 @@ export default function InvestmentsPage() {
 
                   {/* Stock/Crypto Symbol for live tracking */}
                   {(newInvestment.type === "Stocks" || newInvestment.type === "Crypto" || newInvestment.type === "ETF") && (
-                    <div className="p-4 rounded-lg border border-dashed border-blue-500/30 bg-blue-500/5">
-                      <Label className="text-xs uppercase tracking-wider text-blue-500 flex items-center gap-2">
+                    <div className="p-4 rounded-lg border border-dashed border-primary/30 bg-primary/5">
+                      <Label className="text-xs uppercase tracking-wider text-primary flex items-center gap-2">
                         <Globe className="h-4 w-4" />
                         Live Price Tracking (Optional)
                       </Label>
@@ -958,16 +958,16 @@ export default function InvestmentsPage() {
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Return</p>
                   <div className="flex items-center gap-2 mt-1">
-                    <p className={`text-3xl font-bold ${isPositive ? "text-green-500" : "text-red-500"}`}>
+                    <p className={`text-3xl font-bold ${isPositive ? "text-success" : "text-destructive"}`}>
                       {isPositive ? "+" : ""}{totalReturn.toFixed(2)}%
                     </p>
                     {isPositive ? (
-                      <ArrowUpRight className="h-6 w-6 text-green-500" />
+                      <ArrowUpRight className="h-6 w-6 text-success" />
                     ) : (
-                      <ArrowDownRight className="h-6 w-6 text-red-500" />
+                      <ArrowDownRight className="h-6 w-6 text-destructive" />
                     )}
                   </div>
-                  <p className={`text-sm ${isPositive ? "text-green-500/70" : "text-red-500/70"}`}>
+                  <p className={`text-sm ${isPositive ? "text-success" : "text-destructive"}`}>
                     {isPositive ? "+" : ""}${(absoluteReturn || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                 </div>
@@ -1120,7 +1120,7 @@ export default function InvestmentsPage() {
                           <div className="flex items-center gap-2 mt-1 flex-wrap">
                             <Badge variant="secondary" className="text-xs">{inv.type}</Badge>
                             {inv.symbol && (
-                              <Badge variant="outline" className="text-xs bg-blue-500/10 border-blue-500/30 text-blue-600">
+                              <Badge variant="outline" className="text-xs bg-primary/10 border-primary/30 text-primary">
                                 <Globe className="h-3 w-3 mr-1" />
                                 {inv.symbol}
                               </Badge>
@@ -1161,12 +1161,12 @@ export default function InvestmentsPage() {
                       {liveQuote ? (
                         <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/20">
                           <div className="flex items-center justify-between">
-                            <span className="text-xs text-blue-500 uppercase tracking-wider">Live Price</span>
+                            <span className="text-xs text-primary uppercase tracking-wider">Live Price</span>
                             <div className="flex items-center gap-2">
                               <span className="font-bold text-foreground">
                                 {liveQuote.currency === "USD" ? "$" : liveQuote.currency === "INR" ? "₹" : ""}{liveQuote.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </span>
-                              <span className={`text-xs flex items-center ${liveQuote.change >= 0 ? "text-green-500" : "text-red-500"}`}>
+                              <span className={`text-xs flex items-center ${liveQuote.change >= 0 ? "text-success" : "text-destructive"}`}>
                                 {liveQuote.change >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
                                 {liveQuote.changePercent.toFixed(2)}%
                               </span>
@@ -1199,11 +1199,11 @@ export default function InvestmentsPage() {
                         <span className="text-sm text-muted-foreground">Return</span>
                         <div className="flex items-center gap-1">
                           {isPositiveReturn ? (
-                            <ArrowUpRight className="h-4 w-4 text-green-500" />
+                            <ArrowUpRight className="h-4 w-4 text-success" />
                           ) : (
-                            <ArrowDownRight className="h-4 w-4 text-red-500" />
+                            <ArrowDownRight className="h-4 w-4 text-destructive" />
                           )}
-                          <span className={`font-bold ${isPositiveReturn ? "text-green-500" : "text-red-500"}`}>
+                          <span className={`font-bold ${isPositiveReturn ? "text-success" : "text-destructive"}`}>
                             {isPositiveReturn ? "+" : ""}{returnPct.toFixed(2)}%
                           </span>
                         </div>
@@ -1222,7 +1222,7 @@ export default function InvestmentsPage() {
                           <p className="text-xs text-muted-foreground text-right">
                             ${(inv.current_value || inv.amount).toLocaleString()} / ${wishlistItem.price?.toLocaleString()}
                             {goalProgress >= 100 && (
-                              <span className="ml-2 text-green-500 inline-flex items-center gap-1">
+                              <span className="ml-2 text-success inline-flex items-center gap-1">
                                 <CheckCircle2 className="h-3 w-3" /> Goal reached!
                               </span>
                             )}
@@ -1280,7 +1280,7 @@ export default function InvestmentsPage() {
                         <p className="text-xs text-muted-foreground">of ${inv.amount.toLocaleString()}</p>
                       </div>
                       <div className={`px-3 py-1 rounded-lg ${isPositiveReturn ? "bg-green-500/10" : "bg-red-500/10"}`}>
-                        <span className={`font-bold ${isPositiveReturn ? "text-green-500" : "text-red-500"}`}>
+                        <span className={`font-bold ${isPositiveReturn ? "text-success" : "text-destructive"}`}>
                           {isPositiveReturn ? "+" : ""}{returnPct.toFixed(2)}%
                         </span>
                       </div>

@@ -403,7 +403,7 @@ export default function CalendarPage() {
                       <div>
                         <p className="font-medium">Google Calendar</p>
                         {integrations.find(i => i.provider === "google") ? (
-                          <p className="text-sm text-green-600 flex items-center gap-1">
+                          <p className="text-sm text-success flex items-center gap-1">
                             <Check className="h-3 w-3" />
                             Connected as {integrations.find(i => i.provider === "google")?.email}
                           </p>
