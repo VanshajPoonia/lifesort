@@ -9,6 +9,8 @@ export type AiUsageRoute =
   | "weekly_summary"
   | "today_plan"
   | "capture"
+  | "template_builder"
+  | "refine_text"
   | "life_balance_insights"
   | "ignoring_insights"
   | "reset_suggestions"
@@ -22,6 +24,8 @@ const DAILY_LIMITS: Record<AiUsageRoute, number> = {
   weekly_summary: 5,
   today_plan: 3,
   capture: 10,
+  template_builder: 5,
+  refine_text: 20,
   life_balance_insights: 10,
   ignoring_insights: 5,
   reset_suggestions: 5,
