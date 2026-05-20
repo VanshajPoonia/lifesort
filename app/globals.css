@@ -23,8 +23,8 @@
   --input: 0 0% 90%;
   --ring: 262 83% 58%;
   --radius: 0.5rem;
-  --success: 142 71% 45%;
-  --warning: 38 92% 50%;
+  --success: 142 72% 29%;
+  --warning: 35 92% 33%;
   --motion-quick: 150ms;
   --motion-base: 220ms;
   --motion-slow: 350ms;
@@ -52,6 +52,8 @@
   --border: 0 0% 24%;
   --input: 0 0% 18%;
   --ring: 262 83% 58%;
+  --success: 142 69% 58%;
+  --warning: 38 92% 62%;
 }
 
 [data-theme="ocean"] {
