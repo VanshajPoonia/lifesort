@@ -113,11 +113,11 @@ Use this checklist for broad QA passes after responsive, IA, Journal, command pa
 4. Use disposable users and app/API flows for data setup; clean up temporary task/note/inbox-style records through app APIs where practical.
 5. Verify unauthenticated protected APIs return `401`, not `500`.
 6. Verify two-user isolation for Search, Journal, Today, tasks, notes/inbox, and any newly touched data surface when the database is reachable.
-7. Smoke main routes: `/`, `/today`, `/journal`, `/organize`, `/money`, `/reflect`, `/settings`.
+7. Smoke main routes: `/`, `/today`, `/journal`, `/workspace`, `/money`, `/reflect`, `/settings`.
 8. Smoke representative deep routes: `/tasks`, `/goals`, `/projects`, `/habits`, `/calendar`, `/inbox`, `/notes`, `/links`, `/custom-sections`, `/people`, `/vault`, `/maintenance`, `/budget`, `/income`, `/investments`, `/wishlist`, `/review`, `/timeline`, `/reset`, `/rules`, `/ai-chat`.
 9. Smoke compatibility/auth routes: `/capture`, `/insights`, `/plan`, `/life-admin`, `/notifications`, `/login`, `/register`.
 10. If browser automation is available, check 375px, 414px, 768px, 1024px, 1280px, 1440px, and 1920px widths for horizontal overflow, mobile nav, Quick Add/FAB, command palette, search, notification bell, trial banner, dark mode, reduced motion, focus states, and console errors.
-11. If Lighthouse is available, run desktop audits for Home, Today, Journal, Organize, Money, and Reflect. Example: `npx lighthouse http://localhost:3000/ --view --preset=desktop`.
+11. If Lighthouse is available, run desktop audits for Home, Today, Journal, Workspace, Money, and Reflect. Example: `npx lighthouse http://localhost:3000/ --view --preset=desktop`.
 12. If DB/network/browser tooling is unavailable, document the exact blocker and list which checks were not completed. Do not mark those checks as passed.
 
 ## Global UX Smoke Checks
@@ -129,19 +129,19 @@ Run after changes to `DashboardLayout`, command/search/capture UI, Home preferen
 - Header search trigger, desktop Quick Add, and mobile FAB all open the command palette.
 - Capture commands still route through the existing `QuickAddModal` or existing feature pages; no capture data is silently written by the palette itself.
 - `/api/search?q=...` results still navigate to the expected records.
-- Home compact/detailed mode persists through `/api/app-preferences` and refresh.
+- Home stays calm and short; `home_view_mode` may remain stored for backward compatibility but must not turn Home into a module directory.
 - Onboarding completion merges `app_preferences` instead of erasing existing preference keys.
 - Trial banner uses hourly precision and "Go Pro" or "Upgrade" wording.
 
 ## Navigation / Information Architecture Checklist
 
 1. Preserve deep links when consolidating navigation; hide routes from the sidebar only, never delete feature pages.
-2. Keep the primary sidebar hub-level: Home, Today, Organize, Money, Reflect, Settings, and admin-only Admin.
+2. Keep the primary sidebar hub-level: Home, Today, Workspace, Money, Reflect, Settings, and admin-only Admin.
 3. Keep Home short and attention-focused; do not re-add full module dashboards there when a hub or deep feature route already owns the workflow.
 4. Keep Today as the primary daily focus surface, with focus/due/suggested items unified into Must/Should/Could priority filters.
-5. Preserve compatibility routes: `/plan` should lead to Organize > Plan, `/life-admin` should lead to Organize > Admin, `/capture` remains the AI Capture feature page, and `/insights` remains a Reflect compatibility feature route.
+5. Preserve compatibility routes: `/organize` should lead to Workspace, `/plan` should lead to Workspace > Plan, `/life-admin` should lead to Workspace > Systems, `/capture` remains the Universal Capture feature page, and `/insights` remains a Reflect compatibility feature route.
 6. Keep Quick Add, Global Search, notifications, profile/settings, and sign-out reachable from the shared layout.
-7. Keep mobile navigation compact: Home, Today, Organize, Money, and More. More should include Reflect, Settings/Profile, Support/FAQs, and admin-only Admin.
+7. Keep mobile navigation compact: Home, Today, Workspace, Money, and More. More should include Reflect, Settings/Profile, Support/FAQs, and admin-only Admin.
 8. Keep hub summary endpoints read-only, authenticated, user-scoped, and missing-schema tolerant.
 9. Add hub cards or tab links for any feature hidden from the sidebar so discoverability is not lost.
 
@@ -327,7 +327,7 @@ Known as of 2026-05-17:
 9. **Confirm `ai_usage_events` table exists in the live database before enabling AI features.** If the table is missing, all per-user AI rate limits are silently bypassed — `lib/ai-usage.ts` catches the missing-table error and returns `allowed: true` so that deploys don't fail before migrations, but this means unlimited AI calls until the migration runs. Run `SELECT COUNT(*) FROM ai_usage_events` on the live Neon database to verify.
 9. For schema-spanning features, add a new dated file to `scripts/migrations/` AND mirror the CREATE/ALTER content into `scripts/schema.sql`. Document that migrations were not run automatically.
 10. For capture/conversion features, verify every API is authenticated, every read/write is scoped by `user_id`, optional Life Area IDs are ownership-validated, and target record creation requires explicit user confirmation before writing structured module data.
-11. For date-based tracker features, verify dashboard counts and filters exclude closed statuses, all optional linked IDs are ownership-validated, Global Search remains user-scoped, Quick Add posts a minimal valid payload, and AI Capture only creates editable drafts before confirmation. For recurring trackers, verify completion advances the next due date from the completion date.
+11. For date-based tracker features, verify dashboard counts and filters exclude closed statuses, all optional linked IDs are ownership-validated, Global Search remains user-scoped, Quick Add posts a minimal valid payload, and Universal Capture only creates editable drafts before confirmation. For recurring trackers, verify completion advances the next due date from the completion date.
 12. For derived timeline/search features, verify no duplicate timeline table is introduced unless manual events are explicitly requested, every source query is user-scoped, missing source tables fail softly, and Global Search uses the same derivation path as the timeline API.
 13. For reset/bulk-cleanup features, verify every bulk action is explicitly confirmed, each item is rechecked by `user_id` at write time, destructive deletes are called out separately, AI suggestions are read-only until selected by the user, and recovery-plan writes reuse Today Plan focus items instead of duplicating plan data.
 14. For user preference/rules features used by AI, verify the rules are visible/editable by the user, scoped by `user_id`, included in the schema baseline and pending migration script, and only read by AI routes unless the user explicitly confirms a write.

@@ -3236,6 +3236,64 @@ After that, re-run the regression checkpoint and the schema-drift 500s should di
   - Liveblocks room auth must continue to authorize exact stored `liveblocks_room_id` values only. Do not add wildcard room access.
   - Do not run the migration without confirming the target database/environment.
 
+## 2026-05-20 17:42 IST - Workspace Navigation Consolidation
+
+- Agent/tool used: Codex.
+- Task summary: Renamed the visible Organize hub to Workspace, made `/workspace` canonical, grouped existing features into clearer workspace sections, and preserved all deep links through redirects or unchanged routes.
+- Files changed:
+  - `app/workspace/page.tsx`
+  - `app/organize/page.tsx`
+  - `app/plan/page.tsx`
+  - `app/life-admin/page.tsx`
+  - `app/page.tsx`
+  - `app/settings/page.tsx`
+  - `app/capture/page.tsx`
+  - `app/nuke/page.tsx`
+  - `app/pomodoro/page.tsx`
+  - `app/api/sidebar-preferences/route.ts`
+  - `app/api/dashboard/route.ts`
+  - `app/api/cron/deadline-reminders/route.ts`
+  - `components/dashboard-layout.tsx`
+  - `components/global-command-palette.tsx`
+  - `components/hub-page.tsx`
+  - `AI_PROJECT.md`
+  - `AI_DECISIONS.md`
+  - `AI_CHECKLIST.md`
+  - `AI_TASK_LOG.md`
+- Summary of changes:
+  - Added `/workspace` as the canonical workspace hub with Plan, Capture, Visual, Systems, and Follow-ups tabs.
+  - Converted `/organize`, `/plan`, and `/life-admin` into compatibility redirects to the matching Workspace tab; no deep feature routes were deleted.
+  - Updated sidebar, mobile bottom nav, sidebar preferences, and command palette from Organize to Workspace while preserving legacy `organize` preference fallback.
+  - Moved Whiteboard under Workspace > Visual rather than top-level desktop nav; `/whiteboard` still works and highlights Workspace.
+  - Renamed visible Nuke Goal copy to Focus Goal and Pomodoro copy to Focus Timer while preserving `/nuke` and `/pomodoro`.
+  - Renamed visible AI Capture card/palette copy to Universal Capture/Capture with AI while preserving `/capture` and `/api/ai/capture`.
+  - Removed the automatic Daily Content popup from the app shell so Daily Content is no longer prominent; the route and settings remain.
+  - Calmed Home by making Quick Access always visible, updating Workspace links, and removing the detailed extra deadline/notes module widgets from Home.
+  - Added disabled placeholder hub cards for Spaces and AI Template Builder without adding new feature implementations.
+- Commands run:
+  - `git status --short --branch` - clean before edits; later showed only expected Workspace consolidation changes.
+  - `git diff --stat` - reviewed during and after implementation.
+  - `git diff --check` - passed.
+  - `npx tsc --noEmit` - passed.
+  - `npm run lint` - failed before source linting because ESLint 10.3.0 cannot find `eslint.config.(js|mjs|cjs)`, matching the known project blocker.
+  - `npm run build` - passed; generated 139 routes including `/workspace` and retained `/organize`, `/plan`, and `/life-admin` redirects.
+  - `npm run dev` - started on `http://localhost:3000` for route smoke checks, then was stopped.
+  - HTTP smoke with `curl -L` - `/`, `/today`, `/workspace`, all Workspace tabs, `/money`, `/reflect`, `/settings`, `/organize`, `/organize?tab=capture`, `/plan`, `/life-admin`, and the requested deep routes returned `200`.
+- Bugs found or fixed:
+  - Fixed old sidebar preference compatibility so users with stored `organize` preferences still control the new Workspace nav item.
+  - Fixed Home empty-state actions that still pointed at `/organize`.
+- Remaining issues and limitations:
+  - Browser automation was unavailable (`agent-browser` was not on PATH), so visual/mobile active-state checks were covered by build and HTTP route smoke rather than screenshot inspection.
+  - The old `home_view_mode` preference remains stored for backward compatibility, but Home now stays calm regardless of that setting.
+  - `npm run lint` remains blocked by missing ESLint flat config.
+- Suggested next steps:
+  - Run a browser pass at mobile/tablet/desktop widths to visually confirm Workspace active states, mobile five-slot nav, and the calmer Home composition.
+  - Add an ESLint flat config so `npm run lint` can inspect source files.
+- Handoff notes:
+  - Treat `/workspace` as canonical going forward. Keep `/organize` as a compatibility redirect unless a future migration plan explicitly removes legacy links.
+  - Do not build combined Inbox/Someday or Waiting/Commitments CRUD screens without a separate product/data-design pass.
+  - Daily Content still exists at `/daily-content`; it is simply no longer auto-mounted from the shared shell.
+
 ## AI Handoff Summaries
 
 Future agents should start by reading all root memory files, then inspect the relevant code before editing. Keep changes small and update this file after every repo change.
