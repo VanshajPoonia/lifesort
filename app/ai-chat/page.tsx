@@ -26,12 +26,12 @@ const DEFAULT_MODEL = "google/gemini-2.0-flash-exp:free"
 
 // Provider colour accents
 const PROVIDER_COLORS: Record<string, string> = {
-  Google: "bg-blue-500/10 text-blue-600 border-blue-500/20",
-  OpenAI: "bg-green-500/10 text-green-600 border-green-500/20",
-  Anthropic: "bg-orange-500/10 text-orange-600 border-orange-500/20",
-  Meta: "bg-purple-500/10 text-purple-600 border-purple-500/20",
-  DeepSeek: "bg-cyan-500/10 text-cyan-600 border-cyan-500/20",
-  Mistral: "bg-pink-500/10 text-pink-600 border-pink-500/20",
+  Google: "bg-blue-500/10 text-blue-700 border-blue-500/20 dark:text-blue-300",
+  OpenAI: "bg-green-500/10 text-green-700 border-green-500/20 dark:text-green-300",
+  Anthropic: "bg-orange-500/10 text-orange-700 border-orange-500/20 dark:text-orange-300",
+  Meta: "bg-purple-500/10 text-purple-700 border-purple-500/20 dark:text-purple-300",
+  DeepSeek: "bg-cyan-500/10 text-cyan-700 border-cyan-500/20 dark:text-cyan-300",
+  Mistral: "bg-pink-500/10 text-pink-700 border-pink-500/20 dark:text-pink-300",
 }
 
 type ContextMode = {
@@ -341,7 +341,7 @@ export default function AIChatPage() {
                     <div className="flex items-center gap-2">
                       <span>{m.name}</span>
                       {m.free && (
-                        <Badge variant="outline" className="h-4 px-1 text-[10px] text-green-600 border-green-500/30">
+                        <Badge variant="outline" className="h-4 px-1 text-[10px] text-success border-success/30">
                           free
                         </Badge>
                       )}
@@ -444,7 +444,7 @@ export default function AIChatPage() {
                   {contextError || activeContextMode?.description || "LifeSort context is gathered server-side for this chat."}
                 </p>
                 {contextPreview?.unavailable.length ? (
-                  <p className="mt-2 text-xs text-amber-600">
+                  <p className="mt-2 text-xs text-warning">
                     Partial context: {contextPreview.unavailable.slice(0, 5).join(", ")}
                     {contextPreview.unavailable.length > 5 ? "..." : ""}
                   </p>
@@ -486,7 +486,7 @@ export default function AIChatPage() {
                   {activeModel && (
                     <p className="mt-3 text-xs text-muted-foreground">
                       Using <span className="font-medium">{activeModel.name}</span> by {activeModel.provider}
-                      {activeModel.free && <span className="ml-1 text-green-600">(free)</span>}
+                      {activeModel.free && <span className="ml-1 text-success">(free)</span>}
                     </p>
                   )}
                 </div>

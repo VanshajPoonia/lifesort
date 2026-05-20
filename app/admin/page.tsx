@@ -268,7 +268,7 @@ export default function AdminPage() {
                           <span>Joined: {formatDate(userItem.created_at)}</span>
                           <span>Trial Ends: {formatDate(userItem.trial_ends_at)}</span>
                           {userItem.subscription_ends_at && (
-                            <span className="text-green-600">Sub Ends: {formatDate(userItem.subscription_ends_at)}</span>
+                            <span className="text-success">Sub Ends: {formatDate(userItem.subscription_ends_at)}</span>
                           )}
                         </div>
                       </div>
