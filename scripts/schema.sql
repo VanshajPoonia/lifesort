@@ -142,6 +142,29 @@ CREATE TABLE IF NOT EXISTS whiteboard_collaborators (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS spaces (
+  id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  color VARCHAR(50) NOT NULL DEFAULT 'primary',
+  icon VARCHAR(80) NOT NULL DEFAULT 'FolderKanban',
+  favorite BOOLEAN NOT NULL DEFAULT FALSE,
+  archived_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS space_items (
+  id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  space_id VARCHAR(255) NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
+  item_type VARCHAR(50) NOT NULL CHECK (item_type IN ('note', 'whiteboard', 'task', 'project', 'link', 'custom_section')),
+  item_id VARCHAR(255) NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(space_id, item_type, item_id)
+);
+
 CREATE TABLE IF NOT EXISTS weekly_reviews (
   id SERIAL PRIMARY KEY,
   user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -808,6 +831,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_whiteboard_collaborators_board_email_uniqu
 CREATE UNIQUE INDEX IF NOT EXISTS idx_whiteboard_collaborators_one_owner
   ON whiteboard_collaborators(whiteboard_id)
   WHERE role = 'owner';
+CREATE INDEX IF NOT EXISTS idx_spaces_user_id ON spaces(user_id);
+CREATE INDEX IF NOT EXISTS idx_spaces_user_archived ON spaces(user_id, archived_at);
+CREATE INDEX IF NOT EXISTS idx_spaces_user_favorite ON spaces(user_id, favorite);
+CREATE INDEX IF NOT EXISTS idx_space_items_space_id ON space_items(space_id);
+CREATE INDEX IF NOT EXISTS idx_space_items_lookup ON space_items(item_type, item_id);
 CREATE INDEX IF NOT EXISTS idx_weekly_reviews_user_week ON weekly_reviews(user_id, week_start DESC);
 CREATE INDEX IF NOT EXISTS idx_life_score_history_user_date ON life_score_history(user_id, score_date DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_personal_rules_user_preferences ON personal_rules(user_id) WHERE rule_type = 'preferences';
