@@ -175,10 +175,32 @@ Run after changes to `DashboardLayout`, command/search/capture UI, Home preferen
 1. Journal entries must stay user-scoped through `user_id` and one row per `(user_id, journal_date)`.
 2. Journal APIs should validate dates and request bodies with Zod, return `{ entry: null }` for missing dates, and never show fake saved data.
 3. Journal autosave should debounce writes, show `Unsaved changes` / `Saving...` / `Saved` / error states, and keep a manual Save fallback.
-4. Do not add AI affirmation generation unless it follows the existing AI route pattern: session auth, usage caps, explicit provider env checks, and no automatic writes.
-5. Keep Journal-specific visual polish scoped to `/journal`: warm notebook surfaces, readable writing fields, accessible star ratings, reduced-motion-safe section motion, and no global theme drift.
-6. Journal star ratings must keep radiogroup/radio semantics and comfortable touch targets after styling changes.
-7. When changing Journal schema, update the forward migration, `scripts/schema.sql`, `scripts/fresh-install.sql`, and `AI_TASK_LOG.md`.
+4. `notes_from_today` uses the shared rich-text editor; history previews and counts should strip HTML rather than rendering stored markup.
+5. Do not add AI affirmation generation unless it follows the existing AI route pattern: session auth, usage caps, explicit provider env checks, and no automatic writes.
+6. Keep Journal-specific visual polish scoped to `/journal`: warm notebook surfaces, readable writing fields, accessible star ratings, reduced-motion-safe section motion, and no global theme drift.
+7. Journal star ratings must keep radiogroup/radio semantics and comfortable touch targets after styling changes.
+8. When changing Journal schema, update the forward migration, `scripts/schema.sql`, `scripts/fresh-install.sql`, and `AI_TASK_LOG.md`.
+
+## Rich Text Editor Checklist
+
+1. Reuse `components/editor/rich-text-editor.tsx` for writing surfaces instead of adding another editor dependency.
+2. Store v1 rich text as editor-generated HTML in existing `TEXT` columns unless a future task explicitly asks for a migration.
+3. Preserve legacy plain-text compatibility: convert plain text for editor display, but do not rewrite old content until the user edits it.
+4. Keep autosave ownership in the parent page/API flow; the editor should only debounce `onChange`.
+5. Strip HTML with `lib/rich-text.ts` for previews, local search, history snippets, and character counts.
+6. Link creation should reject unsafe protocols and use `rel="noopener noreferrer"` for external links.
+7. AI Refine must use `/api/ai/refine-text`, require auth and `OPENROUTER_API_KEY`, send only selected text plus the requested action/tone, and show user confirmation before replacing or inserting text.
+8. Dictation is browser Web Speech only in v1; do not add audio upload, AssemblyAI, or server transcription without a future explicit task.
+9. Mobile checks should include toolbar wrapping, bubble menu behavior, contenteditable focus, dictation status, AI confirmation panels, and no horizontal overflow.
+
+## Calendar Scheduling Checklist
+
+1. Calendar drag scheduling must preserve source records: tasks remain tasks, local events remain calendar events, and synced Google events stay read-only.
+2. Draft tasks are incomplete tasks with `due_date IS NULL`; do not add a separate draft table or status without an explicit migration request.
+3. Dragging a task onto a date should update only task schedule fields needed for the move; unscheduling should clear `due_date`, `due_time`, and email reminder state.
+4. Dragging a local event should update `calendar_events.event_date` while preserving its title, time, category, location, attendees, and reminder fields.
+5. Mobile must include a non-drag schedule/reschedule path through buttons and a date picker or date input.
+6. Verify `/api/tasks` and `/api/calendar-events` remain authenticated and user-scoped before accepting Calendar scheduling changes.
 
 ## Environment Setup Checklist
 
@@ -202,9 +224,21 @@ Check only names/presence unless explicitly authorized to inspect values.
 AI route env notes:
 
 - `OPENROUTER_API_KEY` powers `/api/chat` and `/api/daily-content/generate`.
+- `OPENROUTER_API_KEY` also powers `/api/templates/generate`; generated templates must remain preview-only until `/api/templates/apply` is called after explicit user confirmation.
+- `OPENROUTER_API_KEY` also powers `/api/ai/refine-text`; the route must remain selected-text-only and read-only.
 - `GROQ_API_KEY` powers `/api/investments/parse-screenshot`.
 - AI routes should use the main opaque `session` cookie via `getUserFromSession()`, not JWT auth.
 - The `ai_usage_events` migration must be applied before conservative per-user AI caps are enforced; code tolerates the table being absent so deploys do not fail before migration.
+
+## AI Template Builder Checklist
+
+1. `/templates?mode=ai` must show a generated preview before any write.
+2. `/api/templates/generate` must require auth, `OPENROUTER_API_KEY`, `template_builder` usage limits, and Zod-validated structured output.
+3. `/api/templates/apply` must require auth and re-validate the full template body before creating records.
+4. Generated templates may create Spaces, Custom Sections, tasks, notes, habits, links, optional Whiteboard, and optional budget categories; do not create unrelated apps or agent flows.
+5. Space links are v1-limited to item types allowed by `space_items`: notes, whiteboards, tasks, links, and custom sections.
+6. Recent generated/applied template history is localStorage-only; do not add a persistent templates table unless a future task explicitly asks for it.
+7. Missing Spaces or Whiteboard migrations should fail gracefully and must be documented rather than worked around by changing schemas ad hoc.
 
 OAuth token encryption env notes:
 
@@ -234,6 +268,7 @@ Dependency notes:
 
 - Drag-and-drop list sorting uses `@dnd-kit/core`, `@dnd-kit/sortable`, and `@dnd-kit/utilities`. Prefer the shared `components/sortable-list.tsx` wrapper before adding another drag implementation.
 - Collaborative Whiteboard uses `@liveblocks/client`, `@liveblocks/react`, and `@liveblocks/node`; do not add a large canvas/whiteboard dependency unless a future task explicitly justifies it.
+- Rich text writing surfaces use Tiptap through `@tiptap/react`, `@tiptap/pm`, `@tiptap/starter-kit`, `@tiptap/extension-underline`, `@tiptap/extension-link`, and `@tiptap/extension-placeholder`.
 
 Unavailable scripts:
 
@@ -260,6 +295,15 @@ Database scripts:
 4. Verify owner/editor can draw while viewer can only pan/zoom/watch.
 5. Verify two tabs show presence cursors and committed elements persist after refresh.
 6. Verify login-gated share links create viewer access only, and explicit collaborator roles control edit access.
+
+## Spaces Feature Checklist
+
+1. Apply `scripts/migrations/2026-05-20-spaces.sql` before testing `/spaces` create/link flows against a database.
+2. Verify `/api/spaces` and `/api/spaces/[id]/items` return 401 unauthenticated and remain scoped to the current user.
+3. Verify Spaces link existing notes, whiteboards, tasks, projects, links, and custom sections without duplicating or deleting source records.
+4. Verify creating inside a Space creates the normal source record first and then adds a `space_items` link.
+5. Verify deleted or inaccessible linked items render gracefully as unavailable in the Space detail page.
+6. Verify `/spaces` and `/spaces/[id]` highlight Workspace and Workspace > Visual links to Spaces.
 
 ## Current Command Behavior
 

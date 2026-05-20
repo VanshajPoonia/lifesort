@@ -17,6 +17,323 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-05-20 20:22 IST - Notes And Journal Writing Assistance
+
+- Agent/tool used: Codex (GPT-5 coding agent).
+- Task completed: Added selected-text AI Refine and browser Web Speech dictation to the shared rich-text editor, enabled it for Notes and Journal `notes_from_today`, and added the authenticated `/api/ai/refine-text` route.
+
+#### Files Modified
+- `components/editor/rich-text-editor.tsx` - Added opt-in AI Refine actions, confirmation UI, and Web Speech dictation controls/status handling.
+- `app/api/ai/refine-text/route.ts` - Added authenticated, rate-limited OpenRouter text refinement endpoint that returns plain text only.
+- `lib/ai-usage.ts` - Added the `refine_text` AI usage route with a 20/day cap.
+- `app/notes/page.tsx` - Enabled AI Refine and `Speak to Note` on the main Notes editor.
+- `app/journal/page.tsx` - Enabled AI Refine and browser dictation only for the Journal `notes_from_today` rich-text field.
+- `AI_PROJECT.md`, `AI_DECISIONS.md`, `AI_CHECKLIST.md`, `AI_TASK_LOG.md` - Documented the writing assistance scope, selected-text-only AI rule, browser-only dictation decision, env usage, and verification.
+
+#### Summary
+- AI Refine now supports Improve grammar, Rephrase, Make shorter, Make longer, Simplify language, and Change tone from the Tiptap bubble menu when the editor surface opts in.
+- The editor snapshots the selected text range before calling AI and shows a suggestion panel with `Replace selection`, `Insert below`, and `Cancel`; it never auto-replaces content.
+- `/api/ai/refine-text` requires `getUserFromSession()`, `OPENROUTER_API_KEY`, Zod body validation, `refine_text` usage limits, and sends only selected text plus the requested action/tone to OpenRouter.
+- Voice dictation uses `window.SpeechRecognition` / `window.webkitSpeechRecognition`, appends finalized transcript chunks through the existing editor change flow, shows interim/status text, and degrades to an unsupported-browser message.
+- Notes keep the existing 600ms autosave flow and Journal keeps the existing 2-second autosave flow. No storage format, database schema, migration, OpenClaw, Agents, or transcription service was added.
+
+#### Commands Run
+- `git status --short --branch` - branch started as `main...origin/main [ahead 5]`; touched files were the new writing-assistance source/docs only.
+- `git diff --stat` - reviewed scoped source/docs changes.
+- `LC_ALL=C rg -n "[^\\x00-\\x7F]" components/editor/rich-text-editor.tsx app/api/ai/refine-text/route.ts app/notes/page.tsx app/journal/page.tsx lib/ai-usage.ts` - found only pre-existing non-ASCII in touched files (`app/notes/page.tsx` comment and Journal mood emoji labels).
+- `npx tsc --noEmit` - passed after source changes. A later run failed with stale `.next/types` TS6053 missing-file errors after generated types drifted; `npm run build` regenerated those files and the final `npx tsc --noEmit` passed.
+- `npm run lint` - failed with the known existing ESLint 10 blocker: no `eslint.config.(js|mjs|cjs)` file exists.
+- `npm run build` - passed; generated 144 routes including `/api/ai/refine-text`, `/notes`, and `/journal`.
+- `npm run dev` - started successfully on port 3000 for smoke checks, then was stopped.
+- HTTP route smoke via `curl` - `/notes` returned 200; `/journal` returned 200.
+- Unauthenticated API smoke via `curl` - `POST /api/ai/refine-text` returned 401.
+- `git diff --check` - passed.
+
+#### Bugs Found Or Fixed
+- Replaced the previously disabled AI Refine placeholder in opted-in editor surfaces with a real authenticated route and explicit user confirmation.
+- Added browser-only voice dictation without introducing server audio handling, paid transcription dependencies, or new secrets.
+
+#### Remaining Issues And Limitations
+- Authenticated AI Refine with a real signed-in user and `OPENROUTER_API_KEY` still needs browser/manual QA.
+- Web Speech support varies by browser; unsupported browsers show an in-editor message instead of recording.
+- Voice dictation and bubble-menu layout were not manually verified on mobile in a real browser session.
+- `npm run lint` remains blocked by the pre-existing missing ESLint flat config.
+
+#### Suggested Next Steps
+- Test Notes and Journal in a signed-in browser session: select text, run every refine action, confirm Replace/Insert, verify autosave, and try dictation in a supported browser.
+- Add an ESLint flat config so future source linting can run normally.
+- Consider richer tone presets only after confirming users want more than the current prompt-based tone change.
+
+#### Handoff Notes
+- Keep AI Refine selected-text-only. Do not expand the route to send note titles, journal metadata, or surrounding document context without a separate privacy review.
+- Keep voice dictation client-only unless a future task explicitly approves a server transcription provider and env var.
+- No database migration is needed for this work; refined and dictated text continues through the existing editor HTML storage paths.
+
+### 2026-05-20 20:07 IST - AI Template Builder
+
+- Agent/tool used: Codex (GPT-5 coding agent).
+- Task completed: Added an AI Template Builder to the existing Smart Templates surface. Users can generate a validated LifeSort system preview from a prompt, optionally inspect/edit the JSON, and explicitly apply it before any records are created.
+
+#### Files Modified
+- `lib/template-builder.ts` — Added shared Zod schemas, prompt examples, safe URL/date helpers, generated template types, and the OpenRouter model constant.
+- `lib/ai-usage.ts` — Added the `template_builder` AI usage route with a 5/day cap.
+- `app/api/templates/generate/route.ts` — Added authenticated, rate-limited AI structured-output generation with `generateText` + `Output.object`.
+- `app/api/templates/apply/route.ts` — Added authenticated server-side template application that re-validates templates and creates user-owned records in a Neon transaction.
+- `app/templates/page.tsx` — Reworked Templates into Library and AI Builder tabs, preserving static template preview/apply while adding prompt examples, generated preview, JSON validation, localStorage history, and created-item links.
+- `app/workspace/page.tsx` — Enabled the Workspace > Systems AI Template Builder card and linked it to `/templates?mode=ai`.
+- `AI_PROJECT.md`, `AI_DECISIONS.md`, `AI_CHECKLIST.md`, `AI_TASK_LOG.md` — Documented the new feature, API exception, localStorage history decision, usage route, verification, and limitations.
+
+#### Summary
+- Extended `/templates` instead of adding a standalone app.
+- Generation requires session auth, `OPENROUTER_API_KEY`, `template_builder` usage limits, and Zod-validated structured output.
+- Apply requires session auth and re-validates the full template body before writing.
+- Apply can create a Space, Custom Sections with fields, tasks, notes, habits, links, optional Whiteboard, and optional budget categories.
+- Space links are created for supported `space_items` types only: notes, whiteboards, tasks, links, and custom sections. Habits and budget categories are created but not Space-linked in v1.
+- Recent generated/applied template history is localStorage-only and never required for creation.
+- No dependencies, database migrations, OpenClaw work, Agents work, or hardcoded API keys were added.
+
+#### Commands Run
+- `git status --short --branch` — branch started as `main...origin/main [ahead 4]` with a clean worktree.
+- `git diff --stat` — reviewed scoped source/docs changes.
+- `LC_ALL=C rg -n "[^\\x00-\\x7F]" ...` — no non-ASCII remained in the touched source files after replacing one copied em dash.
+- `npx tsc --noEmit` — passed.
+- `npm run lint` — failed with the known existing ESLint 10 blocker: no `eslint.config.(js|mjs|cjs)` file exists.
+- `npm run build` — passed; generated 143 routes including `/templates`, `/api/templates/generate`, and `/api/templates/apply`.
+- `npm run dev` — started successfully on port 3000 for route/API smoke checks, then was stopped.
+- HTTP route smoke via `curl` — `/templates`, `/templates?mode=ai`, and `/workspace` returned 200.
+- Unauthenticated API smoke via `curl` — `POST /api/templates/generate` and `POST /api/templates/apply` returned 401.
+- `git diff --check` — passed.
+
+#### Bugs Found Or Fixed
+- Replaced the disabled Workspace > Systems AI Template Builder placeholder with a working link.
+- Added server-side apply so AI-generated templates do not rely on client-side chained writes for Space creation/linking.
+
+#### Remaining Issues And Limitations
+- Full AI generation requires a signed-in user and `OPENROUTER_API_KEY`.
+- Applying generated templates that create Spaces or Whiteboards requires the existing Spaces and Whiteboard migrations to be applied in the target database.
+- Browser interaction QA for prompt generation, JSON editing, apply confirmation, localStorage history, mobile layout, and console errors still needs a signed-in migrated environment.
+- `npm run lint` remains blocked by the pre-existing missing ESLint flat config.
+- V1 does not persist generated-template history to the database and does not Space-link habits or budget categories because `space_items.item_type` does not allow those types.
+
+#### Suggested Next Steps
+- Test `/templates?mode=ai` with a real signed-in user, `OPENROUTER_API_KEY`, and migrated Spaces/Whiteboard tables.
+- Add persistent user-saved generated templates only if product direction requires cross-device template history.
+- Add the missing ESLint flat config so source linting can run normally.
+
+#### Handoff Notes
+- Keep the preview-before-write safety model: `/api/templates/generate` is read-only, and `/api/templates/apply` is the only generated-template write path.
+- If future work adds Space support for habits or budget categories, update the `space_items` check constraint, `lib/spaces.ts`, schema baselines, and Template Builder apply/link logic together.
+- Do not run migrations without confirming the target database/environment.
+
+### 2026-05-20 19:47 IST - Workspace Spaces / Pages System
+
+- Agent/tool used: Codex (GPT-5 coding agent).
+- Task completed: Added a website-only Spaces system under Workspace > Visual. Spaces group related LifeSort records through links, without deleting or duplicating existing Notes, Projects, Whiteboards, Tasks, Links, or Custom Sections data.
+
+#### Files Modified
+- `lib/spaces.ts` — Added shared Spaces schemas, row mapping, item ownership checks, source-record creation helpers, and linked-item hydration.
+- `app/api/spaces/route.ts` — Added authenticated list/create endpoints for user-owned Spaces.
+- `app/api/spaces/[id]/route.ts` — Added authenticated read/update/archive endpoints for a Space.
+- `app/api/spaces/[id]/items/route.ts` — Added authenticated list/link/create-inside/remove endpoints for Space items.
+- `app/spaces/page.tsx` — Added Spaces index with search, grid/list toggle, sort, favorites, recently opened localStorage support, archived toggle, and create dialog.
+- `app/spaces/[id]/page.tsx` — Added Space detail with editable title/description, tabs for Pages/Notes, Whiteboards, Tasks, Links, Projects, and Templates, plus add-existing and create-inside dialogs.
+- `app/workspace/page.tsx` — Enabled the Workspace > Visual Spaces card.
+- `components/dashboard-layout.tsx` — Added `/spaces` to Workspace active-route aliases and sidebar preference defaults.
+- `components/global-command-palette.tsx` — Added Spaces navigation.
+- `app/api/sidebar-preferences/route.ts` — Added `spaces` to sidebar preference defaults.
+- `scripts/migrations/2026-05-20-spaces.sql` — Added forward-only `spaces` and `space_items` migration.
+- `scripts/schema.sql`, `scripts/fresh-install.sql` — Mirrored the Spaces schema and indexes into fresh-install baselines.
+- `AI_PROJECT.md`, `AI_DECISIONS.md`, `AI_CHECKLIST.md`, `AI_TASK_LOG.md` — Documented the feature, data decision, migration, and verification results.
+
+#### Summary
+- Added `spaces` as user-owned container metadata with name, description, color, icon, favorite, archive state, and timestamps.
+- Added `space_items` as the only relationship layer for notes/pages, whiteboards, tasks, projects, links, and custom sections. Source records remain in their original tables.
+- Added create-inside flows that create the normal source record first and then link it to the Space.
+- Added ownership/access validation before linking existing records, including user-owned records and accessible whiteboards.
+- Added graceful rendering for linked items that were deleted or are no longer accessible.
+- Added `/spaces` and `/spaces/[id]` routes without removing or redirecting existing deep links.
+
+#### Commands Run
+- `git status --short --branch` — branch started as `main...origin/main [ahead 3]` with a clean worktree.
+- `git diff --stat` — reviewed source/docs/schema changes.
+- `git diff --check` — passed.
+- `npx tsc --noEmit` — passed.
+- `npm run lint` — failed with the known existing ESLint 10 blocker: no `eslint.config.(js|mjs|cjs)` file exists.
+- `npm run build` — passed; generated 141 routes including `/spaces`, `/spaces/[id]`, and `/api/spaces`.
+- `npm run dev` — started successfully on port 3000 for smoke checks, then was stopped.
+- HTTP route smoke via `curl` — `/spaces`, `/spaces/not-real`, `/workspace`, `/notes`, `/projects`, and `/whiteboard` returned 200.
+- Unauthenticated API smoke via `curl` — `GET /api/spaces`, `POST /api/spaces`, `GET /api/spaces/not-real`, and `GET /api/spaces/not-real/items` returned 401.
+
+#### Bugs Found Or Fixed
+- No existing Notes, Projects, Links, Whiteboards, Tasks, or Custom Sections routes were removed or rewritten.
+- Added missing Workspace discoverability for Spaces by replacing the placeholder Visual card with a working link.
+
+#### Remaining Issues And Limitations
+- `scripts/migrations/2026-05-20-spaces.sql` must be applied before authenticated create/open/link flows can be tested against a database.
+- Browser/manual checks for create space, open space, add existing, create-inside, mobile layout, and console errors still need a migrated database and signed-in user.
+- Journal references are not linked in v1; Spaces v1 supports the requested core record types from the schema plan.
+- `npm run lint` remains blocked by the pre-existing missing ESLint flat config.
+
+#### Suggested Next Steps
+- Apply the Spaces migration in the intended environment, then browser-test `/spaces` and `/spaces/[id]` with real user data.
+- Add Global Search results for Spaces if users want Spaces to appear in search, not just command navigation.
+- Add the missing ESLint flat config so source linting can run normally.
+
+#### Handoff Notes
+- Spaces are containers only. Do not make Space archive/delete cascade into source Notes, Projects, Whiteboards, Tasks, Links, or Custom Sections.
+- Keep future item types additive through the `space_items.item_type` check constraint, migration, and `lib/spaces.ts` ownership/hydration helpers.
+- Do not run migrations without confirming the target database/environment.
+
+### 2026-05-20 19:34 IST - Whiteboard Liveblocks Gap-Closure Verification
+
+- Agent/tool used: Codex (GPT-5 coding agent).
+- Task completed: Audited the existing collaborative Whiteboard implementation against the Liveblocks gap-closure plan. No duplicate implementation, dependency change, schema change, OpenClaw work, Agents work, or iOS work was added.
+
+#### Files Modified
+- `AI_TASK_LOG.md` — Recorded the whiteboard security/product verification results and remaining manual checks.
+
+#### Summary
+- Confirmed the existing Liveblocks dependencies are already present: `@liveblocks/client`, `@liveblocks/react`, and `@liveblocks/node`.
+- Confirmed `/api/liveblocks-auth` requires the LifeSort session, checks `LIVEBLOCKS_SECRET_KEY`, accepts only `lifesort:whiteboard:*` rooms, verifies the exact stored room id through `getWhiteboardAccess()`, and grants viewer read access vs owner/editor full access.
+- Confirmed Whiteboard metadata APIs remain session-gated and user-scoped for list/create/read/update/archive/share/collaborator management.
+- Confirmed share-token acceptance is login-gated and creates viewer access by default; explicit editor access remains collaborator-record based.
+- Confirmed collaborator role updates and deletion are owner-only and exclude the owner row.
+- Confirmed Workspace > Visual links to `/whiteboard`, `/whiteboard`, `/whiteboard/[id]`, and `/whiteboard/share/[token]` remain present, and the editor still includes the expected MVP tools, Liveblocks presence, storage, undo/redo, pan/zoom, and viewer read-only behavior.
+- No code gap was found during static audit, so no source files were changed.
+
+#### Commands Run
+- `git status --short --branch` — branch started as `main...origin/main [ahead 2]` with a clean worktree.
+- `git diff --stat` — no source diff before the documentation update.
+- `npx tsc --noEmit` — passed.
+- `npm run lint` — failed with the known existing ESLint 10 blocker: no `eslint.config.(js|mjs|cjs)` file exists.
+- `npm run build` — passed; generated 139 routes including the Whiteboard pages and APIs.
+- `npm run dev` — started successfully on port 3000 for smoke checks, then was stopped.
+- HTTP route smoke via `curl` — `/workspace`, `/whiteboard`, `/whiteboard/not-real-board`, `/whiteboard/share/not-real-token`, `/login`, and `/today` returned 200.
+- Unauthenticated API smoke via `curl` — `/api/whiteboards` returned 401; `POST /api/liveblocks-auth` returned 401; `POST /api/whiteboards/share/not-real-token/accept` returned 401.
+- Public share metadata smoke via `curl` — `GET /api/whiteboards/share/not-real-token` returned 500 locally because the connected database does not have the `whiteboards` table, matching the documented unapplied migration limitation.
+
+#### Bugs Found Or Fixed
+- No new whiteboard source bug was found in the audited code paths.
+- No code fix was needed; the observed share-metadata 500 was caused by the local database missing the whiteboard migration, not by a route or auth regression.
+
+#### Remaining Issues And Limitations
+- `scripts/migrations/2026-05-20-whiteboards.sql` still needs to be applied to the target database before authenticated create/open/share/collaborator flows can be fully tested.
+- `LIVEBLOCKS_SECRET_KEY` must be set before realtime room join can be tested.
+- Full browser/manual checks for drawing persistence, two-tab realtime updates, viewer/editor permissions, mobile toolbar behavior, and console errors still need a migrated database plus a valid Liveblocks secret.
+- `npm run lint` remains blocked by the pre-existing missing ESLint flat config.
+
+#### Suggested Next Steps
+- Apply the whiteboard migration in the intended environment, set `LIVEBLOCKS_SECRET_KEY`, then run an authenticated two-tab Whiteboard acceptance pass.
+- Add the missing ESLint flat config so source linting can run normally.
+
+#### Handoff Notes
+- Preserve the existing Whiteboard implementation as the baseline; do not create a second Liveblocks/canvas stack.
+- Keep Liveblocks room auth exact-room scoped and never grant wildcard access.
+- Public share links are login-gated viewer joins only; editor access must continue to come from collaborator rows.
+
+### 2026-05-20 19:25 IST - Calendar Drag Scheduling Workspace
+
+- Agent/tool used: Codex (GPT-5 coding agent).
+- Task completed: Reworked Calendar into a Month/Week scheduling workspace with drag-and-drop task/event scheduling, a Draft Task Panel, and mobile-friendly schedule/reschedule buttons. No schema migration, new dependency, OpenClaw, or Agents work was added.
+
+#### Files Modified
+- `app/calendar/page.tsx` — Replaced the date-picker-first layout with a custom Month/Week grid, Today/previous/next controls, scheduled task/local event/synced reminder chips, dnd-kit drag/drop scheduling, selected-day details, and a right-side Draft Task Panel.
+- `app/api/calendar-events/route.ts` — Persisted existing optional calendar event fields (`category`, `location`, `attendees`, `email_reminder`, `reminder_days`) on create/update while keeping session-scoped ownership checks.
+- `AI_PROJECT.md` — Documented Calendar as a scheduling workspace with draft task scheduling.
+- `AI_DECISIONS.md` — Recorded the data decision that Calendar scheduling preserves source records instead of duplicating tasks into events.
+- `AI_CHECKLIST.md` — Added recurring Calendar scheduling regression checks.
+- `AI_TASK_LOG.md` — Recorded this handoff and verification results.
+
+#### Summary
+- Used existing `@dnd-kit/core`; no dependencies were added.
+- Draft tasks are incomplete tasks with no `due_date`; creating a draft calls existing `POST /api/tasks` with no due date.
+- Dragging a draft or scheduled task onto a calendar date updates the existing task through `PUT /api/tasks` and preserves its identity.
+- Dragging a task back to the Draft Task Panel clears `due_date`, `due_time`, and email reminder state.
+- Dragging a local event to another date updates `calendar_events.event_date` on the existing event.
+- Google synced events display as read-only `Reminder` items and are not draggable.
+- Mobile/non-drag fallback is available through Schedule/Reschedule buttons and date-input dialogs.
+
+#### Commands Run
+- `git status --short --branch` — branch started as `main...origin/main [ahead 1]` because the previous rich-text editor commit is local; Calendar changes were otherwise scoped.
+- `git diff --stat` — reviewed scoped Calendar/API/docs changes.
+- `git diff --check` — passed.
+- `npx tsc --noEmit` — passed.
+- `npm run lint` — failed with the known existing ESLint 10 blocker: no `eslint.config.(js|mjs|cjs)` file exists.
+- `npm run build` — passed; generated 139 routes.
+- `npm run dev` — started successfully on port 3000 for smoke checks, then was stopped.
+- HTTP route smoke via `curl` — `/calendar` and `/login` returned 200.
+- Unauthenticated API smoke via `curl` — `/api/tasks` and `/api/calendar-events` returned 401.
+
+#### Bugs Found Or Fixed
+- Fixed a Calendar API mismatch where the UI collected event category/location/attendees/reminder fields but create/update did not persist those optional fields.
+- Added a non-drag scheduling path so mobile users are not blocked by drag-and-drop.
+
+#### Remaining Issues And Limitations
+- `npm run lint` remains blocked by the pre-existing missing ESLint flat config.
+- Full browser interaction QA was not available in this environment, so actual drag gestures, keyboard drag behavior, mobile layout, and console errors should still be checked in a real signed-in browser session.
+- Scheduling task reminders remains represented by the task card; this pass did not add a separate reminder feed for LifeSort task reminders.
+
+#### Suggested Next Steps
+- Browser-check `/calendar` with real user data at desktop and mobile widths: create draft, drag to date, move scheduled task, unschedule task, move local event, and confirm Google reminders stay read-only.
+- Add the missing ESLint flat config so Calendar TSX can be linted normally.
+
+#### Handoff Notes
+- The scheduling source of truth is unchanged: `tasks.due_date` for tasks and `calendar_events.event_date` for local events.
+- If future work adds time-slot scheduling, extend existing `tasks.due_time` and `calendar_events.start_time/end_time` rather than creating duplicate calendar records.
+
+### 2026-05-20 19:11 IST - Notes And Journal Rich Text Editor
+
+- Agent/tool used: Codex (GPT-5 coding agent).
+- Task completed: Added a reusable Tiptap rich-text editor and integrated it into Notes content plus the Journal `notes_from_today` field. No database migration, OpenClaw, Agents, or broad Notes/Journal redesign was added.
+
+#### Files Modified
+- `components/editor/rich-text-editor.tsx` — Added the reusable client-side Tiptap editor with toolbar controls, selection bubble menu, disabled AI Refine placeholder menu, safe link handling, debounced `onChange`, and standard/journal/compact modes.
+- `lib/rich-text.ts` — Added helpers for legacy plain-text to editor HTML conversion, rich HTML detection, plain-text extraction, and character counts.
+- `app/notes/page.tsx` — Replaced the main note textarea with `RichTextEditor`, kept existing autosave and `/api/notes` `content` writes, and updated search/previews/character counts to strip HTML.
+- `app/journal/page.tsx` — Replaced only `notes_from_today` with the journal-mode rich-text editor and stripped HTML from recent-entry previews.
+- `lib/journal.ts` — Increased `notes_from_today` validation allowance from 8000 to 12000 characters to account for editor HTML tags.
+- `app/globals.css` — Added scoped rich-text and journal-rich editor styling with dark-mode-safe colors and focus states.
+- `package.json`, `pnpm-lock.yaml` — Added Tiptap dependencies.
+- `AI_PROJECT.md`, `AI_DECISIONS.md`, `AI_CHECKLIST.md`, `AI_TASK_LOG.md` — Documented the rich-text dependency, HTML-in-`TEXT` storage decision, checklist, and validation results.
+
+#### Summary
+- Added Tiptap dependencies: `@tiptap/react`, `@tiptap/pm`, `@tiptap/starter-kit`, `@tiptap/extension-underline`, `@tiptap/extension-link`, and `@tiptap/extension-placeholder`.
+- Chose Tiptap because it provides mature React bindings, ProseMirror-backed editing, toolbar commands, history, link handling, and selection menus without building a fragile editor from scratch.
+- Stored rich content as editor-generated HTML in existing `TEXT` columns, so no schema migration was required.
+- Preserved legacy plain-text note/journal compatibility by converting plain text to editor HTML only for display; old content is not rewritten until edited.
+- Kept autosave owned by the existing Notes and Journal flows; the editor only debounces outbound `onChange`.
+- Left AI Refine as disabled UI only and did not add a backend route or fake AI output.
+
+#### Commands Run
+- `git status --short --branch` — branch started clean and synced with `origin/main`; final working tree contained only this feature's source, lockfile, and memory-file changes.
+- `pnpm add @tiptap/react @tiptap/pm @tiptap/starter-kit @tiptap/extension-underline @tiptap/extension-link @tiptap/extension-placeholder --store-dir /Users/vanshajpoonia/Library/pnpm/store/v11` — package and lockfile updated; command exited with pnpm's ignored-builds warning for existing optional build scripts (`bufferutil`, `sharp`).
+- `git diff --stat` — reviewed scoped changes.
+- `git diff --check` — passed.
+- `npx tsc --noEmit` — passed.
+- `npm run lint` — failed with the known existing ESLint 10 blocker: no `eslint.config.(js|mjs|cjs)` file exists.
+- `npm run build` — passed; generated 139 routes.
+- `npm run dev` — started successfully on port 3000 for route smoke checks, then was stopped.
+- HTTP route smoke via `curl` — `/notes`, `/journal`, and `/login` returned 200.
+
+#### Bugs Found Or Fixed
+- Fixed Notes previews/search/character counts so rich HTML is treated as readable plain text instead of raw markup.
+- Fixed Journal history snippets so rich `notes_from_today` content is shown as plain text.
+
+#### Remaining Issues And Limitations
+- `npm run lint` remains blocked by the pre-existing missing ESLint flat config.
+- Browser/editor interaction QA was not available in this environment, so toolbar clicks, bubble-menu placement, mobile overflow, link prompts, and console errors still need a real browser check.
+- Journal rich text is intentionally limited to `notes_from_today`; gratitude, affirmation, ratings, todos, and smaller reflection fields remain plain inputs/textarea fields.
+
+#### Suggested Next Steps
+- Browser-check Notes create/edit/autosave/search/delete and Journal autosave with a signed-in account.
+- Verify mobile toolbar wrapping and bubble-menu behavior on `/notes` and `/journal`.
+- Add the missing ESLint flat config so editor code can be linted normally.
+
+#### Handoff Notes
+- Rich text storage is HTML-in-existing-`TEXT`, not JSON, and no migration was created.
+- Use `lib/rich-text.ts` before showing rich content in snippets, search indexes, counters, or summaries.
+- Keep any future AI Refine implementation behind the established authenticated AI route pattern with usage caps and explicit user confirmation for writes.
+
 ### 2026-05-20 17:47 IST - Home Quick Access Polish
 
 - Agent/tool used: Codex (GPT-5 coding agent).
