@@ -17,6 +17,53 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-05-20 17:47 IST - Home Quick Access Polish
+
+- Agent/tool used: Codex (GPT-5 coding agent).
+- Task completed: Improved the Home dashboard Quick Access section with compact primary shortcuts, a More actions menu, localStorage-backed recently used shortcuts, and a compact pinned favorites placeholder. No routes, APIs, schemas, dependencies, OpenClaw, Agents, or database tracking were added.
+
+#### Files Modified
+- `app/page.tsx` — Replaced the small hero quick-button cluster with a polished Quick Access card, six primary actions, secondary More actions, browser-local recents, and mobile horizontal scrolling.
+- `AI_PROJECT.md` — Updated the dashboard scope to document polished Quick Access and local recents.
+- `AI_DECISIONS.md` — Documented the product rule that Home Quick Access stays compact and uses localStorage for recents unless a future task asks for cross-device personalization.
+- `AI_CHECKLIST.md` — Added a recurring Home Quick Access smoke check.
+- `AI_TASK_LOG.md` — Recorded this handoff and verification results.
+
+#### Summary
+- Added primary Quick Access actions for Capture something, Add task, Open Today, Open Calendar, Write note, and Open Whiteboard.
+- Added More actions for Open Journal, Open Money, and Ask LifeSort Coach.
+- Added recently used shortcuts using `localStorage` only; navigation continues even if storage is unavailable.
+- Kept Quick Add globally available through the existing app shell and did not add a second write surface on Home.
+- Kept Home compact by using one direct hero CTA plus a focused Quick Access card instead of a long module directory.
+
+#### Commands Run
+- `git status --short --branch` — branch started as `main...origin/main [ahead 1]` with a clean worktree before this pass.
+- `git diff --stat` — reviewed scoped source/docs changes.
+- `git diff --check` — passed.
+- `npx tsc --noEmit` — passed.
+- `npm run lint` — failed with the known existing ESLint 10 blocker: no `eslint.config.(js|mjs|cjs)` file exists.
+- `npm run build` — passed; generated 139 routes.
+- `npm run dev` — started successfully on port 3000 for smoke checks, then was stopped.
+- `command -v agent-browser` — no `agent-browser` executable was available, so browser screenshot/console verification could not be run.
+- HTTP route smoke via `curl` — `/`, `/capture`, `/tasks`, `/today`, `/calendar`, `/notes`, `/whiteboard`, `/journal`, `/money`, and `/ai-chat` all returned 200.
+
+#### Bugs Found Or Fixed
+- Fixed Home Quick Access feeling like a small utility button cluster instead of a useful dashboard section.
+- Added safe local recents without introducing database personalization or cross-user data concerns.
+
+#### Remaining Issues And Limitations
+- `npm run lint` remains blocked by the pre-existing missing ESLint flat config.
+- Browser/manual visual QA was not available because `agent-browser` is not installed in this environment; mobile horizontal scrolling and console errors should still be checked in a real browser.
+- "Add task" opens the existing Tasks page rather than creating a task inline, preserving the current global Quick Add behavior and avoiding a new write path.
+
+#### Suggested Next Steps
+- Browser-check Home at mobile and desktop widths for Quick Access horizontal scrolling, More actions menu behavior, and no horizontal page overflow.
+- Add the missing ESLint flat config so UI changes can be linted normally.
+
+#### Handoff Notes
+- Recent Quick Access state is stored under `lifesort:home-quick-access-recents`.
+- Keep future Home shortcut expansion behind More actions or pinned favorites so Home remains an attention dashboard, not a module directory.
+
 ### 2026-05-20 16:05 IST - Dark Theme Contrast And Safety Pass
 
 - Agent/tool used: Codex (GPT-5 coding agent).
