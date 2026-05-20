@@ -1,45 +1,76 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
+import {
+  closestCenter,
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core"
+import {
+  ArrowLeft,
+  ArrowRight,
+  Calendar as CalendarIcon,
+  Check,
+  CheckSquare,
+  Clock,
+  DollarSign,
+  Edit,
+  GripVertical,
+  Heart,
+  Link2,
+  Loader2,
+  MapPin,
+  Plus,
+  RefreshCw,
+  Target,
+  Trash2,
+  Users,
+  X,
+  Zap,
+} from "lucide-react"
+
 import { useAuth } from "@/components/auth-provider"
 import { DashboardLayout } from "@/components/dashboard-layout"
-import {
-  Plus,
-  Edit,
-  Trash2,
-  MapPin,
-  Users,
-  Clock,
-  Calendar as CalendarIcon,
-  Heart,
-  Target,
-  Zap,
-  DollarSign,
-  Link2,
-  RefreshCw,
-  X,
-  Check,
-  Settings,
-} from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
+import { ReminderSettings } from "@/components/reminder-settings"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ReminderSettings } from "@/components/reminder-settings"
+import { Textarea } from "@/components/ui/textarea"
+import { cn } from "@/lib/utils"
 
-interface Event {
+type CalendarView = "month" | "week"
+type EventCategory = "personal" | "work" | "health" | "finance"
+type CalendarItemKind = "task" | "event" | "reminder"
+
+interface LocalEvent {
   id: string
   title: string
-  date: Date
+  dateKey: string
   time: string
+  endTime: string
   description: string
-  category: "personal" | "work" | "health" | "finance"
+  category: EventCategory
   location?: string
   attendees?: string
   email_reminder?: boolean
@@ -58,6 +89,19 @@ interface SyncedEvent {
   all_day: boolean
 }
 
+interface Task {
+  id: number | string
+  title: string
+  description?: string | null
+  completed: boolean
+  priority: "low" | "medium" | "high"
+  due_date?: string | null
+  due_time?: string | null
+  email_reminder?: boolean | null
+  reminder_days?: number | null
+  category?: string | null
+}
+
 interface CalendarIntegration {
   provider: "google"
   email: string
@@ -65,16 +109,171 @@ interface CalendarIntegration {
   last_synced: string
 }
 
+type DragData = {
+  kind: "task" | "event"
+  id: string
+  title: string
+}
+
+type CalendarDisplayItem = {
+  kind: CalendarItemKind
+  id: string
+  title: string
+  subtitle?: string
+  badge: string
+  dateKey: string
+  task?: Task
+  event?: LocalEvent
+  syncedEvent?: SyncedEvent
+}
+
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+const allowedCategories = ["personal", "work", "health", "finance"] as const
+
+const categoryColors: Record<EventCategory, string> = {
+  personal: "bg-primary/15 text-primary border-primary/30",
+  work: "bg-secondary text-secondary-foreground border-border",
+  health: "bg-success/15 text-success border-success/30",
+  finance: "bg-warning/15 text-warning border-warning/30",
+}
+
+const categoryIcons: Record<EventCategory, typeof Heart> = {
+  personal: Heart,
+  work: Target,
+  health: Zap,
+  finance: DollarSign,
+}
+
+const priorityColors: Record<Task["priority"], string> = {
+  high: "border-destructive/30 bg-destructive/10 text-destructive",
+  medium: "border-warning/30 bg-warning/10 text-warning",
+  low: "border-success/30 bg-success/10 text-success",
+}
+
+function isEventCategory(value: unknown): value is EventCategory {
+  return typeof value === "string" && (allowedCategories as readonly string[]).includes(value)
+}
+
+function toDateKey(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+function parseDateKey(value?: string | null) {
+  if (!value) return null
+  const key = value.slice(0, 10)
+  const match = key.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!match) return null
+  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date)
+  next.setDate(next.getDate() + days)
+  return next
+}
+
+function addMonths(date: Date, months: number) {
+  const next = new Date(date)
+  next.setMonth(next.getMonth() + months)
+  return next
+}
+
+function startOfWeek(date: Date) {
+  return addDays(date, -date.getDay())
+}
+
+function buildMonthDays(date: Date) {
+  const first = new Date(date.getFullYear(), date.getMonth(), 1)
+  const start = startOfWeek(first)
+  return Array.from({ length: 42 }, (_, index) => addDays(start, index))
+}
+
+function buildWeekDays(date: Date) {
+  const start = startOfWeek(date)
+  return Array.from({ length: 7 }, (_, index) => addDays(start, index))
+}
+
+function formatTime12Hour(time24?: string | null) {
+  if (!time24) return ""
+  const [hours, minutes] = time24.slice(0, 5).split(":")
+  const hour = Number.parseInt(hours, 10)
+  if (!Number.isFinite(hour)) return time24
+  const ampm = hour >= 12 ? "PM" : "AM"
+  const hour12 = hour % 12 || 12
+  return `${hour12}:${minutes} ${ampm}`
+}
+
+function formatHeaderDate(date: Date, view: CalendarView) {
+  if (view === "month") {
+    return date.toLocaleDateString("en-US", { month: "long", year: "numeric" })
+  }
+
+  const start = startOfWeek(date)
+  const end = addDays(start, 6)
+  return `${start.toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${end.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  })}`
+}
+
+function isSameCalendarDay(date: Date, other: Date) {
+  return toDateKey(date) === toDateKey(other)
+}
+
+function normalizeTask(raw: Record<string, unknown>): Task {
+  const priority = raw.priority === "high" || raw.priority === "low" || raw.priority === "medium" ? raw.priority : "medium"
+  return {
+    id: String(raw.id),
+    title: typeof raw.title === "string" ? raw.title : "Untitled task",
+    description: typeof raw.description === "string" ? raw.description : null,
+    completed: Boolean(raw.completed),
+    priority,
+    due_date: typeof raw.due_date === "string" ? raw.due_date.slice(0, 10) : null,
+    due_time: typeof raw.due_time === "string" ? raw.due_time.slice(0, 5) : null,
+    email_reminder: Boolean(raw.email_reminder),
+    reminder_days: typeof raw.reminder_days === "number" ? raw.reminder_days : null,
+    category: typeof raw.category === "string" ? raw.category : null,
+  }
+}
+
+function normalizeEvent(raw: Record<string, unknown>): LocalEvent {
+  const eventDate = typeof raw.event_date === "string" ? raw.event_date : new Date().toISOString()
+  return {
+    id: String(raw.id),
+    title: typeof raw.title === "string" ? raw.title : "Untitled event",
+    dateKey: eventDate.slice(0, 10),
+    time: typeof raw.start_time === "string" ? raw.start_time.slice(0, 5) : "",
+    endTime: typeof raw.end_time === "string" ? raw.end_time.slice(0, 5) : "",
+    description: typeof raw.description === "string" ? raw.description : "",
+    category: isEventCategory(raw.category) ? raw.category : "personal",
+    location: typeof raw.location === "string" ? raw.location : "",
+    attendees: typeof raw.attendees === "string" ? raw.attendees : "",
+    email_reminder: Boolean(raw.email_reminder),
+    reminder_days: typeof raw.reminder_days === "number" ? raw.reminder_days : 1,
+  }
+}
+
 export default function CalendarPage() {
-  const { user, loading } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const router = useRouter()
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
-  const [events, setEvents] = useState<Event[]>([])
+  const [view, setView] = useState<CalendarView>("month")
+  const [cursorDate, setCursorDate] = useState(new Date())
+  const [selectedDate, setSelectedDate] = useState(new Date())
+  const [events, setEvents] = useState<LocalEvent[]>([])
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [tasksLoading, setTasksLoading] = useState(true)
+  const [eventsLoading, setEventsLoading] = useState(true)
+  const [loadError, setLoadError] = useState("")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [editingEvent, setEditingEvent] = useState<Event | null>(null)
-  const [newEvent, setNewEvent] = useState<Partial<Event>>({
+  const [editingEvent, setEditingEvent] = useState<LocalEvent | null>(null)
+  const [eventDraft, setEventDraft] = useState<Partial<LocalEvent>>({
     title: "",
     time: "",
+    endTime: "",
     description: "",
     category: "personal",
     location: "",
@@ -82,40 +281,60 @@ export default function CalendarPage() {
     email_reminder: true,
     reminder_days: 1,
   })
-
-  // Calendar integrations
   const [integrations, setIntegrations] = useState<CalendarIntegration[]>([])
   const [syncedEvents, setSyncedEvents] = useState<SyncedEvent[]>([])
   const [showIntegrationsDialog, setShowIntegrationsDialog] = useState(false)
   const [syncingCalendar, setSyncingCalendar] = useState(false)
   const [googleConfigured, setGoogleConfigured] = useState(false)
+  const [draftTitle, setDraftTitle] = useState("")
+  const [creatingDraft, setCreatingDraft] = useState(false)
+  const [savingId, setSavingId] = useState<string | null>(null)
+  const [activeDrag, setActiveDrag] = useState<DragData | null>(null)
+  const [scheduleTarget, setScheduleTarget] = useState<DragData | null>(null)
+  const [scheduleDate, setScheduleDate] = useState(toDateKey(new Date()))
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor),
+  )
 
   useEffect(() => {
-    if (user) {
-      fetchEvents()
-      fetchIntegrations()
-    }
-  }, [user])
+    if (!authLoading && !user) router.push("/login")
+  }, [authLoading, router, user])
 
-  const fetchIntegrations = async () => {
+  const fetchEvents = useCallback(async () => {
+    setEventsLoading(true)
+    setLoadError("")
     try {
-      const response = await fetch("/api/calendar/integrations")
-      if (response.ok) {
-        const data = await response.json()
-        setIntegrations(data.integrations || [])
-        setGoogleConfigured(data.google_configured === true)
-        
-        // If there are integrations, sync events
-        if (data.integrations?.length > 0) {
-          syncCalendarEvents()
-        }
-      }
+      const response = await fetch("/api/calendar-events")
+      if (!response.ok) throw new Error("Failed to load calendar events")
+      const data = await response.json()
+      setEvents(Array.isArray(data) ? data.map(normalizeEvent) : [])
     } catch (error) {
-      console.error("Error fetching integrations:", error)
+      console.error("[v0] Error fetching events:", error)
+      setLoadError("Calendar events could not be loaded.")
+    } finally {
+      setEventsLoading(false)
     }
-  }
+  }, [])
 
-  const syncCalendarEvents = async () => {
+  const fetchTasks = useCallback(async () => {
+    setTasksLoading(true)
+    setLoadError("")
+    try {
+      const response = await fetch("/api/tasks")
+      if (!response.ok) throw new Error("Failed to load tasks")
+      const data = await response.json()
+      setTasks(Array.isArray(data) ? data.map(normalizeTask) : [])
+    } catch (error) {
+      console.error("[v0] Error fetching tasks:", error)
+      setLoadError("Tasks could not be loaded.")
+    } finally {
+      setTasksLoading(false)
+    }
+  }, [])
+
+  const syncCalendarEvents = useCallback(async () => {
     setSyncingCalendar(true)
     try {
       const response = await fetch("/api/calendar/sync")
@@ -128,7 +347,109 @@ export default function CalendarPage() {
     } finally {
       setSyncingCalendar(false)
     }
-  }
+  }, [])
+
+  const fetchIntegrations = useCallback(async () => {
+    try {
+      const response = await fetch("/api/calendar/integrations")
+      if (response.ok) {
+        const data = await response.json()
+        setIntegrations(data.integrations || [])
+        setGoogleConfigured(data.google_configured === true)
+        if (data.integrations?.length > 0) syncCalendarEvents()
+      }
+    } catch (error) {
+      console.error("Error fetching integrations:", error)
+    }
+  }, [syncCalendarEvents])
+
+  useEffect(() => {
+    if (!user) return
+    fetchEvents()
+    fetchTasks()
+    fetchIntegrations()
+  }, [fetchEvents, fetchIntegrations, fetchTasks, user])
+
+  useEffect(() => {
+    if (!user) return
+
+    const handleQuickAdd: EventListener = (event) => {
+      if ((event as CustomEvent).detail?.type === "calendar-event") fetchEvents()
+      if ((event as CustomEvent).detail?.type === "task") fetchTasks()
+    }
+
+    window.addEventListener("lifesort:quick-add-created", handleQuickAdd)
+    return () => window.removeEventListener("lifesort:quick-add-created", handleQuickAdd)
+  }, [fetchEvents, fetchTasks, user])
+
+  const calendarDays = useMemo(() => (view === "month" ? buildMonthDays(cursorDate) : buildWeekDays(cursorDate)), [cursorDate, view])
+  const todayKey = toDateKey(new Date())
+  const selectedDateKey = toDateKey(selectedDate)
+
+  const draftTasks = useMemo(() => tasks.filter((task) => !task.completed && !task.due_date), [tasks])
+  const scheduledTasks = useMemo(() => tasks.filter((task) => !task.completed && task.due_date), [tasks])
+
+  const itemsByDate = useMemo(() => {
+    const map = new Map<string, CalendarDisplayItem[]>()
+
+    const add = (dateKey: string, item: CalendarDisplayItem) => {
+      const current = map.get(dateKey) || []
+      current.push(item)
+      map.set(dateKey, current)
+    }
+
+    scheduledTasks.forEach((task) => {
+      const dateKey = String(task.due_date).slice(0, 10)
+      add(dateKey, {
+        kind: "task",
+        id: String(task.id),
+        title: task.title,
+        subtitle: task.due_time ? formatTime12Hour(task.due_time) : "Anytime",
+        badge: "Task",
+        dateKey,
+        task,
+      })
+    })
+
+    events.forEach((event) => {
+      add(event.dateKey, {
+        kind: "event",
+        id: event.id,
+        title: event.title,
+        subtitle: event.time ? formatTime12Hour(event.time) : "Event",
+        badge: "Event",
+        dateKey: event.dateKey,
+        event,
+      })
+    })
+
+    syncedEvents.forEach((event) => {
+      const eventDate = new Date(event.start)
+      if (Number.isNaN(eventDate.getTime())) return
+      const dateKey = toDateKey(eventDate)
+      add(dateKey, {
+        kind: "reminder",
+        id: event.id,
+        title: event.title,
+        subtitle: event.all_day ? "All day" : eventDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        badge: "Reminder",
+        dateKey,
+        syncedEvent: event,
+      })
+    })
+
+    map.forEach((items, dateKey) => {
+      map.set(dateKey, items.sort((a, b) => (a.subtitle || "").localeCompare(b.subtitle || "") || a.title.localeCompare(b.title)))
+    })
+
+    return map
+  }, [events, scheduledTasks, syncedEvents])
+
+  const selectedItems = itemsByDate.get(selectedDateKey) || []
+  const selectedTasks = selectedItems.filter((item) => item.kind === "task")
+  const selectedEvents = selectedItems.filter((item) => item.kind === "event")
+  const selectedReminders = selectedItems.filter((item) => item.kind === "reminder")
+  const pageLoading = authLoading || (user && (eventsLoading || tasksLoading))
 
   const connectGoogle = async () => {
     try {
@@ -151,134 +472,37 @@ export default function CalendarPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ provider }),
       })
-      setIntegrations(integrations.filter(i => i.provider !== provider))
-      setSyncedEvents(syncedEvents.filter(e => e.provider !== provider))
+      setIntegrations((current) => current.filter((item) => item.provider !== provider))
+      setSyncedEvents((current) => current.filter((item) => item.provider !== provider))
     } catch (error) {
       console.error("Error disconnecting:", error)
     }
   }
 
-  const fetchEvents = async () => {
-    try {
-      const response = await fetch('/api/calendar-events')
-      if (response.ok) {
-        const data = await response.json()
-        // Convert database format to component format
-        const eventsArray = Array.isArray(data) ? data : []
-        const allowedCategories = ['personal', 'work', 'health', 'finance'] as const
-        const isCategory = (v: string): v is Event['category'] =>
-          (allowedCategories as readonly string[]).includes(v)
-
-        const formattedEvents: Event[] = eventsArray.map((e: { id: number; title: string; event_date: string; start_time: string; description: string; category: string; location: string; attendees: string }) => ({
-          id: e.id.toString(),
-          title: e.title,
-          date: new Date(e.event_date),
-          time: e.start_time?.slice(0, 5) || '',
-          description: e.description || '',
-          category: isCategory(e.category) ? e.category : 'personal',
-          location: e.location,
-          attendees: e.attendees,
-        }))
-        setEvents(formattedEvents)
-      }
-    } catch (error) {
-      console.error('[v0] Error fetching events:', error)
-    }
+  const openAddEvent = (date = selectedDate) => {
+    setEditingEvent(null)
+    setSelectedDate(date)
+    setEventDraft({
+      title: "",
+      time: "09:00",
+      endTime: "10:00",
+      description: "",
+      category: "personal",
+      location: "",
+      attendees: "",
+      email_reminder: true,
+      reminder_days: 1,
+    })
+    setIsDialogOpen(true)
   }
 
-  useEffect(() => {
-    if (!user) return
-
-    const handleQuickAdd: EventListener = (event) => {
-      if ((event as CustomEvent).detail?.type === "calendar-event") {
-        fetchEvents()
-      }
-    }
-
-    window.addEventListener("lifesort:quick-add-created", handleQuickAdd)
-    return () => window.removeEventListener("lifesort:quick-add-created", handleQuickAdd)
-  }, [user])
-
-  const formatTime12Hour = (time24: string) => {
-    if (!time24) return ""
-    const [hours, minutes] = time24.split(":")
-    const hour = parseInt(hours, 10)
-    const ampm = hour >= 12 ? "PM" : "AM"
-    const hour12 = hour % 12 || 12
-    return `${hour12}:${minutes} ${ampm}`
-  }
-
-  const categoryColors = {
-    personal: "bg-primary/20 text-primary border-primary/30",
-    work: "bg-accent/20 text-accent border-accent/30",
-    health: "bg-success/20 text-success border-success/30",
-    finance: "bg-warning/20 text-warning border-warning/30",
-  }
-
-  const categoryIcons = {
-    personal: Heart,
-    work: Target,
-    health: Zap,
-    finance: DollarSign,
-  }
-
-  const handleAddEvent = async () => {
-    if (newEvent.title && newEvent.time && selectedDate) {
-      const eventData = {
-        title: newEvent.title,
-        event_date: selectedDate.toISOString().split('T')[0],
-        start_time: newEvent.time,
-        end_time: newEvent.time,
-        description: newEvent.description || "",
-        category: newEvent.category || "personal",
-        location: newEvent.location,
-        attendees: newEvent.attendees,
-      }
-
-      try {
-        if (editingEvent) {
-          const response = await fetch('/api/calendar-events', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...eventData, id: parseInt(editingEvent.id) }),
-          })
-          if (response.ok) {
-            await fetchEvents()
-            setEditingEvent(null)
-          }
-        } else {
-          const response = await fetch('/api/calendar-events', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(eventData),
-          })
-          if (response.ok) {
-            await fetchEvents()
-          }
-        }
-      } catch (error) {
-        console.error('[v0] Error saving event:', error)
-      }
-
-      setNewEvent({
-        title: "",
-        time: "",
-        description: "",
-        category: "personal",
-        location: "",
-        attendees: "",
-        email_reminder: true,
-        reminder_days: 1,
-      })
-      setIsDialogOpen(false)
-    }
-  }
-
-  const handleEditEvent = (event: Event) => {
+  const handleEditEvent = (event: LocalEvent) => {
     setEditingEvent(event)
-    setNewEvent({
+    setSelectedDate(parseDateKey(event.dateKey) || new Date())
+    setEventDraft({
       title: event.title,
       time: event.time,
+      endTime: event.endTime || event.time,
       description: event.description,
       category: event.category,
       location: event.location,
@@ -286,467 +510,881 @@ export default function CalendarPage() {
       email_reminder: event.email_reminder ?? true,
       reminder_days: event.reminder_days ?? 1,
     })
-    setSelectedDate(event.date)
     setIsDialogOpen(true)
   }
 
-  const handleDeleteEvent = async (id: string) => {
+  const saveEvent = async () => {
+    const title = eventDraft.title?.trim()
+    const time = eventDraft.time || "09:00"
+    const dateKey = toDateKey(selectedDate)
+    if (!title || !dateKey) return
+
+    const eventData = {
+      title,
+      event_date: dateKey,
+      start_time: time,
+      end_time: eventDraft.endTime || time,
+      description: eventDraft.description || "",
+      category: eventDraft.category || "personal",
+      location: eventDraft.location || "",
+      attendees: eventDraft.attendees || "",
+      email_reminder: eventDraft.email_reminder ?? true,
+      reminder_days: eventDraft.reminder_days ?? 1,
+    }
+
     try {
-      const response = await fetch('/api/calendar-events', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: parseInt(id) }),
+      const response = await fetch("/api/calendar-events", {
+        method: editingEvent ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editingEvent ? { ...eventData, id: Number(editingEvent.id) } : eventData),
       })
-      if (response.ok) {
-        await fetchEvents()
-      }
+      if (!response.ok) throw new Error("Could not save event")
+      await fetchEvents()
+      setIsDialogOpen(false)
+      setEditingEvent(null)
     } catch (error) {
-      console.error('[v0] Error deleting event:', error)
+      console.error("[v0] Error saving event:", error)
+      setLoadError("Event could not be saved.")
     }
   }
 
-  const selectedDateEvents = events.filter(
-    (event) =>
-      selectedDate && event.date.toDateString() === selectedDate.toDateString()
-  ).sort((a, b) => {
-    const timeA = new Date(`1970/01/01 ${a.time}`)
-    const timeB = new Date(`1970/01/01 ${b.time}`)
-    return timeA.getTime() - timeB.getTime()
-  })
+  const deleteEvent = async (id: string) => {
+    try {
+      const response = await fetch("/api/calendar-events", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: Number(id) }),
+      })
+      if (!response.ok) throw new Error("Could not delete event")
+      await fetchEvents()
+    } catch (error) {
+      console.error("[v0] Error deleting event:", error)
+      setLoadError("Event could not be deleted.")
+    }
+  }
 
-  // Filter synced events for selected date
-  const selectedDateSyncedEvents = syncedEvents.filter((event) => {
-    if (!selectedDate) return false
-    const eventDate = new Date(event.start)
-    return eventDate.toDateString() === selectedDate.toDateString()
-  })
+  const updateTaskDate = async (taskId: string, dateKey: string | null) => {
+    setSavingId(`task:${taskId}`)
+    try {
+      const response = await fetch("/api/tasks", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(dateKey ? { id: taskId, due_date: dateKey } : { id: taskId, due_date: null, due_time: null, email_reminder: false }),
+      })
+      if (!response.ok) throw new Error("Could not update task")
+      const updated = normalizeTask(await response.json())
+      setTasks((current) => current.map((task) => (String(task.id) === String(updated.id) ? updated : task)))
+    } catch (error) {
+      console.error("[v0] Error scheduling task:", error)
+      setLoadError("Task could not be scheduled.")
+    } finally {
+      setSavingId(null)
+    }
+  }
 
-  const upcomingEvents = events
-    .filter((event) => event.date >= new Date())
-    .sort((a, b) => a.date.getTime() - b.date.getTime())
-    .slice(0, 5)
+  const updateEventDate = async (eventId: string, dateKey: string) => {
+    const event = events.find((item) => item.id === eventId)
+    if (!event) return
 
-  const eventsWithDates = events.map((event) => event.date)
+    setSavingId(`event:${eventId}`)
+    try {
+      const response = await fetch("/api/calendar-events", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: Number(event.id),
+          title: event.title,
+          description: event.description || "",
+          event_date: dateKey,
+          start_time: event.time || "09:00",
+          end_time: event.endTime || event.time || "09:00",
+          category: event.category,
+          location: event.location || "",
+          attendees: event.attendees || "",
+          email_reminder: event.email_reminder ?? true,
+          reminder_days: event.reminder_days ?? 1,
+        }),
+      })
+      if (!response.ok) throw new Error("Could not update event")
+      const updated = normalizeEvent(await response.json())
+      setEvents((current) => current.map((item) => (item.id === eventId ? updated : item)))
+    } catch (error) {
+      console.error("[v0] Error moving event:", error)
+      setLoadError("Event could not be moved.")
+    } finally {
+      setSavingId(null)
+    }
+  }
 
-  if (loading || !user) {
+  const createDraftTask = async () => {
+    const title = draftTitle.trim()
+    if (!title) return
+
+    setCreatingDraft(true)
+    try {
+      const response = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, priority: "medium", completed: false }),
+      })
+      if (!response.ok) throw new Error("Could not create draft task")
+      const task = normalizeTask(await response.json())
+      setTasks((current) => [task, ...current])
+      setDraftTitle("")
+    } catch (error) {
+      console.error("[v0] Error creating draft task:", error)
+      setLoadError("Draft task could not be created.")
+    } finally {
+      setCreatingDraft(false)
+    }
+  }
+
+  const openScheduleDialog = (target: DragData, initialDate = selectedDateKey) => {
+    setScheduleTarget(target)
+    setScheduleDate(initialDate)
+  }
+
+  const applyScheduleDialog = async () => {
+    if (!scheduleTarget || !scheduleDate) return
+    if (scheduleTarget.kind === "task") await updateTaskDate(scheduleTarget.id, scheduleDate)
+    if (scheduleTarget.kind === "event") await updateEventDate(scheduleTarget.id, scheduleDate)
+    setScheduleTarget(null)
+  }
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const data = event.active.data.current as DragData | undefined
+    setActiveDrag(data || null)
+  }
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const data = event.active.data.current as DragData | undefined
+    const overId = event.over?.id ? String(event.over.id) : ""
+    setActiveDrag(null)
+    if (!data || !overId) return
+
+    if (overId.startsWith("date:")) {
+      const dateKey = overId.replace("date:", "")
+      if (data.kind === "task") await updateTaskDate(data.id, dateKey)
+      if (data.kind === "event") await updateEventDate(data.id, dateKey)
+      return
+    }
+
+    if (overId === "drafts" && data.kind === "task") {
+      await updateTaskDate(data.id, null)
+    }
+  }
+
+  const moveCalendar = (direction: number) => {
+    setCursorDate((current) => (view === "month" ? addMonths(current, direction) : addDays(current, direction * 7)))
+  }
+
+  const goToToday = () => {
+    const today = new Date()
+    setCursorDate(today)
+    setSelectedDate(today)
+  }
+
+  const firstName = user?.name?.split(" ")[0] || "Your"
+
+  if (pageLoading || !user) {
     return (
-      <DashboardLayout>
-        <div className="flex h-screen items-center justify-center">
-          <div className="text-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto" />
-            <p className="mt-4 text-muted-foreground">Loading...</p>
-          </div>
+      <DashboardLayout title="Calendar" subtitle="Plan your tasks and events">
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       </DashboardLayout>
     )
   }
 
-  const firstName = user.name?.split(" ")[0] || "there"
-
   return (
-    <DashboardLayout title={`${firstName}'s Calendar`} subtitle={selectedDate?.toLocaleDateString("en-US", {
-      weekday: "long",
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    })}>
-      <div className="space-y-6">
-        {/* Header with buttons */}
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            {integrations.length > 0 && (
-              <div className="flex items-center gap-2">
-                {integrations.map(i => (
-                  <Badge key={i.provider} variant="secondary" className="flex items-center gap-1">
-                    <svg className="h-3 w-3" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-                    {i.email?.split("@")[0]}
-                  </Badge>
-                ))}
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={syncCalendarEvents}
-                  disabled={syncingCalendar}
-                >
-                  <RefreshCw className={`h-4 w-4 ${syncingCalendar ? "animate-spin" : ""}`} />
+    <DashboardLayout title={`${firstName}'s Calendar`} subtitle="Schedule tasks, events, and reminders without losing the original record">
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={() => setActiveDrag(null)}>
+        <div className="space-y-5">
+          {loadError && (
+            <Card className="border-destructive/30 bg-destructive/5">
+              <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-destructive">{loadError}</p>
+                <Button variant="outline" size="sm" onClick={() => { fetchEvents(); fetchTasks() }}>
+                  Try again
                 </Button>
-              </div>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <Dialog open={showIntegrationsDialog} onOpenChange={setShowIntegrationsDialog}>
-              <DialogTrigger asChild>
-                <Button variant="outline" className="bg-transparent">
-                  <Link2 className="mr-2 h-4 w-4" />
-                  Connect Calendar
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Calendar Integrations</DialogTitle>
-                  <DialogDescription>
-                    Connect your Google Calendar to sync events
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 pt-4">
-                  {/* Google Calendar */}
-                  <div className="flex items-center justify-between p-4 rounded-lg border">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-white shadow-sm">
-                        <svg className="h-6 w-6" viewBox="0 0 24 24">
-                          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                        </svg>
-                      </div>
-                      <div>
-                        <p className="font-medium">Google Calendar</p>
-                        {integrations.find(i => i.provider === "google") ? (
-                          <p className="text-sm text-success flex items-center gap-1">
-                            <Check className="h-3 w-3" />
-                            Connected as {integrations.find(i => i.provider === "google")?.email}
-                          </p>
-                        ) : (
-                          <p className="text-sm text-muted-foreground">Not connected</p>
-                        )}
-                      </div>
-                    </div>
-                    {integrations.find(i => i.provider === "google") ? (
-                      <Button variant="outline" size="sm" onClick={() => disconnectCalendar("google")} className="bg-transparent">
-                        Disconnect
-                      </Button>
-                    ) : (
-                      <Button size="sm" onClick={connectGoogle} disabled={!googleConfigured}>
-                        {googleConfigured ? "Connect" : "Not Configured"}
-                      </Button>
-                    )}
-                  </div>
+              </CardContent>
+            </Card>
+          )}
 
-                  {!googleConfigured && (
-                    <p className="text-sm text-muted-foreground text-center p-4 bg-muted/50 rounded-lg">
-                      To enable Google Calendar integration, please add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET 
-                      to your environment variables.
-                    </p>
-                  )}
-                </div>
-              </DialogContent>
-            </Dialog>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button onClick={() => { setEditingEvent(null); setNewEvent({ title: "", time: "", description: "", category: "personal", location: "", attendees: "", email_reminder: true, reminder_days: 1 }) }}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Event
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[500px]">
-                <DialogHeader>
-                  <DialogTitle>{editingEvent ? "Edit Event" : "Add New Event"}</DialogTitle>
-                  <DialogDescription>
-                    {editingEvent ? "Update your event details" : "Create a new event on your calendar"}
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="title">Event Title</Label>
-                    <Input
-                      id="title"
-                      placeholder="Team meeting, Workout, etc."
-                      value={newEvent.title}
-                      onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
-                      className="text-foreground"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="time">Time</Label>
-                      <Input
-                        id="time"
-                        type="time"
-                        value={newEvent.time}
-                        onChange={(e) => setNewEvent({ ...newEvent, time: e.target.value })}
-                        className="text-foreground"
-                      />
+          <CalendarToolbar
+            view={view}
+            cursorDate={cursorDate}
+            integrations={integrations}
+            googleConfigured={googleConfigured}
+            syncingCalendar={syncingCalendar}
+            showIntegrationsDialog={showIntegrationsDialog}
+            setShowIntegrationsDialog={setShowIntegrationsDialog}
+            onViewChange={setView}
+            onPrevious={() => moveCalendar(-1)}
+            onNext={() => moveCalendar(1)}
+            onToday={goToToday}
+            onAddEvent={() => openAddEvent(selectedDate)}
+            onSync={syncCalendarEvents}
+            onConnectGoogle={connectGoogle}
+            onDisconnectCalendar={disconnectCalendar}
+          />
+
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="min-w-0 space-y-5">
+              <Card className="surface-card overflow-hidden">
+                <CardHeader className="border-b">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <CardTitle>{formatHeaderDate(cursorDate, view)}</CardTitle>
+                      <CardDescription>Drag tasks or local events onto a date to reschedule them.</CardDescription>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="category">Category</Label>
-                      <Select
-                        value={newEvent.category}
-                        onValueChange={(value) => setNewEvent({ ...newEvent, category: value as Event["category"] })}
-                      >
-                        <SelectTrigger id="category">
-                          <SelectValue placeholder="Select category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="personal">Personal</SelectItem>
-                          <SelectItem value="work">Work</SelectItem>
-                          <SelectItem value="health">Health</SelectItem>
-                          <SelectItem value="finance">Finance</SelectItem>
-                        </SelectContent>
-                      </Select>
+                    <Badge variant="outline">{view === "month" ? "Month view" : "Week view"}</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <div className="min-w-[760px]">
+                      <div className="grid grid-cols-7 border-b bg-muted/30">
+                        {WEEKDAYS.map((day) => (
+                          <div key={day} className="border-r px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground last:border-r-0">
+                            {day}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="grid grid-cols-7">
+                        {calendarDays.map((day) => {
+                          const key = toDateKey(day)
+                          return (
+                            <CalendarDayCell
+                              key={key}
+                              date={day}
+                              dateKey={key}
+                              cursorDate={cursorDate}
+                              selected={key === selectedDateKey}
+                              today={key === todayKey}
+                              outsideMonth={view === "month" && day.getMonth() !== cursorDate.getMonth()}
+                              items={itemsByDate.get(key) || []}
+                              onSelect={() => setSelectedDate(day)}
+                              onAddEvent={() => openAddEvent(day)}
+                              onSchedule={openScheduleDialog}
+                            />
+                          )
+                        })}
+                      </div>
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="description">Description</Label>
-                    <Textarea
-                      id="description"
-                      placeholder="Event details..."
-                      value={newEvent.description}
-                      onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
-                      className="text-foreground"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="location">Location (optional)</Label>
-                    <Input
-                      id="location"
-                      placeholder="Meeting room, address, etc."
-                      value={newEvent.location}
-                      onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })}
-                      className="text-foreground"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="attendees">Attendees (optional)</Label>
-                    <Input
-                      id="attendees"
-                      placeholder="Number of attendees"
-                      value={newEvent.attendees}
-                      onChange={(e) => setNewEvent({ ...newEvent, attendees: e.target.value })}
-                      className="text-foreground"
-                    />
-                  </div>
-                  
-                  {/* Email Reminder Option */}
-                  <ReminderSettings
-                    enabled={newEvent.email_reminder ?? true}
-                    reminderDays={newEvent.reminder_days ?? 1}
-                    onEnabledChange={(enabled) => setNewEvent({ ...newEvent, email_reminder: enabled })}
-                    onReminderDaysChange={(days) => setNewEvent({ ...newEvent, reminder_days: days })}
-                  />
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleAddEvent}>
-                    {editingEvent ? "Update Event" : "Add Event"}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+                </CardContent>
+              </Card>
+
+              <SelectedDayPanel
+                date={selectedDate}
+                tasks={selectedTasks}
+                events={selectedEvents}
+                reminders={selectedReminders}
+                savingId={savingId}
+                onAddEvent={() => openAddEvent(selectedDate)}
+                onEditEvent={handleEditEvent}
+                onDeleteEvent={deleteEvent}
+                onUnscheduleTask={(taskId) => updateTaskDate(taskId, null)}
+                onSchedule={openScheduleDialog}
+              />
+            </div>
+
+            <DraftTaskPanel
+              tasks={draftTasks}
+              draftTitle={draftTitle}
+              loading={tasksLoading}
+              creating={creatingDraft}
+              savingId={savingId}
+              onDraftTitleChange={setDraftTitle}
+              onCreateDraft={createDraftTask}
+              onSchedule={openScheduleDialog}
+            />
           </div>
         </div>
 
-        {/* Calendar and Events Grid */}
-        <div className="grid gap-6 lg:grid-cols-[400px_1fr]">
-          {/* Calendar Widget */}
-          <div>
-            <Card>
-              <CardHeader>
-                <CardTitle>Select Date</CardTitle>
-              </CardHeader>
-              <CardContent className="flex justify-center">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={(date) => {
-                    setSelectedDate(date)
-                    if (date) {
-                      setIsDialogOpen(true)
-                    }
-                  }}
-                  className="rounded-md [&_.rdp-day_button.rdp-day_selected]:bg-emerald-500 [&_.rdp-day_button.rdp-day_selected]:text-white [&_.rdp-day_button.rdp-day_today]:bg-primary/20 [&_.rdp-day_button.rdp-day_today]:text-primary"
-                  modifiers={{
-                    hasEvent: eventsWithDates,
-                  }}
-                  modifiersClassNames={{
-                    hasEvent: "font-bold text-primary",
+        <DragOverlay>
+          {activeDrag ? <DragPreview title={activeDrag.title} kind={activeDrag.kind} /> : null}
+        </DragOverlay>
+      </DndContext>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle>{editingEvent ? "Edit Event" : "Add New Event"}</DialogTitle>
+            <DialogDescription>
+              {editingEvent ? "Update this calendar event." : `Create an event for ${selectedDate.toLocaleDateString("en-US", { month: "long", day: "numeric" })}.`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="title">Event Title</Label>
+              <Input id="title" value={eventDraft.title || ""} onChange={(event) => setEventDraft({ ...eventDraft, title: event.target.value })} />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="date">Date</Label>
+                <Input
+                  id="date"
+                  type="date"
+                  value={toDateKey(selectedDate)}
+                  onChange={(event) => {
+                    const next = parseDateKey(event.target.value)
+                    if (next) setSelectedDate(next)
                   }}
                 />
-              </CardContent>
-            </Card>
-
-            {/* Upcoming Events Summary */}
-            <Card className="mt-6">
-              <CardHeader>
-                <CardTitle>Upcoming Events</CardTitle>
-                <CardDescription>Next 5 events</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {upcomingEvents.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No upcoming events</p>
-                ) : (
-                  upcomingEvents.map((event) => {
-                    const CategoryIcon = categoryIcons[event.category]
-                    return (
-                      <div key={event.id} className="flex items-center gap-3">
-                        <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${categoryColors[event.category]}`}>
-                          <CategoryIcon className="h-5 w-5" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-foreground">{event.title}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {event.date.toLocaleDateString("en-US", { month: "short", day: "numeric" })} at {formatTime12Hour(event.time)}
-                          </p>
-                        </div>
-                      </div>
-                    )
-                  })
-                )}
-              </CardContent>
-            </Card>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="time">Start</Label>
+                <Input id="time" type="time" value={eventDraft.time || ""} onChange={(event) => setEventDraft({ ...eventDraft, time: event.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="end-time">End</Label>
+                <Input id="end-time" type="time" value={eventDraft.endTime || ""} onChange={(event) => setEventDraft({ ...eventDraft, endTime: event.target.value })} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="category">Category</Label>
+              <Select value={eventDraft.category || "personal"} onValueChange={(value) => setEventDraft({ ...eventDraft, category: value as EventCategory })}>
+                <SelectTrigger id="category">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="personal">Personal</SelectItem>
+                  <SelectItem value="work">Work</SelectItem>
+                  <SelectItem value="health">Health</SelectItem>
+                  <SelectItem value="finance">Finance</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea id="description" value={eventDraft.description || ""} onChange={(event) => setEventDraft({ ...eventDraft, description: event.target.value })} />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="location">Location</Label>
+                <Input id="location" value={eventDraft.location || ""} onChange={(event) => setEventDraft({ ...eventDraft, location: event.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="attendees">Attendees</Label>
+                <Input id="attendees" value={eventDraft.attendees || ""} onChange={(event) => setEventDraft({ ...eventDraft, attendees: event.target.value })} />
+              </div>
+            </div>
+            <ReminderSettings
+              enabled={eventDraft.email_reminder ?? true}
+              reminderDays={eventDraft.reminder_days ?? 1}
+              onEnabledChange={(enabled) => setEventDraft({ ...eventDraft, email_reminder: enabled })}
+              onReminderDaysChange={(days) => setEventDraft({ ...eventDraft, reminder_days: days })}
+            />
           </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+            <Button onClick={saveEvent}>{editingEvent ? "Update Event" : "Add Event"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-          {/* Events for Selected Date */}
-          <div>
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
+      <Dialog open={Boolean(scheduleTarget)} onOpenChange={(open) => !open && setScheduleTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{scheduleTarget?.kind === "event" ? "Reschedule event" : "Schedule task"}</DialogTitle>
+            <DialogDescription>Choose a date for {scheduleTarget?.title || "this item"}.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-4">
+            <Label htmlFor="schedule-date">Date</Label>
+            <Input id="schedule-date" type="date" value={scheduleDate} onChange={(event) => setScheduleDate(event.target.value)} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setScheduleTarget(null)}>Cancel</Button>
+            <Button onClick={applyScheduleDialog}>Save date</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </DashboardLayout>
+  )
+}
+
+function CalendarToolbar({
+  view,
+  cursorDate,
+  integrations,
+  googleConfigured,
+  syncingCalendar,
+  showIntegrationsDialog,
+  setShowIntegrationsDialog,
+  onViewChange,
+  onPrevious,
+  onNext,
+  onToday,
+  onAddEvent,
+  onSync,
+  onConnectGoogle,
+  onDisconnectCalendar,
+}: {
+  view: CalendarView
+  cursorDate: Date
+  integrations: CalendarIntegration[]
+  googleConfigured: boolean
+  syncingCalendar: boolean
+  showIntegrationsDialog: boolean
+  setShowIntegrationsDialog: (value: boolean) => void
+  onViewChange: (view: CalendarView) => void
+  onPrevious: () => void
+  onNext: () => void
+  onToday: () => void
+  onAddEvent: () => void
+  onSync: () => void
+  onConnectGoogle: () => void
+  onDisconnectCalendar: (provider: string) => void
+}) {
+  return (
+    <Card className="surface-card">
+      <CardContent className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="icon" onClick={onPrevious} aria-label="Previous period">
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" onClick={onToday}>Today</Button>
+          <Button variant="outline" size="icon" onClick={onNext} aria-label="Next period">
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+          <div className="ml-0 text-sm font-medium sm:ml-2">{formatHeaderDate(cursorDate, view)}</div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex rounded-md border bg-background p-1">
+            <Button size="sm" variant={view === "month" ? "secondary" : "ghost"} onClick={() => onViewChange("month")}>Month</Button>
+            <Button size="sm" variant={view === "week" ? "secondary" : "ghost"} onClick={() => onViewChange("week")}>Week</Button>
+          </div>
+          {integrations.length > 0 && (
+            <Button variant="ghost" size="icon" onClick={onSync} disabled={syncingCalendar} aria-label="Sync calendar">
+              <RefreshCw className={cn("h-4 w-4", syncingCalendar && "animate-spin")} />
+            </Button>
+          )}
+          <Dialog open={showIntegrationsDialog} onOpenChange={setShowIntegrationsDialog}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Link2 className="h-4 w-4" />
+                Connect Calendar
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Calendar Integrations</DialogTitle>
+                <DialogDescription>Connect Google Calendar to show read-only reminders inside LifeSort.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 pt-4">
+                <div className="flex items-center justify-between rounded-lg border p-4">
                   <div>
-                    <CardTitle>
-                      Events for {selectedDate?.toLocaleDateString("en-US", { month: "long", day: "numeric" })}
-                    </CardTitle>
-                    <CardDescription>{selectedDateEvents.length} events scheduled</CardDescription>
+                    <p className="font-medium">Google Calendar</p>
+                    {integrations.find((item) => item.provider === "google") ? (
+                      <p className="mt-1 flex items-center gap-1 text-sm text-success">
+                        <Check className="h-3.5 w-3.5" />
+                        Connected as {integrations.find((item) => item.provider === "google")?.email}
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-sm text-muted-foreground">Not connected</p>
+                    )}
                   </div>
-                  <Badge variant="outline">{selectedDate?.toLocaleDateString("en-US", { weekday: "short" })}</Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {selectedDateEvents.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <CalendarIcon className="mb-4 h-12 w-12 text-muted-foreground" />
-                    <h3 className="mb-2 text-lg font-semibold text-foreground">No events scheduled</h3>
-                    <p className="mb-4 text-sm text-muted-foreground">
-                      Add an event to start organizing your day
-                    </p>
-                    <Button onClick={() => setIsDialogOpen(true)}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Event
+                  {integrations.find((item) => item.provider === "google") ? (
+                    <Button variant="outline" size="sm" onClick={() => onDisconnectCalendar("google")}>Disconnect</Button>
+                  ) : (
+                    <Button size="sm" onClick={onConnectGoogle} disabled={!googleConfigured}>
+                      {googleConfigured ? "Connect" : "Not configured"}
                     </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {selectedDateEvents.map((event) => {
-                      const CategoryIcon = categoryIcons[event.category]
-                      return (
-                        <Card key={event.id} className="border-l-4" style={{ borderLeftColor: `hsl(var(--${event.category === "work" ? "accent" : event.category === "health" ? "success" : event.category === "finance" ? "warning" : "primary"}))` }}>
-                          <CardHeader>
-                            <div className="flex items-start justify-between">
-                              <div className="flex items-start gap-3">
-                                <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${categoryColors[event.category]}`}>
-                                  <CategoryIcon className="h-5 w-5" />
-                                </div>
-                                <div>
-                                  <CardTitle className="text-base">{event.title}</CardTitle>
-                                  <div className="mt-1 flex items-center gap-2">
-                                    <Badge variant="outline" className="text-xs">
-                                      <Clock className="mr-1 h-3 w-3" />
-                                      {formatTime12Hour(event.time)}
-                                    </Badge>
-                                    <Badge variant="outline" className="text-xs capitalize">
-                                      {event.category}
-                                    </Badge>
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex gap-2">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => handleEditEvent(event)}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-destructive hover:text-destructive"
-                                  onClick={() => handleDeleteEvent(event.id)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          </CardHeader>
-                          {(event.description || event.location || event.attendees) && (
-                            <CardContent className="pt-0">
-                              {event.description && (
-                                <p className="text-sm text-muted-foreground">{event.description}</p>
-                              )}
-                              <div className="mt-3 flex flex-wrap gap-3">
-                                {event.location && (
-                                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                    <MapPin className="h-3 w-3" />
-                                    {event.location}
-                                  </div>
-                                )}
-                                {event.attendees && (
-                                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                    <Users className="h-3 w-3" />
-                                    {event.attendees} attendees
-                                  </div>
-                                )}
-                              </div>
-                            </CardContent>
-                          )}
-                        </Card>
-                      )
-                    })}
-                  </div>
+                  )}
+                </div>
+                {!googleConfigured && (
+                  <p className="rounded-md bg-muted/50 p-3 text-sm text-muted-foreground">
+                    Add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` to enable Google Calendar integration.
+                  </p>
                 )}
+              </div>
+            </DialogContent>
+          </Dialog>
+          <Button onClick={onAddEvent} className="gap-2">
+            <Plus className="h-4 w-4" />
+            New Event
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
 
-                {/* Synced Events from Google Calendar */}
-                {selectedDateSyncedEvents.length > 0 && (
-                  <div className="mt-4 pt-4 border-t">
-                    <h4 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
-                      <Link2 className="h-4 w-4" />
-                      From Connected Calendars
-                    </h4>
-                    <div className="space-y-3">
-                      {selectedDateSyncedEvents.map((event) => (
-                        <div 
-                          key={event.id} 
-                          className="p-3 rounded-lg border-l-4"
-                          style={{ borderLeftColor: event.color }}
-                        >
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <p className="font-medium text-sm">{event.title}</p>
-                              <div className="flex items-center gap-2 mt-1">
-                                <Badge variant="outline" className="text-xs">
-                                  {event.provider === "google" ? (
-                                    <svg className="h-3 w-3 mr-1" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-                                  ) : (
-                                    <svg className="h-3 w-3 mr-1" viewBox="0 0 24 24"><path fill="#0078D4" d="M0 0h11.377v11.372H0zm12.623 0H24v11.372H12.623zM0 12.623h11.377V24H0zm12.623 0H24V24H12.623z"/></svg>
-                                  )}
-                                  {event.provider}
-                                </Badge>
-                                {!event.all_day && (
-                                  <span className="text-xs text-muted-foreground">
-                                    {new Date(event.start).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          {event.location && (
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground mt-2">
-                              <MapPin className="h-3 w-3" />
-                              {event.location}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+function CalendarDayCell({
+  date,
+  dateKey,
+  cursorDate,
+  selected,
+  today,
+  outsideMonth,
+  items,
+  onSelect,
+  onAddEvent,
+  onSchedule,
+}: {
+  date: Date
+  dateKey: string
+  cursorDate: Date
+  selected: boolean
+  today: boolean
+  outsideMonth: boolean
+  items: CalendarDisplayItem[]
+  onSelect: () => void
+  onAddEvent: () => void
+  onSchedule: (target: DragData, initialDate?: string) => void
+}) {
+  const { isOver, setNodeRef } = useDroppable({ id: `date:${dateKey}` })
+  const visibleItems = items.slice(0, 4)
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "min-h-[10.5rem] border-b border-r bg-background p-2 transition-colors last:border-r-0",
+        outsideMonth && "bg-muted/20 text-muted-foreground",
+        selected && "bg-primary/5 ring-1 ring-inset ring-primary/30",
+        isOver && "bg-primary/10 ring-2 ring-inset ring-primary/40",
+      )}
+    >
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={onSelect}
+          className={cn(
+            "flex h-7 w-7 items-center justify-center rounded-full text-sm font-medium transition-colors hover:bg-muted",
+            today && "bg-primary text-primary-foreground hover:bg-primary/90",
+          )}
+          aria-label={`Select ${date.toLocaleDateString()}`}
+        >
+          {date.getDate()}
+        </button>
+        {!outsideMonth && date.getMonth() === cursorDate.getMonth() && (
+          <Button variant="ghost" size="icon" className="h-7 w-7 opacity-70 hover:opacity-100" onClick={onAddEvent} aria-label="Add event">
+            <Plus className="h-3.5 w-3.5" />
+          </Button>
+        )}
+      </div>
+
+      <div className="space-y-1.5">
+        {visibleItems.map((item) => (
+          <CalendarChip key={`${item.kind}-${item.id}`} item={item} onSchedule={onSchedule} />
+        ))}
+        {items.length > visibleItems.length && (
+          <div className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">
+            +{items.length - visibleItems.length} more
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function CalendarChip({ item, onSchedule }: { item: CalendarDisplayItem; onSchedule: (target: DragData, initialDate?: string) => void }) {
+  const draggable = item.kind === "task" || item.kind === "event"
+  const dragData: DragData | undefined = draggable
+    ? { kind: item.kind === "task" ? "task" : "event", id: item.id, title: item.title }
+    : undefined
+  const { attributes, listeners, setActivatorNodeRef, setNodeRef, isDragging } = useDraggable({
+    id: `${item.kind}:${item.id}`,
+    disabled: !draggable,
+    data: dragData,
+  })
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "group rounded-md border px-2 py-1.5 text-xs shadow-sm",
+        item.kind === "task" && priorityColors[item.task?.priority || "medium"],
+        item.kind === "event" && "border-primary/20 bg-primary/10 text-primary",
+        item.kind === "reminder" && "border-border bg-muted/70 text-muted-foreground",
+        isDragging && "opacity-40",
+      )}
+    >
+      <div className="flex items-start gap-1.5">
+        {draggable ? (
+          <button
+            ref={setActivatorNodeRef}
+            type="button"
+            className="mt-0.5 cursor-grab text-current/60 active:cursor-grabbing"
+            aria-label={`Drag ${item.title}`}
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="h-3 w-3" />
+          </button>
+        ) : (
+          <Link2 className="mt-0.5 h-3 w-3 shrink-0" />
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1">
+            <span className="rounded bg-background/60 px-1 text-[10px] font-medium">{item.badge}</span>
+            {item.subtitle && <span className="truncate text-[10px] opacity-75">{item.subtitle}</span>}
+          </div>
+          <p className="mt-0.5 truncate font-medium">{item.title}</p>
+        </div>
+        {draggable && (
+          <button
+            type="button"
+            className="hidden text-current/70 hover:text-current group-hover:block"
+            onClick={() => onSchedule({ kind: item.kind as "task" | "event", id: item.id, title: item.title }, item.dateKey)}
+            aria-label={`Reschedule ${item.title}`}
+          >
+            <CalendarIcon className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function DraftTaskPanel({
+  tasks,
+  draftTitle,
+  loading,
+  creating,
+  savingId,
+  onDraftTitleChange,
+  onCreateDraft,
+  onSchedule,
+}: {
+  tasks: Task[]
+  draftTitle: string
+  loading: boolean
+  creating: boolean
+  savingId: string | null
+  onDraftTitleChange: (value: string) => void
+  onCreateDraft: () => void
+  onSchedule: (target: DragData, initialDate?: string) => void
+}) {
+  const { isOver, setNodeRef } = useDroppable({ id: "drafts" })
+
+  return (
+    <Card ref={setNodeRef} className={cn("surface-card h-fit xl:sticky xl:top-6", isOver && "ring-2 ring-primary/40")}>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <CheckSquare className="h-5 w-5 text-primary" />
+          Draft Tasks
+        </CardTitle>
+        <CardDescription>Unscheduled tasks live here until you place them on the calendar.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2 rounded-md border bg-muted/20 p-3">
+          <Label htmlFor="draft-task-title">Create draft task</Label>
+          <div className="flex gap-2">
+            <Input
+              id="draft-task-title"
+              value={draftTitle}
+              onChange={(event) => onDraftTitleChange(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault()
+                  onCreateDraft()
+                }
+              }}
+              placeholder="Draft a task..."
+            />
+            <Button onClick={onCreateDraft} disabled={creating || !draftTitle.trim()} size="icon" aria-label="Create draft task">
+              {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            </Button>
           </div>
         </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Loading drafts...
+          </div>
+        ) : tasks.length === 0 ? (
+          <div className="rounded-md border border-dashed p-5 text-center">
+            <CalendarIcon className="mx-auto h-8 w-8 text-muted-foreground" />
+            <p className="mt-3 text-sm font-medium">No draft tasks</p>
+            <p className="mt-1 text-xs text-muted-foreground">Create one here, or unschedule a task from the calendar.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {tasks.map((task) => (
+              <DraftTaskCard key={String(task.id)} task={task} saving={savingId === `task:${task.id}`} onSchedule={onSchedule} />
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function DraftTaskCard({ task, saving, onSchedule }: { task: Task; saving: boolean; onSchedule: (target: DragData, initialDate?: string) => void }) {
+  const { attributes, listeners, setActivatorNodeRef, setNodeRef, isDragging } = useDraggable({
+    id: `task:${task.id}`,
+    data: { kind: "task", id: String(task.id), title: task.title } satisfies DragData,
+  })
+
+  return (
+    <div ref={setNodeRef} className={cn("rounded-md border bg-background p-3 shadow-sm", isDragging && "opacity-40")}>
+      <div className="flex items-start gap-2">
+        <button
+          ref={setActivatorNodeRef}
+          type="button"
+          className="mt-1 cursor-grab text-muted-foreground active:cursor-grabbing"
+          aria-label={`Drag ${task.title}`}
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="truncate text-sm font-medium">{task.title}</p>
+            <Badge variant="outline" className={cn("capitalize", priorityColors[task.priority])}>{task.priority}</Badge>
+          </div>
+          {task.description && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{task.description}</p>}
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-3 w-full justify-center gap-2"
+            disabled={saving}
+            onClick={() => onSchedule({ kind: "task", id: String(task.id), title: task.title }, toDateKey(new Date()))}
+          >
+            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CalendarIcon className="h-3.5 w-3.5" />}
+            Schedule
+          </Button>
+        </div>
       </div>
-    </DashboardLayout>
+    </div>
+  )
+}
+
+function SelectedDayPanel({
+  date,
+  tasks,
+  events,
+  reminders,
+  savingId,
+  onAddEvent,
+  onEditEvent,
+  onDeleteEvent,
+  onUnscheduleTask,
+  onSchedule,
+}: {
+  date: Date
+  tasks: CalendarDisplayItem[]
+  events: CalendarDisplayItem[]
+  reminders: CalendarDisplayItem[]
+  savingId: string | null
+  onAddEvent: () => void
+  onEditEvent: (event: LocalEvent) => void
+  onDeleteEvent: (id: string) => void
+  onUnscheduleTask: (taskId: string) => void
+  onSchedule: (target: DragData, initialDate?: string) => void
+}) {
+  const total = tasks.length + events.length + reminders.length
+  const dateKey = toDateKey(date)
+
+  return (
+    <Card className="surface-card">
+      <CardHeader>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle>{date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</CardTitle>
+            <CardDescription>{total === 0 ? "Nothing scheduled yet" : `${total} scheduled item${total === 1 ? "" : "s"}`}</CardDescription>
+          </div>
+          <Button variant="outline" onClick={onAddEvent} className="gap-2">
+            <Plus className="h-4 w-4" />
+            New event
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {total === 0 && (
+          <div className="rounded-md border border-dashed p-6 text-center">
+            <CalendarIcon className="mx-auto h-9 w-9 text-muted-foreground" />
+            <p className="mt-3 text-sm font-medium">No tasks or events here</p>
+            <p className="mt-1 text-sm text-muted-foreground">Drag a draft onto this date, or add a local event.</p>
+          </div>
+        )}
+
+        {tasks.map((item) => item.task && (
+          <DetailRow key={`task-${item.id}`} item={item}>
+            <Button variant="outline" size="sm" onClick={() => onSchedule({ kind: "task", id: item.id, title: item.title }, dateKey)}>Reschedule</Button>
+            <Button variant="ghost" size="sm" disabled={savingId === `task:${item.id}`} onClick={() => onUnscheduleTask(item.id)}>
+              {savingId === `task:${item.id}` ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <X className="mr-1 h-3.5 w-3.5" />}
+              Unschedule
+            </Button>
+          </DetailRow>
+        ))}
+
+        {events.map((item) => item.event && (
+          <DetailRow key={`event-${item.id}`} item={item}>
+            <Button variant="outline" size="sm" onClick={() => onSchedule({ kind: "event", id: item.id, title: item.title }, dateKey)}>Move</Button>
+            <Button variant="ghost" size="sm" onClick={() => item.event && onEditEvent(item.event)}>
+              <Edit className="mr-1 h-3.5 w-3.5" />
+              Edit
+            </Button>
+            <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => onDeleteEvent(item.id)}>
+              <Trash2 className="mr-1 h-3.5 w-3.5" />
+              Delete
+            </Button>
+          </DetailRow>
+        ))}
+
+        {reminders.map((item) => (
+          <DetailRow key={`reminder-${item.id}`} item={item}>
+            <Badge variant="outline">Read-only</Badge>
+          </DetailRow>
+        ))}
+      </CardContent>
+    </Card>
+  )
+}
+
+function DetailRow({ item, children }: { item: CalendarDisplayItem; children: React.ReactNode }) {
+  const Icon = item.kind === "task" ? CheckSquare : item.kind === "event" ? CalendarIcon : Link2
+  return (
+    <div className="flex flex-col gap-3 rounded-md border bg-background p-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 items-start gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+          <Icon className="h-4 w-4" />
+        </div>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="truncate text-sm font-medium">{item.title}</p>
+            <Badge variant="outline">{item.badge}</Badge>
+            {item.kind === "task" && item.task && <Badge variant="outline" className={cn("capitalize", priorityColors[item.task.priority])}>{item.task.priority}</Badge>}
+            {item.kind === "event" && item.event && <Badge variant="outline" className={cn("capitalize", categoryColors[item.event.category])}>{item.event.category}</Badge>}
+          </div>
+          {item.subtitle && (
+            <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+              <Clock className="h-3 w-3" />
+              {item.subtitle}
+            </p>
+          )}
+          {item.event?.location && (
+            <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+              <MapPin className="h-3 w-3" />
+              {item.event.location}
+            </p>
+          )}
+          {item.event?.attendees && (
+            <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+              <Users className="h-3 w-3" />
+              {item.event.attendees}
+            </p>
+          )}
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-2">{children}</div>
+    </div>
+  )
+}
+
+function DragPreview({ title, kind }: { title: string; kind: "task" | "event" }) {
+  return (
+    <div className="rounded-md border bg-popover px-3 py-2 text-sm text-popover-foreground shadow-lg">
+      <Badge variant="outline" className="mb-1 capitalize">{kind}</Badge>
+      <p className="max-w-56 truncate font-medium">{title}</p>
+    </div>
   )
 }
