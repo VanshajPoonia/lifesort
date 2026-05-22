@@ -17,6 +17,44 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-05-22 05:57 IST - LifeSort Coach Paid OpenRouter Default
+
+- Agent/tool used: Codex (GPT-5 coding agent).
+- Task completed: Switched LifeSort Coach away from the free OpenRouter router by default now that the app can use paid OpenRouter balance.
+
+#### Files Modified
+- `lib/ai-models.ts` - Made paid OpenRouter-backed model aliases the primary selectable models, set GPT Mini Latest as the default, and kept `openrouter/free` only as a fallback option.
+- `AI_TASK_LOG.md` - Recorded the model-default change and verification results.
+
+#### Summary
+- The `/api/chat` route was already correctly wired to OpenRouter through `OPENROUTER_API_KEY`; the limiting behavior was the shared default model pointing at `openrouter/free`.
+- Updated the Coach model list so paid aliases appear first and the default is `~openai/gpt-mini-latest`, a lower-cost paid default suitable for everyday chat.
+- Removed the individual direct free-model entries from the selector to avoid users picking fragile free slugs when paid OpenRouter balance is available.
+- Left `openrouter/free` available as an explicit fallback model in the dropdown.
+
+#### Commands Run
+- `git status --short --branch` - confirmed the branch started clean at `main...origin/main [ahead 1]`.
+- `git diff --check` - passed.
+- `npx tsc --noEmit` - passed.
+- `npm run build` - passed; generated 144 routes including `/ai-chat` and `/api/chat`.
+
+#### Bugs Found Or Fixed
+- Fixed the Coach default still preferring free OpenRouter routing after paid OpenRouter balance became available.
+- Reduced selectable stale-free-model risk by keeping only the OpenRouter free router fallback.
+
+#### Remaining Issues And Limitations
+- This change does not consume a live OpenRouter completion from the sandbox; final verification should be a signed-in chat send after redeploying or restarting the dev server.
+- Other non-chat AI routes may still use older hardcoded free model ids and should be migrated separately if they fail.
+- `npm run lint` remains blocked by the pre-existing missing ESLint flat config.
+
+#### Suggested Next Steps
+- Redeploy or restart the dev server, open `/ai-chat`, and send a signed-in message with the default `GPT Mini Latest` selection.
+- If a higher-quality default is desired, change `DEFAULT_MODEL` to `~openai/gpt-latest`, `~anthropic/claude-sonnet-latest`, or `~google/gemini-pro-latest`.
+
+#### Handoff Notes
+- Keep OpenRouter auth server-only through `OPENROUTER_API_KEY`; do not expose model credentials to the client.
+- The client pulls the default from `/api/chat`, so changing `DEFAULT_MODEL` in `lib/ai-models.ts` is enough to update both the API fallback and the UI default.
+
 ### 2026-05-22 05:53 IST - LifeSort Coach OpenRouter Model Routing Fix
 
 - Agent/tool used: Codex (GPT-5 coding agent).

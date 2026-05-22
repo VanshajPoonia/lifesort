@@ -7,36 +7,6 @@ export interface ModelInfo {
 }
 
 export const AVAILABLE_MODELS: ModelInfo[] = [
-  // ── Free tier ──────────────────────────────────────────────────────────────
-  {
-    id: "openrouter/free",
-    name: "Free AI Router",
-    provider: "OpenRouter",
-    description: "Automatically routes to an available free model",
-    free: true,
-  },
-  {
-    id: "meta-llama/llama-3.3-70b-instruct:free",
-    name: "Llama 3.3 70B",
-    provider: "Meta",
-    description: "Powerful open-source model, free",
-    free: true,
-  },
-  {
-    id: "deepseek/deepseek-r1:free",
-    name: "DeepSeek R1",
-    provider: "DeepSeek",
-    description: "Strong reasoning model, free",
-    free: true,
-  },
-  {
-    id: "mistralai/mistral-small-3.1-24b-instruct:free",
-    name: "Mistral Small 3.1",
-    provider: "Mistral",
-    description: "Efficient European model, free",
-    free: true,
-  },
-
   // ── Paid tier ──────────────────────────────────────────────────────────────
   {
     id: "~openai/gpt-mini-latest",
@@ -73,6 +43,15 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     description: "Anthropic's latest Sonnet model",
     free: false,
   },
+
+  // ── Free fallback ──────────────────────────────────────────────────────────
+  {
+    id: "openrouter/free",
+    name: "Free AI Router",
+    provider: "OpenRouter",
+    description: "Fallback route to an available free OpenRouter model",
+    free: true,
+  },
 ]
 
-export const DEFAULT_MODEL = "openrouter/free"
+export const DEFAULT_MODEL = "~openai/gpt-mini-latest"
