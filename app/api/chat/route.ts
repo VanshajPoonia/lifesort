@@ -218,6 +218,7 @@ ${ACTION_INSTRUCTIONS}`,
         await updateAiUsageEvent(usageEventId, "success")
       },
       onError: async ({ error }) => {
+        console.error("[chat] provider stream failed:", error)
         await updateAiUsageEvent(
           usageEventId,
           "provider_error",
@@ -230,6 +231,7 @@ ${ACTION_INSTRUCTIONS}`,
       onError: () => "The AI provider could not complete the response. Please try again.",
     })
   } catch (error) {
+    console.error("[chat] failed to start AI response:", error)
     await updateAiUsageEvent(
       usageEventId,
       "provider_error",

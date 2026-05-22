@@ -20,12 +20,11 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { AlertCircle, Send, Sparkles, Loader2, Trash2, Bot, Brain, ExternalLink, CheckCircle2 } from "lucide-react"
-import type { ModelInfo } from "@/lib/ai-models"
-
-const DEFAULT_MODEL = "google/gemini-2.0-flash-exp:free"
+import { DEFAULT_MODEL, type ModelInfo } from "@/lib/ai-models"
 
 // Provider colour accents
 const PROVIDER_COLORS: Record<string, string> = {
+  OpenRouter: "bg-slate-500/10 text-slate-700 border-slate-500/20 dark:text-slate-300",
   Google: "bg-blue-500/10 text-blue-700 border-blue-500/20 dark:text-blue-300",
   OpenAI: "bg-green-500/10 text-green-700 border-green-500/20 dark:text-green-300",
   Anthropic: "bg-orange-500/10 text-orange-700 border-orange-500/20 dark:text-orange-300",

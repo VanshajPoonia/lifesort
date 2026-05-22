@@ -9,17 +9,10 @@ export interface ModelInfo {
 export const AVAILABLE_MODELS: ModelInfo[] = [
   // ── Free tier ──────────────────────────────────────────────────────────────
   {
-    id: "google/gemini-2.5-flash-preview:free",
-    name: "Gemini 2.5 Flash",
-    provider: "Google",
-    description: "Google's latest fast model, free",
-    free: true,
-  },
-  {
-    id: "google/gemini-2.0-flash-exp:free",
-    name: "Gemini 2.0 Flash",
-    provider: "Google",
-    description: "Fast, free, great for everyday tasks",
+    id: "openrouter/free",
+    name: "Free AI Router",
+    provider: "OpenRouter",
+    description: "Automatically routes to an available free model",
     free: true,
   },
   {
@@ -46,47 +39,40 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
 
   // ── Paid tier ──────────────────────────────────────────────────────────────
   {
-    id: "openai/gpt-4o-mini",
-    name: "GPT-4o Mini",
+    id: "~openai/gpt-mini-latest",
+    name: "GPT Mini Latest",
     provider: "OpenAI",
-    description: "Fast and capable, great balance",
+    description: "OpenAI's latest compact chat model",
     free: false,
   },
   {
-    id: "openai/gpt-5",
-    name: "GPT-5",
+    id: "~openai/gpt-latest",
+    name: "GPT Latest",
     provider: "OpenAI",
-    description: "OpenAI's most advanced model",
+    description: "OpenAI's latest flagship chat model",
     free: false,
   },
   {
-    id: "google/gemini-2.5-pro-preview",
-    name: "Gemini 2.5 Pro",
+    id: "~google/gemini-flash-latest",
+    name: "Gemini Flash Latest",
     provider: "Google",
-    description: "Google's most capable model",
+    description: "Google's latest fast Gemini Flash model",
     free: false,
   },
   {
-    id: "anthropic/claude-3.5-haiku",
-    name: "Claude 3.5 Haiku",
-    provider: "Anthropic",
-    description: "Fast and smart, great for analysis",
+    id: "~google/gemini-pro-latest",
+    name: "Gemini Pro Latest",
+    provider: "Google",
+    description: "Google's latest high-capability Gemini Pro model",
     free: false,
   },
   {
-    id: "anthropic/claude-sonnet-4-5",
-    name: "Claude Sonnet 4.5",
+    id: "~anthropic/claude-sonnet-latest",
+    name: "Claude Sonnet Latest",
     provider: "Anthropic",
-    description: "Highly capable, strong reasoning",
-    free: false,
-  },
-  {
-    id: "anthropic/claude-opus-4-5",
-    name: "Claude Opus 4.5",
-    provider: "Anthropic",
-    description: "Anthropic's most powerful model",
+    description: "Anthropic's latest Sonnet model",
     free: false,
   },
 ]
 
-export const DEFAULT_MODEL = "google/gemini-2.0-flash-exp:free"
+export const DEFAULT_MODEL = "openrouter/free"

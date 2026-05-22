@@ -17,6 +17,55 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-05-22 05:53 IST - LifeSort Coach OpenRouter Model Routing Fix
+
+- Agent/tool used: Codex (GPT-5 coding agent).
+- Task completed: Fixed LifeSort Coach default model routing after the chat UI showed the generic provider failure when sending a message.
+
+#### Files Modified
+- `lib/ai-models.ts` - Replaced stale/volatile default OpenRouter model ids with the stable `openrouter/free` router and current OpenRouter latest-model aliases.
+- `app/ai-chat/page.tsx` - Imported the shared `DEFAULT_MODEL` instead of duplicating an outdated client-side default and added the OpenRouter provider badge styling.
+- `app/api/chat/route.ts` - Added server-side provider error logging for chat stream failures without logging prompts or secrets.
+- `AI_TASK_LOG.md` - Recorded the investigation, fix, and verification results.
+
+#### Summary
+- The UI error matched the `/api/chat` stream fallback: `The AI provider could not complete the response. Please try again.`
+- Local `.env.local` contains `OPENROUTER_API_KEY`, so this was not the missing-key path.
+- The chat selector still defaulted to `google/gemini-2.0-flash-exp:free`, a brittle experimental model id. OpenRouter now documents `openrouter/free` as the stable free router that chooses an available free model.
+- The Coach now defaults to `openrouter/free`, keeps a few known free direct models, and uses OpenRouter `~...latest` aliases for paid model families to reduce future stale-id failures.
+- Added `console.error` logging in `/api/chat` provider failure paths so future production/runtime logs include the actual provider error while preserving user-content privacy.
+
+#### Commands Run
+- `git status --short --branch` - branch started clean at `main...origin/main`.
+- `rg`/`sed` inspections - traced `/api/chat`, `/api/chat/context`, `app/ai-chat/page.tsx`, and `lib/ai-models.ts`.
+- `OPENROUTER_API_KEY` presence check against `.env.local` - key name/value presence confirmed without printing the secret.
+- OpenRouter public docs/model checks - confirmed `openrouter/free` is the documented stable free router and OpenRouter exposes latest-model router aliases.
+- Direct shell/API provider smoke - blocked by sandbox DNS (`curl: (6) Could not resolve host: openrouter.ai`), so no live chat completion was consumed.
+- `npx tsc --noEmit` - passed.
+- `git diff --check` - passed.
+- `npm run lint` - failed with the known existing ESLint 10 blocker: no `eslint.config.(js|mjs|cjs)` file exists.
+- `npm run build` - passed; generated 144 routes including `/ai-chat` and `/api/chat`.
+
+#### Bugs Found Or Fixed
+- Fixed the stale duplicated chat default model that could keep the UI pinned to an outdated OpenRouter Gemini experimental free model.
+- Reduced future model churn by using OpenRouter router aliases for the default free route and paid provider families.
+- Added missing provider-error logging for the streaming route, making the next provider-side failure diagnosable from runtime logs.
+
+#### Remaining Issues And Limitations
+- A signed-in end-to-end chat send against OpenRouter could not be completed from this sandbox because shell DNS resolution to `openrouter.ai` failed intermittently.
+- `npm run lint` remains blocked by the pre-existing missing ESLint flat config.
+- Other non-chat AI routes still use hardcoded `google/gemini-2.0-flash-exp:free` constants and may need the same routing cleanup if those surfaces fail.
+
+#### Suggested Next Steps
+- Redeploy or restart the dev server, open `/ai-chat`, and test a signed-in message using `Free AI Router`.
+- If other AI features show provider errors, centralize the OpenRouter default model constant and migrate those routes off the old Gemini experimental free id.
+- Add an ESLint flat config so source linting can run normally.
+
+#### Handoff Notes
+- Keep `/api/chat` using server-side OpenRouter auth through `OPENROUTER_API_KEY`; do not expose the key to the client.
+- The current fix is chat-scoped and does not change the preview/confirm safety model for AI-generated task drafts.
+- The new logs intentionally include only provider errors, not user prompts, LifeSort context, cookies, or secrets.
+
 ### 2026-05-20 20:47 IST - Money Navigation, Today Ordering, And Discovery Fixes
 
 - Agent/tool used: Codex (GPT-5 coding agent).
