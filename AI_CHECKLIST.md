@@ -243,8 +243,10 @@ AI route env notes:
 3. `/api/templates/apply` must require auth and re-validate the full template body before creating records.
 4. Generated templates may create Spaces, Custom Sections, tasks, notes, habits, links, optional Whiteboard, and optional budget categories; do not create unrelated apps or agent flows.
 5. Space links are v1-limited to item types allowed by `space_items`: notes, whiteboards, tasks, links, and custom sections.
-6. Recent generated/applied template history is localStorage-only; do not add a persistent templates table unless a future task explicitly asks for it.
-7. Missing Spaces or Whiteboard migrations should fail gracefully and must be documented rather than worked around by changing schemas ad hoc.
+6. Generated templates persist only after the user explicitly clicks "Save to My Templates"; same-session recent history may use `sessionStorage` but must not be treated as durable storage.
+7. User-created Templates use `user_templates`; add/update the forward migration plus `scripts/schema.sql` and `scripts/fresh-install.sql` when changing that shape.
+8. `/api/user-templates/[id]/use` must require auth, validate ownership, re-validate stored item JSON, and only run after a client preview/confirmation step.
+9. Missing Spaces, Whiteboard, or user_templates migrations should fail gracefully and must be documented rather than worked around by changing schemas ad hoc.
 
 OAuth token encryption env notes:
 

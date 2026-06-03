@@ -17,6 +17,65 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-06-03 20:37 IST - User-Created Templates Persistence
+
+- Agent/tool used: Codex (GPT-5 coding agent).
+- Task completed: Implemented the Part 4 Templates work: persistent user-created templates, My Templates tab, builder/edit flow, preset forking, AI Builder save-to-DB action, authenticated user-template APIs, schema migration docs, and AI memory updates.
+
+#### Files Modified
+- `app/templates/page.tsx` - Added Library/My Templates/AI Builder tabs, My Templates grid, static preset "Customize", sortable builder dialog, user-template preview/use confirmation, AI "Save to My Templates", and session-only AI recent history.
+- `app/api/user-templates/route.ts` - Added authenticated GET/POST for listing and creating user-owned templates.
+- `app/api/user-templates/[id]/route.ts` - Added authenticated user-owned PUT/DELETE for editing and deleting templates.
+- `app/api/user-templates/[id]/use/route.ts` - Added authenticated preview-confirmed template application endpoint that validates ownership and stored item JSON before creating records.
+- `lib/user-templates.ts` - Added Zod schemas, shared types, item-count summaries, and mappers for preset/AI templates into persisted user-template items.
+- `lib/user-template-apply.ts` - Added server-side item application helper for Spaces, projects, tasks, goals, habits, notes, links, custom sections, whiteboards, budget categories, and Vault items.
+- `scripts/migrations/2026-06-03-user-templates.sql` - Added forward migration for `user_templates`.
+- `scripts/schema.sql` and `scripts/fresh-install.sql` - Mirrored the `user_templates` table and indexes for fresh installs.
+- `AI_PROJECT.md`, `AI_DECISIONS.md`, and `AI_CHECKLIST.md` - Updated product, architecture, and verification docs for My Templates persistence and session-only AI history.
+- `AI_TASK_LOG.md` - Recorded this work and verification results.
+
+#### Summary
+- `/templates` now has three tabs: Library, My Templates, and AI Builder.
+- My Templates are stored in `user_templates` as user-owned JSONB item definitions with `source = manual | ai | forked`, `forked_from`, and `last_used_at`.
+- Users can create/edit/delete templates in a sortable builder using the existing shared `SortableList` / `@dnd-kit` pattern.
+- Static preset templates now include "Customize", which forks the preset into My Templates and opens it for editing.
+- User templates always show a preview and require the user to click "Create this system" before `/api/user-templates/[id]/use` writes any records.
+- AI Builder still requires explicit confirmation to apply generated systems through `/api/templates/apply`; generated previews can now also be explicitly saved to My Templates with source `ai`.
+- AI recent history was changed from durable `localStorage` to same-session `sessionStorage`; persistent storage is now the database-backed My Templates flow.
+- The product prompt sketched `user_id INTEGER`, but LifeSort's canonical `users.id` is `VARCHAR(255)`, so `user_templates.user_id` follows the existing schema convention to avoid ID-type drift.
+
+#### Commands Run
+- `git status --short --branch` - started on `main...origin/main [ahead 4]` with a clean worktree; final dirty files are scoped to Templates/docs/schema before commit.
+- `git diff --stat` - reviewed tracked source/docs diff; untracked new API/lib/migration files were also present and scoped to this task.
+- `git diff --check` - passed.
+- `npx tsc --noEmit` - passed before and after the final polish pass.
+- `npm run lint` - failed with the known existing ESLint 10 blocker: no `eslint.config.(js|mjs|cjs)` file exists.
+- `npm run build` - passed; generated 147 routes including `/templates`, `/api/user-templates`, `/api/user-templates/[id]`, and `/api/user-templates/[id]/use`.
+- HTTP page smoke via GET `curl` - `/templates`, `/templates?mode=my`, and `/templates?mode=ai` returned 200.
+- HTTP API smoke via `curl` - unauthenticated `GET /api/user-templates` returned 401; unauthenticated `POST /api/user-templates/test/use` returned 401. Bare `GET /api/user-templates/test` returned 405 because that route intentionally supports PUT/DELETE only.
+
+#### Bugs Found Or Fixed
+- Fixed the data-loss risk where AI Builder history was treated as permanent localStorage-backed storage.
+- Fixed the absence of user-editable template persistence by adding a real user-owned table/API.
+- Preserved explicit-confirmation safety for all template writes.
+
+#### Remaining Issues And Limitations
+- `npm run lint` remains blocked by the pre-existing missing ESLint flat config.
+- The migration was written and documented but not run against any database.
+- Authenticated browser QA for create/edit/delete/use, preset customize, AI save-to-My-Templates, and mobile overflow was not completed in a signed-in browser session.
+- Environments need `scripts/migrations/2026-06-03-user-templates.sql` applied before My Templates can persist; the page shows a migration-required empty state when the table is missing for authenticated users.
+
+#### Suggested Next Steps
+- Apply `scripts/migrations/2026-06-03-user-templates.sql` to the intended database after confirming the target environment.
+- In a signed-in browser session, verify adding, editing, deleting, reordering, using a user template, customizing a preset, and saving an AI-generated template to My Templates.
+- Continue the product-improvement stack with the next requested priority after Templates.
+
+#### Handoff Notes
+- Keep static preset definitions in `lib/templates.ts`; user-created/forked/AI-saved templates belong in `user_templates`.
+- Keep AI Builder generation preview-only; saving to My Templates and applying generated systems are both explicit user actions.
+- Do not treat `sessionStorage` AI history as durable storage.
+- Do not run the user-template migration until the target database/environment is explicitly confirmed.
+
 ### 2026-06-03 20:16 IST - Money Dashboard And Finance Preferences
 
 - Agent/tool used: Codex (GPT-5 coding agent).
