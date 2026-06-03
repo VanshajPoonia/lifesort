@@ -214,22 +214,21 @@ const IGNORING_SOURCE_LABELS: Record<IgnoringSignalSource, string> = {
   finance: "Finance Review",
 }
 
-type ReflectTab = "weekly-review" | "life-balance" | "ignored-signals" | "journal" | "timeline" | "lifescore" | "reset"
+type ReflectTab = "lifescore" | "life-balance" | "timeline" | "ignored-signals" | "weekly-review" | "journal"
 
 const reflectTabs: Array<{ value: ReflectTab; label: string }> = [
-  { value: "weekly-review", label: "Weekly Review" },
-  { value: "life-balance", label: "Life Balance" },
-  { value: "ignored-signals", label: "Ignored Signals" },
-  { value: "journal", label: "Journal" },
-  { value: "timeline", label: "Timeline" },
   { value: "lifescore", label: "LifeScore" },
-  { value: "reset", label: "Reset" },
+  { value: "life-balance", label: "Life Balance" },
+  { value: "timeline", label: "Timeline" },
+  { value: "ignored-signals", label: "Ignored Signals" },
+  { value: "weekly-review", label: "Weekly Review" },
+  { value: "journal", label: "Journal" },
 ]
 
 function normalizeReflectTab(value: string | null): ReflectTab {
-  return value === "weekly-review" || value === "ignored-signals" || value === "journal" || value === "timeline" || value === "lifescore" || value === "reset"
+  return value === "weekly-review" || value === "ignored-signals" || value === "journal" || value === "timeline" || value === "life-balance" || value === "lifescore"
     ? value
-    : "life-balance"
+    : "lifescore"
 }
 
 function getReflectHubCards(currentHref: "/reflect" | "/insights") {
@@ -326,7 +325,7 @@ function ReflectExperience() {
   const compatibility = pathname.startsWith("/insights")
   const routeTitle = compatibility ? "Insights" : "Reflect"
   const routeHref = compatibility ? "/insights" : "/reflect"
-  const [activeReflectTab, setActiveReflectTab] = useState<ReflectTab>("life-balance")
+  const [activeReflectTab, setActiveReflectTab] = useState<ReflectTab>("lifescore")
   const [metrics, setMetrics] = useState<LifeBalanceMetrics | null>(null)
   const [analysis, setAnalysis] = useState<AiLifeBalanceResult | null>(null)
   const [ignoringInsights, setIgnoringInsights] = useState<IgnoringInsightsData | null>(null)
@@ -705,16 +704,6 @@ function ReflectExperience() {
             description="See the explainable organization signal on Home."
             href="/"
             action="Open Home"
-          />
-        )}
-
-        {activeReflectTab === "reset" && (
-          <ReflectLinkPanel
-            icon={<ShieldAlert className="h-5 w-5 text-primary" />}
-            title="Reset My Life"
-            description="Triage stale, overdue, and overwhelming items safely."
-            href="/reset"
-            action="Open Reset"
           />
         )}
 
@@ -1130,6 +1119,21 @@ function ReflectExperience() {
             </CardContent>
           </Card>
         )}
+
+        <Card className="surface-card section-enter border-destructive/20 bg-destructive/5">
+          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between md:p-5">
+            <div>
+              <p className="text-sm font-medium">Feeling overwhelmed?</p>
+              <p className="text-sm text-muted-foreground">Use Reset when stale and overdue items need emergency triage.</p>
+            </div>
+            <Button asChild variant="outline" className="gap-2 border-destructive/30 bg-background/80 text-destructive hover:bg-destructive/10 hover:text-destructive">
+              <a href="/reset">
+                <ShieldAlert className="h-4 w-4" />
+                Feeling overwhelmed? -&gt; Reset My Life
+              </a>
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </DashboardLayout>
   )

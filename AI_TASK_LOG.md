@@ -17,6 +17,54 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-06-03 18:51 IST - Workspace And Reflect Navigation Polish
+
+- Agent/tool used: Codex (GPT-5 coding agent).
+- Task completed: Renamed Workspace tab labels for clearer user-facing navigation and reordered Reflect tabs so LifeScore is first while Reset is a standalone emergency CTA.
+
+#### Files Modified
+- `app/workspace/page.tsx` - Updated only the visible Workspace tab labels; tab values and URL behavior are unchanged.
+- `app/insights/page.tsx` - Reordered Reflect tabs, made LifeScore the default tab, removed Reset from the tab model, and added a bottom Reset CTA.
+- `AI_PROJECT.md` - Updated product scope language for the new Workspace labels and Reflect tab/Reset CTA behavior.
+- `AI_DECISIONS.md` - Recorded the current Workspace label set and Reflect tab architecture.
+- `AI_CHECKLIST.md` - Refreshed navigation checklist references that still used the old Workspace tab names.
+- `AI_TASK_LOG.md` - Recorded this work and verification results.
+
+#### Summary
+- Workspace still uses `?tab=plan|capture|visual|systems|follow-ups`; only the labels changed to Tasks & Goals, Inbox & Ideas, Boards & Spaces, Templates & Routines, and Waiting & Commitments.
+- Reflect now defaults to LifeScore and orders tabs as LifeScore, Life Balance, Timeline, Ignored Signals, Weekly Review, and Journal.
+- Reset My Life is no longer a Reflect tab. It remains reachable from the bottom CTA text `Feeling overwhelmed? -> Reset My Life` and from existing navigation/card links.
+- `/reflect` and compatibility `/insights` still share the existing Reflect implementation.
+- No database schema, API routes, env vars, dependencies, Money, Journal page, or Templates changes were made.
+
+#### Commands Run
+- `git status --short --branch` - started at `main...origin/main [ahead 1]` with no dirty files; final dirty files are scoped to this navigation/docs change before commit.
+- `git diff --stat` - reviewed the source/docs diff.
+- `git diff --check` - passed.
+- `npx tsc --noEmit` - passed.
+- `npm run lint` - failed with the known existing ESLint 10 blocker: no `eslint.config.(js|mjs|cjs)` file exists.
+- `npm run build` - passed; generated 144 routes including `/workspace`, `/reflect`, `/insights`, and `/reset`.
+- HTTP smoke via individual `curl` commands - `/workspace`, `/workspace?tab=plan`, `/workspace?tab=capture`, `/reflect`, `/reflect?tab=lifescore`, `/reflect?tab=life-balance`, `/reflect?tab=timeline`, `/reflect?tab=ignored-signals`, `/reflect?tab=weekly-review`, `/reflect?tab=journal`, `/insights`, and `/reset` all returned 200.
+
+#### Bugs Found Or Fixed
+- Fixed Reflect treating Reset as a review tab instead of an emergency action.
+- Fixed Reflect's default/first tab so LifeScore is the visible summary entry point.
+- Improved Workspace tab labels without changing the underlying navigation contract.
+
+#### Remaining Issues And Limitations
+- `npm run lint` remains blocked by the pre-existing missing ESLint flat config.
+- Browser automation was not available (`agent-browser` CLI was not installed/exposed), so visual/mobile checks for tab scrolling and the Reset CTA still need manual browser QA.
+- Old `?tab=reset` links now fall back to LifeScore; direct Reset access remains `/reset`.
+
+#### Suggested Next Steps
+- In a signed-in browser session, verify Workspace tab labels, Reflect tab switching, the bottom Reset CTA, and mobile horizontal tab scrolling.
+- Continue the product-improvement stack with the next requested priority item after Part 1 navigation.
+
+#### Handoff Notes
+- Keep Workspace tab values stable even though labels are more descriptive; compatibility redirects and stored links depend on the existing values.
+- Keep Reset as a standalone emergency route/CTA, not a Reflect review tab.
+- The Journal digest tab remains in Reflect by user choice and should not be removed unless a future task explicitly changes that IA.
+
 ### 2026-06-03 18:37 IST - Money Routes Consolidated Into Tabs
 
 - Agent/tool used: Codex (GPT-5 coding agent).

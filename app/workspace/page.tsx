@@ -299,11 +299,11 @@ export default function WorkspacePage() {
 
         <Tabs value={activeTab} onValueChange={changeTab} className="space-y-4">
           <TabsList className="flex w-full justify-start overflow-x-auto rounded-lg bg-muted/70 p-1 sm:inline-flex sm:w-auto">
-            <TabsTrigger value="plan" className="min-w-24 flex-1 sm:flex-none">Plan</TabsTrigger>
-            <TabsTrigger value="capture" className="min-w-24 flex-1 sm:flex-none">Capture</TabsTrigger>
-            <TabsTrigger value="visual" className="min-w-24 flex-1 sm:flex-none">Visual</TabsTrigger>
-            <TabsTrigger value="systems" className="min-w-24 flex-1 sm:flex-none">Systems</TabsTrigger>
-            <TabsTrigger value="follow-ups" className="min-w-32 flex-1 sm:flex-none">Follow-ups</TabsTrigger>
+            <TabsTrigger value="plan" className="min-w-max flex-1 sm:flex-none">Tasks & Goals</TabsTrigger>
+            <TabsTrigger value="capture" className="min-w-max flex-1 sm:flex-none">Inbox & Ideas</TabsTrigger>
+            <TabsTrigger value="visual" className="min-w-max flex-1 sm:flex-none">Boards & Spaces</TabsTrigger>
+            <TabsTrigger value="systems" className="min-w-max flex-1 sm:flex-none">Templates & Routines</TabsTrigger>
+            <TabsTrigger value="follow-ups" className="min-w-max flex-1 sm:flex-none">Waiting & Commitments</TabsTrigger>
           </TabsList>
 
           {(["plan", "capture", "visual", "systems", "follow-ups"] as WorkspaceTab[]).map((tab) => (

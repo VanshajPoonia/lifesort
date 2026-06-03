@@ -140,7 +140,7 @@ Run after changes to `DashboardLayout`, command/search/capture UI, Home preferen
 2. Keep the primary sidebar focused but discoverable: Home, Today, Journal, Workspace, Whiteboard, Money, Reflect, Coach, Settings, and admin-only Admin.
 3. Keep Home short and attention-focused; do not re-add full module dashboards there when a hub or deep feature route already owns the workflow.
 4. Keep Today as the primary daily focus surface, with focus/due/suggested items unified into Must/Should/Could priority filters.
-5. Preserve compatibility routes: `/organize` should lead to Workspace, `/plan` should lead to Workspace > Plan, `/life-admin` should lead to Workspace > Systems, `/capture` remains the Universal Capture feature page, and `/insights` remains a Reflect compatibility feature route.
+5. Preserve compatibility routes: `/organize` should lead to Workspace, `/plan` should lead to Workspace > Tasks & Goals, `/life-admin` should lead to Workspace > Templates & Routines, `/capture` remains the Universal Capture feature page, and `/insights` remains a Reflect compatibility feature route.
 6. Keep Quick Add, Global Search, notifications, profile/settings, and sign-out reachable from the shared layout.
 7. Keep mobile navigation compact: Home, Today, Workspace, Money, and More. More should include Journal, Whiteboard, LifeSort Coach, Reflect, Settings/Profile, Support/FAQs, and admin-only Admin.
 8. Keep hub summary endpoints read-only, authenticated, user-scoped, and missing-schema tolerant.
@@ -304,7 +304,7 @@ Database scripts:
 3. Verify Spaces link existing notes, whiteboards, tasks, projects, links, and custom sections without duplicating or deleting source records.
 4. Verify creating inside a Space creates the normal source record first and then adds a `space_items` link.
 5. Verify deleted or inaccessible linked items render gracefully as unavailable in the Space detail page.
-6. Verify `/spaces` and `/spaces/[id]` highlight Workspace and Workspace > Visual links to Spaces.
+6. Verify `/spaces` and `/spaces/[id]` highlight Workspace and Workspace > Boards & Spaces links to Spaces.
 
 ## Current Command Behavior
 
