@@ -117,10 +117,68 @@ export async function GET(request: Request) {
     const income = monthlyStats.find(s => s.type === 'income')?.total || 0
     const expenses = monthlyStats.find(s => s.type === 'expense')?.total || 0
 
+    const cashFlowRows = await sql`
+      SELECT
+        TO_CHAR(months.month, 'YYYY-MM') AS month_key,
+        TO_CHAR(months.month, 'Mon YYYY') AS label,
+        COALESCE(SUM(CASE WHEN bt.type = 'income' THEN bt.amount ELSE 0 END), 0) AS income,
+        COALESCE(SUM(CASE WHEN bt.type = 'expense' THEN bt.amount ELSE 0 END), 0) AS expenses
+      FROM generate_series(
+        date_trunc('month', CURRENT_DATE) - INTERVAL '5 months',
+        date_trunc('month', CURRENT_DATE),
+        INTERVAL '1 month'
+      ) AS months(month)
+      LEFT JOIN budget_transactions bt
+        ON bt.user_id = ${user.id}
+        AND bt.date >= months.month
+        AND bt.date < months.month + INTERVAL '1 month'
+      GROUP BY months.month
+      ORDER BY months.month ASC
+    `
+
+    const categoryUsage = await sql`
+      SELECT
+        c.id,
+        c.name,
+        c.color,
+        c.icon,
+        c.budget_limit,
+        COALESCE(SUM(CASE WHEN t.type = 'expense' THEN t.amount ELSE 0 END), 0) AS spent
+      FROM budget_categories c
+      LEFT JOIN budget_transactions t
+        ON t.category_id = c.id
+        AND t.user_id = ${user.id}
+        AND EXTRACT(MONTH FROM t.date) = ${currentMonth}
+        AND EXTRACT(YEAR FROM t.date) = ${currentYear}
+      WHERE c.user_id = ${user.id}
+      GROUP BY c.id
+      ORDER BY c.name ASC
+    `
+
     return NextResponse.json({
       categories,
       transactions,
       goals,
+      cash_flow: cashFlowRows.map((row) => ({
+        month: row.month_key,
+        label: row.label,
+        income: parseFloat(row.income || 0),
+        expenses: parseFloat(row.expenses || 0),
+      })),
+      category_usage: categoryUsage.map((row) => {
+        const limit = parseFloat(row.budget_limit || 0)
+        const spent = parseFloat(row.spent || 0)
+        return {
+          id: row.id,
+          name: row.name,
+          color: row.color,
+          icon: row.icon,
+          budget_limit: limit,
+          spent,
+          percent_used: limit > 0 ? (spent / limit) * 100 : 0,
+          remaining: Math.max(0, limit - spent),
+        }
+      }),
       summary: {
         income: parseFloat(income),
         expenses: parseFloat(expenses),
@@ -168,11 +226,40 @@ export async function POST(request: Request) {
     }
 
     if (type === "goal") {
-      const result = await sql`
-        INSERT INTO budget_goals (user_id, name, target_amount, current_amount, deadline, category_id)
-        VALUES (${user.id}, ${data.name}, ${data.target_amount}, ${data.current_amount || 0}, ${data.deadline || null}, ${data.category_id || null})
-        RETURNING *
-      `
+      const wishlistItemId = data.wishlist_item_id ? Number.parseInt(String(data.wishlist_item_id), 10) : null
+      if (wishlistItemId) {
+        const wishlistRows = await sql`
+          SELECT id
+          FROM wishlist_items
+          WHERE id = ${wishlistItemId} AND user_id = ${user.id}
+          LIMIT 1
+        `
+        if (wishlistRows.length === 0) {
+          return NextResponse.json({ error: "Wishlist item not found" }, { status: 404 })
+        }
+
+        const existingGoal = await sql`
+          SELECT id
+          FROM budget_goals
+          WHERE user_id = ${user.id} AND wishlist_item_id = ${wishlistItemId}
+          LIMIT 1
+        `
+        if (existingGoal.length > 0) {
+          return NextResponse.json({ error: "A savings goal already exists for this wishlist item", existing_goal_id: existingGoal[0].id }, { status: 409 })
+        }
+      }
+
+      const result = wishlistItemId
+        ? await sql`
+            INSERT INTO budget_goals (user_id, name, target_amount, current_amount, deadline, category_id, wishlist_item_id)
+            VALUES (${user.id}, ${data.name}, ${data.target_amount}, ${data.current_amount || 0}, ${data.deadline || null}, ${data.category_id || null}, ${wishlistItemId})
+            RETURNING *
+          `
+        : await sql`
+            INSERT INTO budget_goals (user_id, name, target_amount, current_amount, deadline, category_id)
+            VALUES (${user.id}, ${data.name}, ${data.target_amount}, ${data.current_amount || 0}, ${data.deadline || null}, ${data.category_id || null})
+            RETURNING *
+          `
       return NextResponse.json({ goal: result[0] })
     }
 

@@ -17,6 +17,7 @@ import { LifeAreaBadge, LifeAreaSelect } from "@/components/life-area-controls"
 import type { LifeArea } from "@/lib/life-areas"
 import { normalizeLifeArea } from "@/lib/life-areas"
 import type { CategoryChartItem, PieChartItem } from "@/app/budget/charts"
+import { formatCurrency } from "@/lib/currency"
 import {
   Empty,
   EmptyContent,
@@ -51,12 +52,12 @@ import {
 // Charts are dynamically imported so recharts is never loaded on the server.
 const ChartSkeleton = () => <div className="h-56 animate-pulse rounded-lg bg-muted" />
 
-const SpendingBarChart = dynamic<{ data: CategoryChartItem[] }>(
+const SpendingBarChart = dynamic<{ data: CategoryChartItem[]; currency?: string }>(
   () => import("@/app/budget/charts").then((m) => m.SpendingBarChart),
   { ssr: false, loading: ChartSkeleton }
 )
 
-const ExpensePieChart = dynamic<{ data: PieChartItem[] }>(
+const ExpensePieChart = dynamic<{ data: PieChartItem[]; currency?: string }>(
   () => import("@/app/budget/charts").then((m) => m.ExpensePieChart),
   { ssr: false, loading: ChartSkeleton }
 )
@@ -144,10 +145,6 @@ const COLOR_OPTIONS = [
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-function fmt(n: number) {
-  return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
-
 function toMonthly(src: IncomeSource): number {
   if (!src.active) return 0
   switch (src.frequency) {
@@ -162,7 +159,8 @@ function toMonthly(src: IncomeSource): number {
 
 // ── Page ───────────────────────────────────────────────────────────────────────
 
-export function BudgetPanel() {
+export function BudgetPanel({ preferredCurrency = "USD" }: { preferredCurrency?: string }) {
+  const money = (value: number) => formatCurrency(value, preferredCurrency)
   const [categories, setCategories] = useState<Category[]>([])
   const [lifeAreas, setLifeAreas] = useState<LifeArea[]>([])
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -492,12 +490,12 @@ export function BudgetPanel() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-success">${fmt(monthlyIncome)}</div>
+            <div className="text-3xl font-bold text-success">{money(monthlyIncome)}</div>
             <p className="mt-1 text-xs text-muted-foreground">
               From {incomeSources.filter(s => s.active).length} active source{incomeSources.filter(s => s.active).length !== 1 ? "s" : ""}
             </p>
             {summary.income > 0 && (
-              <p className="mt-2 text-xs text-success">+${fmt(summary.income)} recorded this month</p>
+              <p className="mt-2 text-xs text-success">+{money(summary.income)} recorded this month</p>
             )}
           </CardContent>
         </Card>
@@ -510,7 +508,7 @@ export function BudgetPanel() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-destructive">${fmt(summary.expenses)}</div>
+            <div className="text-3xl font-bold text-destructive">{money(summary.expenses)}</div>
             <p className="mt-1 text-xs text-muted-foreground">This month's tracked spending</p>
             {monthlyIncome > 0 && (
               <div className="mt-3">
@@ -533,7 +531,7 @@ export function BudgetPanel() {
           </CardHeader>
           <CardContent>
             <div className={`text-3xl font-bold ${monthlySurplus >= 0 ? "text-success" : "text-destructive"}`}>
-              {monthlySurplus >= 0 ? "" : "-"}${fmt(Math.abs(monthlySurplus))}
+              {monthlySurplus >= 0 ? "" : "-"}{money(Math.abs(monthlySurplus))}
             </div>
             <p className="mt-1 text-xs text-muted-foreground">Income minus expenses</p>
             <div className="mt-3 grid grid-cols-2 gap-2 border-t border-blue-500/20 pt-3">
@@ -543,7 +541,7 @@ export function BudgetPanel() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Daily budget</p>
-                <p className="text-sm font-medium">${monthlySurplus > 0 ? (monthlySurplus / 30).toFixed(2) : "0.00"}</p>
+                <p className="text-sm font-medium">{money(monthlySurplus > 0 ? monthlySurplus / 30 : 0)}</p>
               </div>
             </div>
           </CardContent>
@@ -558,11 +556,11 @@ export function BudgetPanel() {
             <TrendingUp className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl font-bold">${fmt(investmentsTotal)}</div>
+            <div className="text-xl font-bold">{money(investmentsTotal)}</div>
             <p className="text-xs text-muted-foreground">{investments.length} position{investments.length !== 1 ? "s" : ""}</p>
             {investmentsCost > 0 && (
               <p className={`mt-1 text-xs font-medium ${investmentsTotal >= investmentsCost ? "text-success" : "text-destructive"}`}>
-                {investmentsTotal >= investmentsCost ? "+" : ""}${fmt(investmentsTotal - investmentsCost)} vs cost
+                {investmentsTotal >= investmentsCost ? "+" : ""}{money(investmentsTotal - investmentsCost)} vs cost
               </p>
             )}
           </CardContent>
@@ -574,7 +572,7 @@ export function BudgetPanel() {
             <Heart className="h-4 w-4 text-pink-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl font-bold">${fmt(wishlistTotal)}</div>
+            <div className="text-xl font-bold">{money(wishlistTotal)}</div>
             <p className="text-xs text-muted-foreground">
               {wishlistItems.filter(i => !i.purchased).length} item{wishlistItems.filter(i => !i.purchased).length !== 1 ? "s" : ""} pending
             </p>
@@ -591,7 +589,7 @@ export function BudgetPanel() {
           </CardHeader>
           <CardContent>
             <div className="text-xl font-bold">{goals.length}</div>
-            <p className="text-xs text-muted-foreground">${fmt(goalsSaved)} saved toward goals</p>
+            <p className="text-xs text-muted-foreground">{money(goalsSaved)} saved toward goals</p>
           </CardContent>
         </Card>
 
@@ -602,7 +600,7 @@ export function BudgetPanel() {
           </CardHeader>
           <CardContent>
             <div className={`text-xl font-bold ${netWorth >= 0 ? "text-primary" : "text-destructive"}`}>
-              {netWorth >= 0 ? "" : "-"}${fmt(Math.abs(netWorth))}
+              {netWorth >= 0 ? "" : "-"}{money(Math.abs(netWorth))}
             </div>
             <p className="text-xs text-muted-foreground">Investments + savings − wishlist</p>
           </CardContent>
@@ -703,7 +701,7 @@ export function BudgetPanel() {
                     </EmptyHeader>
                   </Empty>
                 ) : (
-                  <SpendingBarChart data={categoryChartData} />
+                  <SpendingBarChart data={categoryChartData} currency={preferredCurrency} />
                 )}
               </CardContent>
             </Card>
@@ -724,7 +722,7 @@ export function BudgetPanel() {
                     </EmptyHeader>
                   </Empty>
                 ) : (
-                  <ExpensePieChart data={expensePieData} />
+                  <ExpensePieChart data={expensePieData} currency={preferredCurrency} />
                 )}
               </CardContent>
             </Card>
@@ -741,14 +739,14 @@ export function BudgetPanel() {
                 <div>
                   <div className="mb-1 flex justify-between text-sm">
                     <span className="text-muted-foreground">Income</span>
-                    <span className="font-medium text-success">${fmt(monthlyIncome)}</span>
+                    <span className="font-medium text-success">{money(monthlyIncome)}</span>
                   </div>
                   <Progress value={100} className="h-3 [&>div]:bg-success" />
                 </div>
                 <div>
                   <div className="mb-1 flex justify-between text-sm">
                     <span className="text-muted-foreground">Expenses</span>
-                    <span className="font-medium text-destructive">${fmt(summary.expenses)}</span>
+                    <span className="font-medium text-destructive">{money(summary.expenses)}</span>
                   </div>
                   <Progress
                     value={monthlyIncome > 0 ? Math.min(100, (summary.expenses / monthlyIncome) * 100) : 0}
@@ -759,7 +757,7 @@ export function BudgetPanel() {
                   <div className="mb-1 flex justify-between text-sm">
                     <span className="text-muted-foreground">Surplus</span>
                     <span className={`font-medium ${monthlySurplus >= 0 ? "text-primary" : "text-destructive"}`}>
-                      ${fmt(Math.max(0, monthlySurplus))}
+                      {money(Math.max(0, monthlySurplus))}
                     </span>
                   </div>
                   <Progress
@@ -812,7 +810,7 @@ export function BudgetPanel() {
                       </div>
                       <div className="flex items-center gap-3">
                         <span className={`font-semibold tabular-nums ${t.type === "income" ? "text-success" : "text-destructive"}`}>
-                          {t.type === "income" ? "+" : "−"}${parseFloat(String(t.amount)).toFixed(2)}
+                          {t.type === "income" ? "+" : "−"}{money(parseFloat(String(t.amount)))}
                         </span>
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteTransaction(t.id)}>
                           <Trash2 className="h-4 w-4" />
@@ -878,15 +876,15 @@ export function BudgetPanel() {
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-lg font-bold">${spent.toFixed(2)}</div>
+                      <div className="text-lg font-bold">{money(spent)}</div>
                       {cat.budget_limit > 0 ? (
                         <>
                           <div className="mb-1 flex justify-between text-xs text-muted-foreground">
                             <span>spent</span>
-                            <span>${cat.budget_limit.toFixed(2)} limit</span>
+                            <span>{money(cat.budget_limit)} limit</span>
                           </div>
                           <Progress value={Math.min(percentage, 100)} className={`h-2 ${over ? "[&>div]:bg-destructive" : ""}`} />
-                          {over && <p className="mt-1 text-xs text-destructive">Over by ${(spent - cat.budget_limit).toFixed(2)}</p>}
+                          {over && <p className="mt-1 text-xs text-destructive">Over by {money(spent - cat.budget_limit)}</p>}
                         </>
                       ) : (
                         <p className="text-xs text-muted-foreground">No limit set</p>
@@ -952,8 +950,8 @@ export function BudgetPanel() {
                     </CardHeader>
                     <CardContent>
                       <div className="mb-1 flex justify-between text-sm">
-                        <span className="font-medium">${parseFloat(String(goal.current_amount)).toFixed(2)}</span>
-                        <span className="text-muted-foreground">${parseFloat(String(goal.target_amount)).toFixed(2)}</span>
+                        <span className="font-medium">{money(parseFloat(String(goal.current_amount)))}</span>
+                        <span className="text-muted-foreground">{money(parseFloat(String(goal.target_amount)))}</span>
                       </div>
                       <Progress value={pct} className="h-3 mb-2" />
                       <div className="flex items-center justify-between text-xs text-muted-foreground">

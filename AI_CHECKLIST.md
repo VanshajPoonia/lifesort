@@ -160,8 +160,12 @@ Run after changes to `DashboardLayout`, command/search/capture UI, Home preferen
 10. Prefer `AppEmptyState` for high-visibility empty panels; use `allClear` only for genuinely calm/clear states, not errors or missing data.
 11. Money summaries must show real loaded values or explicit `No data`/unavailable labels. Do not invent finance totals for empty accounts.
 12. Money feature links should target `/money?tab=budget|income|investments|wishlist`; `/budget`, `/income`, `/investments`, and `/wishlist` are compatibility redirects and should not contain standalone duplicated app shells.
-13. Theme contrast checks must include selected/focused command, select, and dropdown rows; nested `text-muted-foreground` icons/descriptions should inherit the selected foreground.
-14. Prefer theme semantic status tokens (`text-success`, `text-warning`, `text-destructive`, `text-primary`) for high-traffic status text instead of raw `text-green-*` / `text-amber-*` / `text-red-*` classes.
+13. Money Overview dashboard values must be derived from user-owned data: investments, budget summary/transactions/categories, income sources, Vault renewal/expiry dates, Wishlist items, and liabilities. Keep empty states honest.
+14. Preferred currency is display-only. Use `lib/currency.ts` for Money formatting and do not convert stored numeric values when `users.preferred_currency` changes.
+15. Wishlist "Save for this" must create at most one linked budget goal per wishlist item through `budget_goals.wishlist_item_id`; duplicate attempts should be non-destructive.
+16. Liabilities require the money dashboard migration before authenticated CRUD works in an environment. Do not run the migration unless the target database is explicitly confirmed.
+17. Theme contrast checks must include selected/focused command, select, and dropdown rows; nested `text-muted-foreground` icons/descriptions should inherit the selected foreground.
+18. Prefer theme semantic status tokens (`text-success`, `text-warning`, `text-destructive`, `text-primary`) for high-traffic status text instead of raw `text-green-*` / `text-amber-*` / `text-red-*` classes.
 
 ## Responsive Foundation Checklist
 

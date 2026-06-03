@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth-provider"
 import { gsap } from "gsap"
@@ -45,6 +46,15 @@ import { Progress } from "@/components/ui/progress"
 import { LifeAreaBadge, LifeAreaSelect } from "@/components/life-area-controls"
 import type { LifeArea } from "@/lib/life-areas"
 import { normalizeLifeArea } from "@/lib/life-areas"
+import type { PieChartItem } from "@/app/budget/charts"
+import { formatCurrency } from "@/lib/currency"
+
+const ChartSkeleton = () => <div className="h-64 animate-pulse rounded-lg bg-muted" />
+
+const AllocationPieChart = dynamic<{ data: PieChartItem[]; currency?: string }>(
+  () => import("@/app/budget/charts").then((m) => m.AllocationPieChart),
+  { ssr: false, loading: ChartSkeleton },
+)
 
 interface Investment {
   id: number
@@ -98,9 +108,10 @@ const investmentTypes = [
   { value: "Other", label: "Other", color: "from-slate-500 to-gray-500" },
 ] as const
 
-export function InvestmentsPanel() {
+export function InvestmentsPanel({ preferredCurrency = "USD" }: { preferredCurrency?: string }) {
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
+  const money = (value: number, currency = preferredCurrency) => formatCurrency(value, currency)
   const [investments, setInvestments] = useState<Investment[]>([])
   const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([])
   const [lifeAreas, setLifeAreas] = useState<LifeArea[]>([])
@@ -537,6 +548,18 @@ export function InvestmentsPanel() {
     return { ...type, total, count: typeInvestments.length }
   }).filter(t => t.count > 0)
 
+  const allocationData = useMemo(() => {
+    const grouped = new Map<string, number>()
+    for (const investment of investments) {
+      const key = investment.type?.trim() || investment.symbol?.trim() || investment.name?.trim() || "Other"
+      grouped.set(key, (grouped.get(key) || 0) + (Number(investment.current_value) || Number(investment.amount) || 0))
+    }
+    return Array.from(grouped.entries())
+      .map(([name, value]) => ({ name, value }))
+      .filter((item) => item.value > 0)
+      .sort((a, b) => b.value - a.value)
+  }, [investments])
+
   // Filtering and sorting
   const filteredInvestments = investments
     .filter(inv => filterType === "all" || inv.type === filterType)
@@ -656,7 +679,7 @@ export function InvestmentsPanel() {
                               <p className="font-medium text-sm">{inv.name}</p>
                               <p className="text-xs text-muted-foreground">{inv.symbol} • {inv.quantity} units</p>
                             </div>
-                            <Badge variant="secondary">${inv.amount.toLocaleString()}</Badge>
+                            <Badge variant="secondary">{money(inv.amount)}</Badge>
                           </div>
                         ))}
                       </div>
@@ -821,7 +844,7 @@ export function InvestmentsPanel() {
                         <SelectItem value="none">No goal linked</SelectItem>
                         {wishlistItems.filter(item => item.price).map(item => (
                           <SelectItem key={item.id} value={item.id.toString()}>
-                            {item.title} - ${item.price?.toLocaleString()}
+                            {item.title} - {money(item.price || 0)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -925,7 +948,7 @@ export function InvestmentsPanel() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Invested</p>
-                  <p className="text-3xl font-bold text-foreground mt-1">${calculateTotalInvested().toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                  <p className="text-3xl font-bold text-foreground mt-1">{money(calculateTotalInvested())}</p>
                 </div>
                 <div className="h-12 w-12 rounded-xl bg-slate-500/20 flex items-center justify-center">
                   <DollarSign className="h-6 w-6 text-slate-500" />
@@ -939,7 +962,7 @@ export function InvestmentsPanel() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wider">Current Value</p>
-                  <p className="text-3xl font-bold text-foreground mt-1">${calculateTotalValue().toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                  <p className="text-3xl font-bold text-foreground mt-1">{money(calculateTotalValue())}</p>
                 </div>
                 <div className="h-12 w-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
                   <PieChart className="h-6 w-6 text-emerald-500" />
@@ -964,7 +987,7 @@ export function InvestmentsPanel() {
                     )}
                   </div>
                   <p className={`text-sm ${isPositive ? "text-success" : "text-destructive"}`}>
-                    {isPositive ? "+" : ""}${(absoluteReturn || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {isPositive ? "+" : ""}{money(absoluteReturn || 0)}
                   </p>
                 </div>
               </div>
@@ -987,7 +1010,7 @@ export function InvestmentsPanel() {
         </div>
 
         {/* Portfolio Breakdown */}
-        {portfolioBreakdown.length > 0 && (
+        {allocationData.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
@@ -996,26 +1019,29 @@ export function InvestmentsPanel() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {portfolioBreakdown.map(type => {
-                  const percentage = (type.total / calculateTotalValue()) * 100
-                  return (
-                    <div key={type.value} className="space-y-1">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="font-medium text-foreground">{type.label}</span>
-                        <span className="text-muted-foreground">
-                          ${type.total.toLocaleString()} ({percentage.toFixed(1)}%)
-                        </span>
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+                <AllocationPieChart data={allocationData} currency={preferredCurrency} />
+                <div className="space-y-3">
+                  {portfolioBreakdown.map(type => {
+                    const percentage = (type.total / calculateTotalValue()) * 100
+                    return (
+                      <div key={type.value} className="space-y-1">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-medium text-foreground">{type.label}</span>
+                          <span className="text-muted-foreground">
+                            {money(type.total)} ({percentage.toFixed(1)}%)
+                          </span>
+                        </div>
+                        <div className="h-2 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className={`h-full bg-gradient-to-r ${type.color} transition-all`}
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
                       </div>
-                      <div className="h-2 rounded-full bg-muted overflow-hidden">
-                        <div
-                          className={`h-full bg-gradient-to-r ${type.color} transition-all`}
-                          style={{ width: `${percentage}%` }}
-                        />
-                      </div>
-                    </div>
-                  )
-                })}
+                    )
+                  })}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -1160,7 +1186,7 @@ export function InvestmentsPanel() {
                             <span className="text-xs text-primary uppercase tracking-wider">Live Price</span>
                             <div className="flex items-center gap-2">
                               <span className="font-bold text-foreground">
-                                {liveQuote.currency === "USD" ? "$" : liveQuote.currency === "INR" ? "₹" : ""}{liveQuote.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                {money(liveQuote.price, liveQuote.currency)}
                               </span>
                               <span className={`text-xs flex items-center ${liveQuote.change >= 0 ? "text-success" : "text-destructive"}`}>
                                 {liveQuote.change >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
@@ -1175,7 +1201,7 @@ export function InvestmentsPanel() {
                             <span className="text-xs text-muted-foreground uppercase tracking-wider">
                               Last Price {inv.last_price_fetch ? `(${new Date(inv.last_price_fetch).toLocaleDateString()})` : ""}
                             </span>
-                            <span className="font-bold text-foreground">${inv.cached_price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            <span className="font-bold text-foreground">{money(inv.cached_price)}</span>
                           </div>
                         </div>
                       ) : null}
@@ -1183,11 +1209,11 @@ export function InvestmentsPanel() {
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <p className="text-xs text-muted-foreground">Invested</p>
-                          <p className="text-lg font-semibold text-foreground">${inv.amount.toLocaleString()}</p>
+                          <p className="text-lg font-semibold text-foreground">{money(inv.amount)}</p>
                         </div>
                         <div>
                           <p className="text-xs text-muted-foreground">Current Value</p>
-                          <p className="text-lg font-semibold text-foreground">${(inv.current_value || inv.amount).toLocaleString()}</p>
+                          <p className="text-lg font-semibold text-foreground">{money(inv.current_value || inv.amount)}</p>
                         </div>
                       </div>
 
@@ -1216,7 +1242,7 @@ export function InvestmentsPanel() {
                           </div>
                           <Progress value={goalProgress} className="h-2" />
                           <p className="text-xs text-muted-foreground text-right">
-                            ${(inv.current_value || inv.amount).toLocaleString()} / ${wishlistItem.price?.toLocaleString()}
+                            {money(inv.current_value || inv.amount)} / {money(wishlistItem.price || 0)}
                             {goalProgress >= 100 && (
                               <span className="ml-2 text-success inline-flex items-center gap-1">
                                 <CheckCircle2 className="h-3 w-3" /> Goal reached!
@@ -1272,8 +1298,8 @@ export function InvestmentsPanel() {
                         )}
                       </div>
                       <div className="text-right">
-                        <p className="font-semibold text-foreground">${(inv.current_value || inv.amount).toLocaleString()}</p>
-                        <p className="text-xs text-muted-foreground">of ${inv.amount.toLocaleString()}</p>
+                        <p className="font-semibold text-foreground">{money(inv.current_value || inv.amount)}</p>
+                        <p className="text-xs text-muted-foreground">of {money(inv.amount)}</p>
                       </div>
                       <div className={`px-3 py-1 rounded-lg ${isPositiveReturn ? "bg-green-500/10" : "bg-red-500/10"}`}>
                         <span className={`font-bold ${isPositiveReturn ? "text-success" : "text-destructive"}`}>
@@ -1344,7 +1370,7 @@ export function InvestmentsPanel() {
                       <SelectItem value="none">No goal linked</SelectItem>
                       {wishlistItems.filter(item => item.price).map(item => (
                         <SelectItem key={item.id} value={item.id.toString()}>
-                          {item.title} - ${item.price?.toLocaleString()}
+                          {item.title} - {money(item.price || 0)}
                         </SelectItem>
                       ))}
                     </SelectContent>

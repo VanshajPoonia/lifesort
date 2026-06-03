@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS users (
   onboarding_completed BOOLEAN DEFAULT FALSE,
   app_preferences JSONB DEFAULT '{}'::jsonb,
   sidebar_preferences JSONB DEFAULT '{}'::jsonb,
+  preferred_currency VARCHAR(3) DEFAULT 'USD',
   journal_intention_1 VARCHAR(40) DEFAULT 'Work',
   journal_intention_2 VARCHAR(40) DEFAULT 'Personal',
   journal_intention_3 VARCHAR(40) DEFAULT 'Family',
@@ -697,7 +698,20 @@ CREATE TABLE IF NOT EXISTS budget_goals (
   current_amount DECIMAL(12, 2) DEFAULT 0,
   deadline DATE,
   category_id INTEGER REFERENCES budget_categories(id) ON DELETE SET NULL,
+  wishlist_item_id INTEGER REFERENCES wishlist_items(id) ON DELETE SET NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS liabilities (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name VARCHAR(160) NOT NULL,
+  balance DECIMAL(15, 2) NOT NULL DEFAULT 0,
+  interest_rate DECIMAL(5, 2) NOT NULL DEFAULT 0,
+  monthly_payment DECIMAL(15, 2) NOT NULL DEFAULT 0,
+  due_date DATE,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS user_content_preferences (
@@ -1167,6 +1181,10 @@ CREATE INDEX IF NOT EXISTS idx_routine_steps_routine_sort ON routine_steps(routi
 CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id ON password_reset_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_nuke_goals_user_id ON nuke_goals(user_id);
 CREATE INDEX IF NOT EXISTS idx_budget_goals_user_id ON budget_goals(user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_budget_goals_user_wishlist
+  ON budget_goals(user_id, wishlist_item_id)
+  WHERE wishlist_item_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_liabilities_user_id ON liabilities(user_id);
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Optional / future-use tables

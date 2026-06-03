@@ -30,6 +30,7 @@ import {
   Upload,
   RefreshCw,
   Clipboard,
+  PiggyBank,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -43,6 +44,8 @@ import { Progress } from "@/components/ui/progress"
 import { LifeAreaBadge, LifeAreaSelect } from "@/components/life-area-controls"
 import type { LifeArea } from "@/lib/life-areas"
 import { normalizeLifeArea } from "@/lib/life-areas"
+import { useToast } from "@/hooks/use-toast"
+import { formatCurrency } from "@/lib/currency"
 
 interface WishlistItem {
   id: number
@@ -58,7 +61,7 @@ interface WishlistItem {
   created_at?: string
 }
 
-export function WishlistPanel() {
+export function WishlistPanel({ preferredCurrency = "USD" }: { preferredCurrency?: string }) {
   const [items, setItems] = useState<WishlistItem[]>([])
   const [lifeAreas, setLifeAreas] = useState<LifeArea[]>([])
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
@@ -71,6 +74,8 @@ export function WishlistPanel() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const { user, loading } = useAuth()
   const router = useRouter()
+  const { toast } = useToast()
+  const money = (value: number) => formatCurrency(value, preferredCurrency)
   const cardsRef = useRef<(HTMLDivElement | null)[]>([])
 
   const [newItem, setNewItem] = useState({
@@ -343,6 +348,47 @@ export function WishlistPanel() {
       }
     } catch (error) {
       console.error("Failed to convert to investment:", error)
+    }
+  }
+
+  const handleSaveForThis = async (item: WishlistItem) => {
+    const price = Number(item.price || 0)
+    if (!price || price <= 0) return
+
+    try {
+      const response = await fetch("/api/budget", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "goal",
+          name: item.title,
+          target_amount: price,
+          current_amount: 0,
+          wishlist_item_id: item.id,
+        }),
+      })
+      const data = await response.json().catch(() => null)
+
+      if (response.status === 409) {
+        toast({
+          title: "Savings goal already exists",
+          description: data?.error || "This wishlist item is already linked to a budget goal.",
+        })
+        return
+      }
+
+      if (!response.ok) throw new Error(data?.error || "Could not create savings goal")
+
+      toast({
+        title: "Savings goal created",
+        description: `${item.title} is now tracked in Budget Goals.`,
+      })
+    } catch (error) {
+      toast({
+        title: "Could not create savings goal",
+        description: error instanceof Error ? error.message : "Try again from Wishlist.",
+        variant: "destructive",
+      })
     }
   }
 
@@ -639,7 +685,7 @@ export function WishlistPanel() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Value</p>
-                  <p className="text-3xl font-bold text-foreground mt-1">${stats.totalValue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</p>
+                  <p className="text-3xl font-bold text-foreground mt-1">{money(stats.totalValue)}</p>
                 </div>
                 <div className="h-12 w-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
                   <DollarSign className="h-6 w-6 text-emerald-500" />
@@ -821,9 +867,9 @@ export function WishlistPanel() {
                       <p className="text-sm text-muted-foreground line-clamp-2">{item.description}</p>
                     )}
 
-{item.price && item.price > 0 && (
-                        <p className="text-2xl font-bold text-primary">${item.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                      )}
+                    {item.price && item.price > 0 && (
+                      <p className="text-2xl font-bold text-primary">{money(item.price)}</p>
+                    )}
 
                     <div className="flex flex-wrap gap-2 pt-2">
                       <Button
@@ -844,6 +890,17 @@ export function WishlistPanel() {
                         >
                           <TrendingUp className="mr-1 h-3 w-3" />
                           Track as Investment
+                        </Button>
+                      )}
+                      {!item.purchased && item.price && item.price > 0 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleSaveForThis(item)}
+                          className="bg-gradient-to-r from-amber-500/10 to-orange-500/10"
+                        >
+                          <PiggyBank className="mr-1 h-3 w-3" />
+                          Save for this
                         </Button>
                       )}
                     </div>
@@ -892,9 +949,9 @@ export function WishlistPanel() {
                         <p className="text-sm text-muted-foreground truncate mt-1">{item.description}</p>
                       )}
                     </div>
-{item.price && item.price > 0 && (
-                        <p className="text-xl font-bold text-primary">${item.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                      )}
+                    {item.price && item.price > 0 && (
+                      <p className="text-xl font-bold text-primary">{money(item.price)}</p>
+                    )}
                     <div className="flex items-center gap-2">
                       <Button
                         variant={item.purchased ? "default" : "outline"}
@@ -904,6 +961,16 @@ export function WishlistPanel() {
                       >
                         <Check className="h-4 w-4" />
                       </Button>
+                      {!item.purchased && item.price && item.price > 0 && (
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleSaveForThis(item)}
+                          aria-label={`Save for ${item.title}`}
+                        >
+                          <PiggyBank className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button variant="ghost" size="icon" onClick={() => { setEditingItem(item); setIsEditDialogOpen(true) }}>
                         <Edit2 className="h-4 w-4" />
                       </Button>

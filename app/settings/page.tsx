@@ -14,8 +14,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAuth } from "@/components/auth-provider"
+import { SUPPORTED_CURRENCIES } from "@/lib/currency"
 import {
   User,
   Mail,
@@ -63,6 +65,7 @@ interface UserProfile {
   journal_intention_1?: string
   journal_intention_2?: string
   journal_intention_3?: string
+  preferred_currency?: string
   content_preferences: {
     quote_types: string[]
     joke_types: string[]
@@ -94,6 +97,7 @@ export default function SettingsPage() {
     location: "",
     date_of_birth: "",
     avatar: "",
+    preferred_currency: "USD",
   })
   const [journalPreferences, setJournalPreferences] = useState({
     journal_intention_1: "Work",
@@ -231,6 +235,7 @@ export default function SettingsPage() {
           location: data.location || "",
           date_of_birth: data.date_of_birth ? data.date_of_birth.split("T")[0] : "",
           avatar: data.avatar || "",
+          preferred_currency: data.preferred_currency || "USD",
         })
         setJournalPreferences({
           journal_intention_1: data.journal_intention_1 || "Work",
@@ -585,6 +590,28 @@ export default function SettingsPage() {
                     onChange={(e) => setFormData(prev => ({ ...prev, date_of_birth: e.target.value }))}
                     className="text-foreground"
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="preferred-currency">
+                    <Wallet className="h-4 w-4 inline mr-2" />
+                    Preferred Currency
+                  </Label>
+                  <Select
+                    value={formData.preferred_currency}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, preferred_currency: value }))}
+                  >
+                    <SelectTrigger id="preferred-currency" className="text-foreground">
+                      <SelectValue placeholder="Select currency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SUPPORTED_CURRENCIES.map((currency) => (
+                        <SelectItem key={currency} value={currency}>
+                          {currency}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 

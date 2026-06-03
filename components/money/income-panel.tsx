@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { LifeAreaBadge, LifeAreaSelect } from "@/components/life-area-controls"
 import type { LifeArea } from "@/lib/life-areas"
 import { normalizeLifeArea } from "@/lib/life-areas"
+import { formatCurrency } from "@/lib/currency"
 
 interface IncomeSource {
   id: string
@@ -36,9 +37,10 @@ interface IncomeSource {
   life_area_id?: string | number | null
 }
 
-export function IncomePanel() {
+export function IncomePanel({ preferredCurrency = "USD" }: { preferredCurrency?: string }) {
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
+  const money = (value: number) => formatCurrency(value, preferredCurrency)
   const [loading, setLoading] = useState(true)
   const [incomeSources, setIncomeSources] = useState<IncomeSource[]>([])
   const [lifeAreas, setLifeAreas] = useState<LifeArea[]>([])
@@ -308,7 +310,7 @@ export function IncomePanel() {
               <DollarSign className="h-4 w-4 text-success" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${stats.monthlyIncome.toLocaleString()}</div>
+              <div className="text-2xl font-bold">{money(stats.monthlyIncome)}</div>
             </CardContent>
           </Card>
 
@@ -318,7 +320,7 @@ export function IncomePanel() {
               <TrendingUp className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${stats.yearlyIncome.toLocaleString()}</div>
+              <div className="text-2xl font-bold">{money(stats.yearlyIncome)}</div>
             </CardContent>
           </Card>
 
@@ -328,7 +330,7 @@ export function IncomePanel() {
               <Repeat className="h-4 w-4 text-accent" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${stats.passiveIncome.toLocaleString()}</div>
+              <div className="text-2xl font-bold">{money(stats.passiveIncome)}</div>
               <p className="text-xs text-muted-foreground">per month</p>
             </CardContent>
           </Card>
@@ -358,7 +360,7 @@ export function IncomePanel() {
                           <Badge className={getTypeColor(type)}>{type}</Badge>
                         </div>
                         <span className="font-medium text-foreground">
-                          ${amount.toLocaleString()}/mo ({percentage.toFixed(1)}%)
+                          {money(amount)}/mo ({percentage.toFixed(1)}%)
                         </span>
                       </div>
                       <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
@@ -550,14 +552,14 @@ export function IncomePanel() {
                       <div>
                         <p className="text-sm text-muted-foreground">Amount</p>
                         <p className="text-xl font-bold text-foreground">
-                          ${income.amount.toLocaleString()}
+                          {money(income.amount)}
                         </p>
                         <p className="text-xs text-muted-foreground">{income.frequency}</p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Monthly Equivalent</p>
                         <p className="text-xl font-bold text-success">
-                          ${monthlyEquivalent.toLocaleString()}
+                          {money(monthlyEquivalent)}
                         </p>
                         <p className="text-xs text-muted-foreground">per month</p>
                       </div>

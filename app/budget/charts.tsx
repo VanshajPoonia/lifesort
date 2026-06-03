@@ -13,6 +13,7 @@ import {
   YAxis,
 } from "recharts"
 import { ChartContainer } from "@/components/ui/chart"
+import { formatCurrency } from "@/lib/currency"
 
 export interface CategoryChartItem {
   name: string
@@ -26,23 +27,25 @@ export interface PieChartItem {
   value: number
 }
 
+export interface CashFlowChartItem {
+  label: string
+  income: number
+  expenses: number
+}
+
 const PALETTE = [
   "#3B82F6", "#10B981", "#F59E0B", "#EF4444",
   "#8B5CF6", "#EC4899", "#06B6D4", "#84CC16",
 ]
 
-function fmt(n: number) {
-  return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
-
-export function SpendingBarChart({ data }: { data: CategoryChartItem[] }) {
+export function SpendingBarChart({ data, currency = "USD" }: { data: CategoryChartItem[]; currency?: string }) {
   return (
     <ChartContainer config={{}} className="h-56">
       <BarChart data={data} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" vertical={false} />
         <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-        <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `$${v}`} />
-        <Tooltip formatter={(value: number) => [`$${fmt(value)}`]} />
+        <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => formatCurrency(v, currency, { maximumFractionDigits: 0 })} />
+        <Tooltip formatter={(value: number) => [formatCurrency(value, currency, { minimumFractionDigits: 2, maximumFractionDigits: 2 })]} />
         <Bar dataKey="Spent" radius={[4, 4, 0, 0]}>
           {data.map((entry, index) => (
             <Cell key={index} fill={entry.color} />
@@ -54,7 +57,7 @@ export function SpendingBarChart({ data }: { data: CategoryChartItem[] }) {
   )
 }
 
-export function ExpensePieChart({ data }: { data: PieChartItem[] }) {
+export function ExpensePieChart({ data, currency = "USD" }: { data: PieChartItem[]; currency?: string }) {
   return (
     <ChartContainer config={{}} className="h-56">
       <PieChart>
@@ -74,7 +77,48 @@ export function ExpensePieChart({ data }: { data: PieChartItem[] }) {
             <Cell key={index} fill={PALETTE[index % PALETTE.length]} />
           ))}
         </Pie>
-        <Tooltip formatter={(value: number) => [`$${fmt(value)}`]} />
+        <Tooltip formatter={(value: number) => [formatCurrency(value, currency, { minimumFractionDigits: 2, maximumFractionDigits: 2 })]} />
+      </PieChart>
+    </ChartContainer>
+  )
+}
+
+export function CashFlowBarChart({ data, currency = "USD" }: { data: CashFlowChartItem[]; currency?: string }) {
+  return (
+    <ChartContainer config={{}} className="h-72">
+      <BarChart data={data} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+        <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+        <YAxis tick={{ fontSize: 11 }} tickFormatter={(value: number) => formatCurrency(value, currency, { maximumFractionDigits: 0 })} />
+        <Tooltip formatter={(value: number) => [formatCurrency(value, currency, { minimumFractionDigits: 2, maximumFractionDigits: 2 })]} />
+        <Bar dataKey="income" name="Income" fill="#10B981" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="expenses" name="Expenses" fill="#EF4444" radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ChartContainer>
+  )
+}
+
+export function AllocationPieChart({ data, currency = "USD" }: { data: PieChartItem[]; currency?: string }) {
+  return (
+    <ChartContainer config={{}} className="h-64">
+      <PieChart>
+        <Pie
+          data={data}
+          dataKey="value"
+          nameKey="name"
+          cx="50%"
+          cy="50%"
+          outerRadius={92}
+          label={({ name, percent }: { name: string; percent: number }) =>
+            percent > 0.05 ? `${name.slice(0, 10)} ${(percent * 100).toFixed(0)}%` : ""
+          }
+          labelLine={false}
+        >
+          {data.map((_, index) => (
+            <Cell key={index} fill={PALETTE[index % PALETTE.length]} />
+          ))}
+        </Pie>
+        <Tooltip formatter={(value: number) => [formatCurrency(value, currency, { minimumFractionDigits: 2, maximumFractionDigits: 2 })]} />
       </PieChart>
     </ChartContainer>
   )

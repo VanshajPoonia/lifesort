@@ -17,6 +17,68 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-06-03 20:16 IST - Money Dashboard And Finance Preferences
+
+- Agent/tool used: Codex (GPT-5 coding agent).
+- Task completed: Implemented the Part 3 Money dashboard and finance preferences work across `/money`, reusable Money panels, finance APIs, Settings, schema/migration docs, and AI memory files.
+
+#### Files Modified
+- `app/money/page.tsx` - Replaced the old Money overview summary/cards with a derived financial dashboard and minimal liabilities CRUD UI.
+- `app/api/budget/route.ts` - Added 6-month cash flow and current-month category usage to GET responses; allowed optional linked wishlist item ids on budget goal creation with duplicate protection.
+- `app/api/liabilities/route.ts` - Added authenticated user-scoped liabilities GET/POST/PUT/DELETE route with Zod validation.
+- `app/api/profile/route.ts` - Exposed and saved `preferred_currency` without resetting Journal preference fields.
+- `app/budget/charts.tsx` - Added currency-aware chart formatting plus reusable cash-flow and allocation pie charts.
+- `components/money/budget-panel.tsx` - Added preferred-currency display formatting for Budget tab values and charts.
+- `components/money/income-panel.tsx` - Added preferred-currency display formatting for Income tab values.
+- `components/money/investments-panel.tsx` - Added preferred-currency display formatting and portfolio allocation pie chart.
+- `components/money/wishlist-panel.tsx` - Added preferred-currency display formatting and explicit "Save for this" budget-goal creation.
+- `app/settings/page.tsx` - Added Settings > Profile preferred currency selector.
+- `lib/currency.ts` - Added shared supported-currency normalization and formatting helper.
+- `scripts/migrations/2026-06-03-money-dashboard-liabilities-currency.sql` - Added forward migration for `preferred_currency`, linked wishlist budget goals, and liabilities.
+- `scripts/schema.sql` and `scripts/fresh-install.sql` - Mirrored new schema fields/tables for fresh installs.
+- `AI_PROJECT.md`, `AI_DECISIONS.md`, and `AI_CHECKLIST.md` - Updated product, architecture, and verification docs for Money dashboard, currency preferences, wishlist-linked goals, and liabilities.
+- `AI_TASK_LOG.md` - Recorded this work and verification results.
+
+#### Summary
+- Money Overview now shows estimated net worth, savings rate, 6-month cash flow, budget health, upcoming Vault bills, wishlist savings progress, and liabilities from real loaded data.
+- Preferred currency is display-only and stored on `users.preferred_currency`; stored numeric values are not converted.
+- Investments tab now includes a portfolio allocation pie chart above the positions list.
+- Wishlist items with valid prices can explicitly create linked Budget Goals through "Save for this"; duplicate linked goals return a non-destructive toast.
+- Liabilities use a new user-scoped table and API route and are subtracted from estimated net worth.
+- No Templates, Journal, AI routes, external finance providers, secrets, or migration execution were added.
+
+#### Commands Run
+- `git status --short --branch` - started with existing partial Money work on `main...origin/main [ahead 3]`; final dirty files are scoped to this Money/dashboard/docs change before commit.
+- `git diff --stat` - reviewed the scoped source/docs diff.
+- `git diff --check` - passed.
+- `npx tsc --noEmit` - initially failed because Money panels did not accept the new `preferredCurrency` prop; passed after updating the panels.
+- `npm run lint` - failed with the known existing ESLint 10 blocker: no `eslint.config.(js|mjs|cjs)` file exists.
+- `npm run build` - passed; generated 146 routes including `/money`, `/settings`, `/api/budget`, `/api/profile`, and `/api/liabilities`.
+- HTTP page smoke via GET `curl` - `/money`, `/money?tab=overview`, `/money?tab=budget`, `/money?tab=investments`, `/money?tab=wishlist`, and `/settings?tab=profile` returned 200.
+- HTTP API smoke via GET `curl` - unauthenticated `/api/liabilities`, `/api/budget`, `/api/profile`, `/api/vault`, `/api/wishlist`, `/api/investments`, and `/api/income` returned 401.
+- Note: `curl -I /login` returned 500 from the already-running dev server, but `GET /login` returned 200 and rendered the login page. Route smoke used GET.
+
+#### Bugs Found Or Fixed
+- Fixed a profile preference interaction where saving one optional preference could reset another optional preference to its default.
+- Fixed the Money panels' prop/type gap after adding preferred-currency formatting.
+- Preserved quote-native currency for live investment prices to avoid pretending values were converted.
+
+#### Remaining Issues And Limitations
+- `npm run lint` remains blocked by the pre-existing missing ESLint flat config.
+- The migration was written and documented but not run against any database.
+- Authenticated browser CRUD for liabilities, Wishlist "Save for this", currency save/reload, and mobile overflow were not manually verified in a signed-in browser session.
+- Authenticated liabilities and wishlist-linked budget goal features require `scripts/migrations/2026-06-03-money-dashboard-liabilities-currency.sql` to be applied in the target database.
+
+#### Suggested Next Steps
+- Apply `scripts/migrations/2026-06-03-money-dashboard-liabilities-currency.sql` to the intended database after confirming the target environment.
+- In a signed-in browser session, verify currency persistence, liabilities add/edit/delete, net worth recalculation, portfolio allocation rendering, and Wishlist duplicate-goal handling.
+- Continue the product-improvement stack with the next requested priority after Money.
+
+#### Handoff Notes
+- Keep `/money` as the canonical finance surface; do not reintroduce standalone `/budget`, `/income`, `/investments`, or `/wishlist` pages with nested app shells.
+- Keep preferred currency display-only unless a future task explicitly asks for currency conversion.
+- Keep Money Overview derived from real user data and honest empty states; do not add fake balances or automated finance writes.
+
 ### 2026-06-03 19:13 IST - Journal Page Workflow Fixes
 
 - Agent/tool used: Codex (GPT-5 coding agent).

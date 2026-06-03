@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
 import { getUserFromSession } from "@/lib/auth"
+import { normalizeCurrency } from "@/lib/currency"
 
 const sql = neon(process.env.DATABASE_URL!)
 
@@ -14,10 +15,10 @@ function cleanJournalIntention(value: unknown, fallback: string) {
   return typeof value === "string" && value.trim() ? value.trim().slice(0, 40) : fallback
 }
 
-async function getJournalIntentions(userId: string) {
+async function getProfilePreferences(userId: string) {
   try {
     const rows = await sql`
-      SELECT journal_intention_1, journal_intention_2, journal_intention_3
+      SELECT journal_intention_1, journal_intention_2, journal_intention_3, preferred_currency
       FROM users
       WHERE id = ${userId}
       LIMIT 1
@@ -26,10 +27,11 @@ async function getJournalIntentions(userId: string) {
       journal_intention_1: cleanJournalIntention(rows[0]?.journal_intention_1, defaultJournalIntentions.journal_intention_1),
       journal_intention_2: cleanJournalIntention(rows[0]?.journal_intention_2, defaultJournalIntentions.journal_intention_2),
       journal_intention_3: cleanJournalIntention(rows[0]?.journal_intention_3, defaultJournalIntentions.journal_intention_3),
+      preferred_currency: normalizeCurrency(rows[0]?.preferred_currency),
     }
   } catch (error) {
-    console.error("[profile] Journal intention fields unavailable:", error)
-    return defaultJournalIntentions
+    console.error("[profile] optional preference fields unavailable:", error)
+    return { ...defaultJournalIntentions, preferred_currency: "USD" }
   }
 }
 
@@ -54,11 +56,11 @@ export async function GET() {
       SELECT * FROM user_content_preferences WHERE user_id = ${user.id}
     `
 
-    const journalIntentions = await getJournalIntentions(user.id)
+    const profilePreferences = await getProfilePreferences(user.id)
 
     return NextResponse.json({ 
       ...result[0],
-      ...journalIntentions,
+      ...profilePreferences,
       content_preferences: prefs[0] || null
     })
   } catch (error) {
@@ -75,7 +77,7 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json()
-    const { name, avatar, bio, phone, location, date_of_birth, journal_intention_1, journal_intention_2, journal_intention_3 } = body
+    const { name, avatar, bio, phone, location, date_of_birth, journal_intention_1, journal_intention_2, journal_intention_3, preferred_currency } = body
 
     const result = await sql`
       UPDATE users SET
@@ -89,24 +91,43 @@ export async function PUT(request: Request) {
       RETURNING id, name, email, avatar, bio, phone, location, date_of_birth, subscription_tier, created_at
     `
 
-    if (
+    const hasJournalPreferences =
       Object.prototype.hasOwnProperty.call(body, "journal_intention_1") ||
       Object.prototype.hasOwnProperty.call(body, "journal_intention_2") ||
       Object.prototype.hasOwnProperty.call(body, "journal_intention_3")
-    ) {
-      await sql`
-        UPDATE users SET
-          journal_intention_1 = ${cleanJournalIntention(journal_intention_1, defaultJournalIntentions.journal_intention_1)},
-          journal_intention_2 = ${cleanJournalIntention(journal_intention_2, defaultJournalIntentions.journal_intention_2)},
-          journal_intention_3 = ${cleanJournalIntention(journal_intention_3, defaultJournalIntentions.journal_intention_3)},
-          updated_at = NOW()
-        WHERE id = ${user.id}
-      `
+    const hasCurrencyPreference = Object.prototype.hasOwnProperty.call(body, "preferred_currency")
+
+    if (hasJournalPreferences) {
+      try {
+        await sql`
+          UPDATE users SET
+            journal_intention_1 = ${cleanJournalIntention(journal_intention_1, defaultJournalIntentions.journal_intention_1)},
+            journal_intention_2 = ${cleanJournalIntention(journal_intention_2, defaultJournalIntentions.journal_intention_2)},
+            journal_intention_3 = ${cleanJournalIntention(journal_intention_3, defaultJournalIntentions.journal_intention_3)},
+            updated_at = NOW()
+          WHERE id = ${user.id}
+        `
+      } catch (error) {
+        console.error("[profile] optional journal preference fields update failed:", error)
+      }
     }
 
-    const journalIntentions = await getJournalIntentions(user.id)
+    if (hasCurrencyPreference) {
+      try {
+        await sql`
+          UPDATE users SET
+            preferred_currency = ${normalizeCurrency(preferred_currency)},
+            updated_at = NOW()
+          WHERE id = ${user.id}
+        `
+      } catch (error) {
+        console.error("[profile] optional currency preference field update failed:", error)
+      }
+    }
 
-    return NextResponse.json({ ...result[0], ...journalIntentions })
+    const profilePreferences = await getProfilePreferences(user.id)
+
+    return NextResponse.json({ ...result[0], ...profilePreferences })
   } catch (error) {
     console.error("[v0] Update profile error:", error)
     return NextResponse.json({ error: "Failed to update profile" }, { status: 500 })
