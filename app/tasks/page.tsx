@@ -13,11 +13,14 @@ import {
   Circle,
   Clock,
   Filter,
+  FolderKanban,
   ArrowUpDown,
+  ListChecks,
   Plus,
   Tag,
   Trash2,
   TrendingUp,
+  X,
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -38,10 +41,10 @@ import { normalizeLifeArea } from "@/lib/life-areas"
 import { cn } from "@/lib/utils"
 
 type Priority = "low" | "medium" | "high"
-type TaskView = "today" | "upcoming" | "overdue" | "completed"
 type PriorityFilter = "all" | Priority
 type CompletionFilter = "all" | "open" | "completed"
 type SortMode = "manual" | "due_date"
+type TaskView = "all" | "today" | "overdue" | "no_due_date"
 
 interface Task {
   id: number | string
@@ -60,6 +63,12 @@ interface Task {
   sort_order?: number | null
 }
 
+interface Project {
+  id: number | string
+  title: string
+  status?: string | null
+}
+
 interface ReminderForm {
   due_date: string
   due_time: string
@@ -68,10 +77,10 @@ interface ReminderForm {
 }
 
 const taskViews: Array<{ value: TaskView; label: string }> = [
-  { value: "today", label: "Today" },
-  { value: "upcoming", label: "Upcoming" },
+  { value: "all", label: "All" },
+  { value: "today", label: "Due Today" },
   { value: "overdue", label: "Overdue" },
-  { value: "completed", label: "Completed" },
+  { value: "no_due_date", label: "No Due Date" },
 ]
 
 const priorityOptions: Array<{ value: PriorityFilter; label: string }> = [
@@ -129,14 +138,13 @@ function isOverdue(task: Task, today = startOfToday()) {
   return Boolean(!task.completed && dueDate && dueDate < today)
 }
 
-function isUpcoming(task: Task, today = startOfToday()) {
-  const dueDate = parseTaskDate(task.due_date)
-  return Boolean(!task.completed && dueDate && dueDate > today)
-}
-
 function isTodayTask(task: Task, today = startOfToday()) {
   const dueDate = parseTaskDate(task.due_date)
-  return Boolean(!task.completed && (!dueDate || isSameDay(dueDate, today)))
+  return Boolean(!task.completed && dueDate && isSameDay(dueDate, today))
+}
+
+function hasNoDueDate(task: Task) {
+  return !parseTaskDate(task.due_date)
 }
 
 function formatDate(value?: string | null) {
@@ -264,14 +272,20 @@ export default function TasksPage() {
   const searchParams = useSearchParams()
   const lifeAreaFilter = searchParams.get("life_area_id")
   const [tasks, setTasks] = useState<Task[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState("")
   const [lifeAreas, setLifeAreas] = useState<LifeArea[]>([])
   const [creating, setCreating] = useState(false)
-  const [activeView, setActiveView] = useState<TaskView>("today")
+  const [newTaskTitle, setNewTaskTitle] = useState("")
+  const [activeView, setActiveView] = useState<TaskView>("all")
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("all")
   const [completionFilter, setCompletionFilter] = useState<CompletionFilter>("all")
   const [sortMode, setSortMode] = useState<SortMode>("manual")
+  const [selectionMode, setSelectionMode] = useState(false)
+  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([])
+  const [bulkPriority, setBulkPriority] = useState<Priority>("medium")
+  const [bulkProjectId, setBulkProjectId] = useState("")
   const [reminderDialogOpen, setReminderDialogOpen] = useState(false)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [reminderForm, setReminderForm] = useState<ReminderForm>({
@@ -291,6 +305,7 @@ export default function TasksPage() {
     if (user) {
       fetchTasks()
       fetchLifeAreas()
+      fetchProjects()
     }
   }, [user, lifeAreaFilter])
 
@@ -327,6 +342,17 @@ export default function TasksPage() {
     }
   }
 
+  const fetchProjects = async () => {
+    try {
+      const response = await fetch("/api/projects")
+      if (!response.ok) return
+      const data = await response.json()
+      setProjects(Array.isArray(data) ? data : [])
+    } catch (error) {
+      console.error("Failed to fetch projects:", error)
+    }
+  }
+
   useEffect(() => {
     if (!user) return
 
@@ -340,14 +366,14 @@ export default function TasksPage() {
     return () => window.removeEventListener("lifesort:quick-add-created", handleQuickAdd)
   }, [user])
 
-  const handleAddTask = async () => {
+  const handleAddTask = async (title = newTaskTitle.trim() || "New Task") => {
     setCreating(true)
     try {
       const response = await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: "New Task",
+          title,
           description: "",
           priority: "medium",
           category: null,
@@ -359,7 +385,8 @@ export default function TasksPage() {
       if (response.ok) {
         const newTask = await response.json()
         setTasks((prev) => [newTask, ...prev])
-        setActiveView("today")
+        setNewTaskTitle("")
+        setActiveView("all")
       }
     } catch (error) {
       console.error("Failed to add task:", error)
@@ -397,6 +424,7 @@ export default function TasksPage() {
       })
       if (response.ok) {
         setTasks((prev) => prev.filter((task) => String(task.id) !== String(id)))
+        setSelectedTaskIds((current) => current.filter((taskId) => taskId !== String(id)))
       }
     } catch (error) {
       console.error("Failed to delete task:", error)
@@ -439,15 +467,16 @@ export default function TasksPage() {
   }, [tasks])
 
   const areaById = useMemo(() => new Map(lifeAreas.map((area) => [String(area.id), area])), [lifeAreas])
+  const selectedTaskSet = useMemo(() => new Set(selectedTaskIds), [selectedTaskIds])
 
   const visibleTasks = useMemo(() => {
     const today = startOfToday()
     return tasks
       .filter((task) => {
+        if (activeView === "all") return true
         if (activeView === "today") return isTodayTask(task, today)
-        if (activeView === "upcoming") return isUpcoming(task, today)
         if (activeView === "overdue") return isOverdue(task, today)
-        return task.completed
+        return hasNoDueDate(task)
       })
       .filter((task) => priorityFilter === "all" || task.priority === priorityFilter)
       .filter((task) => {
@@ -457,6 +486,68 @@ export default function TasksPage() {
       })
       .sort(sortMode === "manual" ? sortManualTasks : sortTasks)
   }, [activeView, completionFilter, priorityFilter, sortMode, tasks])
+
+  const selectedTasks = useMemo(
+    () => tasks.filter((task) => selectedTaskSet.has(String(task.id))),
+    [selectedTaskSet, tasks],
+  )
+
+  const allVisibleSelected =
+    visibleTasks.length > 0 && visibleTasks.every((task) => selectedTaskSet.has(String(task.id)))
+
+  const toggleTaskSelection = (id: Task["id"]) => {
+    const taskId = String(id)
+    setSelectedTaskIds((current) =>
+      current.includes(taskId) ? current.filter((item) => item !== taskId) : [...current, taskId],
+    )
+  }
+
+  const toggleSelectAllVisible = () => {
+    if (allVisibleSelected) {
+      const visibleIds = new Set(visibleTasks.map((task) => String(task.id)))
+      setSelectedTaskIds((current) => current.filter((taskId) => !visibleIds.has(taskId)))
+      return
+    }
+
+    setSelectedTaskIds((current) => Array.from(new Set([...current, ...visibleTasks.map((task) => String(task.id))])))
+  }
+
+  const clearSelection = () => {
+    setSelectedTaskIds([])
+    setSelectionMode(false)
+  }
+
+  const bulkMarkDone = async () => {
+    await Promise.all(selectedTasks.map((task) => handleUpdateTask(task.id, { completed: true })))
+    clearSelection()
+  }
+
+  const bulkDelete = async () => {
+    if (!confirm(`Delete ${selectedTasks.length} selected task${selectedTasks.length === 1 ? "" : "s"}?`)) return
+    await Promise.all(selectedTasks.map((task) => handleDeleteTask(task.id)))
+    clearSelection()
+  }
+
+  const bulkChangePriority = async () => {
+    await Promise.all(selectedTasks.map((task) => handleUpdateTask(task.id, { priority: bulkPriority })))
+    clearSelection()
+  }
+
+  const bulkMoveToProject = async () => {
+    if (!bulkProjectId) return
+
+    await Promise.all(
+      selectedTasks.map((task) =>
+        fetch("/api/projects/items", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ project_id: bulkProjectId, item_type: "task", item_id: task.id }),
+        }),
+      ),
+    )
+    setBulkProjectId("")
+    clearSelection()
+  }
 
   const handleReorderTasks = async (orderedVisibleTasks: Task[]) => {
     if (sortMode !== "manual") return
@@ -493,21 +584,21 @@ export default function TasksPage() {
   }
 
   const emptyCopy = {
+    all: {
+      title: "No tasks yet",
+      description: "Create a task, then use filters when the list starts to grow.",
+    },
     today: {
       title: "No tasks due today",
-      description: "Tasks without a due date and tasks due today will appear here.",
-    },
-    upcoming: {
-      title: "No upcoming tasks",
-      description: "Add due dates to future tasks to build your upcoming plan.",
+      description: "Tasks due today will appear here.",
     },
     overdue: {
       title: "No overdue tasks",
       description: "Nice. Anything past its due date will show here until it is completed.",
     },
-    completed: {
-      title: "No completed tasks yet",
-      description: "Completed tasks will collect here as you check them off.",
+    no_due_date: {
+      title: "No unscheduled tasks",
+      description: "Tasks without due dates will collect here.",
     },
   }[activeView]
 
@@ -600,10 +691,24 @@ export default function TasksPage() {
             <h2 className="text-2xl font-bold text-foreground">Daily Tasks</h2>
             <p className="text-sm text-muted-foreground">Plan by due date, priority, label, and reminders.</p>
           </div>
-          <Button onClick={handleAddTask} disabled={creating} className="gap-2 bg-gradient-to-r from-primary to-accent hover:opacity-90">
-            <Plus className="h-4 w-4" />
-            {creating ? "Adding..." : "Add Task"}
-          </Button>
+          <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto">
+            <Input
+              value={newTaskTitle}
+              onChange={(event) => setNewTaskTitle(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && newTaskTitle.trim()) {
+                  event.preventDefault()
+                  handleAddTask(newTaskTitle.trim())
+                }
+              }}
+              placeholder="Type a task and press Enter"
+              className="sm:w-72"
+            />
+            <Button onClick={() => handleAddTask()} disabled={creating} className="gap-2 bg-gradient-to-r from-primary to-accent hover:opacity-90">
+              <Plus className="h-4 w-4" />
+              {creating ? "Adding..." : "Add Task"}
+            </Button>
+          </div>
         </div>
 
         {loadError && (
@@ -670,8 +775,87 @@ export default function TasksPage() {
             </div>
           </div>
 
-          {taskViews.map((view) => (
-            <TabsContent key={view.value} value={view.value} className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant={selectionMode ? "secondary" : "outline"}
+                size="sm"
+                className="gap-2"
+                onClick={() => {
+                  setSelectionMode((current) => !current)
+                  if (selectionMode) setSelectedTaskIds([])
+                }}
+              >
+                <ListChecks className="h-4 w-4" />
+                {selectionMode ? "Selecting" : "Select"}
+              </Button>
+              {selectionMode && (
+                <Button type="button" variant="outline" size="sm" onClick={toggleSelectAllVisible}>
+                  {allVisibleSelected ? "Clear visible" : "Select all"}
+                </Button>
+              )}
+            </div>
+            {selectedTasks.length > 0 && (
+              <Badge variant="secondary">{selectedTasks.length} selected</Badge>
+            )}
+          </div>
+
+          {selectedTasks.length > 0 && (
+            <Card className="border-primary/20 bg-primary/5">
+              <CardContent className="flex flex-col gap-3 p-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button type="button" size="sm" className="gap-2" onClick={bulkMarkDone}>
+                    <CheckCircle2 className="h-4 w-4" />
+                    Mark done
+                  </Button>
+                  <Button type="button" size="sm" variant="outline" className="gap-2" onClick={bulkDelete}>
+                    <Trash2 className="h-4 w-4" />
+                    Delete
+                  </Button>
+                  <div className="flex min-w-[220px] items-center gap-2">
+                    <Select value={bulkPriority} onValueChange={(value) => setBulkPriority(value as Priority)}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="high">High priority</SelectItem>
+                        <SelectItem value="medium">Medium priority</SelectItem>
+                        <SelectItem value="low">Low priority</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button type="button" size="sm" variant="outline" onClick={bulkChangePriority}>
+                      Change
+                    </Button>
+                  </div>
+                  <div className="flex min-w-[260px] items-center gap-2">
+                    <Select value={bulkProjectId} onValueChange={setBulkProjectId}>
+                      <SelectTrigger className="h-9">
+                        <FolderKanban className="mr-2 h-4 w-4" />
+                        <SelectValue placeholder="Move to project" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {projects.map((project) => (
+                          <SelectItem key={project.id} value={String(project.id)}>
+                            {project.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button type="button" size="sm" variant="outline" disabled={!bulkProjectId} onClick={bulkMoveToProject}>
+                      Move
+                    </Button>
+                  </div>
+                </div>
+                <Button type="button" size="sm" variant="ghost" className="gap-2 self-start lg:self-auto" onClick={clearSelection}>
+                  <X className="h-4 w-4" />
+                  Clear
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          <TabsContent value={activeView} className="space-y-3">
               {loading ? (
                 <TaskListSkeleton />
               ) : visibleTasks.length === 0 ? (
@@ -686,14 +870,14 @@ export default function TasksPage() {
                       ? emptyCopy.description
                       : "Try another priority or completion filter to widen this task view."
                   }
-                  onAddTask={handleAddTask}
+                  onAddTask={() => handleAddTask()}
                 />
               ) : (
                 <SortableList
                   items={visibleTasks}
                   getLabel={(task) => task.title}
                   onReorder={handleReorderTasks}
-                  disabled={sortMode !== "manual"}
+                  disabled={sortMode !== "manual" || selectionMode}
                   className="space-y-3"
                   renderItem={(task, { dragHandle, isDragging }) => (
                     <Card
@@ -706,6 +890,14 @@ export default function TasksPage() {
                     >
                       <CardContent className="flex flex-col gap-4 p-4 md:flex-row md:items-start">
                         {dragHandle ? <div className="md:pt-0.5">{dragHandle}</div> : null}
+                        {selectionMode && (
+                          <Checkbox
+                            checked={selectedTaskSet.has(String(task.id))}
+                            onCheckedChange={() => toggleTaskSelection(task.id)}
+                            className="mt-1 h-5 w-5"
+                            aria-label={`Select ${task.title}`}
+                          />
+                        )}
                         <Checkbox
                           checked={task.completed}
                           onCheckedChange={() => handleToggleTask(task.id, !task.completed)}
@@ -823,8 +1015,7 @@ export default function TasksPage() {
                   )}
                 />
               )}
-            </TabsContent>
-          ))}
+          </TabsContent>
         </Tabs>
 
         <Dialog open={reminderDialogOpen} onOpenChange={setReminderDialogOpen}>

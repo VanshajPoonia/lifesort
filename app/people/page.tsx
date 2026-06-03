@@ -80,6 +80,12 @@ type PersonLink = {
   item_href: string
 }
 
+type PersonCounts = {
+  commitments: number
+  waiting: number
+  tasks: number
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const RELATIONSHIP_TYPES: RelationshipType[] = ["family", "friend", "work", "school", "client", "mentor", "other"]
@@ -402,11 +408,13 @@ function ReminderForm({
 
 function PersonCard({
   person,
+  counts,
   onEdit,
   onDelete,
   onSelect,
 }: {
   person: Person
+  counts?: PersonCounts
   onEdit: (p: Person) => void
   onDelete: (id: number) => void
   onSelect: (p: Person) => void
@@ -499,6 +507,20 @@ function PersonCard({
                 {tags.slice(0, 5).map((tag) => (
                   <Badge key={tag} variant="outline" className="text-xs py-0">{tag}</Badge>
                 ))}
+              </div>
+            )}
+
+            {counts && (counts.commitments > 0 || counts.waiting > 0 || counts.tasks > 0) && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {counts.commitments > 0 && (
+                  <Badge variant="secondary" className="text-xs">{counts.commitments} commitments</Badge>
+                )}
+                {counts.waiting > 0 && (
+                  <Badge variant="secondary" className="text-xs">{counts.waiting} waiting</Badge>
+                )}
+                {counts.tasks > 0 && (
+                  <Badge variant="secondary" className="text-xs">{counts.tasks} tasks</Badge>
+                )}
               </div>
             )}
           </div>
@@ -766,6 +788,7 @@ function PersonDetail({
 
 export default function PeoplePage() {
   const [people, setPeople] = useState<Person[]>([])
+  const [personCounts, setPersonCounts] = useState<Record<number, PersonCounts>>({})
   const [lifeAreas, setLifeAreas] = useState<LifeArea[]>([])
   const [upcomingReminders, setUpcomingReminders] = useState<Reminder[]>([])
   const [loading, setLoading] = useState(true)
@@ -776,6 +799,50 @@ export default function PeoplePage() {
   const [editingPerson, setEditingPerson] = useState<Person | null>(null)
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null)
   const [filter, setFilter] = useState("")
+
+  const loadPersonCounts = useCallback(async (items: Person[]) => {
+    if (items.length === 0) {
+      setPersonCounts({})
+      return
+    }
+
+    const entries = await Promise.all(
+      items.map(async (person): Promise<[number, PersonCounts]> => {
+        const [commitmentsRes, waitingRes, linksRes] = await Promise.allSettled([
+          fetch(`/api/commitments?person_id=${person.id}&view=open&limit=100`),
+          fetch(`/api/waiting?person_id=${person.id}&view=all&limit=100`),
+          fetch(`/api/people/links?person_id=${person.id}`),
+        ])
+
+        const commitments =
+          commitmentsRes.status === "fulfilled" && commitmentsRes.value.ok
+            ? await commitmentsRes.value.json().then((data) => (Array.isArray(data) ? data.length : 0)).catch(() => 0)
+            : 0
+        const waiting =
+          waitingRes.status === "fulfilled" && waitingRes.value.ok
+            ? await waitingRes.value
+                .json()
+                .then((data) =>
+                  Array.isArray(data)
+                    ? data.filter((item: { status?: string }) => item.status !== "resolved" && item.status !== "cancelled").length
+                    : 0,
+                )
+                .catch(() => 0)
+            : 0
+        const tasks =
+          linksRes.status === "fulfilled" && linksRes.value.ok
+            ? await linksRes.value
+                .json()
+                .then((data) => (Array.isArray(data) ? data.filter((item: { item_type?: string }) => item.item_type === "task").length : 0))
+                .catch(() => 0)
+            : 0
+
+        return [person.id, { commitments, waiting, tasks }]
+      }),
+    )
+
+    setPersonCounts(Object.fromEntries(entries) as Record<number, PersonCounts>)
+  }, [])
 
   const fetchAll = useCallback(async () => {
     setError(null)
@@ -790,8 +857,10 @@ export default function PeoplePage() {
         peopleRes.json(),
         remindersRes.ok ? remindersRes.json() : Promise.resolve([]),
       ])
-      setPeople(Array.isArray(peopleData) ? peopleData : [])
+      const nextPeople = Array.isArray(peopleData) ? peopleData : []
+      setPeople(nextPeople)
       setUpcomingReminders(Array.isArray(remindersData) ? remindersData : [])
+      loadPersonCounts(nextPeople)
       if (lifeAreasRes.ok) {
         const laData = await lifeAreasRes.json()
         setLifeAreas(Array.isArray(laData) ? laData.map((a: Record<string, unknown>) => normalizeLifeArea(a)) : [])
@@ -801,7 +870,7 @@ export default function PeoplePage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [loadPersonCounts])
 
   useEffect(() => { fetchAll() }, [fetchAll])
 
@@ -1037,6 +1106,7 @@ export default function PeoplePage() {
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {filtered.map((p) => (
                   <PersonCard key={p.id} person={p}
+                    counts={personCounts[p.id]}
                     onEdit={(p) => { setEditingPerson(p); setShowForm(true) }}
                     onDelete={handleDelete}
                     onSelect={setSelectedPerson}
@@ -1127,6 +1197,7 @@ export default function PeoplePage() {
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {byType[type].map((p) => (
                       <PersonCard key={p.id} person={p}
+                        counts={personCounts[p.id]}
                         onEdit={(p) => { setEditingPerson(p); setShowForm(true) }}
                         onDelete={handleDelete}
                         onSelect={setSelectedPerson}

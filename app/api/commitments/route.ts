@@ -120,6 +120,7 @@ export async function GET(request: Request) {
     const viewParam = searchParams.get("view") || "open"
     const view = views.has(viewParam) ? viewParam : "open"
     const lifeAreaId = normalizeLifeAreaId(searchParams.get("life_area_id"))
+    const personId = normalizeLifeAreaId(searchParams.get("person_id"))
     const search = (searchParams.get("q") || "").trim().slice(0, 80)
     const limit = Math.min(200, Math.max(1, Number.parseInt(searchParams.get("limit") || "100", 10) || 100))
     const pattern = `%${search}%`
@@ -167,6 +168,7 @@ export async function GET(request: Request) {
           OR (${view} = 'missed' AND c.status = 'missed')
         )
         AND (${lifeAreaId}::integer IS NULL OR c.life_area_id = ${lifeAreaId})
+        AND (${personId}::integer IS NULL OR c.person_id = ${personId})
         AND (
           ${search} = ''
           OR c.title ILIKE ${pattern}

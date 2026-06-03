@@ -129,8 +129,8 @@ Run after changes to `DashboardLayout`, command/search/capture UI, Home preferen
 - Header search trigger, desktop Quick Add, and mobile FAB all open the command palette.
 - Capture commands still route through the existing `QuickAddModal` or existing feature pages; no capture data is silently written by the palette itself.
 - `/api/search?q=...` results still navigate to the expected records.
-- Home stays calm and short; `home_view_mode` may remain stored for backward compatibility but must not turn Home into a module directory.
-- Home Quick Access stays compact: 4-6 primary shortcuts, secondary actions in More actions, mobile horizontal scrolling without page overflow, and localStorage recents that never block navigation.
+- Home stays calm, short, and focus-first; `home_view_mode` may remain stored for backward compatibility but must not turn Home into a module directory.
+- Home's first screen should prioritize Today focus items, 4 glance stats, and Add Task / Capture Thought / Open Journal. Quick Access and deeper widgets stay in the secondary collapsible section, with localStorage recents that never block navigation.
 - Onboarding completion merges `app_preferences` instead of erasing existing preference keys.
 - Trial banner uses hourly precision and "Go Pro" or "Upgrade" wording.
 

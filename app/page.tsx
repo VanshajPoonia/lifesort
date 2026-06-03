@@ -7,10 +7,12 @@ import {
   Activity,
   AlertCircle,
   ArrowRight,
+  Bell,
   Bot,
   CalendarDays,
   BookOpenText,
   CalendarCheck,
+  ChevronDown,
   CheckSquare,
   ClipboardCheck,
   Clock,
@@ -22,6 +24,7 @@ import {
   MoreHorizontal,
   Paintbrush,
   PiggyBank,
+  Plus,
   Sparkles,
   Target,
   TrendingUp,
@@ -34,6 +37,7 @@ import { DashboardLayout } from "@/components/dashboard-layout"
 import { AppEmptyState } from "@/components/empty-state"
 import { FavoritesTodo } from "@/components/hub-page"
 import { OnboardingModal } from "@/components/onboarding-modal"
+import { QuickAddModal, type QuickAddType } from "@/components/quick-add-modal"
 import { useAuth } from "@/components/auth-provider"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -46,6 +50,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
@@ -241,12 +246,43 @@ interface ActivityItem {
 }
 
 interface TodayPlanPreview {
+  plan?: {
+    focus_items?: TodayPlanItem[]
+  }
+  candidates?: {
+    calendarToday?: TodayPlanItem[]
+  }
   summary?: {
     focusItems?: number
     dueOrOverdueTasks?: number
     dueOrOverdueItems?: number
     calendarToday?: number
   }
+}
+
+interface TodayPlanItem {
+  id: string
+  title: string
+  subtitle?: string | null
+  href?: string
+  source_type?: string
+}
+
+interface NavigationSummary {
+  counts?: {
+    overdueTasks?: number
+    habitsDueToday?: number
+    calendarToday?: number
+    unreadNotifications?: number
+  }
+}
+
+interface DashboardNotification {
+  id: number
+  title: string
+  message: string
+  is_read: boolean
+  created_at: string
 }
 
 interface WeeklyReviewPreview {
@@ -733,6 +769,8 @@ export default function Home() {
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [sources, setSources] = useState<DashboardSources>(emptySources)
   const [todayPreview, setTodayPreview] = useState<TodayPlanPreview | null>(null)
+  const [navigationSummary, setNavigationSummary] = useState<NavigationSummary | null>(null)
+  const [notifications, setNotifications] = useState<DashboardNotification[]>([])
   const [journalPreview, setJournalPreview] = useState<JournalPreviewResponse["entry"]>(null)
   const [inboxWidget, setInboxWidget] = useState<{ total: number; recent: InboxItem[] } | null>(null)
   const [somedayWidget, setSomedayWidget] = useState<{ due: number; recent: SomedayItem[] } | null>(null)
@@ -746,6 +784,8 @@ export default function Home() {
   const [lifeScoreAiLoading, setLifeScoreAiLoading] = useState(false)
   const [lifeScoreAiError, setLifeScoreAiError] = useState<string | null>(null)
   const [activePendingFilter, setActivePendingFilter] = useState<PendingFilter>("all")
+  const [secondaryOpen, setSecondaryOpen] = useState(false)
+  const [quickAddType, setQuickAddType] = useState<QuickAddType | null>(null)
   const [dashboardLoading, setDashboardLoading] = useState(true)
   const [errors, setErrors] = useState<Partial<Record<DashboardErrorKey, string>>>({})
   const [recentQuickAccessIds, setRecentQuickAccessIds] = useState<string[]>([])
@@ -853,7 +893,7 @@ export default function Home() {
   const fetchDashboard = async () => {
     setDashboardLoading(true)
     const planDate = localDateString()
-    const [tasks, goals, notes, budget, investments, wishlist, income, projects, todayPlan, journal] = await Promise.all([
+    const [tasks, goals, notes, budget, investments, wishlist, income, projects, todayPlan, journal, navSummary] = await Promise.all([
       fetchJson<Task[]>(apiEndpoints.tasks),
       fetchJson<Goal[]>(apiEndpoints.goals),
       fetchJson<Note[]>(apiEndpoints.notes),
@@ -864,6 +904,7 @@ export default function Home() {
       fetchJson<Project[]>(apiEndpoints.projects),
       fetchJson<TodayPlanPreview>(`/api/today-plan?date=${planDate}`),
       fetchJson<JournalPreviewResponse>(`/api/journal/${planDate}`),
+      fetchJson<NavigationSummary>("/api/navigation-summary"),
     ])
 
     // Inbox widget — fetch independently, fails silently
@@ -936,6 +977,16 @@ export default function Home() {
       // Maintenance widget failure is non-fatal
     }
 
+    try {
+      const notificationsRes = await fetch("/api/notifications")
+      if (notificationsRes.ok) {
+        const notificationsData = await notificationsRes.json()
+        setNotifications(Array.isArray(notificationsData.notifications) ? notificationsData.notifications.slice(0, 5) : [])
+      }
+    } catch {
+      setNotifications([])
+    }
+
     setSources({
       tasks: normalizeArray<Task>(tasks.data),
       goals: normalizeArray<Goal>(goals.data),
@@ -947,6 +998,7 @@ export default function Home() {
       projects: normalizeArray<Project>(projects.data),
     })
     setTodayPreview(todayPlan.data)
+    setNavigationSummary(navSummary.data)
     setJournalPreview(journal.data?.entry ?? null)
     setErrors({
       ...(tasks.error ? { tasks: tasks.error } : {}),
@@ -1182,6 +1234,23 @@ export default function Home() {
     journalGratitude ||
     journalPreview?.notes_from_today ||
     "Start with one gratitude note or a quick reflection."
+  const focusItems = todayPreview?.plan?.focus_items ?? []
+  const nextCalendarEvent = todayPreview?.candidates?.calendarToday?.[0] ?? null
+  const overdueTaskCount =
+    typeof navigationSummary?.counts?.overdueTasks === "number"
+      ? navigationSummary.counts.overdueTasks
+      : sources.tasks.filter((task) => {
+          const due = parseDate(task.due_date)
+          return Boolean(!task.completed && due && due < startOfToday())
+        }).length
+  const habitsDueToday = navigationSummary?.counts?.habitsDueToday ?? 0
+  const budgetUsedPercent = budgetIncome > 0 ? Math.round((budgetExpenses / budgetIncome) * 100) : null
+  const secondaryCount = [
+    lifeScore?.ready ? 1 : 0,
+    recentActivity.length,
+    notifications.length,
+    pendingAllCount ?? 0,
+  ].reduce((total, count) => total + count, 0)
 
   const hasAnyErrors = Object.keys(errors).length > 0
 
@@ -1198,23 +1267,118 @@ export default function Home() {
       />
 
       <div className="space-y-5 md:space-y-6">
-        <section className="surface-card section-enter flex flex-col gap-4 rounded-lg border bg-card/95 p-4 md:flex-row md:items-center md:justify-between md:p-5">
-          <div>
-            <p className="text-sm text-muted-foreground">Today at a glance</p>
-            <h1 className="mt-1 text-xl font-bold text-foreground sm:text-2xl">Welcome back, {firstName}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              What needs your attention right now, with deeper detail only when you ask for it.
-            </p>
+        <section className="surface-card section-enter rounded-lg border border-primary/20 bg-primary/5 p-4 md:p-5">
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+            <div>
+              <p className="text-sm text-muted-foreground">Today at a glance</p>
+              <h1 className="mt-1 text-2xl font-bold text-foreground sm:text-3xl">Welcome back, {firstName}</h1>
+              <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+                Start with the few things that matter today. Everything else can stay below the fold until you need it.
+              </p>
+            </div>
+            <Button asChild className="w-fit gap-2">
+              <Link href="/today">
+                <Sparkles className="h-4 w-4" />
+                Plan my day with AI
+              </Link>
+            </Button>
           </div>
-          <Button asChild className="w-fit gap-2">
-            <Link href="/capture" onClick={() => recordQuickAccess(primaryQuickActions[0])}>
-              <Sparkles className="h-4 w-4" />
-              Capture something
-            </Link>
-          </Button>
+
+          <div className="mt-5 grid gap-3 lg:grid-cols-3">
+            {dashboardLoading ? (
+              <>
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+              </>
+            ) : errors.today ? (
+              <div className="lg:col-span-3">
+                <SectionUnavailable label="Today focus" />
+              </div>
+            ) : focusItems.length > 0 ? (
+              focusItems.slice(0, 3).map((item, index) => (
+                <Link key={item.id || index} href={item.href || "/today"} className="interactive-card rounded-md border bg-background/85 p-3 hover:bg-secondary">
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+                      {index + 1}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-semibold text-foreground">{item.title}</span>
+                      <span className="mt-1 block truncate text-xs text-muted-foreground">
+                        {item.subtitle || item.source_type || "Focus item"}
+                      </span>
+                    </span>
+                  </div>
+                </Link>
+              ))
+            ) : (
+              <div className="rounded-md border border-dashed bg-background/70 p-4 lg:col-span-3">
+                <p className="text-sm font-medium text-foreground">No focus items selected yet.</p>
+                <p className="mt-1 text-sm text-muted-foreground">Open Today to choose up to three priorities for this day.</p>
+              </div>
+            )}
+          </div>
         </section>
 
-        <QuickAccessSection recentActions={recentQuickActions} onActionClick={recordQuickAccess} />
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Card className="surface-card">
+            <CardContent className="p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Overdue tasks</p>
+              <p className="mt-2 text-2xl font-bold text-foreground">{dashboardLoading ? "—" : overdueTaskCount}</p>
+            </CardContent>
+          </Card>
+          <Card className="surface-card">
+            <CardContent className="p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Habits due today</p>
+              <p className="mt-2 text-2xl font-bold text-foreground">{dashboardLoading ? "—" : habitsDueToday}</p>
+            </CardContent>
+          </Card>
+          <Card className="surface-card">
+            <CardContent className="p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Budget used</p>
+              <p className="mt-2 text-2xl font-bold text-foreground">
+                {dashboardLoading ? "—" : budgetUsedPercent === null ? "No data" : `${budgetUsedPercent}%`}
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="surface-card">
+            <CardContent className="p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Next event</p>
+              <p className="mt-2 truncate text-lg font-semibold text-foreground">
+                {dashboardLoading ? "—" : nextCalendarEvent?.title || "No event today"}
+              </p>
+              {nextCalendarEvent?.subtitle && <p className="mt-1 truncate text-xs text-muted-foreground">{nextCalendarEvent.subtitle}</p>}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Button type="button" size="lg" className="gap-2" onClick={() => setQuickAddType("task")}>
+            <Plus className="h-4 w-4" />
+            Add Task
+          </Button>
+          <Button type="button" size="lg" variant="outline" className="gap-2 bg-background/80" onClick={() => setQuickAddType("inbox")}>
+            <Inbox className="h-4 w-4" />
+            Capture Thought
+          </Button>
+          <Button asChild size="lg" variant="outline" className="gap-2 bg-background/80">
+            <Link href={`/journal?date=${localDateString()}`}>
+              <BookOpenText className="h-4 w-4" />
+              Open Journal
+            </Link>
+          </Button>
+        </div>
+
+        <Collapsible open={secondaryOpen} onOpenChange={setSecondaryOpen} className="space-y-5">
+          <CollapsibleTrigger asChild>
+            <Button type="button" variant="ghost" className="w-full justify-between rounded-lg border border-dashed bg-muted/20 px-4">
+              <span>Secondary dashboard cards{secondaryCount ? ` · ${secondaryCount} signals` : ""}</span>
+              <ChevronDown className={cn("h-4 w-4 transition-transform", secondaryOpen && "rotate-180")} />
+            </Button>
+          </CollapsibleTrigger>
+
+          <CollapsibleContent className="space-y-5">
+            <QuickAccessSection recentActions={recentQuickActions} onActionClick={recordQuickAccess} />
 
         {hasAnyErrors && (
           <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
@@ -1577,10 +1741,67 @@ export default function Home() {
             </CardContent>
           </Card>
 
-          <FavoritesTodo />
+          <div className="space-y-4">
+            <Card className="surface-card section-enter">
+              <CardHeader>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Bell className="h-5 w-5 text-primary" />
+                      Notifications
+                    </CardTitle>
+                    <CardDescription>Recent nudges and wins from LifeSort.</CardDescription>
+                  </div>
+                  <Button asChild size="sm" variant="outline" className="gap-2">
+                    <Link href="/notifications">
+                      Open
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {dashboardLoading ? (
+                  <>
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                  </>
+                ) : notifications.length === 0 ? (
+                  <AppEmptyState
+                    icon={Bell}
+                    title="No notifications right now"
+                    hint="Warnings and encouragement will appear here when something needs attention."
+                    allClear
+                    className="border-dashed bg-background/70"
+                  />
+                ) : (
+                  notifications.map((notification) => (
+                    <Link key={notification.id} href="/notifications" className="block rounded-md border p-3 hover:bg-secondary">
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="line-clamp-1 text-sm font-medium">{notification.title}</p>
+                        {!notification.is_read && <Badge variant="secondary">New</Badge>}
+                      </div>
+                      <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{notification.message}</p>
+                    </Link>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+
+            <FavoritesTodo />
+          </div>
         </div>
+          </CollapsibleContent>
+        </Collapsible>
 
       </div>
+      <QuickAddModal
+        open={Boolean(quickAddType)}
+        onOpenChange={(open) => {
+          if (!open) setQuickAddType(null)
+        }}
+        initialType={quickAddType}
+      />
     </DashboardLayout>
   )
 }

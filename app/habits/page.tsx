@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useMemo, useState, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
 import {
   CheckSquare,
@@ -94,6 +94,23 @@ const COLORS = ["#2563EB", "#7C3AED", "#059669", "#DC2626", "#EA580C", "#DB2777"
 function todayString() {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+}
+
+function dateString(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+}
+
+function lastTwelveWeekDays() {
+  const end = new Date()
+  end.setHours(0, 0, 0, 0)
+  const start = new Date(end)
+  start.setDate(end.getDate() - 83)
+
+  return Array.from({ length: 84 }, (_, index) => {
+    const date = new Date(start)
+    date.setDate(start.getDate() + index)
+    return date
+  })
 }
 
 function isDueToday(habit: Habit) {
@@ -480,6 +497,7 @@ function HabitCard({
   onCheckin,
   onEdit,
   onDelete,
+  recentCheckins,
 }: {
   habit: Habit
   checkin: Checkin | undefined
@@ -487,10 +505,21 @@ function HabitCard({
   onCheckin: (habit: Habit, count: number) => void
   onEdit: (habit: Habit) => void
   onDelete: (id: number) => void
+  recentCheckins: Checkin[]
 }) {
   const done = (checkin?.count ?? 0) >= habit.target_count
   const count = checkin?.count ?? 0
   const due = isDueToday(habit)
+  const completionDates = useMemo(
+    () =>
+      new Set(
+        recentCheckins
+          .filter((item) => item.habit_id === habit.id && item.count > 0)
+          .map((item) => item.checkin_date.slice(0, 10)),
+      ),
+    [habit.id, recentCheckins],
+  )
+  const gridDays = useMemo(lastTwelveWeekDays, [])
 
   return (
     <Card className={`relative overflow-hidden transition-all ${!habit.is_active ? "opacity-60" : ""}`}>
@@ -567,6 +596,28 @@ function HabitCard({
                   {habit.life_area_name}
                 </span>
               )}
+            </div>
+
+            <div className="mt-3 space-y-1.5">
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>Last 12 weeks</span>
+                <span>{stats?.completion_month ?? 0}% last 30 days</span>
+              </div>
+              <div className="grid grid-flow-col grid-rows-7 gap-1 overflow-x-auto pb-1">
+                {gridDays.map((date) => {
+                  const key = dateString(date)
+                  const filled = completionDates.has(key)
+
+                  return (
+                    <div
+                      key={key}
+                      title={`${date.toLocaleDateString("en-US", { month: "short", day: "numeric" })}: ${filled ? "completed" : "not checked in"}`}
+                      className="h-2.5 w-2.5 shrink-0 rounded-[2px] border border-border/60"
+                      style={filled ? { background: habit.color, borderColor: habit.color } : undefined}
+                    />
+                  )
+                })}
+              </div>
             </div>
           </div>
         </div>
@@ -672,6 +723,7 @@ export default function HabitsPage() {
   const [habits, setHabits] = useState<Habit[]>([])
   const [routines, setRoutines] = useState<Routine[]>([])
   const [checkins, setCheckins] = useState<Checkin[]>([])
+  const [recentCheckins, setRecentCheckins] = useState<Checkin[]>([])
   const [stats, setStats] = useState<Record<string, HabitStats>>({})
   const [lifeAreas, setLifeAreas] = useState<LifeArea[]>([])
   const [loading, setLoading] = useState(true)
@@ -687,24 +739,27 @@ export default function HabitsPage() {
   const fetchAll = useCallback(async () => {
     setError(null)
     try {
-      const [habitsRes, routinesRes, checkinsRes, lifeAreasRes] = await Promise.all([
+      const [habitsRes, routinesRes, checkinsRes, recentCheckinsRes, lifeAreasRes] = await Promise.all([
         fetch(lifeAreaFilter ? `/api/habits?life_area_id=${encodeURIComponent(lifeAreaFilter)}` : "/api/habits"),
         fetch("/api/routines"),
         fetch(`/api/habits/checkins?date=${today}`),
+        fetch("/api/habits/checkins"),
         fetch("/api/life-areas"),
       ])
 
       if (!habitsRes.ok || !routinesRes.ok || !checkinsRes.ok) throw new Error("Fetch failed")
 
-      const [habitsData, routinesData, checkinsData] = await Promise.all([
+      const [habitsData, routinesData, checkinsData, recentCheckinsData] = await Promise.all([
         habitsRes.json(),
         routinesRes.json(),
         checkinsRes.json(),
+        recentCheckinsRes.ok ? recentCheckinsRes.json() : Promise.resolve({ checkins: [] }),
       ])
 
       setHabits(Array.isArray(habitsData) ? habitsData : [])
       setRoutines(Array.isArray(routinesData) ? routinesData : [])
       setCheckins(Array.isArray(checkinsData.checkins) ? checkinsData.checkins : [])
+      setRecentCheckins(Array.isArray(recentCheckinsData.checkins) ? recentCheckinsData.checkins : [])
       setStats(checkinsData.stats && typeof checkinsData.stats === "object" ? checkinsData.stats : {})
 
       if (lifeAreasRes.ok) {
@@ -727,10 +782,15 @@ export default function HabitsPage() {
     // Optimistic update
     if (count === 0) {
       setCheckins((cs) => cs.filter((c) => c.habit_id !== habit.id))
+      setRecentCheckins((cs) => cs.filter((c) => !(c.habit_id === habit.id && c.checkin_date.slice(0, 10) === today)))
     } else {
       setCheckins((cs) => {
         const next = cs.filter((c) => c.habit_id !== habit.id)
         return [...next, { habit_id: habit.id, checkin_date: today, count }]
+      })
+      setRecentCheckins((cs) => {
+        const next = cs.filter((c) => !(c.habit_id === habit.id && c.checkin_date.slice(0, 10) === today))
+        return [{ habit_id: habit.id, checkin_date: today, count }, ...next]
       })
     }
 
@@ -745,6 +805,11 @@ export default function HabitsPage() {
       if (res.ok) {
         const data = await res.json()
         setStats(data.stats || {})
+      }
+      const recentRes = await fetch("/api/habits/checkins")
+      if (recentRes.ok) {
+        const data = await recentRes.json()
+        setRecentCheckins(Array.isArray(data.checkins) ? data.checkins : [])
       }
     } catch {
       // Revert optimistic update
@@ -1014,6 +1079,7 @@ export default function HabitsPage() {
                           onCheckin={handleCheckin}
                           onEdit={(h) => { setEditingHabit(h); setShowHabitForm(true) }}
                           onDelete={handleDeleteHabit}
+                          recentCheckins={recentCheckins}
                         />
                       ))}
                     </div>
@@ -1033,6 +1099,7 @@ export default function HabitsPage() {
                           onCheckin={handleCheckin}
                           onEdit={(h) => { setEditingHabit(h); setShowHabitForm(true) }}
                           onDelete={handleDeleteHabit}
+                          recentCheckins={recentCheckins}
                         />
                       ))}
                     </div>
@@ -1052,6 +1119,7 @@ export default function HabitsPage() {
                           onCheckin={handleCheckin}
                           onEdit={(h) => { setEditingHabit(h); setShowHabitForm(true) }}
                           onDelete={handleDeleteHabit}
+                          recentCheckins={recentCheckins}
                         />
                       ))}
                     </div>

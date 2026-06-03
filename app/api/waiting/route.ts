@@ -119,6 +119,7 @@ export async function GET(request: Request) {
     const statusParam = searchParams.get("status")
     const status = statusParam && itemStatuses.has(statusParam) ? statusParam : null
     const lifeAreaId = normalizeLifeAreaId(searchParams.get("life_area_id"))
+    const personId = normalizeLifeAreaId(searchParams.get("person_id"))
     const search = (searchParams.get("q") || "").trim().slice(0, 80)
     const limit = Math.min(200, Math.max(1, Number.parseInt(searchParams.get("limit") || "100", 10) || 100))
     const pattern = `%${search}%`
@@ -160,6 +161,7 @@ export async function GET(request: Request) {
           OR (${view} = 'resolved' AND wi.status = 'resolved')
           OR (${view} = 'life_area' AND ${lifeAreaId}::integer IS NOT NULL AND wi.life_area_id = ${lifeAreaId})
         )
+        AND (${personId}::integer IS NULL OR wi.person_id = ${personId})
         AND (
           ${search} = ''
           OR wi.title ILIKE ${pattern}

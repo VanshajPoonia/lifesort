@@ -17,6 +17,61 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-06-03 22:17 IST - Part 6 Existing-Page Improvements
+
+- Agent/tool used: Codex (GPT-5 coding agent).
+- Task completed: Implemented the Part 6 existing-page improvements across Goals, Habits, People, Tasks, and the Home Dashboard without schema changes or new services.
+
+#### Files Modified
+- `app/page.tsx` - Reworked Home into a focus-first dashboard with Today focus hero, 4 glance stats, 3 quick actions, and a collapsible secondary area containing the deeper widgets plus notifications.
+- `app/goals/page.tsx` - Added client-derived on-track badges and goal-linked task creation through Quick Add.
+- `app/habits/page.tsx` - Added compact 12-week completion grids using existing habit check-ins.
+- `app/people/page.tsx` - Added non-blocking relationship count badges for open commitments, active waiting items, and linked tasks.
+- `app/tasks/page.tsx` - Added Enter-to-create task input, requested quick date filters, multi-select mode, and bulk actions for done/delete/project/priority.
+- `components/quick-add-modal.tsx` - Added optional initial field values and task `goal_id` payload support.
+- `app/api/commitments/route.ts` and `app/api/waiting/route.ts` - Added optional `person_id` GET filters.
+- `AI_PROJECT.md`, `AI_DECISIONS.md`, `AI_CHECKLIST.md`, and `AI_TASK_LOG.md` - Updated project memory and handoff notes.
+
+#### Summary
+- Goals now show On track / At risk / Behind badges from existing `created_at`, `target_date`, and `progress` data, without mutating goal status.
+- Goal cards can open Quick Add with a task title/priority and hidden `goal_id` so created tasks are linked to the goal.
+- Habit cards show a small 12-week completion grid from `/api/habits/checkins`; no charting dependency or API schema change was added.
+- People cards surface existing cross-feature relationships by counting person-scoped commitments, waiting items, and task links.
+- Tasks now support a top quick-create input, All / Due Today / Overdue / No Due Date filters, selection mode, and bulk operations. Moving to a project uses the existing `project_items` link table.
+- Home now answers "what matters right now" first: Today focus items, overdue tasks, habits due today, budget used, next event, and direct action buttons. Lower-priority widgets are still available in a user-controlled collapsible section.
+
+#### Commands Run
+- `git status --short --branch` - started clean on `main...origin/main [ahead 6]`; final dirty files are scoped to Part 6 source/docs before commit.
+- `git diff --stat` - reviewed the scoped source/docs diff.
+- `git diff --check` - passed.
+- `npx tsc --noEmit` - initially failed on missing Home icon imports, then passed after adding them. A later parallel verification run briefly failed on missing `.next/types` files while `npm run build` was regenerating `.next`; rerunning `npx tsc --noEmit` after the build finished passed.
+- `npm run lint` - failed with the known existing ESLint 10 blocker: no `eslint.config.(js|mjs|cjs)` file exists.
+- `npm run build` - passed; generated 148 routes.
+- Temporary dev server: attempted `npm run dev -- -p 3001`, but port 3001 was already in use. Started `npm run dev -- -p 3002` for smoke tests and stopped it afterward; the pre-existing port 3000/3001 processes were left untouched.
+- HTTP page smoke on `localhost:3002` - `/`, `/goals`, `/habits`, `/people`, and `/tasks` returned 200.
+- HTTP API smoke on `localhost:3002` - unauthenticated `/api/commitments?person_id=1` and `/api/waiting?person_id=1` returned 401.
+
+#### Bugs Found Or Fixed
+- Fixed the missing direct visibility of goal health/on-track state.
+- Fixed People cards hiding useful linked relationship counts.
+- Fixed Tasks lacking Enter-to-create and bulk task operations.
+- Fixed Home's hierarchy by making Today focus and immediate actions the first screen.
+
+#### Remaining Issues And Limitations
+- Authenticated browser QA for goal-linked Quick Add, habit grid accuracy with real check-ins, People count behavior with real links, Tasks bulk project linking, and Home mobile layout still needs a signed-in session.
+- Task bulk project linking is additive through `project_items`; it does not remove existing project links.
+- Home's Plan my day with AI button navigates to Today and does not auto-run AI from Home.
+
+#### Suggested Next Steps
+- In a signed-in browser session, verify the Part 6 manual checks from the user prompt.
+- Consider a future dedicated Tasks polish pass for keyboard shortcuts beyond Enter-to-create if users want power-user navigation.
+- Add the missing ESLint flat config in a separate tooling task so lint can become part of the real pass/fail baseline.
+
+#### Handoff Notes
+- Keep Home focus-first; do not move secondary widgets back above the Today focus hero.
+- Keep goal on-track as a derived UI signal, not a persisted status.
+- Keep task project movement represented through `project_items` unless a future schema task explicitly adds project ownership to tasks.
+
 ### 2026-06-03 21:21 IST - Part 5 New Features
 
 - Agent/tool used: Codex (GPT-5 coding agent).

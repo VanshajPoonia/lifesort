@@ -302,6 +302,7 @@ const quickAddConfigs: QuickAddConfig[] = [
       title: values.title,
       due_date: values.due_date || null,
       priority: values.priority || "medium",
+      goal_id: values.goal_id || null,
     }),
   },
   {
@@ -534,9 +535,10 @@ interface QuickAddModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   initialType?: QuickAddType | null
+  initialValues?: Record<string, string>
 }
 
-export function QuickAddModal({ open, onOpenChange, initialType }: QuickAddModalProps) {
+export function QuickAddModal({ open, onOpenChange, initialType, initialValues }: QuickAddModalProps) {
   const { toast } = useToast()
   const [activeType, setActiveType] = useState<QuickAddType>("task")
   const [values, setValues] = useState<Record<string, string>>(defaultValues.task)
@@ -548,9 +550,9 @@ export function QuickAddModal({ open, onOpenChange, initialType }: QuickAddModal
   useEffect(() => {
     if (!open || !initialType) return
     setActiveType(initialType)
-    setValues(defaultValues[initialType] || {})
+    setValues({ ...(defaultValues[initialType] || {}), ...(initialValues || {}) })
     setError("")
-  }, [initialType, open])
+  }, [initialType, initialValues, open])
 
   const handleTypeChange = (type: QuickAddType) => {
     setActiveType(type)

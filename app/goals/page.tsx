@@ -3,13 +3,14 @@
 import { useEffect, useMemo, useState } from "react"
 import type { ReactNode } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Calendar, Clock, MoreVertical, Plus, Target, TrendingUp, Zap } from "lucide-react"
+import { AlertTriangle, Calendar, CheckCircle2, Clock, MoreVertical, Plus, Target, TrendingUp, Zap } from "lucide-react"
 
 import { AddGoalDialog } from "@/components/add-goal-dialog"
 import { useAuth } from "@/components/auth-provider"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { GoalModal } from "@/components/goal-modal"
 import { LifeAreaBadge } from "@/components/life-area-controls"
+import { QuickAddModal } from "@/components/quick-add-modal"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -36,6 +37,7 @@ export interface Goal {
   title: string
   description: string | null
   category: string
+  created_at: string | null
   target_date: string | null
   status: GoalStatus
   priority: Priority
@@ -127,6 +129,7 @@ function normalizeGoal(goal: Record<string, unknown>): Goal {
     title: String(goal.title || "Untitled goal"),
     description: typeof goal.description === "string" ? goal.description : null,
     category: typeof goal.category === "string" && goal.category.trim() ? goal.category : "personal",
+    created_at: cleanDate(goal.created_at),
     target_date: cleanDate(goal.target_date),
     status: cleanStatus(goal.status === "in_progress" ? "active" : goal.status),
     priority: cleanPriority(goal.priority),
@@ -138,6 +141,47 @@ function normalizeGoal(goal: Record<string, unknown>): Goal {
     reminder_days: Number.isFinite(Number(goal.reminder_days)) ? Number(goal.reminder_days) : 3,
     reminder_sent: Boolean(goal.reminder_sent),
     life_area_id: goal.life_area_id ? String(goal.life_area_id) : null,
+  }
+}
+
+function getOnTrackSignal(goal: Goal) {
+  if (!goal.created_at || !goal.target_date || !Number.isFinite(goal.progress)) return null
+
+  const created = new Date(`${goal.created_at}T00:00:00`)
+  const target = new Date(`${goal.target_date}T00:00:00`)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  if (Number.isNaN(created.getTime()) || Number.isNaN(target.getTime())) return null
+
+  const totalDays = Math.max(1, Math.ceil((target.getTime() - created.getTime()) / 86400000))
+  const elapsedDays = Math.min(totalDays, Math.max(0, Math.ceil((today.getTime() - created.getTime()) / 86400000)))
+  const expectedProgress = Math.min(100, Math.max(0, Math.round((elapsedDays / totalDays) * 100)))
+  const gap = expectedProgress - goal.progress
+
+  if (gap <= 0) {
+    return {
+      label: "On track",
+      detail: `Expected ${expectedProgress}% by now`,
+      className: "border-success/30 bg-success/10 text-success",
+      icon: CheckCircle2,
+    }
+  }
+
+  if (gap < 15) {
+    return {
+      label: "At risk",
+      detail: `Expected ${expectedProgress}% by now`,
+      className: "border-warning/30 bg-warning/10 text-warning",
+      icon: AlertTriangle,
+    }
+  }
+
+  return {
+    label: "Behind",
+    detail: `Expected ${expectedProgress}% by now`,
+    className: "border-destructive/30 bg-destructive/10 text-destructive",
+    icon: AlertTriangle,
   }
 }
 
@@ -205,6 +249,7 @@ export default function GoalsPage() {
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("all")
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [quickTaskGoal, setQuickTaskGoal] = useState<Goal | null>(null)
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -438,98 +483,132 @@ export default function GoalsPage() {
           </Card>
         ) : filteredGoals.length > 0 ? (
           <div className="grid gap-4 md:grid-cols-2">
-            {filteredGoals.map((goal) => (
-              <Card
-                key={goal.id}
-                className={`glass-strong border transition-all hover:shadow-lg cursor-pointer ${
-                  goal.status === "completed" ? "opacity-70" : ""
-                }`}
-                onClick={() => setSelectedGoal(goal)}
-              >
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
+            {filteredGoals.map((goal) => {
+              const signal = getOnTrackSignal(goal)
+              const SignalIcon = signal?.icon
+
+              return (
+                <Card
+                  key={goal.id}
+                  className={`glass-strong border transition-all hover:shadow-lg cursor-pointer ${
+                    goal.status === "completed" ? "opacity-70" : ""
+                  }`}
+                  onClick={() => setSelectedGoal(goal)}
+                >
+                  <CardHeader>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <CardTitle className={`text-base ${goal.status === "completed" ? "line-through" : ""}`}>
+                            {goal.title}
+                          </CardTitle>
+                          <Badge className={getStatusColor(goal)} variant="outline">
+                            {isOverdue(goal) ? "overdue" : goal.status}
+                          </Badge>
+                          <Badge className={getPriorityColor(goal.priority)} variant="outline">
+                            {goal.priority}
+                          </Badge>
+                          {signal && SignalIcon && (
+                            <Badge className={`gap-1 ${signal.className}`} variant="outline" title={signal.detail}>
+                              <SignalIcon className="h-3 w-3" />
+                              {signal.label}
+                            </Badge>
+                          )}
+                          <LifeAreaBadge
+                            area={goal.life_area_id ? areaById.get(String(goal.life_area_id)) : null}
+                            fallback="No area"
+                          />
+                        </div>
+                        <CardDescription className="mt-2 line-clamp-2">
+                          {goal.description || "No description added."}
+                        </CardDescription>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(event) => event.stopPropagation()}>
+                          <Button variant="ghost" size="icon">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              setQuickTaskGoal(goal)
+                            }}
+                          >
+                            Add task
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              handleUpdateGoal(goal.id, { status: goal.status === "completed" ? "active" : "completed" })
+                            }}
+                          >
+                            {goal.status === "completed" ? "Mark active" : "Mark complete"}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              handleUpdateGoal(goal.id, { status: goal.status === "paused" ? "active" : "paused" })
+                            }}
+                          >
+                            {goal.status === "paused" ? "Resume goal" : "Pause goal"}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              handleDeleteGoal(goal.id)
+                            }}
+                            className="text-destructive"
+                          >
+                            Delete goal
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <div className="mb-2 flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Progress</span>
+                        <div className="flex items-center gap-2">
+                          {goal.target_value !== null && goal.target_value > 0 && (
+                            <span className="text-xs text-muted-foreground">
+                              {goal.current_value ?? 0}/{goal.target_value}
+                              {goal.value_unit ? ` ${goal.value_unit}` : ""}
+                            </span>
+                          )}
+                          <span className="font-medium text-foreground">{goal.progress}%</span>
+                        </div>
+                      </div>
+                      <Progress value={goal.progress} className="h-2" />
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Calendar className="h-4 w-4" />
+                        <span>{formatDate(goal.target_date)}</span>
+                      </div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <CardTitle className={`text-base ${goal.status === "completed" ? "line-through" : ""}`}>
-                          {goal.title}
-                        </CardTitle>
-                        <Badge className={getStatusColor(goal)} variant="outline">
-                          {isOverdue(goal) ? "overdue" : goal.status}
-                        </Badge>
-                        <Badge className={getPriorityColor(goal.priority)} variant="outline">
-                          {goal.priority}
-                        </Badge>
-                        <LifeAreaBadge
-                          area={goal.life_area_id ? areaById.get(String(goal.life_area_id)) : null}
-                          fallback="No area"
-                        />
-                      </div>
-                      <CardDescription className="mt-2 line-clamp-2">
-                        {goal.description || "No description added."}
-                      </CardDescription>
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild onClick={(event) => event.stopPropagation()}>
-                        <Button variant="ghost" size="icon">
-                          <MoreVertical className="h-4 w-4" />
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-8 gap-1.5"
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            setQuickTaskGoal(goal)
+                          }}
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Add task
                         </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            handleUpdateGoal(goal.id, { status: goal.status === "completed" ? "active" : "completed" })
-                          }}
-                        >
-                          {goal.status === "completed" ? "Mark active" : "Mark complete"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            handleUpdateGoal(goal.id, { status: goal.status === "paused" ? "active" : "paused" })
-                          }}
-                        >
-                          {goal.status === "paused" ? "Resume goal" : "Pause goal"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            handleDeleteGoal(goal.id)
-                          }}
-                          className="text-destructive"
-                        >
-                          Delete goal
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <div className="mb-2 flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Progress</span>
-                      <div className="flex items-center gap-2">
-                        {goal.target_value !== null && goal.target_value > 0 && (
-                          <span className="text-xs text-muted-foreground">
-                            {goal.current_value ?? 0}/{goal.target_value}
-                            {goal.value_unit ? ` ${goal.value_unit}` : ""}
-                          </span>
-                        )}
-                        <span className="font-medium text-foreground">{goal.progress}%</span>
+                        <Badge variant="outline">{goal.category}</Badge>
                       </div>
                     </div>
-                    <Progress value={goal.progress} className="h-2" />
-                  </div>
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Calendar className="h-4 w-4" />
-                      <span>{formatDate(goal.target_date)}</span>
-                    </div>
-                    <Badge variant="outline">{goal.category}</Badge>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              )
+            })}
           </div>
         ) : (
           <Card className="glass-strong border">
@@ -572,6 +651,22 @@ export default function GoalsPage() {
         }}
         onUnlinkTask={(taskId) => updateTaskGoal(taskId, null)}
         lifeAreas={lifeAreas}
+      />
+      <QuickAddModal
+        open={Boolean(quickTaskGoal)}
+        onOpenChange={(open) => {
+          if (!open) setQuickTaskGoal(null)
+        }}
+        initialType="task"
+        initialValues={
+          quickTaskGoal
+            ? {
+                title: `Next step for ${quickTaskGoal.title}`,
+                priority: quickTaskGoal.priority,
+                goal_id: String(quickTaskGoal.id),
+              }
+            : undefined
+        }
       />
     </DashboardLayout>
   )
