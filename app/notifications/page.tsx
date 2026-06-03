@@ -75,6 +75,36 @@ const TYPE_CONFIG: Record<
     badge: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
     dot: "bg-amber-500",
   },
+  journal_streak_milestone: {
+    label: "Journal Win",
+    Icon: CheckCheck,
+    badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+    dot: "bg-emerald-500",
+  },
+  habit_streak_milestone: {
+    label: "Habit Win",
+    Icon: Flame,
+    badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+    dot: "bg-emerald-500",
+  },
+  weekly_task_record: {
+    label: "Task Record",
+    Icon: CheckSquare,
+    badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+    dot: "bg-emerald-500",
+  },
+  goal_completed: {
+    label: "Goal Win",
+    Icon: Target,
+    badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+    dot: "bg-emerald-500",
+  },
+  budget_success: {
+    label: "Budget Win",
+    Icon: Wallet,
+    badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+    dot: "bg-emerald-500",
+  },
 }
 
 const ALL_TYPES = Object.entries(TYPE_CONFIG).map(([value, cfg]) => ({ value, label: cfg.label }))

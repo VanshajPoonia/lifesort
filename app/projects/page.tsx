@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   AlertCircle,
   ArrowRight,
@@ -187,6 +187,8 @@ function formFromProject(project: Project): ProjectForm {
 export default function ProjectsPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const lifeAreaFilter = searchParams.get("life_area_id")
   const [projects, setProjects] = useState<Project[]>([])
   const [lifeAreas, setLifeAreas] = useState<LifeArea[]>([])
   const [loadingProjects, setLoadingProjects] = useState(true)
@@ -205,7 +207,7 @@ export default function ProjectsPage() {
     if (user) {
       fetchData()
     }
-  }, [user, loading, router])
+  }, [user, loading, router, lifeAreaFilter])
 
   useEffect(() => {
     const handler = (event: Event) => {
@@ -220,7 +222,10 @@ export default function ProjectsPage() {
     setLoadingProjects(true)
     setError("")
     try {
-      const [projectsRes, areasRes] = await Promise.all([fetch("/api/projects"), fetch("/api/life-areas")])
+      const [projectsRes, areasRes] = await Promise.all([
+        fetch(lifeAreaFilter ? `/api/projects?life_area_id=${encodeURIComponent(lifeAreaFilter)}` : "/api/projects"),
+        fetch("/api/life-areas"),
+      ])
       if (!projectsRes.ok) throw new Error("Projects could not be loaded.")
       const projectData = await projectsRes.json()
       const areaData = areasRes.ok ? await areasRes.json() : []

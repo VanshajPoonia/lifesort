@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import type { ReactNode } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Calendar, Clock, MoreVertical, Plus, Target, TrendingUp, Zap } from "lucide-react"
 
 import { AddGoalDialog } from "@/components/add-goal-dialog"
@@ -194,6 +194,8 @@ function emptyMessage(filter: GoalFilter) {
 export default function GoalsPage() {
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const lifeAreaFilter = searchParams.get("life_area_id")
   const [goals, setGoals] = useState<Goal[]>([])
   const [tasks, setTasks] = useState<GoalTask[]>([])
   const [lifeAreas, setLifeAreas] = useState<LifeArea[]>([])
@@ -221,8 +223,8 @@ export default function GoalsPage() {
 
       try {
         const [goalsResponse, tasksResponse, lifeAreasResponse] = await Promise.all([
-          fetch("/api/goals"),
-          fetch("/api/tasks"),
+          fetch(lifeAreaFilter ? `/api/goals?life_area_id=${encodeURIComponent(lifeAreaFilter)}` : "/api/goals"),
+          fetch(lifeAreaFilter ? `/api/tasks?life_area_id=${encodeURIComponent(lifeAreaFilter)}` : "/api/tasks"),
           fetch("/api/life-areas"),
         ])
 
@@ -265,7 +267,7 @@ export default function GoalsPage() {
       cancelled = true
       window.removeEventListener("lifesort:quick-add-created", handleQuickAdd)
     }
-  }, [user])
+  }, [user, lifeAreaFilter])
 
   const filteredGoals = useMemo(() => {
     return goals

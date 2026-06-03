@@ -57,6 +57,7 @@ type BudgetCategoryUsage = {
 type BudgetData = {
   categories?: unknown[]
   transactions?: unknown[]
+  goals?: Array<{ wishlist_item_id?: number | string | null }>
   cash_flow?: CashFlowChartItem[]
   category_usage?: BudgetCategoryUsage[]
   summary?: {
@@ -338,6 +339,31 @@ export default function MoneyHubPage() {
       .slice(0, 3)
   }, [summary])
 
+  const moneyScore = useMemo(() => {
+    const usage = summary?.budget?.category_usage || []
+    const budgetScore = usage.length
+      ? Math.round(
+          (usage.reduce((sum, category) => {
+            const limit = toNumber(category.budget_limit)
+            const spent = toNumber(category.spent)
+            if (limit <= 0) return sum
+            return sum + (spent <= limit ? 1 : Math.max(0, limit / spent))
+          }, 0) / usage.length) * 30,
+        )
+      : 0
+    const savingsScore = stats.savingsRate === null ? 0 : stats.savingsRate >= 20 ? 25 : stats.savingsRate >= 10 ? 15 : 5
+    const portfolioScore = summary?.investments.length ? 15 : 0
+    const linkedWishlistScore = summary?.budget?.goals?.some((goal) => goal.wishlist_item_id) ? 10 : 0
+    const today = localDateString()
+    const hasOverdueLiabilities = (summary?.liabilities || []).some((liability) => liability.balance > 0 && liability.due_date && liability.due_date < today)
+    const liabilityScore = hasOverdueLiabilities ? 0 : 20
+    const hasScoreData = Boolean(usage.length || stats.monthlyIncome > 0 || summary?.investments.length || summary?.budget?.goals?.some((goal) => goal.wishlist_item_id) || summary?.liabilities.length)
+    return {
+      value: Math.max(0, Math.min(100, budgetScore + savingsScore + portfolioScore + linkedWishlistScore + liabilityScore)),
+      hasData: hasScoreData,
+    }
+  }, [stats.monthlyIncome, stats.savingsRate, summary])
+
   const changeTab = (tab: string) => {
     const next = tab as MoneyTab
     setActiveTab(next)
@@ -418,7 +444,8 @@ export default function MoneyHubPage() {
               <MoneyDashboardSkeleton />
             ) : stats.hasData ? (
               <>
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                  <MoneyScoreCard score={moneyScore.value} hasData={moneyScore.hasData} />
                   <MetricCard
                     icon={Wallet}
                     title="Estimated Net Worth"
@@ -683,6 +710,25 @@ function MoneyDashboardSkeleton() {
         <Skeleton className="h-96 w-full" />
       </div>
     </div>
+  )
+}
+
+function MoneyScoreCard({ score, hasData }: { score: number; hasData: boolean }) {
+  return (
+    <Card className="surface-card border-primary/30 bg-primary/5">
+      <CardContent className="flex items-center gap-4 pt-6">
+        <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full" style={{ background: `conic-gradient(hsl(var(--primary)) ${hasData ? score : 0}%, hsl(var(--muted)) ${hasData ? score : 0}% 100%)` }}>
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-card">
+            <span className="text-xl font-bold">{hasData ? score : "--"}</span>
+          </div>
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm text-muted-foreground">Money Score</p>
+          <p className="mt-1 text-sm font-medium">{hasData ? "Financial health signal" : "No financial data yet"}</p>
+          <p className="mt-2 text-xs text-muted-foreground">Budget, savings, investing, goals, and debt.</p>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 

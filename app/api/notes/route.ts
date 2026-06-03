@@ -67,12 +67,15 @@ async function getNoteWithFolder(noteId: string | number, userId: string) {
   return notes[0]
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const user = await getUserFromSession()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const { searchParams } = new URL(request.url)
+    const lifeAreaId = normalizeLifeAreaId(searchParams.get('life_area_id'))
 
     try {
       const notes = await sql`
@@ -86,7 +89,9 @@ export async function GET() {
         WHERE notes.user_id = ${user.id}
         ORDER BY notes.is_pinned DESC, notes.updated_at DESC
       `
-      return NextResponse.json(notes)
+      return NextResponse.json(
+        lifeAreaId ? notes.filter((note) => normalizeLifeAreaId(note.life_area_id) === lifeAreaId) : notes
+      )
     } catch (innerError) {
       // Schema drift fallback: if note_folders / folder_id / is_pinned / tags
       // columns are missing, return notes without the join so the page still works.
@@ -97,7 +102,9 @@ export async function GET() {
           WHERE user_id = ${user.id}
           ORDER BY updated_at DESC
         `
-        return NextResponse.json(notes)
+        return NextResponse.json(
+          lifeAreaId ? notes.filter((note) => normalizeLifeAreaId(note.life_area_id) === lifeAreaId) : notes
+        )
       }
       throw innerError
     }

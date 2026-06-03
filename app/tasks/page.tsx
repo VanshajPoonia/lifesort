@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/components/auth-provider"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import {
@@ -261,6 +261,8 @@ function TaskListSkeleton() {
 export default function TasksPage() {
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const lifeAreaFilter = searchParams.get("life_area_id")
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState("")
@@ -290,7 +292,7 @@ export default function TasksPage() {
       fetchTasks()
       fetchLifeAreas()
     }
-  }, [user])
+  }, [user, lifeAreaFilter])
 
   const fetchLifeAreas = async () => {
     try {
@@ -307,7 +309,7 @@ export default function TasksPage() {
     setLoading(true)
     setLoadError("")
     try {
-      const response = await fetch("/api/tasks")
+      const response = await fetch(lifeAreaFilter ? `/api/tasks?life_area_id=${encodeURIComponent(lifeAreaFilter)}` : "/api/tasks")
       if (!response.ok) {
         setLoadError("Tasks could not be loaded.")
         setTasks([])

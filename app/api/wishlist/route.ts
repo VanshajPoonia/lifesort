@@ -15,12 +15,15 @@ async function validateLifeAreaId(lifeAreaId: number | null, userId: string) {
   return rows.length > 0 ? lifeAreaId : undefined
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const user = await getUserFromSession()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const { searchParams } = new URL(request.url)
+    const lifeAreaId = normalizeLifeAreaId(searchParams.get('life_area_id'))
 
     const items = await sql`
       SELECT * FROM wishlist_items 
@@ -28,7 +31,9 @@ export async function GET() {
       ORDER BY created_at DESC
     `
 
-    return NextResponse.json(items)
+    return NextResponse.json(
+      lifeAreaId ? items.filter((item) => normalizeLifeAreaId(item.life_area_id) === lifeAreaId) : items
+    )
   } catch (error) {
     console.error('[v0] Get wishlist error:', error)
     return NextResponse.json({ error: 'Failed to fetch wishlist' }, { status: 500 })

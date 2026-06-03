@@ -140,11 +140,13 @@ Run after changes to `DashboardLayout`, command/search/capture UI, Home preferen
 2. Keep the primary sidebar focused but discoverable: Home, Today, Journal, Workspace, Whiteboard, Money, Reflect, Coach, Settings, and admin-only Admin.
 3. Keep Home short and attention-focused; do not re-add full module dashboards there when a hub or deep feature route already owns the workflow.
 4. Keep Today as the primary daily focus surface, with focus/due/suggested items unified into Must/Should/Could priority filters.
-5. Preserve compatibility routes: `/organize` should lead to Workspace, `/plan` should lead to Workspace > Tasks & Goals, `/life-admin` should lead to Workspace > Templates & Routines, `/capture` remains the Universal Capture feature page, and `/insights` remains a Reflect compatibility feature route.
-6. Keep Quick Add, Global Search, notifications, profile/settings, and sign-out reachable from the shared layout.
-7. Keep mobile navigation compact: Home, Today, Workspace, Money, and More. More should include Journal, Whiteboard, LifeSort Coach, Reflect, Settings/Profile, Support/FAQs, and admin-only Admin.
-8. Keep hub summary endpoints read-only, authenticated, user-scoped, and missing-schema tolerant.
-9. Add hub cards or tab links for any feature hidden from the sidebar so discoverability is not lost.
+5. Keep `/today` defaulting to the Today tab. The This Week planner is opt-in through `/today?tab=week` and should reschedule existing tasks through `/api/tasks`, not create a separate planning table.
+6. Preserve compatibility routes: `/organize` should lead to Workspace, `/plan` should lead to Workspace > Tasks & Goals, `/life-admin` should lead to Workspace > Templates & Routines, `/capture` remains the Universal Capture feature page, and `/insights` remains a Reflect compatibility feature route.
+7. Keep Quick Add, Global Search, notifications, profile/settings, and sign-out reachable from the shared layout.
+8. Keep mobile navigation compact: Home, Today, Workspace, Money, and More. More should include Journal, Whiteboard, LifeSort Coach, Reflect, Settings/Profile, Support/FAQs, and admin-only Admin.
+9. Keep hub summary endpoints read-only, authenticated, user-scoped, and missing-schema tolerant.
+10. Add hub cards or tab links for any feature hidden from the sidebar so discoverability is not lost.
+11. Life Area detail views should use optional filters on existing module APIs and preserve normal unfiltered module pages when no `life_area_id` query param is present.
 
 ## UI Polish Checklist
 
@@ -164,8 +166,9 @@ Run after changes to `DashboardLayout`, command/search/capture UI, Home preferen
 14. Preferred currency is display-only. Use `lib/currency.ts` for Money formatting and do not convert stored numeric values when `users.preferred_currency` changes.
 15. Wishlist "Save for this" must create at most one linked budget goal per wishlist item through `budget_goals.wishlist_item_id`; duplicate attempts should be non-destructive.
 16. Liabilities require the money dashboard migration before authenticated CRUD works in an environment. Do not run the migration unless the target database is explicitly confirmed.
-17. Theme contrast checks must include selected/focused command, select, and dropdown rows; nested `text-muted-foreground` icons/descriptions should inherit the selected foreground.
-18. Prefer theme semantic status tokens (`text-success`, `text-warning`, `text-destructive`, `text-primary`) for high-traffic status text instead of raw `text-green-*` / `text-amber-*` / `text-red-*` classes.
+17. Money Score is display-only and client-derived from already-fetched Money dashboard data. Do not write score rows or convert stored finance values.
+18. Theme contrast checks must include selected/focused command, select, and dropdown rows; nested `text-muted-foreground` icons/descriptions should inherit the selected foreground.
+19. Prefer theme semantic status tokens (`text-success`, `text-warning`, `text-destructive`, `text-primary`) for high-traffic status text instead of raw `text-green-*` / `text-amber-*` / `text-red-*` classes.
 
 ## Responsive Foundation Checklist
 
@@ -182,10 +185,11 @@ Run after changes to `DashboardLayout`, command/search/capture UI, Home preferen
 3. Journal autosave should debounce writes, show `Unsaved changes` / `Saving...` / `Saved` / error states, and keep a manual Save fallback.
 4. `notes_from_today` uses the shared rich-text editor; history previews and counts should strip HTML rather than rendering stored markup.
 5. Journal `tomorrow_focus` may upsert one next-day Today focus item with `source_type: "journal"`; do not overwrite three existing user-picked focus items.
-6. Do not add AI affirmation generation unless it follows the existing AI route pattern: session auth, usage caps, explicit provider env checks, and no automatic writes.
-7. Keep Journal-specific visual polish scoped to `/journal`: warm notebook surfaces, readable writing fields, accessible star ratings, reduced-motion-safe section motion, and no global theme drift.
-8. Journal star ratings must keep radiogroup/radio semantics and comfortable touch targets after styling changes.
-9. When changing Journal schema or profile-backed Journal preferences, update the forward migration, `scripts/schema.sql`, `scripts/fresh-install.sql`, and `AI_TASK_LOG.md`.
+6. `/api/journal/insights` must remain privacy-limited to dates, mood, star ratings, and gratitude only. Do not add rich text notes or full journal body fields to the insights response.
+7. Do not add AI affirmation generation unless it follows the existing AI route pattern: session auth, usage caps, explicit provider env checks, and no automatic writes.
+8. Keep Journal-specific visual polish scoped to `/journal`: warm notebook surfaces, readable writing fields, accessible star ratings, reduced-motion-safe section motion, and no global theme drift.
+9. Journal star ratings must keep radiogroup/radio semantics and comfortable touch targets after styling changes.
+10. When changing Journal schema or profile-backed Journal preferences, update the forward migration, `scripts/schema.sql`, `scripts/fresh-install.sql`, and `AI_TASK_LOG.md`.
 
 ## Rich Text Editor Checklist
 

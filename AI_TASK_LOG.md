@@ -17,6 +17,64 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-06-03 21:21 IST - Part 5 New Features
+
+- Agent/tool used: Codex (GPT-5 coding agent).
+- Task completed: Implemented the Part 5 feature set: Life Area detail view, Today Focus Mode and Week Planner, Reflect Journal Insights, positive reinforcement notifications, Money Score, API filters, docs, and verification.
+
+#### Files Modified
+- `app/life-areas/page.tsx` - Made Life Area cards navigate to detail pages while preserving edit/reorder/delete controls.
+- `app/life-areas/[id]/page.tsx` - Added Life Area detail view with linked tasks, goals, habits, projects, notes, budget categories, wishlist items, quick actions, and View all links.
+- `app/api/tasks/route.ts`, `app/api/goals/route.ts`, `app/api/habits/route.ts`, `app/api/projects/route.ts`, `app/api/notes/route.ts`, `app/api/budget/route.ts`, and `app/api/wishlist/route.ts` - Added optional Life Area filters and task date/status filters without changing default responses.
+- `app/tasks/page.tsx`, `app/goals/page.tsx`, `app/habits/page.tsx`, `app/projects/page.tsx`, `app/notes/page.tsx`, `components/money/budget-panel.tsx`, and `components/money/wishlist-panel.tsx` - Added `?life_area_id=` deep-link loading support.
+- `app/today/page.tsx` - Added Today/This Week tabs, fullscreen Focus Mode overlay, task/journal session-note append actions, task completion from focus, and a dnd-kit Week Planner with drag rescheduling and dated quick-add.
+- `app/api/journal/insights/route.ts` - Added authenticated 90-day Journal Insights API with date, mood, star ratings, and gratitude only.
+- `app/insights/page.tsx` and `app/insights/journal-insights-charts.tsx` - Upgraded the existing Reflect Journal tab with mood trend, rating breakdown, heatmap, gratitude words, and streak stats.
+- `app/api/notifications/route.ts` and `app/notifications/page.tsx` - Added positive notification generation and UI config for journal/habit streak milestones, weekly task records, goal completions, and budget success.
+- `app/money/page.tsx` - Added client-derived Money Score tile to Money Overview.
+- `AI_PROJECT.md`, `AI_DECISIONS.md`, `AI_CHECKLIST.md`, and `AI_TASK_LOG.md` - Updated project memory and verification notes.
+
+#### Summary
+- `/life-areas/[id]` now gathers existing user-owned module data through filtered existing APIs instead of a new aggregate endpoint.
+- Today keeps the daily view as default and adds `/today?tab=week` as an opt-in weekly planner. Dragging tasks updates `tasks.due_date`; quick-add creates a dated task.
+- Focus Mode runs as a fullscreen overlay from Today focus cards. Task-sourced focus sessions can append notes to the source task, append notes to Journal, and mark the task complete. Non-task sessions can append notes to Journal or finish/close.
+- Reflect's existing Journal tab now includes privacy-limited 90-day insights from `/api/journal/insights`; rich journal body fields are not returned.
+- Positive notifications use the existing `safe()` and `ON CONFLICT DO NOTHING` pattern so congratulations do not repeat.
+- Money Score is display-only and derived client-side from the already-fetched Money dashboard data.
+- No migrations, new dependencies, external services, secrets, AI routes, or `/pomodoro` changes were added.
+
+#### Commands Run
+- `git status --short --branch` - started clean on `main...origin/main [ahead 5]`; final dirty files are scoped to Part 5 source/docs before commit.
+- `git diff --stat` - reviewed the scoped source/docs diff.
+- `git diff --check` - passed.
+- `npx tsc --noEmit` - initially failed because `/notifications` had an exhaustive notification-type style map; passed after adding styles for the new positive notification types.
+- `npm run lint` - failed with the known existing ESLint 10 blocker: no `eslint.config.(js|mjs|cjs)` file exists.
+- `npm run build` - passed; generated 148 routes including `/life-areas/[id]` and `/api/journal/insights`.
+- Temporary dev server: started `npm run dev -- -p 3001` for smoke tests because an existing Node process was already listening on port 3000. Stopped the temporary server after testing; the pre-existing port 3000 process was left untouched.
+- HTTP page smoke on `127.0.0.1:3001` - `/life-areas`, `/life-areas/1`, `/today`, `/today?tab=week`, `/reflect?tab=journal`, `/money?tab=overview`, `/notifications`, `/tasks?life_area_id=1`, `/goals?life_area_id=1`, `/habits?life_area_id=1`, `/projects?life_area_id=1`, and `/notes?life_area_id=1` returned 200.
+- HTTP API smoke on `127.0.0.1:3001` - unauthenticated `/api/journal/insights`, `/api/tasks?life_area_id=1`, `/api/goals?life_area_id=1`, `/api/habits?life_area_id=1`, `/api/projects?life_area_id=1`, `/api/notes?life_area_id=1`, `/api/budget?type=categories&life_area_id=1`, `/api/wishlist?life_area_id=1`, and `/api/notifications` returned 401.
+
+#### Bugs Found Or Fixed
+- Fixed the downstream notification type exhaustiveness gap after adding positive notification types.
+- Avoided disrupting the existing port 3000 server by running smoke tests on a temporary port 3001 server.
+
+#### Remaining Issues And Limitations
+- `npm run lint` remains blocked by the pre-existing missing ESLint flat config.
+- Authenticated browser QA for Life Area quick actions, Focus Mode note append/Done, Week Planner drag/quick-add persistence, Reflect chart rendering with real journal data, positive notification dedupe, and mobile overflow was not completed.
+- Positive notification streak SQL treats streak milestones as consecutive calendar-day check-ins/entries ending today. Weekly/custom habit cadence nuance can be refined in a future pass if needed.
+- Life Area detail quick actions are intentionally minimal and may need richer per-module open/edit affordances later.
+
+#### Suggested Next Steps
+- In a signed-in browser session, manually verify Life Area navigation/quick actions, Focus Mode task/Journey note actions, Week Planner drag and quick-add, Reflect Journal Insights charts, Money Score, and mobile layouts.
+- If habit cadence-specific congratulations matter, refine habit streak milestone generation to account for weekly/custom schedules.
+- Add an ESLint flat config in a dedicated tooling task so `npm run lint` can become useful again.
+
+#### Handoff Notes
+- Keep `/pomodoro` as a legacy standalone route; primary deep-work flow is now the Today focus overlay.
+- Keep `/api/journal/insights` privacy-limited; do not add rich note body content to that endpoint.
+- Keep Life Area detail views consuming filtered existing APIs; do not add a new aggregate endpoint unless a future performance pass requires it.
+- Keep Money Score client-derived and display-only.
+
 ### 2026-06-03 20:37 IST - User-Created Templates Persistence
 
 - Agent/tool used: Codex (GPT-5 coding agent).

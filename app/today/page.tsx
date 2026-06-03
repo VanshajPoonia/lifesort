@@ -3,19 +3,35 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import type { ReactNode } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
 import {
   AlertCircle,
   ArrowRight,
   BookOpenText,
   CalendarDays,
   Check,
+  ChevronDown,
   Clock,
   FileText,
   Flame,
+  GripVertical,
   Lightbulb,
   Loader2,
+  Pause,
+  Play,
   Plus,
+  RotateCcw,
   Save,
   Sparkles,
   Star,
@@ -40,6 +56,7 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
+import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 
 type SaveState = "idle" | "saving" | "saved" | "error"
@@ -93,6 +110,17 @@ type TodayPlan = {
   reflection_went_well: string
   reflection_did_not_go_well: string
   reflection_improve_tomorrow: string
+}
+
+type TodayTab = "today" | "week"
+
+type WeekTask = {
+  id: number | string
+  title: string
+  priority?: string | null
+  completed?: boolean
+  due_date?: string | null
+  description?: string | null
 }
 
 type CapacityForm = {
@@ -165,6 +193,29 @@ function localDateString() {
   const date = new Date()
   const offset = date.getTimezoneOffset()
   return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 10)
+}
+
+function dateString(date: Date) {
+  const offset = date.getTimezoneOffset()
+  return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 10)
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date)
+  next.setDate(next.getDate() + days)
+  return next
+}
+
+function weekStart(date = new Date()) {
+  const start = new Date(date)
+  const day = (start.getDay() + 6) % 7
+  start.setDate(start.getDate() - day)
+  start.setHours(0, 0, 0, 0)
+  return start
+}
+
+function normalizeTodayTab(value: string | null): TodayTab {
+  return value === "week" ? "week" : "today"
 }
 
 function formatDate(value?: string | null) {
@@ -266,7 +317,11 @@ function deriveCapacitySummary(input: {
 export default function TodayPage() {
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const { toast } = useToast()
   const [planDate] = useState(localDateString)
+  const [activeTab, setActiveTab] = useState<TodayTab>(() => normalizeTodayTab(searchParams.get("tab")))
+  const [focusSession, setFocusSession] = useState<TodayItem | null>(null)
   const [plan, setPlan] = useState<TodayPlan | null>(null)
   const [candidates, setCandidates] = useState<TodayResponse["candidates"]>(emptyCandidates)
   const [todaySummary, setTodaySummary] = useState<TodayResponse["summary"]>({
@@ -301,6 +356,15 @@ export default function TodayPage() {
   useEffect(() => {
     if (!authLoading && !user) router.push("/login")
   }, [authLoading, router, user])
+
+  useEffect(() => {
+    setActiveTab(normalizeTodayTab(searchParams.get("tab")))
+  }, [searchParams])
+
+  const switchTab = (tab: TodayTab) => {
+    setActiveTab(tab)
+    router.replace(tab === "week" ? "/today?tab=week" : "/today", { scroll: false })
+  }
 
   const fetchToday = useCallback(async () => {
     setLoading(true)
@@ -551,6 +615,79 @@ export default function TodayPage() {
     await addFocus(item)
   }
 
+  const appendNotesToTask = async (item: TodayItem, notes: string) => {
+    if (item.source_type !== "task" || !item.source_id || !notes.trim()) return
+    const response = await fetch("/api/tasks")
+    if (!response.ok) throw new Error("Could not load task")
+    const tasks = await response.json()
+    const task = Array.isArray(tasks) ? tasks.find((candidate) => String(candidate.id) === String(item.source_id)) : null
+    const existing = typeof task?.description === "string" ? task.description.trim() : ""
+    const sessionNote = `Focus session - ${item.title}\n${notes.trim()}`
+    const description = existing ? `${existing}\n\n${sessionNote}` : sessionNote
+    const update = await fetch("/api/tasks", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: item.source_id, description }),
+    })
+    if (!update.ok) throw new Error("Could not append notes")
+    toast({ title: "Notes appended", description: "Session notes were added to the task." })
+  }
+
+  const appendNotesToJournal = async (item: TodayItem, notes: string) => {
+    if (!notes.trim()) return
+    const response = await fetch(`/api/journal/${planDate}`)
+    const data = response.ok ? await response.json().catch(() => null) : null
+    const entry = data?.entry || {}
+    const existing = typeof entry.notes_from_today === "string" ? entry.notes_from_today.trim() : ""
+    const sessionNote = `Focus session - ${item.title}\n${notes.trim()}`
+    const notes_from_today = existing ? `${existing}\n\n${sessionNote}` : sessionNote
+    const update = await fetch(`/api/journal/${planDate}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        mood: entry.mood ?? null,
+        gratitude: Array.isArray(entry.gratitude) ? entry.gratitude : ["", "", ""],
+        affirmation_text: entry.affirmation_text ?? null,
+        affirmation_pinned_until: entry.affirmation_pinned_until ?? null,
+        work_todo: Array.isArray(entry.work_todo) ? entry.work_todo : [],
+        personal_todo: Array.isArray(entry.personal_todo) ? entry.personal_todo : [],
+        family_todo: Array.isArray(entry.family_todo) ? entry.family_todo : [],
+        what_went_well: entry.what_went_well ?? null,
+        what_could_be_better: entry.what_could_be_better ?? null,
+        notes_from_today,
+        how_to_make_tomorrow_better: entry.how_to_make_tomorrow_better ?? null,
+        work_stars: entry.work_stars ?? null,
+        work_stars_note: entry.work_stars_note ?? null,
+        personal_stars: entry.personal_stars ?? null,
+        personal_stars_note: entry.personal_stars_note ?? null,
+        family_stars: entry.family_stars ?? null,
+        family_stars_note: entry.family_stars_note ?? null,
+        tomorrow_focus: entry.tomorrow_focus ?? null,
+        tomorrow_avoid: entry.tomorrow_avoid ?? null,
+        energy_level: entry.energy_level ?? null,
+        tags: Array.isArray(entry.tags) ? entry.tags : [],
+      }),
+    })
+    if (!update.ok) throw new Error("Could not append journal notes")
+    toast({ title: "Notes appended", description: "Session notes were added to today's Journal." })
+    fetchJournalPreview()
+  }
+
+  const completeFocusSession = async (item: TodayItem) => {
+    if (item.source_type === "task" && item.source_id) {
+      const response = await fetch("/api/tasks", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: item.source_id, completed: true }),
+      })
+      if (!response.ok) throw new Error("Could not complete task")
+      await removeFocus(item.id)
+      fetchToday()
+      toast({ title: "Task completed", description: item.title })
+    }
+    setFocusSession(null)
+  }
+
   const saveReflection = async () => {
     await savePlan(focusItems, reflection)
   }
@@ -697,6 +834,25 @@ export default function TodayPage() {
   return (
     <DashboardLayout title="Today" subtitle={todayLabel}>
       <div className="space-y-5 md:space-y-6">
+        <div className="flex w-full overflow-x-auto rounded-lg border bg-card p-1 sm:w-fit">
+          <Button
+            variant={activeTab === "today" ? "default" : "ghost"}
+            size="sm"
+            className="shrink-0"
+            onClick={() => switchTab("today")}
+          >
+            Today
+          </Button>
+          <Button
+            variant={activeTab === "week" ? "default" : "ghost"}
+            size="sm"
+            className="shrink-0"
+            onClick={() => switchTab("week")}
+          >
+            This Week
+          </Button>
+        </div>
+
         {loadError ? (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-12 text-center">
@@ -706,6 +862,8 @@ export default function TodayPage() {
               <Button className="mt-4" onClick={fetchToday}>Try again</Button>
             </CardContent>
           </Card>
+        ) : activeTab === "week" ? (
+          <WeekPlanner />
         ) : (
           <>
             <Card className="surface-card section-enter border-primary/20">
@@ -808,6 +966,15 @@ export default function TodayPage() {
                         </div>
                         <p className="mt-2 text-sm font-medium">{item.title}</p>
                         <p className="mt-1 text-xs text-muted-foreground">{sourceLabel(item.source_type)}</p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mt-3 w-full gap-2"
+                          onClick={() => setFocusSession(item)}
+                        >
+                          <Target className="h-3.5 w-3.5" />
+                          Focus
+                        </Button>
                       </div>
                     ))}
                   </div>
@@ -1281,6 +1448,15 @@ export default function TodayPage() {
           </>
         )}
       </div>
+      {focusSession && (
+        <FocusOverlay
+          item={focusSession}
+          onClose={() => setFocusSession(null)}
+          onAppendToTask={appendNotesToTask}
+          onAppendToJournal={appendNotesToJournal}
+          onDone={completeFocusSession}
+        />
+      )}
     </DashboardLayout>
   )
 }
@@ -1453,6 +1629,375 @@ function EmptyPanel({
         <div>
           <p className="font-medium text-foreground">{title}</p>
           <p className="mt-1">{description}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function FocusOverlay({
+  item,
+  onClose,
+  onAppendToTask,
+  onAppendToJournal,
+  onDone,
+}: {
+  item: TodayItem
+  onClose: () => void
+  onAppendToTask: (item: TodayItem, notes: string) => Promise<void>
+  onAppendToJournal: (item: TodayItem, notes: string) => Promise<void>
+  onDone: (item: TodayItem) => Promise<void>
+}) {
+  const duration = 25 * 60
+  const [secondsLeft, setSecondsLeft] = useState(duration)
+  const [running, setRunning] = useState(false)
+  const [notes, setNotes] = useState("")
+  const [saving, setSaving] = useState<"idle" | "task" | "journal" | "done">("idle")
+  const progress = Math.round(((duration - secondsLeft) / duration) * 100)
+  const minutes = Math.floor(secondsLeft / 60)
+  const seconds = secondsLeft % 60
+
+  useEffect(() => {
+    if (!running) return
+    const timer = window.setInterval(() => {
+      setSecondsLeft((current) => {
+        if (current <= 1) {
+          setRunning(false)
+          return 0
+        }
+        return current - 1
+      })
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [running])
+
+  const runAction = async (mode: "task" | "journal" | "done", action: () => Promise<void>) => {
+    setSaving(mode)
+    try {
+      await action()
+    } finally {
+      setSaving("idle")
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-background/85 p-4 backdrop-blur-md">
+      <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-lg border bg-card p-5 shadow-2xl sm:p-6">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <Badge variant="secondary" className="mb-3">Focus Session</Badge>
+            <h2 className="text-2xl font-bold text-foreground sm:text-4xl">{item.title}</h2>
+            <p className="mt-2 text-sm text-muted-foreground">{sourceLabel(item.source_type)}</p>
+          </div>
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close focus session">
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+
+        <div className="mt-8 grid gap-6 lg:grid-cols-[16rem_1fr] lg:items-center">
+          <div className="mx-auto flex h-56 w-56 items-center justify-center rounded-full" style={{ background: `conic-gradient(hsl(var(--primary)) ${progress}%, hsl(var(--muted)) ${progress}% 100%)` }}>
+            <div className="flex h-44 w-44 flex-col items-center justify-center rounded-full bg-card text-center">
+              <span className="font-mono text-5xl font-bold">
+                {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
+              </span>
+              <span className="mt-2 text-xs text-muted-foreground">{progress}% complete</span>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => setRunning((current) => !current)} className="gap-2">
+                {running ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                {running ? "Pause" : "Start"}
+              </Button>
+              <Button variant="outline" onClick={() => { setRunning(false); setSecondsLeft(duration) }} className="gap-2">
+                <RotateCcw className="h-4 w-4" />
+                Reset
+              </Button>
+              <Button variant="outline" onClick={() => { setRunning(false); setSecondsLeft(5 * 60) }}>
+                Skip to 5-min break
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="focus-session-notes">Notes during this session</Label>
+              <Textarea
+                id="focus-session-notes"
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+                rows={6}
+                placeholder="Capture decisions, blockers, or the next tiny step."
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {item.source_type === "task" && item.source_id && (
+                <Button
+                  variant="outline"
+                  disabled={!notes.trim() || saving !== "idle"}
+                  onClick={() => runAction("task", () => onAppendToTask(item, notes))}
+                >
+                  {saving === "task" ? "Appending..." : "Append to Task"}
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                disabled={!notes.trim() || saving !== "idle"}
+                onClick={() => runAction("journal", () => onAppendToJournal(item, notes))}
+              >
+                {saving === "journal" ? "Appending..." : "Append to Journal"}
+              </Button>
+              {item.source_type === "task" && item.source_id ? (
+                <Button disabled={saving !== "idle"} onClick={() => runAction("done", () => onDone(item))} className="gap-2">
+                  <Check className="h-4 w-4" />
+                  {saving === "done" ? "Completing..." : "Done"}
+                </Button>
+              ) : (
+                <Button onClick={onClose} className="gap-2">
+                  <Check className="h-4 w-4" />
+                  Finish session
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function WeekPlanner() {
+  const week = useMemo(() => {
+    const start = weekStart()
+    return Array.from({ length: 7 }, (_, index) => {
+      const date = addDays(start, index)
+      return {
+        date,
+        key: dateString(date),
+        label: date.toLocaleDateString("en-US", { weekday: "short" }),
+        day: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      }
+    })
+  }, [])
+  const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor))
+  const [tasks, setTasks] = useState<WeekTask[]>([])
+  const [focusByDate, setFocusByDate] = useState<Record<string, TodayItem[]>>({})
+  const [quickAdd, setQuickAdd] = useState<Record<string, string>>({})
+  const [loading, setLoading] = useState(true)
+  const [carryOpen, setCarryOpen] = useState(false)
+  const [savingDate, setSavingDate] = useState<string | null>(null)
+  const start = week[0].key
+  const end = week[6].key
+
+  const fetchWeek = useCallback(async () => {
+    setLoading(true)
+    try {
+      const overdueEnd = dateString(addDays(week[0].date, -1))
+      const [weekTasksRes, overdueRes, planResults] = await Promise.all([
+        fetch(`/api/tasks?date_from=${start}&date_to=${end}&completed=false`),
+        fetch(`/api/tasks?date_to=${overdueEnd}&completed=false`),
+        Promise.all(week.map((day) => fetch(`/api/today-plan?date=${day.key}`).then((res) => (res.ok ? res.json() : null)).catch(() => null))),
+      ])
+      const weekTasks = weekTasksRes.ok ? await weekTasksRes.json() : []
+      const overdueTasks = overdueRes.ok ? await overdueRes.json() : []
+      setTasks([...(Array.isArray(overdueTasks) ? overdueTasks : []), ...(Array.isArray(weekTasks) ? weekTasks : [])])
+      setFocusByDate(
+        Object.fromEntries(
+          week.map((day, index) => [day.key, Array.isArray(planResults[index]?.plan?.focus_items) ? planResults[index].plan.focus_items : []]),
+        ),
+      )
+    } finally {
+      setLoading(false)
+    }
+  }, [end, start, week])
+
+  useEffect(() => {
+    fetchWeek()
+  }, [fetchWeek])
+
+  const tasksByDate = useMemo(() => {
+    const grouped: Record<string, WeekTask[]> = {}
+    week.forEach((day) => { grouped[day.key] = [] })
+    tasks.forEach((task) => {
+      const dueDate = task.due_date ? String(task.due_date).slice(0, 10) : ""
+      if (grouped[dueDate]) grouped[dueDate].push(task)
+    })
+    return grouped
+  }, [tasks, week])
+
+  const overdueTasks = useMemo(
+    () => tasks.filter((task) => task.due_date && String(task.due_date).slice(0, 10) < start && !task.completed),
+    [start, tasks],
+  )
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const taskId = event.active.data.current?.taskId
+    const date = event.over?.data.current?.date
+    if (!taskId || !date) return
+
+    const previous = tasks
+    setTasks((current) => current.map((task) => String(task.id) === String(taskId) ? { ...task, due_date: date } : task))
+    setSavingDate(date)
+    try {
+      const response = await fetch("/api/tasks", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: taskId, due_date: date }),
+      })
+      if (!response.ok) throw new Error("Reschedule failed")
+    } catch {
+      setTasks(previous)
+    } finally {
+      setSavingDate(null)
+    }
+  }
+
+  const createTask = async (date: string) => {
+    const title = (quickAdd[date] || "").trim()
+    if (!title) return
+    setQuickAdd((current) => ({ ...current, [date]: "" }))
+    const response = await fetch("/api/tasks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, due_date: date, priority: "medium" }),
+    })
+    if (response.ok) fetchWeek()
+  }
+
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="grid gap-3 p-4 md:grid-cols-7">
+          {Array.from({ length: 7 }).map((_, index) => <Skeleton key={index} className="h-48 w-full" />)}
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>This Week</CardTitle>
+          <CardDescription>Drag tasks between days to reschedule them. Focus items are shown for context.</CardDescription>
+        </CardHeader>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <Button variant="ghost" className="w-fit gap-2 px-0" onClick={() => setCarryOpen((open) => !open)}>
+            <ChevronDown className={cn("h-4 w-4 transition-transform", carryOpen && "rotate-180")} />
+            Carry forward
+            <Badge variant="secondary">{overdueTasks.length}</Badge>
+          </Button>
+        </CardHeader>
+        {carryOpen && (
+          <CardContent className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {overdueTasks.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No overdue tasks to carry forward.</p>
+            ) : overdueTasks.map((task) => <WeekTaskCard key={`overdue-${task.id}`} task={task} />)}
+          </CardContent>
+        )}
+      </Card>
+
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <div className="grid gap-3 lg:grid-cols-7">
+          {week.map((day) => (
+            <WeekDayColumn
+              key={day.key}
+              date={day.key}
+              label={day.label}
+              day={day.day}
+              tasks={tasksByDate[day.key] || []}
+              focusItems={focusByDate[day.key] || []}
+              quickValue={quickAdd[day.key] || ""}
+              saving={savingDate === day.key}
+              onQuickChange={(value) => setQuickAdd((current) => ({ ...current, [day.key]: value }))}
+              onQuickSubmit={() => createTask(day.key)}
+            />
+          ))}
+        </div>
+      </DndContext>
+    </div>
+  )
+}
+
+function WeekDayColumn({
+  date,
+  label,
+  day,
+  tasks,
+  focusItems,
+  quickValue,
+  saving,
+  onQuickChange,
+  onQuickSubmit,
+}: {
+  date: string
+  label: string
+  day: string
+  tasks: WeekTask[]
+  focusItems: TodayItem[]
+  quickValue: string
+  saving: boolean
+  onQuickChange: (value: string) => void
+  onQuickSubmit: () => void
+}) {
+  const { isOver, setNodeRef } = useDroppable({ id: `week-day-${date}`, data: { date } })
+  return (
+    <div ref={setNodeRef} className={cn("min-h-[22rem] rounded-lg border bg-card p-3 transition-colors", isOver && "bg-primary/10 ring-2 ring-primary/30")}>
+      <div className="mb-3 flex items-start justify-between gap-2">
+        <div>
+          <p className="font-semibold">{label}</p>
+          <p className="text-xs text-muted-foreground">{day}</p>
+        </div>
+        <Badge variant={tasks.length ? "secondary" : "outline"}>{tasks.length}</Badge>
+      </div>
+      <div className="space-y-2">
+        {focusItems.slice(0, 2).map((item) => (
+          <div key={`${date}-${item.id}`} className="rounded-md border border-primary/20 bg-primary/5 p-2 text-xs">
+            <p className="truncate font-medium">{item.title}</p>
+            <p className="text-muted-foreground">Focus</p>
+          </div>
+        ))}
+        {tasks.slice(0, 5).map((task) => <WeekTaskCard key={task.id} task={task} />)}
+        {tasks.length > 5 && <p className="rounded-md bg-muted p-2 text-xs text-muted-foreground">+{tasks.length - 5} more tasks</p>}
+      </div>
+      <div className="mt-3 flex gap-2">
+        <Input
+          value={quickValue}
+          onChange={(event) => onQuickChange(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault()
+              onQuickSubmit()
+            }
+          }}
+          placeholder="Quick add"
+          aria-label={`Quick add task for ${label}`}
+        />
+        <Button size="icon" onClick={onQuickSubmit} disabled={!quickValue.trim() || saving} aria-label={`Add task for ${label}`}>
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function WeekTaskCard({ task }: { task: WeekTask }) {
+  const { attributes, listeners, setActivatorNodeRef, setNodeRef, isDragging } = useDraggable({
+    id: `week-task-${task.id}`,
+    data: { taskId: task.id },
+  })
+  return (
+    <div ref={setNodeRef} className={cn("rounded-md border bg-background p-2 text-xs shadow-sm", isDragging && "opacity-40")}>
+      <div className="flex items-start gap-2">
+        <button ref={setActivatorNodeRef} type="button" className="mt-0.5 cursor-grab text-muted-foreground active:cursor-grabbing" aria-label={`Drag ${task.title}`} {...attributes} {...listeners}>
+          <GripVertical className="h-3.5 w-3.5" />
+        </button>
+        <div className="min-w-0">
+          <p className="truncate font-medium">{task.title}</p>
+          <p className="text-muted-foreground">{task.priority || "medium"}</p>
         </div>
       </div>
     </div>

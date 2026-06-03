@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { ReactNode } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   AlertCircle,
   CheckCircle2,
@@ -162,6 +162,9 @@ export default function NotesPage() {
 
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const lifeAreaFilter = searchParams.get("life_area_id")
+  const noteFilter = searchParams.get("note")
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const pendingPatchRef = useRef<Record<string, unknown>>({})
   const pendingNoteIdRef = useRef<string | null>(null)
@@ -195,7 +198,7 @@ export default function NotesPage() {
 
     try {
       const [notesResponse, foldersResponse, lifeAreasResponse] = await Promise.all([
-        fetch("/api/notes"),
+        fetch(lifeAreaFilter ? `/api/notes?life_area_id=${encodeURIComponent(lifeAreaFilter)}` : "/api/notes"),
         fetch("/api/note-folders"),
         fetch("/api/life-areas"),
       ])
@@ -224,6 +227,7 @@ export default function NotesPage() {
       setFolders(nextFolders)
       setLifeAreas(nextLifeAreas)
       setSelectedNote((prev) => {
+        if (noteFilter) return nextNotes.find((note) => note.id === noteFilter) || nextNotes[0] || null
         if (!prev) return nextNotes[0] || null
         return nextNotes.find((note) => note.id === prev.id) || nextNotes[0] || null
       })
@@ -233,7 +237,7 @@ export default function NotesPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [lifeAreaFilter, noteFilter])
 
   useEffect(() => {
     if (user) {

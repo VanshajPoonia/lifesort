@@ -220,7 +220,19 @@ export default function LifeAreasPage() {
         ) : (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {sortedAreas.map((area, index) => (
-              <Card key={area.id}>
+              <Card
+                key={area.id}
+                role="button"
+                tabIndex={0}
+                className="cursor-pointer transition hover:border-primary/40 hover:shadow-sm"
+                onClick={() => router.push(`/life-areas/${area.id}`)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault()
+                    router.push(`/life-areas/${area.id}`)
+                  }
+                }}
+              >
                 <CardHeader>
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
@@ -233,10 +245,28 @@ export default function LifeAreasPage() {
                       </div>
                     </div>
                     <div className="flex shrink-0 gap-1">
-                      <Button size="icon" variant="ghost" onClick={() => reorder(area, -1)} disabled={index === 0} title="Move up">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          reorder(area, -1)
+                        }}
+                        disabled={index === 0}
+                        title="Move up"
+                      >
                         <ArrowUp className="h-4 w-4" />
                       </Button>
-                      <Button size="icon" variant="ghost" onClick={() => reorder(area, 1)} disabled={index === sortedAreas.length - 1} title="Move down">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          reorder(area, 1)
+                        }}
+                        disabled={index === sortedAreas.length - 1}
+                        title="Move down"
+                      >
                         <ArrowDown className="h-4 w-4" />
                       </Button>
                     </div>
@@ -245,11 +275,27 @@ export default function LifeAreasPage() {
                 <CardContent className="flex items-center justify-between gap-2">
                   <span className="text-xs text-muted-foreground">Order {index + 1}</span>
                   <div className="flex gap-1">
-                    <Button size="sm" variant="outline" onClick={() => openEdit(area)} className="gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        openEdit(area)
+                      }}
+                      className="gap-2"
+                    >
                       <Edit className="h-4 w-4" />
                       Edit
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => deleteArea(area)} className="gap-2 text-destructive">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        deleteArea(area)
+                      }}
+                      className="gap-2 text-destructive"
+                    >
                       <Trash2 className="h-4 w-4" />
                       Delete
                     </Button>

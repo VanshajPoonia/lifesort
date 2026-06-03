@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState, type ReactNode } from "react"
+import dynamic from "next/dynamic"
 import { usePathname, useRouter } from "next/navigation"
 import {
   Activity,
@@ -36,6 +37,15 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useBreakpoint } from "@/hooks/use-breakpoint"
 import { cn } from "@/lib/utils"
+
+const JournalMoodTrend = dynamic(() => import("./journal-insights-charts").then((mod) => mod.JournalMoodTrend), {
+  ssr: false,
+  loading: () => <Skeleton className="h-[220px] w-full" />,
+})
+const JournalRatingBreakdown = dynamic(() => import("./journal-insights-charts").then((mod) => mod.JournalRatingBreakdown), {
+  ssr: false,
+  loading: () => <Skeleton className="h-[220px] w-full" />,
+})
 
 type AreaMetrics = {
   key: string
@@ -168,6 +178,15 @@ type JournalDigest = {
     gratitude_items: number
     completed_intentions: number
   }
+}
+
+type JournalInsightsEntry = {
+  journal_date: string
+  mood: number | null
+  work_stars: number | null
+  personal_stars: number | null
+  family_stars: number | null
+  gratitude: string[]
 }
 
 function toNumber(value: unknown) {
@@ -317,6 +336,57 @@ function localDateString() {
   return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 10)
 }
 
+function addDays(date: Date, days: number) {
+  const next = new Date(date)
+  next.setDate(next.getDate() + days)
+  return next
+}
+
+function entryHasSignal(entry: JournalInsightsEntry) {
+  return Boolean(entry.mood || entry.work_stars || entry.personal_stars || entry.family_stars || entry.gratitude.some(Boolean))
+}
+
+function journalStats(entries: JournalInsightsEntry[]) {
+  const days = new Set(entries.filter(entryHasSignal).map((entry) => entry.journal_date))
+  let current = 0
+  for (let date = new Date(); days.has(localDateStringFor(date)); date = addDays(date, -1)) current += 1
+  let longest = 0
+  let run = 0
+  Array.from(days).sort().forEach((day, index, sorted) => {
+    const previous = sorted[index - 1]
+    if (previous && day === localDateStringFor(addDays(new Date(`${previous}T00:00:00`), 1))) run += 1
+    else run = 1
+    longest = Math.max(longest, run)
+  })
+  const moods = entries.map((entry) => entry.mood).filter((mood): mood is number => typeof mood === "number")
+  const averageMood = moods.length ? Math.round((moods.reduce((sum, mood) => sum + mood, 0) / moods.length) * 10) / 10 : null
+  return { current, longest, total: days.size, averageMood }
+}
+
+function localDateStringFor(date: Date) {
+  const offset = date.getTimezoneOffset()
+  return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 10)
+}
+
+function gratitudeWords(entries: JournalInsightsEntry[]) {
+  const stop = new Set(["the", "and", "for", "with", "that", "this", "you", "are", "was", "were", "from", "have", "has", "had", "but", "not", "today", "very", "into"])
+  const counts = new Map<string, number>()
+  entries.flatMap((entry) => entry.gratitude).join(" ").toLowerCase().split(/[^a-z0-9']+/).forEach((word) => {
+    if (word.length < 3 || stop.has(word)) return
+    counts.set(word, (counts.get(word) || 0) + 1)
+  })
+  return Array.from(counts.entries()).sort((a, b) => b[1] - a[1]).slice(0, 10)
+}
+
+function journalHeatmapDays(entries: JournalInsightsEntry[]) {
+  const days = new Set(entries.filter(entryHasSignal).map((entry) => entry.journal_date))
+  const start = addDays(new Date(), -89)
+  return Array.from({ length: 90 }, (_, index) => {
+    const date = localDateStringFor(addDays(start, index))
+    return { date, active: days.has(date) }
+  })
+}
+
 function ReflectExperience() {
   const { user, loading } = useAuth()
   const router = useRouter()
@@ -331,6 +401,7 @@ function ReflectExperience() {
   const [ignoringInsights, setIgnoringInsights] = useState<IgnoringInsightsData | null>(null)
   const [ignoringAnalysis, setIgnoringAnalysis] = useState<AiIgnoringResult | null>(null)
   const [journalDigest, setJournalDigest] = useState<JournalDigest | null>(null)
+  const [journalInsights, setJournalInsights] = useState<JournalInsightsEntry[]>([])
   const [loadingMetrics, setLoadingMetrics] = useState(true)
   const [loadingIgnoring, setLoadingIgnoring] = useState(true)
   const [loadingJournal, setLoadingJournal] = useState(true)
@@ -346,6 +417,9 @@ function ReflectExperience() {
   const [creatingAction, setCreatingAction] = useState<number | null>(null)
   const [creatingIgnoringAction, setCreatingIgnoringAction] = useState<number | null>(null)
   const [expandedAreaRows, setExpandedAreaRows] = useState<Set<string>>(new Set())
+  const journalInsightStats = useMemo(() => journalStats(journalInsights), [journalInsights])
+  const journalWordCounts = useMemo(() => gratitudeWords(journalInsights), [journalInsights])
+  const journalHeatmap = useMemo(() => journalHeatmapDays(journalInsights), [journalInsights])
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -406,14 +480,20 @@ function ReflectExperience() {
     setLoadingJournal(true)
     setJournalError("")
     try {
-      const response = await fetch(`/api/journal/weekly-digest?weekOf=${localDateString()}`)
-      if (response.status === 401) {
+      const [digestResponse, insightsResponse] = await Promise.all([
+        fetch(`/api/journal/weekly-digest?weekOf=${localDateString()}`),
+        fetch("/api/journal/insights"),
+      ])
+      if (digestResponse.status === 401 || insightsResponse.status === 401) {
         router.push("/login")
         return
       }
-      const data = await response.json().catch(() => null)
-      if (!response.ok) throw new Error(data?.error || "Could not load journal digest")
+      const data = await digestResponse.json().catch(() => null)
+      const insightsData = await insightsResponse.json().catch(() => null)
+      if (!digestResponse.ok) throw new Error(data?.error || "Could not load journal digest")
+      if (!insightsResponse.ok) throw new Error(insightsData?.error || "Could not load journal insights")
       setJournalDigest(data)
+      setJournalInsights(Array.isArray(insightsData?.entries) ? insightsData.entries : [])
     } catch (err) {
       setJournalError(err instanceof Error ? err.message : "Could not load journal digest")
     } finally {
@@ -625,6 +705,73 @@ function ReflectExperience() {
                 </div>
               ) : journalDigest ? (
                 <>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <MetricPill icon={Flame} label="Current streak" value={`${journalInsightStats.current}d`} />
+                    <MetricPill icon={Target} label="Longest streak" value={`${journalInsightStats.longest}d`} />
+                    <MetricPill icon={BookOpenText} label="Total entries" value={journalInsightStats.total} />
+                    <MetricPill icon={Star} label="Avg mood" value={journalInsightStats.averageMood ?? "No data"} />
+                  </div>
+
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <Card className="bg-background/80">
+                      <CardHeader>
+                        <CardTitle className="text-base">Mood Trend</CardTitle>
+                        <CardDescription>Last 30 days</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <JournalMoodTrend entries={journalInsights} />
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-background/80">
+                      <CardHeader>
+                        <CardTitle className="text-base">Day Rating Breakdown</CardTitle>
+                        <CardDescription>Weekly averages across the last 8 weeks</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <JournalRatingBreakdown entries={journalInsights} />
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+                    <Card className="bg-background/80">
+                      <CardHeader>
+                        <CardTitle className="text-base">Journaling Consistency</CardTitle>
+                        <CardDescription>Last 90 days</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-[repeat(30,minmax(0,1fr))] gap-1">
+                          {journalHeatmap.map((day) => (
+                            <span
+                              key={day.date}
+                              title={formatDateLabel(day.date)}
+                              className={cn("h-2.5 rounded-sm", day.active ? "bg-amber-500" : "bg-muted")}
+                            />
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-background/80">
+                      <CardHeader>
+                        <CardTitle className="text-base">Gratitude Words</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {journalWordCounts.length === 0 ? (
+                          <EmptyState>No gratitude words to summarize yet.</EmptyState>
+                        ) : (
+                          <div className="flex flex-wrap gap-2">
+                            {journalWordCounts.map(([word, count]) => (
+                              <Badge key={word} variant="secondary" className="gap-1">
+                                {word}
+                                <span className="text-muted-foreground">{count}</span>
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <MetricPill icon={BookOpenText} label="Entries this week" value={journalDigest.counts.entries} />
                     <MetricPill icon={Heart} label="Gratitude notes" value={journalDigest.counts.gratitude_items} />

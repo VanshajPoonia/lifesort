@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
+import { useSearchParams } from "next/navigation"
 import {
   CheckSquare,
   Flame,
@@ -666,6 +667,8 @@ function RoutineCard({
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function HabitsPage() {
+  const searchParams = useSearchParams()
+  const lifeAreaFilter = searchParams.get("life_area_id")
   const [habits, setHabits] = useState<Habit[]>([])
   const [routines, setRoutines] = useState<Routine[]>([])
   const [checkins, setCheckins] = useState<Checkin[]>([])
@@ -685,7 +688,7 @@ export default function HabitsPage() {
     setError(null)
     try {
       const [habitsRes, routinesRes, checkinsRes, lifeAreasRes] = await Promise.all([
-        fetch("/api/habits"),
+        fetch(lifeAreaFilter ? `/api/habits?life_area_id=${encodeURIComponent(lifeAreaFilter)}` : "/api/habits"),
         fetch("/api/routines"),
         fetch(`/api/habits/checkins?date=${today}`),
         fetch("/api/life-areas"),
@@ -713,7 +716,7 @@ export default function HabitsPage() {
     } finally {
       setLoading(false)
     }
-  }, [today])
+  }, [lifeAreaFilter, today])
 
   useEffect(() => {
     fetchAll()

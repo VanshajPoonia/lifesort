@@ -62,10 +62,13 @@ function cleanId(value: unknown) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const user = await getUserFromSession()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const { searchParams } = new URL(request.url)
+    const lifeAreaId = normalizeLifeAreaId(searchParams.get('life_area_id'))
 
     const habits = await sql`
       SELECT h.*, la.name AS life_area_name, la.color AS life_area_color, la.icon AS life_area_icon
@@ -75,7 +78,9 @@ export async function GET() {
       ORDER BY h.sort_order ASC, h.created_at DESC
     `
 
-    return NextResponse.json(habits)
+    return NextResponse.json(
+      lifeAreaId ? habits.filter((habit) => normalizeLifeAreaId(habit.life_area_id) === lifeAreaId) : habits
+    )
   } catch (error) {
     console.error('[habits] GET error:', error)
     return NextResponse.json({ error: 'Failed to fetch habits' }, { status: 500 })

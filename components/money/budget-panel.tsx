@@ -3,6 +3,7 @@
 import React, { useMemo } from "react"
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import dynamic from "next/dynamic"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -160,6 +161,8 @@ function toMonthly(src: IncomeSource): number {
 // ── Page ───────────────────────────────────────────────────────────────────────
 
 export function BudgetPanel({ preferredCurrency = "USD" }: { preferredCurrency?: string }) {
+  const searchParams = useSearchParams()
+  const lifeAreaFilter = searchParams.get("life_area_id")
   const money = (value: number) => formatCurrency(value, preferredCurrency)
   const [categories, setCategories] = useState<Category[]>([])
   const [lifeAreas, setLifeAreas] = useState<LifeArea[]>([])
@@ -213,11 +216,11 @@ export function BudgetPanel({ preferredCurrency = "USD" }: { preferredCurrency?:
     fetchWishlistData()
     fetchInvestmentsData()
     fetchLifeAreas()
-  }, [])
+  }, [lifeAreaFilter])
 
   const fetchBudgetData = async () => {
     try {
-      const res = await fetch("/api/budget")
+      const res = await fetch(lifeAreaFilter ? `/api/budget?life_area_id=${encodeURIComponent(lifeAreaFilter)}` : "/api/budget")
       if (res.ok) {
         const data = await res.json()
         setCategories(data.categories || [])

@@ -3,7 +3,7 @@
 import React from "react"
 
 import { useState, useEffect, useMemo, useRef } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/components/auth-provider"
 import { gsap } from "gsap"
 import {
@@ -62,6 +62,8 @@ interface WishlistItem {
 }
 
 export function WishlistPanel({ preferredCurrency = "USD" }: { preferredCurrency?: string }) {
+  const searchParams = useSearchParams()
+  const lifeAreaFilter = searchParams.get("life_area_id")
   const [items, setItems] = useState<WishlistItem[]>([])
   const [lifeAreas, setLifeAreas] = useState<LifeArea[]>([])
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
@@ -163,7 +165,7 @@ export function WishlistPanel({ preferredCurrency = "USD" }: { preferredCurrency
       fetchItems()
       fetchLifeAreas()
     }
-  }, [user])
+  }, [user, lifeAreaFilter])
 
   useEffect(() => {
     cardsRef.current.forEach((card, index) => {
@@ -179,7 +181,7 @@ export function WishlistPanel({ preferredCurrency = "USD" }: { preferredCurrency
 
   const fetchItems = async () => {
     try {
-      const response = await fetch("/api/wishlist")
+      const response = await fetch(lifeAreaFilter ? `/api/wishlist?life_area_id=${encodeURIComponent(lifeAreaFilter)}` : "/api/wishlist")
       if (response.ok) {
         const data = await response.json()
         setItems(data)

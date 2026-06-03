@@ -27,6 +27,7 @@ export async function GET(request: Request) {
     const type = searchParams.get("type") || "all"
     const month = searchParams.get("month")
     const year = searchParams.get("year")
+    const lifeAreaId = normalizeLifeAreaId(searchParams.get("life_area_id"))
 
     if (type === "categories" || type === "all") {
       const categories = await sql`
@@ -35,7 +36,9 @@ export async function GET(request: Request) {
         ORDER BY name ASC
       `
       if (type === "categories") {
-        return NextResponse.json({ categories })
+        return NextResponse.json({
+          categories: lifeAreaId ? categories.filter((cat) => normalizeLifeAreaId(cat.life_area_id) === lifeAreaId) : categories,
+        })
       }
     }
 
@@ -155,8 +158,12 @@ export async function GET(request: Request) {
       ORDER BY c.name ASC
     `
 
+    const filteredCategories = lifeAreaId
+      ? categories.filter((cat) => normalizeLifeAreaId(cat.life_area_id) === lifeAreaId)
+      : categories
+
     return NextResponse.json({
-      categories,
+      categories: filteredCategories,
       transactions,
       goals,
       cash_flow: cashFlowRows.map((row) => ({

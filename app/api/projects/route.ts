@@ -128,6 +128,7 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url)
     const id = searchParams.get("id")
+    const lifeAreaId = normalizeLifeAreaId(searchParams.get("life_area_id"))
 
     if (id) {
       const project = await getProject(id, user.id)
@@ -169,7 +170,9 @@ export async function GET(request: Request) {
         p.updated_at DESC
     `
 
-    return NextResponse.json(projects)
+    return NextResponse.json(
+      lifeAreaId ? projects.filter((project) => normalizeLifeAreaId(project.life_area_id) === lifeAreaId) : projects
+    )
   } catch (error) {
     console.error("[projects] GET error:", error)
     return NextResponse.json({ error: "Failed to fetch projects" }, { status: 500 })

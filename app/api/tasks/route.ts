@@ -136,12 +136,18 @@ async function validateLifeAreaId(lifeAreaId: number | null, userId: string) {
   return rows.length > 0 ? lifeAreaId : undefined
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const user = await getUserFromSession()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const { searchParams } = new URL(request.url)
+    const lifeAreaId = normalizeLifeAreaId(searchParams.get('life_area_id'))
+    const dateFrom = cleanDate(searchParams.get('date_from'))
+    const dateTo = cleanDate(searchParams.get('date_to'))
+    const completedParam = searchParams.get('completed')
 
     const tasks = await sql`
       SELECT *
@@ -150,7 +156,18 @@ export async function GET() {
       ORDER BY sort_order ASC, completed ASC, due_date ASC NULLS LAST, created_at DESC
     `
 
-    return NextResponse.json(tasks)
+    const filtered = tasks.filter((task) => {
+      const taskLifeAreaId = normalizeLifeAreaId(task.life_area_id)
+      const dueDate = dateOnly(task.due_date)
+      if (lifeAreaId && taskLifeAreaId !== lifeAreaId) return false
+      if (dateFrom && (!dueDate || dueDate < dateFrom)) return false
+      if (dateTo && (!dueDate || dueDate > dateTo)) return false
+      if (completedParam === 'true' && task.completed !== true) return false
+      if (completedParam === 'false' && task.completed === true) return false
+      return true
+    })
+
+    return NextResponse.json(filtered)
   } catch (error) {
     console.error('[v0] Get tasks error:', error)
     return NextResponse.json({ error: 'Failed to fetch tasks' }, { status: 500 })

@@ -130,12 +130,15 @@ function normalizeGoal(row: GoalRow): NormalizedGoal {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const user = await getUserFromSession()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const { searchParams } = new URL(request.url)
+    const lifeAreaId = normalizeLifeAreaId(searchParams.get('life_area_id'))
 
     const goals = await sql`
       SELECT *
@@ -144,7 +147,10 @@ export async function GET() {
       ORDER BY created_at DESC
     `
 
-    return NextResponse.json(goals.map(normalizeGoal))
+    const normalized = goals.map(normalizeGoal)
+    return NextResponse.json(
+      lifeAreaId ? normalized.filter((goal) => normalizeLifeAreaId(goal.life_area_id) === lifeAreaId) : normalized
+    )
   } catch (error) {
     console.error('[v0] Get goals error:', error)
     return NextResponse.json({ error: 'Failed to fetch goals' }, { status: 500 })
