@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import dynamic from "next/dynamic"
+import { useRouter } from "next/navigation"
 import { Heart, PiggyBank, Target, TrendingUp, Wallet } from "lucide-react"
 
 import { DashboardLayout } from "@/components/dashboard-layout"
@@ -9,6 +11,9 @@ import { AppEmptyState } from "@/components/empty-state"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
+type MoneyTab = "overview" | "budget" | "income" | "investments" | "wishlist"
 
 type IncomeSource = {
   amount?: number | string | null
@@ -47,7 +52,7 @@ const moneyCards: HubCard[] = [
   {
     title: "Overview",
     description: "Use this page as the finance hub before jumping into a specific money tool.",
-    href: "/money",
+    href: "/money?tab=overview",
     icon: Wallet,
     badge: "Current page",
     priority: "primary",
@@ -55,7 +60,7 @@ const moneyCards: HubCard[] = [
   {
     title: "Budget",
     description: "Categories, transactions, goals, and spending context.",
-    href: "/budget",
+    href: "/money?tab=budget",
     icon: Wallet,
     badge: "Budget tool",
     priority: "primary",
@@ -63,7 +68,7 @@ const moneyCards: HubCard[] = [
   {
     title: "Income",
     description: "Track income sources, payment timing, and active status.",
-    href: "/income",
+    href: "/money?tab=income",
     icon: Target,
     badge: "Income tool",
     priority: "primary",
@@ -71,18 +76,75 @@ const moneyCards: HubCard[] = [
   {
     title: "Investments",
     description: "Monitor positions, prices, returns, and finance-related assets.",
-    href: "/investments",
+    href: "/money?tab=investments",
     icon: TrendingUp,
     badge: "Portfolio",
   },
   {
     title: "Wishlist",
     description: "Plan purchases, savings ideas, priorities, and bought items.",
-    href: "/wishlist",
+    href: "/money?tab=wishlist",
     icon: Heart,
     badge: "Savings",
   },
 ]
+
+const tabCopy: Record<MoneyTab, { title: string; description: string }> = {
+  overview: {
+    title: "Keep financial decisions in one place",
+    description: "A calm overview of your finance modules, with tabs for each money workflow.",
+  },
+  budget: {
+    title: "Budget",
+    description: "Categories, transactions, goals, and spending context.",
+  },
+  income: {
+    title: "Income",
+    description: "Track income sources, payment timing, and active status.",
+  },
+  investments: {
+    title: "Investments",
+    description: "Monitor positions, prices, returns, and finance-related assets.",
+  },
+  wishlist: {
+    title: "Wishlist",
+    description: "Plan purchases, savings ideas, priorities, and bought items.",
+  },
+}
+
+const MoneyTabFallback = () => (
+  <div className="space-y-4">
+    <Skeleton className="h-20 w-full" />
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {Array.from({ length: 6 }).map((_, index) => (
+        <Skeleton key={index} className="h-32 w-full" />
+      ))}
+    </div>
+  </div>
+)
+
+const BudgetPanel = dynamic(() => import("@/components/money/budget-panel").then((mod) => mod.BudgetPanel), {
+  ssr: false,
+  loading: MoneyTabFallback,
+})
+const IncomePanel = dynamic(() => import("@/components/money/income-panel").then((mod) => mod.IncomePanel), {
+  ssr: false,
+  loading: MoneyTabFallback,
+})
+const InvestmentsPanel = dynamic(() => import("@/components/money/investments-panel").then((mod) => mod.InvestmentsPanel), {
+  ssr: false,
+  loading: MoneyTabFallback,
+})
+const WishlistPanel = dynamic(() => import("@/components/money/wishlist-panel").then((mod) => mod.WishlistPanel), {
+  ssr: false,
+  loading: MoneyTabFallback,
+})
+
+function readInitialTab(): MoneyTab {
+  if (typeof window === "undefined") return "overview"
+  const tab = new URL(window.location.href).searchParams.get("tab")
+  return tab === "budget" || tab === "income" || tab === "investments" || tab === "wishlist" || tab === "overview" ? tab : "overview"
+}
 
 function toNumber(value: unknown) {
   const number = typeof value === "string" ? Number(value) : typeof value === "number" ? value : 0
@@ -126,8 +188,14 @@ async function safeFetch<T>(url: string): Promise<T | null> {
 }
 
 export default function MoneyHubPage() {
+  const router = useRouter()
+  const [activeTab, setActiveTab] = useState<MoneyTab>("overview")
   const [summary, setSummary] = useState<MoneySummary | null>(null)
   const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    setActiveTab(readInitialTab())
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -175,55 +243,87 @@ export default function MoneyHubPage() {
     return { monthlyIncome, budgetBalance, portfolio, wishlist, hasData }
   }, [summary])
 
+  const changeTab = (tab: string) => {
+    const next = tab as MoneyTab
+    setActiveTab(next)
+    router.replace(`/money?tab=${next}`, { scroll: false })
+  }
+
   return (
     <DashboardLayout title="Money" subtitle="Budget, income, investments, and wishlist">
       <div className="mx-auto max-w-6xl space-y-5 md:space-y-6">
         <HubHero
           eyebrow="Money"
-          title="Keep financial decisions in one place"
-          description="Jump into the money tools without crowding the main sidebar with every finance module."
+          title={tabCopy[activeTab].title}
+          description={tabCopy[activeTab].description}
         />
-        <Card className="surface-card section-enter">
-          <CardHeader>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <PiggyBank className="h-5 w-5 text-primary" />
-                  Money summary
-                </CardTitle>
-                <CardDescription>Real values from your finance modules. Empty sources stay labeled as no data.</CardDescription>
-              </div>
-              {!loading && <Badge variant="outline">{stats.hasData ? "Tracked data" : "No data"}</Badge>}
-            </div>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {Array.from({ length: 4 }).map((_, index) => (
-                  <Skeleton key={index} className="h-20 w-full" />
-                ))}
-              </div>
-            ) : stats.hasData ? (
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <SummaryTile label="Monthly income" value={summary?.income.length ? formatCurrency(stats.monthlyIncome) : "No data"} />
-                <SummaryTile label="Budget balance" value={summary?.budget ? formatCurrency(stats.budgetBalance) : "No data"} />
-                <SummaryTile label="Portfolio" value={summary?.investments.length ? formatCurrency(stats.portfolio) : "No data"} />
-                <SummaryTile label="Wishlist" value={summary?.wishlist.length ? formatCurrency(stats.wishlist) : "No data"} />
-              </div>
-            ) : (
-              <AppEmptyState
-                icon={Wallet}
-                title="No money data yet"
-                hint="Budget, income, investments, and wishlist totals will appear here once you add real records."
-                primaryAction={{ label: "Open Budget", href: "/budget" }}
-                secondaryAction={{ label: "Add Income", href: "/income" }}
-                className="border-dashed bg-background/70"
-              />
-            )}
-          </CardContent>
-        </Card>
-        <HubGrid cards={moneyCards} />
-        <FavoritesTodo />
+
+        <Tabs value={activeTab} onValueChange={changeTab} className="space-y-4">
+          <TabsList className="flex w-full justify-start overflow-x-auto rounded-lg bg-muted/70 p-1 sm:inline-flex sm:w-auto">
+            <TabsTrigger value="overview" className="min-w-24 flex-1 sm:flex-none">Overview</TabsTrigger>
+            <TabsTrigger value="budget" className="min-w-24 flex-1 sm:flex-none">Budget</TabsTrigger>
+            <TabsTrigger value="income" className="min-w-24 flex-1 sm:flex-none">Income</TabsTrigger>
+            <TabsTrigger value="investments" className="min-w-32 flex-1 sm:flex-none">Investments</TabsTrigger>
+            <TabsTrigger value="wishlist" className="min-w-24 flex-1 sm:flex-none">Wishlist</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="section-enter space-y-5 md:space-y-6">
+            <Card className="surface-card">
+              <CardHeader>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <PiggyBank className="h-5 w-5 text-primary" />
+                      Money summary
+                    </CardTitle>
+                    <CardDescription>Real values from your finance modules. Empty sources stay labeled as no data.</CardDescription>
+                  </div>
+                  {!loading && <Badge variant="outline">{stats.hasData ? "Tracked data" : "No data"}</Badge>}
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    {Array.from({ length: 4 }).map((_, index) => (
+                      <Skeleton key={index} className="h-20 w-full" />
+                    ))}
+                  </div>
+                ) : stats.hasData ? (
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <SummaryTile label="Monthly income" value={summary?.income.length ? formatCurrency(stats.monthlyIncome) : "No data"} />
+                    <SummaryTile label="Budget balance" value={summary?.budget ? formatCurrency(stats.budgetBalance) : "No data"} />
+                    <SummaryTile label="Portfolio" value={summary?.investments.length ? formatCurrency(stats.portfolio) : "No data"} />
+                    <SummaryTile label="Wishlist" value={summary?.wishlist.length ? formatCurrency(stats.wishlist) : "No data"} />
+                  </div>
+                ) : (
+                  <AppEmptyState
+                    icon={Wallet}
+                    title="No money data yet"
+                    hint="Budget, income, investments, and wishlist totals will appear here once you add real records."
+                    primaryAction={{ label: "Open Budget", href: "/money?tab=budget" }}
+                    secondaryAction={{ label: "Add Income", href: "/money?tab=income" }}
+                    className="border-dashed bg-background/70"
+                  />
+                )}
+              </CardContent>
+            </Card>
+            <HubGrid cards={moneyCards} />
+            <FavoritesTodo />
+          </TabsContent>
+
+          <TabsContent value="budget" className="section-enter">
+            <BudgetPanel />
+          </TabsContent>
+          <TabsContent value="income" className="section-enter">
+            <IncomePanel />
+          </TabsContent>
+          <TabsContent value="investments" className="section-enter">
+            <InvestmentsPanel />
+          </TabsContent>
+          <TabsContent value="wishlist" className="section-enter">
+            <WishlistPanel />
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   )

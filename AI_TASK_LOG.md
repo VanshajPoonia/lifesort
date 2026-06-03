@@ -17,6 +17,57 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-06-03 18:37 IST - Money Routes Consolidated Into Tabs
+
+- Agent/tool used: Codex (GPT-5 coding agent).
+- Task completed: Consolidated the website Money section so `/money` is the canonical tabbed finance surface, while legacy finance routes redirect to the matching tabs.
+
+#### Files Modified
+- `app/money/page.tsx` - Reworked the Money hub into URL-backed tabs for Overview, Budget, Income, Investments, and Wishlist.
+- `components/money/budget-panel.tsx` - Extracted the existing Budget page UI into an embedded Money tab panel without its own `DashboardLayout` or `MoneyBackNav`.
+- `components/money/income-panel.tsx` - Extracted the existing Income page UI into an embedded Money tab panel.
+- `components/money/investments-panel.tsx` - Extracted the existing Investments page UI into an embedded Money tab panel.
+- `components/money/wishlist-panel.tsx` - Extracted the existing Wishlist page UI into an embedded Money tab panel.
+- `app/budget/page.tsx`, `app/income/page.tsx`, `app/investments/page.tsx`, `app/wishlist/page.tsx` - Replaced standalone page bodies with compatibility redirect pages.
+- `next.config.mjs` - Added explicit temporary redirects from legacy finance routes to `/money?tab=...` so direct browser requests return real 307 redirects.
+- `components/global-command-palette.tsx`, `app/page.tsx`, `app/api/today-plan/route.ts`, `app/api/inbox/convert/route.ts`, `app/api/someday/promote/route.ts`, `lib/ignoring-insights.ts`, `lib/lifesort-coach-context.ts` - Updated finance links to canonical Money tab URLs.
+- `AI_PROJECT.md`, `AI_DECISIONS.md`, `AI_CHECKLIST.md`, `AI_TASK_LOG.md` - Documented the new Money tab architecture and verification results.
+
+#### Summary
+- `/money` now uses Workspace-style URL-backed tabs: `overview`, `budget`, `income`, `investments`, and `wishlist`.
+- The existing Money overview summary remains the Overview tab; Part 3 financial dashboard work was intentionally not implemented in this session.
+- Budget, Income, Investments, and Wishlist keep their existing client-side fetch, form, mutation, chart, and toast behavior but render as tab panels inside the single Money shell.
+- Legacy routes `/budget`, `/income`, `/investments`, and `/wishlist` redirect to matching Money tabs for backward compatibility.
+- No database schema, migrations, env vars, dependencies, Journal, Reflect, Workspace labels, currency preferences, liabilities, portfolio allocation chart, wishlist budget goals, or Templates persistence work was added.
+
+#### Commands Run
+- `git status --short --branch` - branch started clean at `main...origin/main`; final worktree contained only this scoped Money-tab/docs change before commit.
+- `git diff --stat` - reviewed source/docs diff.
+- `npx tsc --noEmit` - passed after source changes; one run immediately before `npm run build` failed with stale `.next/types/cache-life.d.ts` TS6053 after stopping the dev server, then passed after `npm run build` regenerated `.next/types`.
+- `npm run lint` - failed with the known existing ESLint 10 blocker: no `eslint.config.(js|mjs|cjs)` file exists.
+- `npm run build` - passed; generated 144 routes, with `/money` at 6.99 kB and legacy finance routes as tiny 435 B redirect pages.
+- `npm run dev` - restarted successfully on port 3000 after validation.
+- HTTP smoke via `curl -I` - `/money`, `/money?tab=overview`, `/money?tab=budget`, `/money?tab=income`, `/money?tab=investments`, and `/money?tab=wishlist` returned 200.
+- HTTP redirect smoke via `curl -w '%{http_code} %{redirect_url}'` - `/budget`, `/income`, `/investments`, and `/wishlist` returned 307 to their matching `/money?tab=...` destinations.
+
+#### Bugs Found Or Fixed
+- Fixed the old multi-click finance navigation loop by making the finance tools available inside one tabbed Money surface.
+- Fixed legacy finance direct routes returning ambiguous empty 200 responses during initial route-level redirect smoke by adding explicit `next.config.mjs` redirects.
+- Removed duplicated app-shell rendering risk from embedded Money feature panels.
+
+#### Remaining Issues And Limitations
+- `npm run lint` remains blocked by the pre-existing missing ESLint flat config.
+- Browser automation was not available, so tab-click behavior, mobile horizontal tab scrolling, and authenticated CRUD interactions inside each Money tab still need manual browser QA.
+- The old `components/money-back-nav.tsx` helper is currently unused but left in place to avoid an unrelated cleanup step.
+
+#### Suggested Next Steps
+- In a signed-in browser session, test tab switching and create/edit/delete flows in Budget, Income, Investments, and Wishlist under `/money`.
+- Continue the large product-improvement stack with the next requested priority item, likely Workspace tab label rename or Reflect tab order, depending on the user's intended priority order.
+
+#### Handoff Notes
+- Future finance links should target `/money?tab=budget|income|investments|wishlist`; do not reintroduce standalone finance pages with nested `DashboardLayout`.
+- The extracted Money panels are direct copies of the old page logic with only shell/back-nav wrappers removed. Behavior changes should be made in `components/money/*-panel.tsx`, not in the redirect route files.
+
 ### 2026-05-22 05:57 IST - LifeSort Coach Paid OpenRouter Default
 
 - Agent/tool used: Codex (GPT-5 coding agent).

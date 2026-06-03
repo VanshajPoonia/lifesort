@@ -125,7 +125,7 @@ const navigationActions = [
   { label: "Settings", description: "Profile and preferences", href: "/settings", icon: Settings },
   { label: "Tasks", description: "To-do list", href: "/tasks", icon: CheckSquare },
   { label: "Notes", description: "Notes and folders", href: "/notes", icon: FileText },
-  { label: "Budget", description: "Budget categories", href: "/budget", icon: Wallet },
+  { label: "Budget", description: "Budget categories", href: "/money?tab=budget", icon: Wallet },
   { label: "Weekly Review", description: "Review this week", href: "/review", icon: Gauge },
 ]
 

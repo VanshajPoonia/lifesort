@@ -344,7 +344,7 @@ function budgetItem(id: string, title: string, subtitle: string) {
     source_id: id,
     title,
     subtitle,
-    href: "/budget",
+    href: "/money?tab=budget",
     custom: false,
   }
 }
@@ -356,7 +356,7 @@ function wishlistItem(item: Row, subtitle: string) {
     source_id: String(item.id),
     title: String(item.title || "Wishlist item"),
     subtitle,
-    href: "/wishlist",
+    href: "/money?tab=wishlist",
     custom: false,
   }
 }

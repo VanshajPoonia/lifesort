@@ -159,7 +159,7 @@ Run after changes to `DashboardLayout`, command/search/capture UI, Home preferen
 9. Reduced motion must leave every interaction understandable: no required state change should depend on animation.
 10. Prefer `AppEmptyState` for high-visibility empty panels; use `allClear` only for genuinely calm/clear states, not errors or missing data.
 11. Money summaries must show real loaded values or explicit `No data`/unavailable labels. Do not invent finance totals for empty accounts.
-12. Money subpages (`/budget`, `/income`, `/investments`, `/wishlist`) should keep a visible `Back to Money` path and lightweight sibling finance links.
+12. Money feature links should target `/money?tab=budget|income|investments|wishlist`; `/budget`, `/income`, `/investments`, and `/wishlist` are compatibility redirects and should not contain standalone duplicated app shells.
 13. Theme contrast checks must include selected/focused command, select, and dropdown rows; nested `text-muted-foreground` icons/descriptions should inherit the selected foreground.
 14. Prefer theme semantic status tokens (`text-success`, `text-warning`, `text-destructive`, `text-primary`) for high-traffic status text instead of raw `text-green-*` / `text-amber-*` / `text-red-*` classes.
 

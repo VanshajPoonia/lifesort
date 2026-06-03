@@ -244,7 +244,7 @@ async function createTarget(userId: string, targetType: string, payload: Record<
       )
       RETURNING id, title
     `
-    return { id: result[0].id as number, title: result[0].title as string, href: "/wishlist" }
+    return { id: result[0].id as number, title: result[0].title as string, href: "/money?tab=wishlist" }
   }
 
   if (targetType === "vault_item") {

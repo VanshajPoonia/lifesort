@@ -491,7 +491,7 @@ export async function getIgnoringInsightsData(userId: string): Promise<IgnoringI
         title: "Finance has not been reviewed recently",
         description: "No recent budget, income, investment, or category activity was found.",
         evidence: financeActivity.last ? `Last finance activity ${inactiveDays} days ago` : "No finance activity found",
-        href: "/budget",
+        href: "/money?tab=budget",
         date: financeActivity.last ? dateOnly(financeActivity.last) : null,
         days_inactive: inactiveDays,
         severity: "medium",
