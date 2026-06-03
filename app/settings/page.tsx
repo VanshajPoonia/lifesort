@@ -60,6 +60,9 @@ interface UserProfile {
   subscription_tier: string
   subscription_end_date: string | null
   created_at: string
+  journal_intention_1?: string
+  journal_intention_2?: string
+  journal_intention_3?: string
   content_preferences: {
     quote_types: string[]
     joke_types: string[]
@@ -91,6 +94,11 @@ export default function SettingsPage() {
     location: "",
     date_of_birth: "",
     avatar: "",
+  })
+  const [journalPreferences, setJournalPreferences] = useState({
+    journal_intention_1: "Work",
+    journal_intention_2: "Personal",
+    journal_intention_3: "Family",
   })
   
   const [preferences, setPreferences] = useState({
@@ -151,7 +159,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const tab = new URL(window.location.href).searchParams.get("tab")
-    if (tab && ["profile", "sidebar", "content", "faqs", "account"].includes(tab)) {
+    if (tab && ["profile", "journal", "sidebar", "content", "faqs", "account"].includes(tab)) {
       setActiveTab(tab)
     }
     fetchProfile()
@@ -224,6 +232,11 @@ export default function SettingsPage() {
           date_of_birth: data.date_of_birth ? data.date_of_birth.split("T")[0] : "",
           avatar: data.avatar || "",
         })
+        setJournalPreferences({
+          journal_intention_1: data.journal_intention_1 || "Work",
+          journal_intention_2: data.journal_intention_2 || "Personal",
+          journal_intention_3: data.journal_intention_3 || "Family",
+        })
         if (data.content_preferences) {
           setPreferences(data.content_preferences)
         }
@@ -292,6 +305,27 @@ export default function SettingsPage() {
     } catch (error) {
       console.error("[v0] Error saving preferences:", error)
       alert("Failed to save preferences")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const saveJournalPreferences = async () => {
+    setSaving(true)
+    try {
+      const response = await fetch("/api/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(journalPreferences),
+      })
+
+      const data = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(data?.error || "Failed to save journal preferences")
+      await fetchProfile()
+      alert("Journal preferences saved successfully!")
+    } catch (error) {
+      console.error("[v0] Error saving journal preferences:", error)
+      alert(error instanceof Error ? error.message : "Failed to save journal preferences")
     } finally {
       setSaving(false)
     }
@@ -373,6 +407,12 @@ export default function SettingsPage() {
               <CardDescription>Your identity, subscription, and account basics.</CardDescription>
             </CardHeader>
           </Card>
+          <Card className="surface-card">
+            <CardHeader>
+              <CardTitle className="text-base">Journal Preferences</CardTitle>
+              <CardDescription>Customize intention and day-rating labels.</CardDescription>
+            </CardHeader>
+          </Card>
           <NextLink href="/rules">
             <Card className="surface-card interactive-card h-full">
               <CardHeader>
@@ -418,6 +458,10 @@ export default function SettingsPage() {
           <TabsTrigger value="profile" className="min-w-max">
             <User className="mr-2 h-4 w-4" />
             Profile
+          </TabsTrigger>
+          <TabsTrigger value="journal" className="min-w-max">
+            <BookOpenText className="mr-2 h-4 w-4" />
+            Journal
           </TabsTrigger>
           <TabsTrigger value="sidebar" className="min-w-max">
             <LayoutDashboard className="mr-2 h-4 w-4" />
@@ -563,6 +607,48 @@ export default function SettingsPage() {
                   <Save className="h-4 w-4 mr-2" />
                 )}
                 Save Profile
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="journal" className="section-enter space-y-5 md:space-y-6">
+          <Card className="surface-card">
+            <CardHeader>
+              <CardTitle>Journal Preferences</CardTitle>
+              <CardDescription>
+                Rename the three intention categories used by Journal and Day Rating.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="grid gap-4 md:grid-cols-3">
+                {[
+                  ["journal_intention_1", "First category", "Work"],
+                  ["journal_intention_2", "Second category", "Personal"],
+                  ["journal_intention_3", "Third category", "Family"],
+                ].map(([field, label, placeholder]) => (
+                  <div key={field} className="space-y-2">
+                    <Label htmlFor={field}>{label}</Label>
+                    <Input
+                      id={field}
+                      value={journalPreferences[field as keyof typeof journalPreferences]}
+                      onChange={(event) => setJournalPreferences((current) => ({
+                        ...current,
+                        [field]: event.target.value.slice(0, 40),
+                      }))}
+                      placeholder={placeholder}
+                      maxLength={40}
+                    />
+                  </div>
+                ))}
+              </div>
+              <Button onClick={saveJournalPreferences} disabled={saving}>
+                {saving ? (
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent mr-2" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                Save Journal Preferences
               </Button>
             </CardContent>
           </Card>

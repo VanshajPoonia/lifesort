@@ -10,13 +10,18 @@ import {
   ChevronDown,
   Heart,
   History,
+  ListPlus,
   Loader2,
-  Lock,
+  Moon,
   Plus,
   Save,
+  Search,
   Sparkles,
   Star,
+  Sun,
+  Tags,
   Trash2,
+  X,
 } from "lucide-react"
 
 import { useAuth } from "@/components/auth-provider"
@@ -28,16 +33,47 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { useToast } from "@/hooks/use-toast"
 import type { JournalEntry, JournalEntryInput, JournalTodoItem } from "@/lib/journal"
 import { motionPresets } from "@/lib/motion"
 import { richTextToPlainText } from "@/lib/rich-text"
 import { cn } from "@/lib/utils"
 
 type SaveState = "idle" | "dirty" | "saving" | "saved" | "error"
+type JournalMode = "morning" | "evening"
+
+type IntentionLabels = {
+  work: string
+  personal: string
+  family: string
+}
+
+type JournalSearchResult = {
+  id: number
+  journal_date: string
+  mood: number | null
+  snippet: string
+}
+
+type PendingTask = {
+  item: JournalTodoItem
+  title: string
+}
 
 const moods = [
   { value: 1, label: "Rough", icon: "😟" },
@@ -52,6 +88,44 @@ const gratitudePlaceholders = [
   "Something that made today lighter",
   "One small thing I do not want to miss",
 ]
+
+const energyLevels = [
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+] as const
+
+const defaultIntentionLabels: IntentionLabels = {
+  work: "Work",
+  personal: "Personal",
+  family: "Family",
+}
+
+const affirmationSuggestions = [
+  "I can move through today with steadiness.",
+  "I am allowed to take one clear step at a time.",
+  "My attention is enough for what matters most.",
+  "I can be kind to myself while still making progress.",
+  "I choose calm action over perfect action.",
+  "I have handled hard days before, and I can handle this one.",
+  "Small choices can make today lighter.",
+  "I can pause, breathe, and begin again.",
+  "My worth is not measured by my output.",
+  "I can protect my energy and still show up.",
+  "Today does not need to be perfect to be meaningful.",
+  "I trust myself to notice what needs care.",
+  "I can finish the next honest thing.",
+  "My pace can be steady and sustainable.",
+  "I am building a life I can actually live in.",
+]
+
+const moodColorClasses: Record<number, string> = {
+  1: "bg-red-500",
+  2: "bg-orange-500",
+  3: "bg-muted-foreground",
+  4: "bg-green-500",
+  5: "bg-emerald-500",
+}
 
 function localDateString(date = new Date()) {
   const offset = date.getTimezoneOffset()
@@ -68,6 +142,87 @@ function formatDateLabel(value: string) {
   const date = new Date(`${value}T00:00:00`)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })
+}
+
+function formatShortDate(value: string) {
+  const date = new Date(`${value}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+}
+
+function defaultJournalMode() {
+  return new Date().getHours() < 14 ? "morning" : "evening"
+}
+
+function journalModeStorageKey(date: string) {
+  return `lifesort:journal-mode:${date}`
+}
+
+function shouldOpenTomorrowSetup() {
+  return new Date().getHours() >= 17
+}
+
+function normalizeIntentionLabel(value: unknown, fallback: string) {
+  return typeof value === "string" && value.trim() ? value.trim().slice(0, 40) : fallback
+}
+
+function normalizeTag(value: string) {
+  return value.trim().replace(/^#/, "").replace(/\s+/g, "-").slice(0, 40)
+}
+
+function entrySnippet(entry: JournalEntry) {
+  return (
+    entry.affirmation_text ||
+    entry.gratitude.find(Boolean) ||
+    entry.what_went_well ||
+    entry.what_could_be_better ||
+    richTextToPlainText(entry.notes_from_today) ||
+    "Journal entry"
+  )
+}
+
+function getMonthDays(dateString: string) {
+  const [year, month] = dateString.split("-").map(Number)
+  if (!year || !month) return []
+  const days = new Date(year, month, 0).getDate()
+  return Array.from({ length: days }, (_, index) => `${year}-${String(month).padStart(2, "0")}-${String(index + 1).padStart(2, "0")}`)
+}
+
+function searchRecentEntries(entries: JournalEntry[], query: string): JournalSearchResult[] {
+  const needle = query.trim().toLowerCase()
+  if (needle.length < 2) return []
+
+  return entries
+    .filter((entry) => {
+      const haystack = [
+        entry.affirmation_text,
+        ...entry.gratitude,
+        ...entry.work_todo.map((item) => item.text),
+        ...entry.personal_todo.map((item) => item.text),
+        ...entry.family_todo.map((item) => item.text),
+        entry.what_went_well,
+        entry.what_could_be_better,
+        richTextToPlainText(entry.notes_from_today),
+        entry.how_to_make_tomorrow_better,
+        entry.work_stars_note,
+        entry.personal_stars_note,
+        entry.family_stars_note,
+        entry.tomorrow_focus,
+        entry.tomorrow_avoid,
+        ...entry.tags,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+      return haystack.includes(needle)
+    })
+    .slice(0, 8)
+    .map((entry) => ({
+      id: entry.id,
+      journal_date: entry.journal_date,
+      mood: entry.mood ?? null,
+      snippet: entrySnippet(entry),
+    }))
 }
 
 function emptyTodo(): JournalTodoItem {
@@ -116,7 +271,9 @@ function entryStarted(entry: JournalEntryInput) {
       entry.personal_stars ||
       entry.family_stars ||
       entry.tomorrow_focus ||
-      entry.tomorrow_avoid,
+      entry.tomorrow_avoid ||
+      entry.energy_level ||
+      entry.tags.length > 0,
   )
 }
 
@@ -133,15 +290,27 @@ function calculateStreak(entries: JournalEntry[]) {
 
 export default function JournalPage() {
   const { user, loading: authLoading } = useAuth()
+  const { toast } = useToast()
   const router = useRouter()
   const [selectedDate, setSelectedDate] = useState(localDateString)
   const [entry, setEntry] = useState<JournalEntryInput>(emptyJournal)
   const [loadedEntry, setLoadedEntry] = useState<JournalEntry | null>(null)
   const [recentEntries, setRecentEntries] = useState<JournalEntry[]>([])
+  const [intentionLabels, setIntentionLabels] = useState<IntentionLabels>(defaultIntentionLabels)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState("")
   const [saveState, setSaveState] = useState<SaveState>("idle")
   const [tomorrowOpen, setTomorrowOpen] = useState(false)
+  const [journalMode, setJournalMode] = useState<JournalMode>(defaultJournalMode)
+  const [affirmationPickerOpen, setAffirmationPickerOpen] = useState(false)
+  const [tagInput, setTagInput] = useState("")
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [searchResults, setSearchResults] = useState<JournalSearchResult[]>([])
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [searchError, setSearchError] = useState("")
+  const [pendingTask, setPendingTask] = useState<PendingTask | null>(null)
+  const [creatingTask, setCreatingTask] = useState(false)
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const saveSequence = useRef(0)
   const hydrated = useRef(false)
@@ -154,6 +323,28 @@ export default function JournalPage() {
     if (typeof window === "undefined") return
     const queryDate = new URL(window.location.href).searchParams.get("date")
     if (queryDate && /^\d{4}-\d{2}-\d{2}$/.test(queryDate)) setSelectedDate(queryDate)
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const stored = window.sessionStorage.getItem(journalModeStorageKey(selectedDate))
+    setJournalMode(stored === "morning" || stored === "evening" ? stored : defaultJournalMode())
+    setTomorrowOpen(shouldOpenTomorrowSetup())
+  }, [selectedDate])
+
+  const loadIntentionLabels = useCallback(async () => {
+    try {
+      const response = await fetch("/api/profile")
+      if (!response.ok) return
+      const data = await response.json()
+      setIntentionLabels({
+        work: normalizeIntentionLabel(data.journal_intention_1, defaultIntentionLabels.work),
+        personal: normalizeIntentionLabel(data.journal_intention_2, defaultIntentionLabels.personal),
+        family: normalizeIntentionLabel(data.journal_intention_3, defaultIntentionLabels.family),
+      })
+    } catch {
+      // Profile labels are a convenience; Journal can use defaults.
+    }
   }, [])
 
   const loadRecent = useCallback(async () => {
@@ -196,7 +387,41 @@ export default function JournalPage() {
     if (!user) return
     loadEntry()
     loadRecent()
-  }, [loadEntry, loadRecent, user])
+    loadIntentionLabels()
+  }, [loadEntry, loadIntentionLabels, loadRecent, user])
+
+  useEffect(() => {
+    const query = searchQuery.trim()
+    if (!searchOpen || query.length < 2) {
+      setSearchResults([])
+      setSearchError("")
+      return
+    }
+
+    const localResults = searchRecentEntries(recentEntries, query)
+    if (localResults.length > 0) {
+      setSearchResults(localResults)
+      setSearchError("")
+    }
+
+    const timer = window.setTimeout(async () => {
+      setSearchLoading(true)
+      setSearchError("")
+      try {
+        const response = await fetch(`/api/journal/search?q=${encodeURIComponent(query)}`)
+        const data = await response.json().catch(() => null)
+        if (!response.ok) throw new Error(data?.error || "Could not search journal")
+        setSearchResults(data.results || localResults)
+      } catch (error) {
+        setSearchError(error instanceof Error ? error.message : "Could not search journal")
+        setSearchResults(localResults)
+      } finally {
+        setSearchLoading(false)
+      }
+    }, 250)
+
+    return () => window.clearTimeout(timer)
+  }, [recentEntries, searchOpen, searchQuery])
 
   const saveEntry = useCallback(async (nextEntry = entry) => {
     const currentSequence = saveSequence.current + 1
@@ -235,8 +460,61 @@ export default function JournalPage() {
     setEntry((current) => ({ ...current, [key]: value }))
   }
 
+  const changeJournalMode = (mode: JournalMode) => {
+    setJournalMode(mode)
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem(journalModeStorageKey(selectedDate), mode)
+    }
+  }
+
+  const addTag = (value = tagInput) => {
+    const tag = normalizeTag(value)
+    if (!tag || entry.tags.includes(tag) || entry.tags.length >= 20) {
+      setTagInput("")
+      return
+    }
+    updateEntry("tags", [...entry.tags, tag])
+    setTagInput("")
+  }
+
+  const removeTag = (tag: string) => {
+    updateEntry("tags", entry.tags.filter((current) => current !== tag))
+  }
+
+  const createTaskFromIntention = async () => {
+    if (!pendingTask) return
+    const title = pendingTask.item.text.trim()
+    if (!title) return
+
+    setCreatingTask(true)
+    try {
+      const response = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, category: "Journal" }),
+      })
+      const data = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(data?.error || "Could not create task")
+      toast({ title: "Task created", description: title })
+      setPendingTask(null)
+    } catch (error) {
+      toast({
+        title: "Could not create task",
+        description: error instanceof Error ? error.message : "Try again from Journal.",
+        variant: "destructive",
+      })
+    } finally {
+      setCreatingTask(false)
+    }
+  }
+
   const streak = useMemo(() => calculateStreak(recentEntries), [recentEntries])
   const started = entryStarted(entry)
+  const recentByDate = useMemo(() => new Map(recentEntries.map((recent) => [recent.journal_date, recent])), [recentEntries])
+  const moodTrendDays = useMemo(() => Array.from({ length: 14 }, (_, index) => addDays(localDateString(), index - 13)), [])
+  const monthDays = useMemo(() => getMonthDays(selectedDate), [selectedDate])
+  const isMorningMode = journalMode === "morning"
+  const isEveningMode = journalMode === "evening"
   const completedIntentions =
     entry.work_todo.filter((item) => item.done).length +
     entry.personal_todo.filter((item) => item.done).length +
@@ -257,6 +535,7 @@ export default function JournalPage() {
   }
 
   return (
+    <>
     <DashboardLayout title="Journal" subtitle={formatDateLabel(selectedDate)}>
       <div className={cn("journal-page rounded-lg border border-amber-900/10 p-3 sm:p-4 lg:p-6", motionPresets.journalEntrance)}>
         {loadError && (
@@ -301,6 +580,10 @@ export default function JournalPage() {
                     <Button variant="outline" size="icon" onClick={() => setSelectedDate(addDays(selectedDate, 1))} aria-label="Next day">
                       <ArrowRight className="h-4 w-4" />
                     </Button>
+                    <Button variant="outline" size="sm" onClick={() => setSearchOpen(true)} className="gap-2">
+                      <Search className="h-4 w-4" />
+                      Search
+                    </Button>
                     <SaveStatus state={saveState} />
                     <Button onClick={() => saveEntry()} disabled={saveState === "saving"} className="gap-2">
                       {saveState === "saving" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
@@ -325,35 +608,78 @@ export default function JournalPage() {
               </CardContent>
             </Card>
 
-            <Card className={cn("journal-paper-card surface-card", motionPresets.fadeInUp)}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Heart className="h-5 w-5 text-rose-500" />
-                  Mood
-                </CardTitle>
-                <CardDescription>Pick the closest signal. It is a check-in, not a judgement.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div role="radiogroup" aria-label="Mood" className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-                  {moods.map((mood) => (
-                    <button
-                      key={mood.value}
-                      type="button"
-                      role="radio"
-                      aria-checked={entry.mood === mood.value}
-                      onClick={() => updateEntry("mood", entry.mood === mood.value ? null : mood.value)}
-                      className={cn(
-                        "journal-mood-button rounded-lg border bg-background/70 p-3 text-center shadow-sm",
-                        entry.mood === mood.value && "border-amber-500 bg-amber-500/10 shadow-amber-900/10",
-                      )}
-                    >
-                      <span className="block text-2xl" aria-hidden="true">{mood.icon}</span>
-                      <span className="mt-1 block text-xs font-medium">{mood.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            <div className="flex rounded-lg border border-amber-900/10 bg-background/45 p-1">
+              {([
+                ["morning", "Morning", Sun],
+                ["evening", "Evening", Moon],
+              ] as const).map(([mode, label, Icon]) => (
+                <Button
+                  key={mode}
+                  type="button"
+                  variant={journalMode === mode ? "default" : "ghost"}
+                  className="flex-1 gap-2"
+                  onClick={() => changeJournalMode(mode)}
+                >
+                  <Icon className="h-4 w-4" />
+                  {label}
+                </Button>
+              ))}
+            </div>
+
+            {isMorningMode && (
+              <div className="grid gap-4 xl:grid-cols-[1fr_260px]">
+                <Card className={cn("journal-paper-card surface-card", motionPresets.fadeInUp)}>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Heart className="h-5 w-5 text-rose-500" />
+                      Mood
+                    </CardTitle>
+                    <CardDescription>Pick the closest signal. It is a check-in, not a judgement.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div role="radiogroup" aria-label="Mood" className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                      {moods.map((mood) => (
+                        <button
+                          key={mood.value}
+                          type="button"
+                          role="radio"
+                          aria-checked={entry.mood === mood.value}
+                          onClick={() => updateEntry("mood", entry.mood === mood.value ? null : mood.value)}
+                          className={cn(
+                            "journal-mood-button rounded-lg border bg-background/70 p-3 text-center shadow-sm",
+                            entry.mood === mood.value && "border-amber-500 bg-amber-500/10 shadow-amber-900/10",
+                          )}
+                        >
+                          <span className="block text-2xl" aria-hidden="true">{mood.icon}</span>
+                          <span className="mt-1 block text-xs font-medium">{mood.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className={cn("journal-paper-card surface-card", motionPresets.fadeInUp)}>
+                  <CardHeader>
+                    <CardTitle className="text-base">Energy Level</CardTitle>
+                    <CardDescription>Set a lightweight capacity signal.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div role="radiogroup" aria-label="Energy level" className="grid gap-2">
+                      {energyLevels.map((level) => (
+                        <Button
+                          key={level.value}
+                          type="button"
+                          variant={entry.energy_level === level.value ? "default" : "outline"}
+                          onClick={() => updateEntry("energy_level", entry.energy_level === level.value ? null : level.value)}
+                        >
+                          {level.label}
+                        </Button>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
 
             <Card className={cn("journal-paper-card surface-card", motionPresets.fadeInUp)}>
               <CardHeader>
@@ -382,56 +708,148 @@ export default function JournalPage() {
               </CardContent>
             </Card>
 
-            <Card className={cn("journal-paper-card surface-card", motionPresets.fadeInUp)}>
-              <CardHeader>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <CardTitle>Today&apos;s Affirmation</CardTitle>
-                    <CardDescription>Keep it short enough to remember.</CardDescription>
+            {isMorningMode && (
+              <Card className={cn("journal-paper-card surface-card", motionPresets.fadeInUp)}>
+                <CardHeader>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <CardTitle>Today&apos;s Affirmation</CardTitle>
+                      <CardDescription>Keep it short enough to remember.</CardDescription>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => setAffirmationPickerOpen((open) => !open)} className="gap-2">
+                      <Sparkles className="h-3.5 w-3.5" />
+                      Suggestions
+                    </Button>
                   </div>
-                  <Button variant="outline" size="sm" disabled className="gap-2" title="AI affirmation suggestions are planned for a future pass.">
-                    <Sparkles className="h-3.5 w-3.5" />
-                    Suggest later
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Input
-                  value={entry.affirmation_text || ""}
-                  onChange={(event) => updateEntry("affirmation_text", event.target.value.slice(0, 140) || null)}
-                  placeholder="I can move through today with steadiness."
-                  maxLength={140}
-                  className="journal-input"
-                />
-                <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
-                  <span>{(entry.affirmation_text || "").length}/140</span>
-                  <Button
-                    type="button"
-                    variant={entry.affirmation_pinned_until ? "secondary" : "outline"}
-                    size="sm"
-                    onClick={() => updateEntry("affirmation_pinned_until", entry.affirmation_pinned_until ? null : addDays(selectedDate, 7))}
-                  >
-                    {entry.affirmation_pinned_until ? "Pinned for week" : "Pin for week"}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {affirmationPickerOpen && (
+                    <div className="grid gap-2 rounded-md border border-amber-900/15 bg-background/45 p-3 sm:grid-cols-2">
+                      {affirmationSuggestions.map((suggestion) => (
+                        <button
+                          key={suggestion}
+                          type="button"
+                          onClick={() => {
+                            updateEntry("affirmation_text", suggestion)
+                            setAffirmationPickerOpen(false)
+                          }}
+                          className="rounded-md border bg-background/70 p-2 text-left text-sm transition-colors hover:bg-amber-500/10"
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <Input
+                    value={entry.affirmation_text || ""}
+                    onChange={(event) => updateEntry("affirmation_text", event.target.value.slice(0, 140) || null)}
+                    placeholder="I can move through today with steadiness."
+                    maxLength={140}
+                    className="journal-input"
+                  />
+                  <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+                    <span>{(entry.affirmation_text || "").length}/140</span>
+                    <Button
+                      type="button"
+                      variant={entry.affirmation_pinned_until ? "secondary" : "outline"}
+                      size="sm"
+                      onClick={() => updateEntry("affirmation_pinned_until", entry.affirmation_pinned_until ? null : addDays(selectedDate, 7))}
+                    >
+                      {entry.affirmation_pinned_until ? "Pinned for week" : "Pin for week"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-            <div className={cn("grid gap-4 lg:grid-cols-3", motionPresets.staggerContainer)}>
-              <IntentionCard title="Work" items={entry.work_todo} onChange={(items) => updateEntry("work_todo", items)} />
-              <IntentionCard title="Personal" items={entry.personal_todo} onChange={(items) => updateEntry("personal_todo", items)} />
-              <IntentionCard title="Family" items={entry.family_todo} onChange={(items) => updateEntry("family_todo", items)} />
-            </div>
+            {isMorningMode && (
+              <div className={cn("grid gap-4 lg:grid-cols-3", motionPresets.staggerContainer)}>
+                <IntentionCard title={intentionLabels.work} items={entry.work_todo} onChange={(items) => updateEntry("work_todo", items)} onCreateTask={(item) => setPendingTask({ item, title: intentionLabels.work })} />
+                <IntentionCard title={intentionLabels.personal} items={entry.personal_todo} onChange={(items) => updateEntry("personal_todo", items)} onCreateTask={(item) => setPendingTask({ item, title: intentionLabels.personal })} />
+                <IntentionCard title={intentionLabels.family} items={entry.family_todo} onChange={(items) => updateEntry("family_todo", items)} onCreateTask={(item) => setPendingTask({ item, title: intentionLabels.family })} />
+              </div>
+            )}
+
+            {isEveningMode && (
+              <>
+                <Card className={cn("journal-paper-card surface-card", motionPresets.fadeInUp)}>
+                  <CardHeader>
+                    <CardTitle>Evening Reflection</CardTitle>
+                    <CardDescription>Close the loop on what happened and what you learned.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="grid gap-4 lg:grid-cols-2">
+                    <JournalTextarea label="What went well today?" value={entry.what_went_well} onChange={(value) => updateEntry("what_went_well", value)} />
+                    <JournalTextarea label="What could I have done better?" value={entry.what_could_be_better} onChange={(value) => updateEntry("what_could_be_better", value)} />
+                    <JournalTextarea label="How could I have made today better?" value={entry.how_to_make_tomorrow_better} onChange={(value) => updateEntry("how_to_make_tomorrow_better", value)} />
+                  </CardContent>
+                </Card>
+
+                <Card className={cn("journal-paper-card surface-card", motionPresets.fadeInUp)}>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Star className="h-5 w-5 text-amber-500" />
+                      Day Rating
+                    </CardTitle>
+                    <CardDescription>Rate how each area felt today, then optionally add a short note.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <StarRow
+                      label={intentionLabels.work}
+                      value={entry.work_stars}
+                      note={entry.work_stars_note}
+                      onValueChange={(value) => updateEntry("work_stars", value)}
+                      onNoteChange={(value) => updateEntry("work_stars_note", value)}
+                    />
+                    <StarRow
+                      label={intentionLabels.personal}
+                      value={entry.personal_stars}
+                      note={entry.personal_stars_note}
+                      onValueChange={(value) => updateEntry("personal_stars", value)}
+                      onNoteChange={(value) => updateEntry("personal_stars_note", value)}
+                    />
+                    <StarRow
+                      label={intentionLabels.family}
+                      value={entry.family_stars}
+                      note={entry.family_stars_note}
+                      onValueChange={(value) => updateEntry("family_stars", value)}
+                      onNoteChange={(value) => updateEntry("family_stars_note", value)}
+                    />
+                  </CardContent>
+                </Card>
+
+                <Collapsible open={tomorrowOpen} onOpenChange={setTomorrowOpen}>
+                  <Card className={cn("journal-paper-card surface-card", motionPresets.fadeInUp)}>
+                    <CardHeader>
+                      <CollapsibleTrigger asChild>
+                        <button type="button" className="flex w-full items-center justify-between gap-3 text-left">
+                          <div>
+                            <CardTitle>Tomorrow&apos;s Setup</CardTitle>
+                            <CardDescription>Leave a small instruction for your next self.</CardDescription>
+                          </div>
+                          <ChevronDown className={cn("h-5 w-5 text-muted-foreground transition-transform", tomorrowOpen && "rotate-180")} />
+                        </button>
+                      </CollapsibleTrigger>
+                    </CardHeader>
+                    <CollapsibleContent className="journal-collapsible-content">
+                      <CardContent className="grid gap-4 lg:grid-cols-2">
+                        <div className="space-y-2">
+                          <JournalTextarea label="One thing I want tomorrow to be about" value={entry.tomorrow_focus} onChange={(value) => updateEntry("tomorrow_focus", value)} />
+                          <p className="text-xs text-muted-foreground">This will be added to tomorrow&apos;s Today plan as a focus item.</p>
+                        </div>
+                        <JournalTextarea label="One thing I want to avoid" value={entry.tomorrow_avoid} onChange={(value) => updateEntry("tomorrow_avoid", value)} />
+                      </CardContent>
+                    </CollapsibleContent>
+                  </Card>
+                </Collapsible>
+              </>
+            )}
 
             <Card className={cn("journal-paper-card surface-card", motionPresets.fadeInUp)}>
               <CardHeader>
-                <CardTitle>Evening Reflection</CardTitle>
-                <CardDescription>Available all day. Fill it whenever the signal is fresh.</CardDescription>
+                <CardTitle>Notes from Today</CardTitle>
+                <CardDescription>Always available in Morning and Evening mode.</CardDescription>
               </CardHeader>
-              <CardContent className="grid gap-4 lg:grid-cols-2">
-                <JournalTextarea label="What went well today?" value={entry.what_went_well} onChange={(value) => updateEntry("what_went_well", value)} />
-                <JournalTextarea label="What could I have done better?" value={entry.what_could_be_better} onChange={(value) => updateEntry("what_could_be_better", value)} />
-                <JournalTextarea label="How could I have made today better?" value={entry.how_to_make_tomorrow_better} onChange={(value) => updateEntry("how_to_make_tomorrow_better", value)} />
+              <CardContent>
                 <JournalRichTextField
                   label="Notes from today"
                   value={entry.notes_from_today}
@@ -443,63 +861,85 @@ export default function JournalPage() {
             <Card className={cn("journal-paper-card surface-card", motionPresets.fadeInUp)}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Star className="h-5 w-5 text-amber-500" />
-                  Star Method Rating
+                  <Tags className="h-5 w-5 text-amber-600 dark:text-amber-300" />
+                  Tags
                 </CardTitle>
-                <CardDescription>Rate the day by area, then optionally say why.</CardDescription>
+                <CardDescription>Add a tag and press Enter or comma.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <StarRow
-                  label="Work"
-                  value={entry.work_stars}
-                  note={entry.work_stars_note}
-                  onValueChange={(value) => updateEntry("work_stars", value)}
-                  onNoteChange={(value) => updateEntry("work_stars_note", value)}
+              <CardContent className="space-y-3">
+                <Input
+                  value={tagInput}
+                  onChange={(event) => setTagInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === ",") {
+                      event.preventDefault()
+                      addTag()
+                    }
+                  }}
+                  onBlur={() => tagInput.trim() && addTag()}
+                  placeholder="health, work, idea..."
+                  className="journal-input"
+                  disabled={entry.tags.length >= 20}
                 />
-                <StarRow
-                  label="Personal"
-                  value={entry.personal_stars}
-                  note={entry.personal_stars_note}
-                  onValueChange={(value) => updateEntry("personal_stars", value)}
-                  onNoteChange={(value) => updateEntry("personal_stars_note", value)}
-                />
-                <StarRow
-                  label="Family"
-                  value={entry.family_stars}
-                  note={entry.family_stars_note}
-                  onValueChange={(value) => updateEntry("family_stars", value)}
-                  onNoteChange={(value) => updateEntry("family_stars_note", value)}
-                />
+                <div className="flex flex-wrap gap-2">
+                  {entry.tags.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No tags yet.</p>
+                  ) : (
+                    entry.tags.map((tag) => (
+                      <Badge key={tag} variant="secondary" className="gap-1">
+                        #{tag}
+                        <button type="button" onClick={() => removeTag(tag)} aria-label={`Remove ${tag} tag`} className="rounded-full p-0.5 hover:bg-background/60">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))
+                  )}
+                </div>
               </CardContent>
             </Card>
-
-            <Collapsible open={tomorrowOpen} onOpenChange={setTomorrowOpen}>
-              <Card className={cn("journal-paper-card surface-card", motionPresets.fadeInUp)}>
-                <CardHeader>
-                  <CollapsibleTrigger asChild>
-                    <button type="button" className="flex w-full items-center justify-between gap-3 text-left">
-                      <div>
-                        <CardTitle>Tomorrow&apos;s Setup</CardTitle>
-                        <CardDescription>Leave a small instruction for your next self.</CardDescription>
-                      </div>
-                      <ChevronDown className={cn("h-5 w-5 text-muted-foreground transition-transform", tomorrowOpen && "rotate-180")} />
-                    </button>
-                  </CollapsibleTrigger>
-                </CardHeader>
-                <CollapsibleContent className="journal-collapsible-content">
-                  <CardContent className="grid gap-4 lg:grid-cols-2">
-                    <JournalTextarea label="One thing I want tomorrow to be about" value={entry.tomorrow_focus} onChange={(value) => updateEntry("tomorrow_focus", value)} />
-                    <JournalTextarea label="One thing I want to avoid" value={entry.tomorrow_avoid} onChange={(value) => updateEntry("tomorrow_avoid", value)} />
-                    <div className="rounded-md border border-dashed border-amber-900/20 bg-background/45 p-3 text-sm text-muted-foreground lg:col-span-2">
-                      Creating this as tomorrow&apos;s focus is planned for a future pass so Journal does not silently write into Today.
-                    </div>
-                  </CardContent>
-                </CollapsibleContent>
-              </Card>
-            </Collapsible>
           </main>
 
           <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
+            <Card className={cn("journal-paper-card journal-side-panel surface-card", motionPresets.fadeInUp)}>
+              <CardHeader>
+                <CardTitle className="text-base">Mood Trend</CardTitle>
+                <CardDescription>Last 14 days.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-1.5">
+                  {moodTrendDays.map((day) => {
+                    const recent = recentByDate.get(day)
+                    return (
+                      <span
+                        key={day}
+                        title={`${formatShortDate(day)}${recent?.mood ? ` · ${moods.find((mood) => mood.value === recent.mood)?.label}` : " · no entry"}`}
+                        className={cn(
+                          "h-3.5 w-3.5 rounded-full border border-amber-900/10",
+                          recent?.mood ? moodColorClasses[recent.mood] : "bg-muted/40",
+                        )}
+                      />
+                    )
+                  })}
+                </div>
+
+                <div>
+                  <p className="mb-2 text-xs font-medium text-muted-foreground">This Month</p>
+                  <div className="grid grid-cols-7 gap-1">
+                    {monthDays.map((day) => {
+                      const hasEntry = recentByDate.has(day)
+                      return (
+                        <span
+                          key={day}
+                          title={`${formatShortDate(day)}${hasEntry ? " · journal entry" : " · no entry"}`}
+                          className={cn("aspect-square rounded-[3px] border border-amber-900/10", hasEntry ? "bg-amber-500" : "bg-muted/35")}
+                        />
+                      )
+                    })}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             <Card className={cn("journal-paper-card journal-side-panel surface-card", motionPresets.fadeInUp)}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -517,7 +957,7 @@ export default function JournalPage() {
                     className="border-dashed bg-background/70 p-4 md:p-6"
                   />
                 ) : (
-                  recentEntries.slice(0, 10).map((recent) => (
+                  recentEntries.slice(0, 7).map((recent) => (
                     <button
                       key={recent.id}
                       type="button"
@@ -533,23 +973,11 @@ export default function JournalPage() {
                         {recent.mood && <span aria-label={`Mood ${recent.mood}`}>{moods.find((mood) => mood.value === recent.mood)?.icon}</span>}
                       </div>
                       <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                        {recent.affirmation_text || recent.gratitude.find(Boolean) || richTextToPlainText(recent.notes_from_today) || "Journal entry"}
+                        {entrySnippet(recent)}
                       </p>
                     </button>
                   ))
                 )}
-              </CardContent>
-            </Card>
-
-            <Card className={cn("journal-paper-card surface-card border-dashed", motionPresets.fadeIn)}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Lock className="h-4 w-4 text-muted-foreground" />
-                  Locking
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm text-muted-foreground">
-                The database is ready for future locking, but this version keeps entries editable to avoid accidental data loss.
               </CardContent>
             </Card>
 
@@ -562,6 +990,74 @@ export default function JournalPage() {
         </div>
       </div>
     </DashboardLayout>
+
+    <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Search className="h-5 w-5 text-primary" />
+            Search Journal
+          </DialogTitle>
+          <DialogDescription>Search recent entries instantly, with older entries pulled from your journal history.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <Input
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Search reflections, gratitude, notes, tags..."
+            autoFocus
+          />
+          {searchError && <p className="text-sm text-destructive">{searchError}</p>}
+          {searchLoading && <p className="text-sm text-muted-foreground">Searching...</p>}
+          <div className="space-y-2">
+            {searchQuery.trim().length < 2 ? (
+              <p className="text-sm text-muted-foreground">Type at least two characters.</p>
+            ) : searchResults.length === 0 && !searchLoading ? (
+              <p className="text-sm text-muted-foreground">No matching journal entries found.</p>
+            ) : (
+              searchResults.map((result) => (
+                <button
+                  key={`${result.id}-${result.journal_date}`}
+                  type="button"
+                  onClick={() => {
+                    setSelectedDate(result.journal_date)
+                    setSearchOpen(false)
+                  }}
+                  className="w-full rounded-md border bg-muted/20 p-3 text-left transition-colors hover:bg-muted/40"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="font-medium">{formatDateLabel(result.journal_date)}</span>
+                    {result.mood && <span aria-label={`Mood ${result.mood}`}>{moods.find((mood) => mood.value === result.mood)?.icon}</span>}
+                  </div>
+                  <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{result.snippet}</p>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    <AlertDialog open={Boolean(pendingTask)} onOpenChange={(open) => !open && setPendingTask(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Create a task?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Create a task: {pendingTask?.item.text.trim() || "Untitled intention"}?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={creatingTask}>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={(event) => {
+            event.preventDefault()
+            createTaskFromIntention()
+          }} disabled={creatingTask}>
+            {creatingTask ? "Creating..." : "Confirm"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   )
 }
 
@@ -629,7 +1125,17 @@ function JournalRichTextField({ label, value, onChange }: { label: string; value
   )
 }
 
-function IntentionCard({ title, items, onChange }: { title: string; items: JournalTodoItem[]; onChange: (items: JournalTodoItem[]) => void }) {
+function IntentionCard({
+  title,
+  items,
+  onChange,
+  onCreateTask,
+}: {
+  title: string
+  items: JournalTodoItem[]
+  onChange: (items: JournalTodoItem[]) => void
+  onCreateTask: (item: JournalTodoItem) => void
+}) {
   const updateItem = (id: string, patch: Partial<JournalTodoItem>) => {
     onChange(items.map((item) => (item.id === id ? { ...item, ...patch } : item)))
   }
@@ -658,6 +1164,17 @@ function IntentionCard({ title, items, onChange }: { title: string; items: Journ
               maxLength={240}
               className={cn("journal-input", item.done && "text-muted-foreground line-through")}
             />
+            {item.text.trim() && !item.done && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => onCreateTask(item)}
+                aria-label={`Create task from ${title} intention ${index + 1}`}
+              >
+                <ListPlus className="h-4 w-4" />
+              </Button>
+            )}
             <Button
               type="button"
               variant="ghost"

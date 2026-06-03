@@ -177,10 +177,11 @@ Run after changes to `DashboardLayout`, command/search/capture UI, Home preferen
 2. Journal APIs should validate dates and request bodies with Zod, return `{ entry: null }` for missing dates, and never show fake saved data.
 3. Journal autosave should debounce writes, show `Unsaved changes` / `Saving...` / `Saved` / error states, and keep a manual Save fallback.
 4. `notes_from_today` uses the shared rich-text editor; history previews and counts should strip HTML rather than rendering stored markup.
-5. Do not add AI affirmation generation unless it follows the existing AI route pattern: session auth, usage caps, explicit provider env checks, and no automatic writes.
-6. Keep Journal-specific visual polish scoped to `/journal`: warm notebook surfaces, readable writing fields, accessible star ratings, reduced-motion-safe section motion, and no global theme drift.
-7. Journal star ratings must keep radiogroup/radio semantics and comfortable touch targets after styling changes.
-8. When changing Journal schema, update the forward migration, `scripts/schema.sql`, `scripts/fresh-install.sql`, and `AI_TASK_LOG.md`.
+5. Journal `tomorrow_focus` may upsert one next-day Today focus item with `source_type: "journal"`; do not overwrite three existing user-picked focus items.
+6. Do not add AI affirmation generation unless it follows the existing AI route pattern: session auth, usage caps, explicit provider env checks, and no automatic writes.
+7. Keep Journal-specific visual polish scoped to `/journal`: warm notebook surfaces, readable writing fields, accessible star ratings, reduced-motion-safe section motion, and no global theme drift.
+8. Journal star ratings must keep radiogroup/radio semantics and comfortable touch targets after styling changes.
+9. When changing Journal schema or profile-backed Journal preferences, update the forward migration, `scripts/schema.sql`, `scripts/fresh-install.sql`, and `AI_TASK_LOG.md`.
 
 ## Rich Text Editor Checklist
 

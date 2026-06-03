@@ -17,6 +17,65 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-06-03 19:13 IST - Journal Page Workflow Fixes
+
+- Agent/tool used: Codex (GPT-5 coding agent).
+- Task completed: Implemented the Part 2 Journal fixes across the Journal page, Journal APIs, Settings preferences, and schema/migration docs without adding AI, paid services, agents, or secrets.
+
+#### Files Modified
+- `app/journal/page.tsx` - Added morning/evening mode, energy, tags, static affirmations, search UI, sidebar trend/heatmap, intention labels, intention-to-task confirmation, and cleaned stale/broken UI.
+- `app/api/journal/[date]/route.ts` - Added server-side Today plan bridge for `tomorrow_focus` journal-sourced focus items.
+- `app/api/journal/search/route.ts` - Added authenticated journal search endpoint.
+- `app/api/profile/route.ts` - Added user profile read/write support for customizable Journal intention labels.
+- `app/api/today-plan/route.ts` - Preserved `source_type: "journal"` focus items when normalizing Today plans.
+- `app/settings/page.tsx` - Added Settings > Journal Preferences for the three intention category labels.
+- `scripts/migrations/2026-06-03-journal-intention-labels.sql` - Added migration for `journal_intention_1`, `journal_intention_2`, and `journal_intention_3`.
+- `scripts/schema.sql` and `scripts/fresh-install.sql` - Updated fresh schema definitions with the new Journal intention fields.
+- `AI_PROJECT.md`, `AI_DECISIONS.md`, and `AI_CHECKLIST.md` - Updated product, architecture, and verification docs for Journal preferences, search, and the Today bridge.
+- `AI_TASK_LOG.md` - Recorded this work and verification results.
+
+#### Summary
+- Replaced the disabled affirmation action with a non-AI static picker, renamed Star Method Rating to Day Rating, removed the stale Tomorrow's Setup placeholder, and removed the Locking placeholder card.
+- Added Energy Level and tag chips to the saved journal form; hidden sections are only visually hidden by mode and do not clear saved data.
+- Added Morning/Evening mode with local time defaults, per-date `sessionStorage` override, and an evening default-open Tomorrow's Setup after 5pm.
+- Added Mood Trend, current-month heatmap, and reduced Recent Entries to 7 using already-loaded recent entry data.
+- Added authenticated Journal search with recent-entry client results plus `/api/journal/search?q=...` fallback.
+- Added customizable intention labels stored on `users`, surfaced in Settings, and reused on Journal intention and rating cards.
+- Added intention-to-task confirmation that posts to `/api/tasks` only after user action.
+- Added server-side `tomorrow_focus` sync into the next day's Today plan as `source_type: "journal"`; it updates/removes its own journal item, skips insertion when 3 non-journal focus items already exist, and does not evict user-picked focus items.
+
+#### Commands Run
+- `git status --short --branch` - started at `main...origin/main [ahead 2]` with scoped Journal/docs changes before commit.
+- `git diff --stat` - reviewed the scoped source/docs diff.
+- `git diff --check` - passed.
+- `npx tsc --noEmit` - initially failed on local search result mood typing, then passed after normalizing missing mood to `null`; final run passed.
+- `npm run lint` - failed with the known existing ESLint 10 blocker: no `eslint.config.(js|mjs|cjs)` file exists.
+- `npm run build` - passed; generated 145 routes including `/journal`, `/settings`, `/api/journal/[date]`, and `/api/journal/search`.
+- HTTP smoke via `curl -I` - `/journal` returned 200 and `/settings?tab=journal` returned 200.
+- HTTP API smoke via `curl` - unauthenticated `/api/journal/search?q=test` returned 401.
+
+#### Bugs Found Or Fixed
+- Fixed misleading disabled/stale Journal UI elements that looked like broken features.
+- Fixed hidden saved Journal fields by exposing tags and energy level.
+- Fixed the Tomorrow's Setup dead end by connecting it to a non-destructive next-day Today focus sync.
+- Fixed hardcoded Journal category labels by allowing per-user labels in Settings.
+
+#### Remaining Issues And Limitations
+- `npm run lint` remains blocked by the pre-existing missing ESLint flat config.
+- The migration was written and documented but not run against any database.
+- Browser automation was not available in this session, so authenticated create/update flows, intention-to-task creation, Today bridge persistence, and mobile overflow still need signed-in manual QA.
+- Existing users need the migration applied before Journal Preferences can persist in production; the profile API falls back to default labels if the new columns are absent.
+
+#### Suggested Next Steps
+- Apply `scripts/migrations/2026-06-03-journal-intention-labels.sql` to the intended database after confirming the target environment.
+- In a signed-in browser session, verify tags/energy save and reload, search navigation, intention-to-task creation, and the Tomorrow focus Today bridge with both available and full focus lists.
+- Continue the product-improvement stack with the next requested priority after Journal.
+
+#### Handoff Notes
+- Keep the Tomorrow bridge server-side in the Journal PUT route; do not move it to client-side fetches.
+- Keep `source_type: "journal"` reserved for Journal-sourced Today focus items so future cleanup/update logic can identify them.
+- Do not add AI routes, transcription, agents, paid external services, or secrets to this Journal workflow unless a future task explicitly asks for them.
+
 ### 2026-06-03 18:51 IST - Workspace And Reflect Navigation Polish
 
 - Agent/tool used: Codex (GPT-5 coding agent).

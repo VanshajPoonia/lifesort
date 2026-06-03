@@ -30,6 +30,7 @@ const sourceTypes = new Set([
   "waiting",
   "commitment",
   "maintenance",
+  "journal",
   "custom",
 ])
 
