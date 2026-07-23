@@ -207,7 +207,7 @@ export async function POST(request: Request) {
     }
 
     if (lifeAreaId === undefined) {
-      return NextResponse.json({ error: 'Life area not found' }, { status: 404 })
+      return NextResponse.json({ error: 'Life domain not found' }, { status: 404 })
     }
 
     const result = await sql`
@@ -357,7 +357,7 @@ export async function PUT(request: Request) {
     }
 
     if (nextLifeAreaId === undefined) {
-      return NextResponse.json({ error: 'Life area not found' }, { status: 404 })
+      return NextResponse.json({ error: 'Life domain not found' }, { status: 404 })
     }
 
     const nextEmailReminder = hasField(body, 'email_reminder')

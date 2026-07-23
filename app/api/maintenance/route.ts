@@ -94,7 +94,7 @@ async function getValidatedLinks(body: MaintenanceBody, userId: string, existing
   const lifeAreaId = hasField(body, "life_area_id")
     ? await validateLifeAreaId(normalizeLifeAreaId(body.life_area_id), userId)
     : normalizeLifeAreaId(existing?.life_area_id)
-  if (lifeAreaId === undefined) return { error: "Life area not found" }
+  if (lifeAreaId === undefined) return { error: "Life domain not found" }
 
   const vaultItemId = hasField(body, "vault_item_id")
     ? await validateVaultItemId(cleanId(body.vault_item_id), userId)

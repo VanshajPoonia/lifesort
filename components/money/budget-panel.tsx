@@ -270,7 +270,7 @@ export function BudgetPanel({ preferredCurrency = "USD" }: { preferredCurrency?:
         setLifeAreas((Array.isArray(data) ? data : []).map(normalizeLifeArea))
       }
     } catch (err) {
-      console.error("Error fetching life areas:", err)
+      console.error("Error fetching life domains:", err)
     }
   }
 
@@ -443,7 +443,7 @@ export function BudgetPanel({ preferredCurrency = "USD" }: { preferredCurrency?:
       })
       if (res.ok) fetchBudgetData()
     } catch (err) {
-      console.error("Error updating category life area:", err)
+      console.error("Error updating category life domain:", err)
     }
   }
 
@@ -893,7 +893,7 @@ export function BudgetPanel({ preferredCurrency = "USD" }: { preferredCurrency?:
                         <p className="text-xs text-muted-foreground">No limit set</p>
                       )}
                       <div className="mt-4 space-y-2">
-                        <Label className="text-xs text-muted-foreground">Life Area</Label>
+                        <Label className="text-xs text-muted-foreground">Life Domain</Label>
                         <LifeAreaSelect
                           areas={lifeAreas}
                           value={cat.life_area_id ?? null}
@@ -1074,7 +1074,7 @@ export function BudgetPanel({ preferredCurrency = "USD" }: { preferredCurrency?:
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Life Area</Label>
+              <Label>Life Domain</Label>
               <LifeAreaSelect
                 areas={lifeAreas}
                 value={categoryForm.life_area_id}

@@ -84,7 +84,7 @@ async function createTarget(
     ? normalizeLifeAreaId(payload.life_area_id)
     : fallbackLifeAreaId
   const lifeAreaId = await validateLifeAreaId(requestedLifeAreaId, userId)
-  if (lifeAreaId === undefined) throw new Error("Life area not found")
+  if (lifeAreaId === undefined) throw new Error("Life domain not found")
 
   if (targetType === "project") {
     const title = cleanText(payload.title, fallbackTitle, 255)

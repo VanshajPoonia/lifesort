@@ -108,7 +108,7 @@ function areaMeta(row: Row, lifeAreaById: Map<string, Row>) {
   const area = id ? lifeAreaById.get(id) : null
   return {
     life_area_id: id,
-    life_area_name: area ? text(area.name, "Life area") : null,
+    life_area_name: area ? text(area.name, "Life domain") : null,
     life_area_color: area ? nullableText(area.color) : null,
   }
 }
@@ -121,14 +121,17 @@ export async function getIgnoringInsightsData(userId: string): Promise<IgnoringI
   const unavailable: string[] = []
   const now = new Date()
 
-  const lifeAreas = await safeRows("life_areas", sql`
-    SELECT id::text, name, color, sort_order
+  const lifeAreasAll = await safeRows("life_areas", sql`
+    SELECT id::text, name, color, sort_order, is_ai_excluded
     FROM life_areas
     WHERE user_id = ${userId}
     ORDER BY sort_order ASC, name ASC
   `, unavailable)
 
+  // Domains marked is_ai_excluded (AI_LIFE_DOMAINS_SPEC.md section 15/16) must never surface in AI-facing insights.
+  const lifeAreas = lifeAreasAll.filter((row) => row.is_ai_excluded !== true)
   const lifeAreaById = new Map(lifeAreas.map((row) => [String(row.id), row]))
+  const isExcludedAreaId = (id: string | null) => Boolean(id && !lifeAreaById.has(id))
 
   const [
     taskActivity,
@@ -344,21 +347,22 @@ export async function getIgnoringInsightsData(userId: string): Promise<IgnoringI
     signals.push(makeSignal({
       id: `life_area:${areaId}:${quiet30 ? "30d" : "14d"}`,
       source: "life_area",
-      title: `${text(area.name, "Life area")} has been quiet`,
-      description: quiet30 ? "No tracked activity in this Life Area for 30 days." : "No tracked activity in this Life Area for 14 days.",
+      title: `${text(area.name, "Life domain")} has been quiet`,
+      description: quiet30 ? "No tracked activity in this Life Domain for 30 days." : "No tracked activity in this Life Domain for 14 days.",
       evidence: activity?.last ? `Last activity ${inactiveDays} days ago` : "No tracked activity found",
-      href: "/life-areas",
+      href: "/domains",
       date: activity?.last ? dateOnly(activity.last) : null,
       days_inactive: inactiveDays,
       severity: quiet30 ? "high" : "medium",
       life_area_id: areaId,
-      life_area_name: text(area.name, "Life area"),
+      life_area_name: text(area.name, "Life domain"),
       life_area_color: text(area.color),
     }))
   }
 
   for (const row of staleGoals) {
     const area = areaMeta(row, lifeAreaById)
+    if (isExcludedAreaId(area.life_area_id)) continue
     signals.push(makeSignal({
       id: `goal:${row.id}`,
       source: "goal",
@@ -375,6 +379,7 @@ export async function getIgnoringInsightsData(userId: string): Promise<IgnoringI
 
   for (const row of staleProjects) {
     const area = areaMeta(row, lifeAreaById)
+    if (isExcludedAreaId(area.life_area_id)) continue
     signals.push(makeSignal({
       id: `project:${row.id}`,
       source: "project",
@@ -391,6 +396,7 @@ export async function getIgnoringInsightsData(userId: string): Promise<IgnoringI
 
   for (const row of overdueWaiting) {
     const area = areaMeta(row, lifeAreaById)
+    if (isExcludedAreaId(area.life_area_id)) continue
     const dueDate = dateOnly(row.follow_up_date || row.expected_date)
     signals.push(makeSignal({
       id: `waiting:${row.id}`,
@@ -408,6 +414,7 @@ export async function getIgnoringInsightsData(userId: string): Promise<IgnoringI
 
   for (const row of overdueCommitments) {
     const area = areaMeta(row, lifeAreaById)
+    if (isExcludedAreaId(area.life_area_id)) continue
     signals.push(makeSignal({
       id: `commitment:${row.id}`,
       source: "commitment",
@@ -424,6 +431,7 @@ export async function getIgnoringInsightsData(userId: string): Promise<IgnoringI
 
   for (const row of missedHabits) {
     const area = areaMeta(row, lifeAreaById)
+    if (isExcludedAreaId(area.life_area_id)) continue
     signals.push(makeSignal({
       id: `habit:${row.id}`,
       source: "habit",
@@ -440,6 +448,7 @@ export async function getIgnoringInsightsData(userId: string): Promise<IgnoringI
 
   for (const row of overdueMaintenance) {
     const area = areaMeta(row, lifeAreaById)
+    if (isExcludedAreaId(area.life_area_id)) continue
     signals.push(makeSignal({
       id: `maintenance:${row.id}`,
       source: "maintenance",
@@ -456,6 +465,7 @@ export async function getIgnoringInsightsData(userId: string): Promise<IgnoringI
 
   for (const row of vaultRenewals) {
     const area = areaMeta(row, lifeAreaById)
+    if (isExcludedAreaId(area.life_area_id)) continue
     const renewalDate = dateOnly(row.renewal_date)
     const expiryDate = dateOnly(row.expiry_date)
     signals.push(makeSignal({

@@ -158,9 +158,9 @@ function improvementFor(componentKey: LifeScoreComponentKey, score: number): Lif
       component_key: "maintenance_vault",
     },
     life_area_balance: {
-      title: "Touch a quiet life area",
-      description: "Add one small task, note, or project update in a life area that has been quiet.",
-      href: "/life-areas",
+      title: "Touch a quiet life domain",
+      description: "Add one small task, note, or project update in a life domain that has been quiet.",
+      href: "/domains",
       component_key: "life_area_balance",
     },
   }
@@ -585,12 +585,12 @@ export async function getLifeScoreData(userId: string): Promise<LifeScoreData> {
   if (activeAreaIds.size > 0 && isComponentAvailable("life_area_balance")) {
     components.push(component({
       key: "life_area_balance",
-      label: "Life area balance",
+      label: "Life domain balance",
       score: balanceScore,
       weight: 5,
       explanation: lifeAreaCount === 0
-        ? "No Life Areas are set up yet, so this stays neutral."
-        : `${activeAreaIds.size}/${lifeAreaCount} Life Area${lifeAreaCount === 1 ? "" : "s"} have recent tracked activity.`,
+        ? "No Life Domains are set up yet, so this stays neutral."
+        : `${activeAreaIds.size}/${lifeAreaCount} Life Domain${lifeAreaCount === 1 ? "" : "s"} have recent tracked activity.`,
       href: "/insights",
     }))
   }

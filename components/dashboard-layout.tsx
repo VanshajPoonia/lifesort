@@ -27,6 +27,7 @@ import {
   BookOpenText,
   Paintbrush,
   Sparkles,
+  Target,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -35,6 +36,7 @@ import { ThemeSwitcher } from "@/components/theme-switcher"
 import { QuickAddModal, type QuickAddType } from "@/components/quick-add-modal"
 import { GlobalCommandPalette } from "@/components/global-command-palette"
 import { NotificationBell } from "@/components/notification-bell"
+import { useDomainFocus } from "@/components/domain-focus-provider"
 import { useBreakpoint } from "@/hooks/use-breakpoint"
 import { motionPresets } from "@/lib/motion"
 import { cn } from "@/lib/utils"
@@ -157,7 +159,7 @@ const HUB_NAV_ITEMS: SidebarItem[] = [
     label: "Reflect",
     href: "/reflect",
     icon: Activity,
-    aliases: ["/insights", "/review", "/timeline", "/reset", "/life-areas"],
+    aliases: ["/insights", "/review", "/timeline", "/reset", "/life-areas", "/domains"],
   },
   { id: "ai_assistant", label: "Coach", href: "/ai-chat", icon: Sparkles },
   { id: "settings", label: "Settings", href: "/settings", icon: Settings, aliases: ["/rules"] },
@@ -201,6 +203,7 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const pathname = usePathname()
   const { user, logout } = useAuth()
+  const { focus: domainFocus, clearFocus: clearDomainFocus } = useDomainFocus()
   const { isTablet } = useBreakpoint()
   const [sidebarPrefs, setSidebarPrefs] = useState<Record<string, boolean> | null>(null)
   const [prefsLoaded, setPrefsLoaded] = useState(false)
@@ -435,6 +438,18 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
 
       {/* Main Content */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      {domainFocus && (
+        <div className="flex items-center justify-between gap-2 border-b border-border/70 bg-accent/15 px-3 py-1.5 text-sm md:px-6">
+          <span className="flex items-center gap-2 font-medium text-foreground">
+            <Target className="h-3.5 w-3.5 text-accent" />
+            Focused on <span className="text-accent">{domainFocus.name}</span> — Today, Search, and suggestions are filtered
+          </span>
+          <Button type="button" variant="ghost" size="sm" className="h-7 gap-1 px-2 text-muted-foreground" onClick={clearDomainFocus}>
+            <X className="h-3.5 w-3.5" />
+            Exit focus
+          </Button>
+        </div>
+      )}
       {/* Header */}
       <header className={cn("flex items-center justify-between border-b border-border/70 bg-card/85 px-3 py-3 backdrop-blur supports-[backdrop-filter]:bg-card/75 md:px-6", motionPresets.fadeIn)}>
         <div className="flex items-center gap-3">
@@ -515,7 +530,7 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
           <button
             type="button"
             className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[11px] font-medium transition-all duration-150 ease-out active:scale-[0.98] motion-reduce:transition-none motion-reduce:transform-none ${
-              ["/journal", "/whiteboard", "/reflect", "/insights", "/review", "/timeline", "/reset", "/ai-chat", "/life-areas", "/settings", "/rules", "/admin"].some(matchesPath)
+              ["/journal", "/whiteboard", "/reflect", "/insights", "/review", "/timeline", "/reset", "/ai-chat", "/life-areas", "/domains", "/settings", "/rules", "/admin"].some(matchesPath)
                 ? "bg-primary/10 text-primary"
                 : "text-muted-foreground hover:bg-muted/70"
             }`}

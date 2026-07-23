@@ -14,6 +14,7 @@ import {
   Dumbbell,
   Edit3,
   GraduationCap,
+  HeartPulse,
   History,
   Home,
   Loader2,
@@ -23,9 +24,13 @@ import {
   Rocket,
   Save,
   Sparkles,
+  Target,
   Trash2,
+  Users,
   Video,
+  Wallet,
   Wand2,
+  X,
   XCircle,
 } from "lucide-react"
 
@@ -83,6 +88,9 @@ const ICON_MAP: Record<string, ComponentType<{ className?: string }>> = {
   Video,
   Home,
   BookMarked,
+  HeartPulse,
+  Wallet,
+  Users,
 }
 
 const TYPE_CONFIG: Record<string, { label: string; plural: string; color: string }> = {
@@ -112,6 +120,10 @@ const TYPE_ORDER = [
   "goal",
   "vault_item",
 ]
+
+// Item types whose create APIs accept life_area_id (see lib/life-areas.ts LifeArea usage
+// across app/api/tasks, goals, projects, habits, notes) — used to auto-tag domain templates.
+const LIFE_AREA_TAGGABLE_TYPES = new Set<TemplateItem["type"]>(["task", "goal", "project", "habit", "note"])
 
 const HISTORY_KEY = "lifesort-ai-template-session-history"
 const BUILDER_TYPE_OPTIONS: Array<{ value: UserTemplateItem["type"]; label: string }> = [
@@ -326,12 +338,17 @@ export default function TemplatesPage() {
   const [applyingAi, setApplyingAi] = useState(false)
   const [createdItems, setCreatedItems] = useState<CreatedTemplateItem[]>([])
   const [history, setHistory] = useState<AiHistoryItem[]>([])
+  const [domainContext, setDomainContext] = useState<{ id: string; name: string } | null>(null)
 
   useEffect(() => {
     setHistory(safeHistory())
     if (typeof window !== "undefined") {
-      const requestedMode = new URLSearchParams(window.location.search).get("mode")
+      const params = new URLSearchParams(window.location.search)
+      const requestedMode = params.get("mode")
       if (requestedMode === "ai" || requestedMode === "my") setMode(requestedMode)
+      const domainId = params.get("domain_id")
+      const domainName = params.get("domain_name")
+      if (domainId && domainName) setDomainContext({ id: domainId, name: domainName })
     }
   }, [])
 
@@ -608,10 +625,14 @@ export default function TemplatesPage() {
     for (let i = 0; i < template.items.length; i++) {
       const item = template.items[i]
       try {
+        const payload = buildPayload(item)
+        if (domainContext && LIFE_AREA_TAGGABLE_TYPES.has(item.type)) {
+          payload.life_area_id = domainContext.id
+        }
         const res = await fetch(ENDPOINT_MAP[item.type], {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(buildPayload(item)),
+          body: JSON.stringify(payload),
         })
         setResults((prev) => {
           const next = [...prev]
@@ -708,6 +729,12 @@ export default function TemplatesPage() {
 
   const successCount = results.filter((r) => r === "success").length
   const showStatus = applying || done
+  const orderedLibraryTemplates = useMemo(() => {
+    if (!domainContext) return TEMPLATES
+    const matched = TEMPLATES.filter((t) => t.domainName === domainContext.name)
+    const rest = TEMPLATES.filter((t) => t.domainName !== domainContext.name)
+    return [...matched, ...rest]
+  }, [domainContext])
 
   return (
     <DashboardLayout>
@@ -720,6 +747,19 @@ export default function TemplatesPage() {
             </p>
           </div>
         </div>
+
+        {domainContext && (
+          <div className="flex items-center justify-between gap-2 rounded-lg border bg-accent/10 px-4 py-2.5 text-sm">
+            <span className="flex items-center gap-2 font-medium text-foreground">
+              <Target className="h-4 w-4 text-accent" />
+              Applying templates to <span className="text-accent">{domainContext.name}</span> — items you create will be tagged to this domain
+            </span>
+            <Button type="button" variant="ghost" size="sm" className="h-7 gap-1 px-2 text-muted-foreground" onClick={() => setDomainContext(null)}>
+              <X className="h-3.5 w-3.5" />
+              Clear
+            </Button>
+          </div>
+        )}
 
         <Tabs value={mode} onValueChange={(value) => setMode(value as TemplateMode)} className="space-y-5">
           <TabsList className="grid w-full max-w-xl grid-cols-3">
@@ -739,11 +779,15 @@ export default function TemplatesPage() {
 
           <TabsContent value="library" className="mt-0">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {TEMPLATES.map((template) => {
+              {orderedLibraryTemplates.map((template) => {
                 const IconComp = ICON_MAP[template.icon] ?? Sparkles
                 const tags = getItemTypeCounts(template.items)
+                const isMatchedDomain = domainContext && template.domainName === domainContext.name
                 return (
-                  <Card key={template.id} className="overflow-hidden flex flex-col interactive-card">
+                  <Card
+                    key={template.id}
+                    className={`overflow-hidden flex flex-col interactive-card ${isMatchedDomain ? "ring-2 ring-accent" : ""}`}
+                  >
                     <div className={`h-1.5 bg-gradient-to-r ${template.color}`} />
                     <CardHeader className="pb-2">
                       <div className="flex items-start gap-3">
@@ -753,6 +797,11 @@ export default function TemplatesPage() {
                         <div className="min-w-0">
                           <h3 className="font-semibold text-sm leading-tight">{template.name}</h3>
                           <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{template.description}</p>
+                          {template.domainName && (
+                            <Badge variant="outline" className="mt-1.5 text-[10px] font-normal">
+                              {template.domainName} domain
+                            </Badge>
+                          )}
                         </div>
                       </div>
                     </CardHeader>

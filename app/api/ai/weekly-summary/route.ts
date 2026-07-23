@@ -58,7 +58,7 @@ function buildPrompt(weekStart: string, weekEnd: string, data: WeeklySummaryInpu
 
   const lifeAreaLines = lifeAreas.length > 0
     ? lifeAreas.map((a) => `  - ${a.name}: ${a.activity_count} actions`).join("\n")
-    : "  - No life area activity tracked"
+    : "  - No life domain activity tracked"
 
   const budgetWarning = (finance.near_budget_categories ?? []).length > 0
     ? `\n  Budget categories near/over limit: ${finance.near_budget_categories!.map((c) => `${c.name} (${c.percent_used}%)`).join(", ")}`
@@ -78,14 +78,14 @@ Activity (numbers only — no personal names or content):
 - Projects: ${n(projects.updated)} updated, ${n(projects.active)} active, ${n(projects.overdue)} overdue
 - Notes: ${n(notes.created)} created, ${n(notes.updated)} updated
 - Finance: ${formatCurrency(n(finance.income))} income, ${formatCurrency(n(finance.expenses))} expenses (net ${formatCurrency(n(finance.net))}), ${n(finance.transactions)} transactions${budgetWarning}
-- Life area activity:
+- Life domain activity:
 ${lifeAreaLines}
 
 Instructions:
 - Only reference the numbers above. Do NOT invent details.
 - Be specific and encouraging where results are positive.
 - Identify genuine risks (overdue items, ignored areas, budget pressure).
-- ignored_areas: list life area names or modules (tasks/habits/notes/finance) with zero activity; empty array if none.
+- ignored_areas: list life domain names or modules (tasks/habits/notes/finance) with zero activity; empty array if none.
 - next_week_focus: one clear sentence based on the data.
 - next_actions: exactly 3 practical items.
 - Respect the visible personal operating rules and preferences when shaping next-week focus and actions.

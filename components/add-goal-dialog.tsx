@@ -201,7 +201,7 @@ export function AddGoalDialog({ open, onClose, onAdd, lifeAreas = [] }: AddGoalD
             </div>
           </div>
           <div className="space-y-2">
-            <Label>Life Area</Label>
+            <Label>Life Domain</Label>
             <LifeAreaSelect
               areas={lifeAreas}
               value={formData.life_area_id}

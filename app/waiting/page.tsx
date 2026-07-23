@@ -37,7 +37,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import type { LifeArea } from "@/lib/life-areas"
-import { normalizeLifeArea } from "@/lib/life-areas"
+import { denormalizedLifeArea, normalizeLifeArea } from "@/lib/life-areas"
 
 type WaitingOnType = "person" | "company" | "school" | "bank" | "government" | "delivery" | "refund" | "job" | "other"
 type WaitingStatus = "waiting" | "follow_up_needed" | "resolved" | "cancelled"
@@ -115,7 +115,7 @@ const viewOptions: Array<{ value: WaitingView; label: string }> = [
   { value: "follow_up_today", label: "Follow up today" },
   { value: "overdue", label: "Overdue" },
   { value: "resolved", label: "Resolved" },
-  { value: "life_area", label: "By life area" },
+  { value: "life_area", label: "By life domain" },
 ]
 
 const emptyForm: WaitingForm = {
@@ -172,14 +172,12 @@ function areaForItem(item: WaitingItem, areas: LifeArea[]) {
   const area = areas.find((candidate) => String(candidate.id) === String(item.life_area_id))
   if (area) return area
   if (item.life_area_name) {
-    return {
+    return denormalizedLifeArea({
       id: String(item.life_area_id),
       name: item.life_area_name,
-      icon: item.life_area_icon || "Target",
-      color: item.life_area_color || "#64748B",
-      description: null,
-      sort_order: 0,
-    }
+      icon: item.life_area_icon,
+      color: item.life_area_color,
+    })
   }
   return null
 }
@@ -440,7 +438,7 @@ export default function WaitingPage() {
     view === "follow_up_today" ? "No follow-ups due today" :
     view === "overdue" ? "Nothing is overdue" :
     view === "resolved" ? "No resolved items yet" :
-    view === "life_area" ? "No waiting items in this life area" :
+    view === "life_area" ? "No waiting items in this life domain" :
     "Nothing waiting yet"
 
   const emptyCopy =
@@ -737,7 +735,7 @@ export default function WaitingPage() {
                 <Input type="date" value={form.follow_up_date} onChange={(event) => setFormField("follow_up_date", event.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>Life Area</Label>
+                <Label>Life Domain</Label>
                 <LifeAreaSelect areas={lifeAreas} value={form.life_area_id} onChange={(value) => setFormField("life_area_id", value)} />
               </div>
               <div className="space-y-2">

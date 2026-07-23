@@ -34,6 +34,7 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard-layout"
+import { DomainTodayOverview } from "@/components/domain-today-overview"
 import { AppEmptyState } from "@/components/empty-state"
 import { FavoritesTodo } from "@/components/hub-page"
 import { OnboardingModal } from "@/components/onboarding-modal"
@@ -1369,6 +1370,8 @@ export default function Home() {
           </Button>
         </div>
 
+        <DomainTodayOverview />
+
         <Collapsible open={secondaryOpen} onOpenChange={setSecondaryOpen} className="space-y-5">
           <CollapsibleTrigger asChild>
             <Button type="button" variant="ghost" className="w-full justify-between rounded-lg border border-dashed bg-muted/20 px-4">
@@ -1474,7 +1477,7 @@ export default function Home() {
               <AppEmptyState
                 icon={Gauge}
                 title="LifeScore is waiting for real data"
-                hint="Add a task, focus item, habit, goal, review, commitment, maintenance item, or Life Area activity and your score will appear here."
+                hint="Add a task, focus item, habit, goal, review, commitment, maintenance item, or Life Domain activity and your score will appear here."
                 primaryAction={{ label: "Start Today", href: "/today" }}
                 className="border-dashed bg-background/70"
               />

@@ -93,7 +93,7 @@ export function IncomePanel({ preferredCurrency = "USD" }: { preferredCurrency?:
         setLifeAreas((Array.isArray(data) ? data : []).map(normalizeLifeArea))
       }
     } catch (error) {
-      console.error('[v0] Failed to fetch life areas:', error)
+      console.error('[v0] Failed to fetch life domains:', error)
     }
   }
 
@@ -472,7 +472,7 @@ export function IncomePanel({ preferredCurrency = "USD" }: { preferredCurrency?:
                     />
                   </div>
                   <div>
-                    <Label>Life Area</Label>
+                    <Label>Life Domain</Label>
                     <LifeAreaSelect
                       areas={lifeAreas}
                       value={newIncome.life_area_id}
@@ -650,7 +650,7 @@ export function IncomePanel({ preferredCurrency = "USD" }: { preferredCurrency?:
                 />
               </div>
               <div>
-                <Label>Life Area</Label>
+                <Label>Life Domain</Label>
                 <LifeAreaSelect
                   areas={lifeAreas}
                   value={editingIncome.life_area_id ?? null}

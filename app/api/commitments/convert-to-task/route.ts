@@ -77,7 +77,7 @@ export async function POST(request: Request) {
       ? await validateLifeAreaId(normalizeLifeAreaId(body.life_area_id), user.id)
       : normalizeLifeAreaId(commitment.life_area_id)
     if (lifeAreaId === undefined) {
-      return NextResponse.json({ error: "Life area not found" }, { status: 404 })
+      return NextResponse.json({ error: "Life domain not found" }, { status: 404 })
     }
 
     const title = cleanText(body.title, commitment.title) || commitment.title

@@ -136,7 +136,7 @@ export async function POST(request: Request) {
     }
 
     if (lifeAreaId === undefined) {
-      return NextResponse.json({ error: "Life area not found" }, { status: 404 })
+      return NextResponse.json({ error: "Life domain not found" }, { status: 404 })
     }
 
     const result = await sql`
@@ -199,7 +199,7 @@ export async function PUT(request: Request) {
       : normalizeLifeAreaId(existing.life_area_id)
 
     if (lifeAreaId === undefined) {
-      return NextResponse.json({ error: "Life area not found" }, { status: 404 })
+      return NextResponse.json({ error: "Life domain not found" }, { status: 404 })
     }
 
     const rawText = Object.prototype.hasOwnProperty.call(body, "raw_text")

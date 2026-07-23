@@ -373,7 +373,7 @@ function SectionDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label>Life Area</Label>
+            <Label>Life Domain</Label>
             <LifeAreaSelect
               areas={lifeAreas}
               value={form.life_area_id}

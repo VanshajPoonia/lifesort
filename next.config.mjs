@@ -16,6 +16,8 @@ const nextConfig = {
       { source: "/income", destination: "/money?tab=income", permanent: false },
       { source: "/investments", destination: "/money?tab=investments", permanent: false },
       { source: "/wishlist", destination: "/money?tab=wishlist", permanent: false },
+      { source: "/life-areas", destination: "/domains", permanent: false },
+      { source: "/life-areas/:id", destination: "/domains/:id", permanent: false },
     ]
   },
 }

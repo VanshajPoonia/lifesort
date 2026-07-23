@@ -133,7 +133,7 @@ export async function POST(request: Request) {
     }
 
     if (!hasLifeArea) {
-      return NextResponse.json({ error: 'Life area not found' }, { status: 400 })
+      return NextResponse.json({ error: 'Life domain not found' }, { status: 400 })
     }
 
     const result = await sql`
@@ -188,7 +188,7 @@ export async function PUT(request: Request) {
     }
 
     if (!hasLifeArea) {
-      return NextResponse.json({ error: 'Life area not found' }, { status: 400 })
+      return NextResponse.json({ error: 'Life domain not found' }, { status: 400 })
     }
 
     const hasTagsUpdate = Object.prototype.hasOwnProperty.call(body, 'tags')

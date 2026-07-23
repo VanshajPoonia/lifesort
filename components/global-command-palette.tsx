@@ -32,6 +32,7 @@ import {
 
 import type { QuickAddType } from "@/components/quick-add-modal"
 import { AppEmptyState } from "@/components/empty-state"
+import { useDomainFocus } from "@/components/domain-focus-provider"
 import {
   CommandDialog,
   CommandGroup,
@@ -68,6 +69,7 @@ type SearchResult = {
   subtitle: string
   href: string
   updated_at: string | null
+  life_area_id: string | null
 }
 
 type SearchGroup = {
@@ -159,6 +161,7 @@ export function GlobalCommandPalette({
   onOpenQuickAdd: (type?: QuickAddType) => void
 }) {
   const router = useRouter()
+  const { focus: domainFocus } = useDomainFocus()
   const [query, setQuery] = useState("")
   const [debouncedQuery, setDebouncedQuery] = useState("")
   const [groups, setGroups] = useState<SearchGroup[]>([])
@@ -238,7 +241,15 @@ export function GlobalCommandPalette({
     return () => controller.abort()
   }, [debouncedQuery, open])
 
-  const populatedGroups = useMemo(() => groups.filter((group) => group.results.length > 0), [groups])
+  const populatedGroups = useMemo(() => {
+    const domainFiltered = domainFocus
+      ? groups.map((group) => ({
+          ...group,
+          results: group.results.filter((result) => !result.life_area_id || result.life_area_id === domainFocus.id),
+        }))
+      : groups
+    return domainFiltered.filter((group) => group.results.length > 0)
+  }, [groups, domainFocus])
   const hasQuery = query.trim().length >= 2
 
   const navigate = (href: string) => {

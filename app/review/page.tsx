@@ -337,7 +337,7 @@ export default function WeeklyReviewPage() {
             <p className="text-sm text-muted-foreground">Monday-Sunday review</p>
             <h1 className="mt-1 text-2xl font-bold text-foreground">Review your week</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Look across tasks, goals, habits, projects, notes, finance, and life areas before choosing next week&apos;s focus.
+              Look across tasks, goals, habits, projects, notes, finance, and life domains before choosing next week&apos;s focus.
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -617,9 +617,9 @@ export default function WeeklyReviewPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Network className="h-5 w-5 text-primary" />
-                    Life Area Balance
+                    Life Domain Balance
                   </CardTitle>
-                  <CardDescription>Activity grouped by assigned Life Area.</CardDescription>
+                  <CardDescription>Activity grouped by assigned Life Domain.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {loadingReview ? (
@@ -628,7 +628,7 @@ export default function WeeklyReviewPage() {
                       <Skeleton className="h-14" />
                     </div>
                   ) : !summary?.life_areas?.length ? (
-                    <EmptyState>Assign items to Life Areas to see weekly balance here.</EmptyState>
+                    <EmptyState>Assign items to Life Domains to see weekly balance here.</EmptyState>
                   ) : (
                     <div className="space-y-3">
                       {summary.life_areas.map((area) => {

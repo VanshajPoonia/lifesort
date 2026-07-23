@@ -30,7 +30,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/components/auth-provider"
 import type { LifeArea } from "@/lib/life-areas"
-import { normalizeLifeArea } from "@/lib/life-areas"
+import { denormalizedLifeArea, normalizeLifeArea } from "@/lib/life-areas"
 
 type ProjectStatus = "active" | "paused" | "completed" | "archived"
 type ProjectPriority = "low" | "medium" | "high"
@@ -146,14 +146,15 @@ function formFromProject(project: Project): ProjectForm {
 
 function getLifeArea(project: Project | null, areas: LifeArea[]) {
   if (!project?.life_area_id) return null
-  return areas.find((area) => String(area.id) === String(project.life_area_id)) || {
-    id: String(project.life_area_id),
-    name: project.life_area_name || "Life area",
-    icon: project.life_area_icon || "Target",
-    color: project.life_area_color || "#2563EB",
-    description: null,
-    sort_order: 0,
-  }
+  return (
+    areas.find((area) => String(area.id) === String(project.life_area_id)) ||
+    denormalizedLifeArea({
+      id: String(project.life_area_id),
+      name: project.life_area_name || "Life domain",
+      icon: project.life_area_icon,
+      color: project.life_area_color,
+    })
+  )
 }
 
 export default function ProjectDetailPage() {
@@ -568,7 +569,7 @@ export default function ProjectDetailPage() {
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>Life Area</Label>
+                  <Label>Life Domain</Label>
                   <LifeAreaSelect areas={lifeAreas} value={form.life_area_id} onChange={(value) => setForm({ ...form, life_area_id: value })} />
                 </div>
                 <div className="space-y-2">

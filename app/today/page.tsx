@@ -41,6 +41,8 @@ import {
 
 import { useAuth } from "@/components/auth-provider"
 import { DashboardLayout } from "@/components/dashboard-layout"
+import { DomainTodayOverview } from "@/components/domain-today-overview"
+import { useDomainFocus } from "@/components/domain-focus-provider"
 import { SortableList } from "@/components/sortable-list"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -76,6 +78,7 @@ type HabitToday = {
   target_count: number
   done: boolean
   count: number
+  life_area_id: string | null
 }
 
 type TodayItem = {
@@ -88,6 +91,7 @@ type TodayItem = {
   custom: boolean
   priority?: string
   date?: string | null
+  life_area_id?: string | null
 }
 
 type DailyPriority = "must" | "should" | "could"
@@ -319,6 +323,7 @@ export default function TodayPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
+  const { focus: domainFocus } = useDomainFocus()
   const [planDate] = useState(localDateString)
   const [activeTab, setActiveTab] = useState<TodayTab>(() => normalizeTodayTab(searchParams.get("tab")))
   const [focusSession, setFocusSession] = useState<TodayItem | null>(null)
@@ -431,7 +436,7 @@ export default function TodayPage() {
         fetch(`/api/habits/checkins?date=${planDate}`),
       ])
       if (!habitsRes.ok || !checkinsRes.ok) return
-      type RawHabit = { id: number; name: string; color: string; is_active: boolean; frequency: string; custom_days: number[]; target_count: number }
+      type RawHabit = { id: number; name: string; color: string; is_active: boolean; frequency: string; custom_days: number[]; target_count: number; life_area_id?: number | string | null }
       type RawCheckin = { habit_id: number; count: number }
       type RawCheckinData = { checkins: RawCheckin[] }
       const habitsData: RawHabit[] = await habitsRes.json()
@@ -447,7 +452,15 @@ export default function TodayPage() {
       const checkinMap = new Map((checkinsData.checkins || []).map((c) => [c.habit_id, c.count]))
       setHabitsToday(active.map((h) => {
         const count = checkinMap.get(h.id) ?? 0
-        return { id: h.id, name: h.name, color: h.color || "#2563EB", target_count: h.target_count, done: count >= h.target_count, count }
+        return {
+          id: h.id,
+          name: h.name,
+          color: h.color || "#2563EB",
+          target_count: h.target_count,
+          done: count >= h.target_count,
+          count,
+          life_area_id: h.life_area_id != null ? String(h.life_area_id) : null,
+        }
       }))
     } catch {
       // non-fatal
@@ -571,15 +584,21 @@ export default function TodayPage() {
     const orderedIds = new Set(ordered.map((item) => item.id))
     return [...ordered, ...baseItems.filter((item) => !orderedIds.has(item.id))]
   }, [candidates.couldDo, candidates.mustDo, candidates.shouldDo, candidates.todayToDo, focusItems, plan?.today_item_order])
+  const domainScopedDailyItems = dailyItems.filter(
+    (item) => !domainFocus || !item.life_area_id || item.life_area_id === domainFocus.id,
+  )
   const filteredDailyItems = dailyPriorityFilter === "all"
-    ? dailyItems
-    : dailyItems.filter((item) => item.dailyPriority === dailyPriorityFilter)
+    ? domainScopedDailyItems
+    : domainScopedDailyItems.filter((item) => item.dailyPriority === dailyPriorityFilter)
   const dailyCounts = {
-    all: dailyItems.length,
-    must: dailyItems.filter((item) => item.dailyPriority === "must").length,
-    should: dailyItems.filter((item) => item.dailyPriority === "should").length,
-    could: dailyItems.filter((item) => item.dailyPriority === "could").length,
+    all: domainScopedDailyItems.length,
+    must: domainScopedDailyItems.filter((item) => item.dailyPriority === "must").length,
+    should: domainScopedDailyItems.filter((item) => item.dailyPriority === "should").length,
+    could: domainScopedDailyItems.filter((item) => item.dailyPriority === "could").length,
   }
+  const visibleHabitsToday = habitsToday.filter(
+    (habit) => !domainFocus || !habit.life_area_id || habit.life_area_id === domainFocus.id,
+  )
   const journalMood = journalPreview?.mood ? ["😟", "😕", "😐", "🙂", "😊"][journalPreview.mood - 1] : null
   const journalPreviewText =
     journalPreview?.affirmation_text ||
@@ -866,6 +885,8 @@ export default function TodayPage() {
           <WeekPlanner />
         ) : (
           <>
+            <DomainTodayOverview />
+
             <Card className="surface-card section-enter border-primary/20">
               <CardHeader>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -1361,13 +1382,13 @@ export default function TodayPage() {
                       Habits Today
                     </CardTitle>
                     <span className="text-sm text-muted-foreground">
-                      {habitsToday.filter((h) => h.done).length}/{habitsToday.length} done
+                      {visibleHabitsToday.filter((h) => h.done).length}/{visibleHabitsToday.length} done
                     </span>
                   </div>
                 </CardHeader>
                 <CardContent>
                   <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                    {habitsToday.map((habit) => (
+                    {visibleHabitsToday.map((habit) => (
                       <button
                         key={habit.id}
                         className={`flex items-center gap-3 rounded-lg border p-3 text-left transition-all hover:border-primary/50 ${habit.done ? "bg-muted/50" : ""}`}

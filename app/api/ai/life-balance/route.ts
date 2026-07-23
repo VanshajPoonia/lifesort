@@ -24,6 +24,19 @@ type AreaMetrics = {
   notes: { total: number; recent_updates: number }
   budget: { categories: number; income_30d: number; expenses_30d: number }
   score: number
+  desired_attention: "low" | "medium" | "high" | null
+  attention_nudge: string | null
+}
+
+// Gentle desired-vs-actual attention nudges (AI_LIFE_DOMAINS_SPEC.md section 11/12). Deterministic,
+// not AI-generated -- must never use guilt framing ("you are failing"), only specific, kind observations.
+function buildAttentionNudge(area: Pick<AreaMetrics, "name" | "desired_attention" | "score" | "habits">): string | null {
+  if (!area.desired_attention || area.desired_attention === "low") return null
+  if (area.score > 0) return null
+  if (area.desired_attention === "high") {
+    return `You wanted to prioritize ${area.name}, but no activity has been tracked there this week.`
+  }
+  return `You wanted to give ${area.name} more attention, but nothing has been tracked there recently.`
 }
 
 type WeeklyReviewContext = {
@@ -107,6 +120,8 @@ function createEmptyArea(row?: Record<string, unknown>): AreaMetrics {
     notes: { total: 0, recent_updates: 0 },
     budget: { categories: 0, income_30d: 0, expenses_30d: 0 },
     score: 0,
+    desired_attention: (row?.desired_attention as "low" | "medium" | "high" | null) ?? null,
+    attention_nudge: null,
   }
 }
 
@@ -138,13 +153,18 @@ async function buildLifeBalanceMetrics(userId: string): Promise<LifeBalanceMetri
   }
 
   const lifeAreaRows = await safeRows<Record<string, unknown>>("life_areas", sql`
-    SELECT id::text AS id, name, icon, color, sort_order
+    SELECT id::text AS id, name, icon, color, sort_order, is_ai_excluded, desired_attention
     FROM life_areas
     WHERE user_id = ${userId}
     ORDER BY sort_order ASC, name ASC
   `, unavailable)
 
+  // Domains marked is_ai_excluded (AI_LIFE_DOMAINS_SPEC.md section 15/16) never appear in Life Balance,
+  // since its non-AI metrics feed directly into the AI prompt built from this same map below.
+  const excludedAreaIds = new Set(lifeAreaRows.filter((row) => row.is_ai_excluded === true).map((row) => String(row.id)))
+
   for (const row of lifeAreaRows) {
+    if (excludedAreaIds.has(String(row.id))) continue
     const area = createEmptyArea(row)
     areas.set(area.key, area)
   }
@@ -290,7 +310,12 @@ async function buildLifeBalanceMetrics(userId: string): Promise<LifeBalanceMetri
     }
   }
 
-  const rows = Array.from(areas.values()).map((area) => ({ ...area, score: calculateScore(area) }))
+  for (const id of excludedAreaIds) areas.delete(id)
+
+  const rows = Array.from(areas.values()).map((area) => {
+    const scored = { ...area, score: calculateScore(area) }
+    return { ...scored, attention_nudge: buildAttentionNudge(scored) }
+  })
   const sortedRows = rows.sort((a, b) => {
     if (a.key === "unassigned") return 1
     if (b.key === "unassigned") return -1

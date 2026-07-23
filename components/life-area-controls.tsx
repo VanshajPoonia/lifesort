@@ -70,7 +70,7 @@ export function LifeAreaSelect({
   areas,
   value,
   onChange,
-  placeholder = "No life area",
+  placeholder = "No life domain",
 }: {
   areas: LifeArea[]
   value?: string | number | null

@@ -60,6 +60,8 @@ type AreaMetrics = {
   notes: { total: number; recent_updates: number }
   budget: { categories: number; income_30d: number; expenses_30d: number }
   score: number
+  desired_attention: "low" | "medium" | "high" | null
+  attention_nudge: string | null
 }
 
 type LifeBalanceMetrics = {
@@ -222,7 +224,7 @@ function MetricPill({ icon: Icon, label, value }: { icon: typeof Activity; label
 }
 
 const IGNORING_SOURCE_LABELS: Record<IgnoringSignalSource, string> = {
-  life_area: "Quiet Life Areas",
+  life_area: "Quiet Life Domains",
   goal: "Stale Goals",
   project: "Stale Projects",
   waiting: "Waiting For",
@@ -301,9 +303,9 @@ function getReflectHubCards(currentHref: "/reflect" | "/insights") {
     icon: Sparkles,
   },
   {
-    title: "Life Areas",
+    title: "Life Domains",
     description: "Manage the areas used for balance and organization.",
-    href: "/life-areas",
+    href: "/domains",
     icon: Target,
   },
   {
@@ -860,7 +862,7 @@ function ReflectExperience() {
               <p className="text-sm text-muted-foreground">Life Balance</p>
               <h1 className="mt-1 text-xl font-bold sm:text-2xl">Where your energy is going</h1>
               <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                Metrics are calculated locally from your Life Areas, tasks, goals, habits, projects, notes, budget, and weekly reviews.
+                Metrics are calculated locally from your Life Domains, tasks, goals, habits, projects, notes, budget, and weekly reviews.
               </p>
             </div>
             <Button onClick={analyzeBalance} disabled={analyzing || loadingMetrics} className="gap-2">
@@ -909,13 +911,13 @@ function ReflectExperience() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Activity className="h-5 w-5 text-primary" />
-                    Balance By Life Area
+                    Balance By Life Domain
                   </CardTitle>
                   <CardDescription>Non-AI metrics. Higher scores mean more current activity or pressure.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {visibleAreas.length === 0 ? (
-                    <EmptyState>Add Life Areas or assign records to see balance metrics.</EmptyState>
+                    <EmptyState>Add Life Domains or assign records to see balance metrics.</EmptyState>
                   ) : (
                     visibleAreas.map((area) => {
                       const metricItems = [
@@ -971,6 +973,11 @@ function ReflectExperience() {
                             <ChevronDown className={cn("ml-1 h-3.5 w-3.5 transition-transform", expanded && "rotate-180")} />
                           </Button>
                         )}
+                        {area.attention_nudge && (
+                          <p className="mt-3 rounded-md border border-dashed bg-muted/40 p-2 text-xs text-muted-foreground">
+                            {area.attention_nudge}
+                          </p>
+                        )}
                       </div>
                       )
                     })
@@ -1005,7 +1012,7 @@ function ReflectExperience() {
                         <p className="mt-1 text-muted-foreground">{metrics.summary.ignored_areas.slice(0, 6).join(", ")}</p>
                       </div>
                     ) : (
-                      <EmptyState>No ignored Life Areas detected from the current metrics.</EmptyState>
+                      <EmptyState>No ignored Life Domains detected from the current metrics.</EmptyState>
                     )}
                   </CardContent>
                 </Card>
@@ -1047,7 +1054,7 @@ function ReflectExperience() {
                   What Am I Ignoring?
                 </CardTitle>
                 <CardDescription>
-                  Non-AI signals for quiet life areas, stale work, overdue follow-ups, missed habits, renewals, and finance review gaps.
+                  Non-AI signals for quiet life domains, stale work, overdue follow-ups, missed habits, renewals, and finance review gaps.
                 </CardDescription>
               </div>
               <Button onClick={analyzeIgnoring} disabled={analyzingIgnoring || loadingIgnoring} className="gap-2">
@@ -1089,7 +1096,7 @@ function ReflectExperience() {
 
                 {ignoringInsights.signals.length === 0 ? (
                   <EmptyState>
-                    Nothing looks ignored right now. Keep using Today, Weekly Review, and Life Areas so future signals stay useful.
+                    Nothing looks ignored right now. Keep using Today, Weekly Review, and Life Domains so future signals stay useful.
                   </EmptyState>
                 ) : (
                   <div className="space-y-4">

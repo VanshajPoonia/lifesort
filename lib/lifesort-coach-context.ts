@@ -148,6 +148,7 @@ async function getTodayContext(userId: string, unavailable: string[], citations:
         AND t.completed = FALSE
         AND t.due_date IS NOT NULL
         AND t.due_date <= CURRENT_DATE
+        AND la.is_ai_excluded IS NOT TRUE
       ORDER BY t.due_date ASC, CASE t.priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END, t.updated_at DESC
       LIMIT 12
     `, unavailable),
@@ -166,6 +167,7 @@ async function getTodayContext(userId: string, unavailable: string[], citations:
       LEFT JOIN habit_checkins hc ON hc.habit_id = h.id AND hc.user_id = ${userId} AND hc.checkin_date = CURRENT_DATE
       WHERE h.user_id = ${userId}
         AND h.is_active = TRUE
+        AND la.is_ai_excluded IS NOT TRUE
         AND (
           h.frequency IN ('daily', 'weekly')
           OR (h.frequency = 'custom' AND EXTRACT(DOW FROM CURRENT_DATE)::int = ANY(h.custom_days))
@@ -180,6 +182,7 @@ async function getTodayContext(userId: string, unavailable: string[], citations:
       WHERE wi.user_id = ${userId}
         AND wi.status IN ('waiting', 'follow_up_needed')
         AND ((wi.follow_up_date IS NOT NULL AND wi.follow_up_date <= CURRENT_DATE) OR (wi.expected_date IS NOT NULL AND wi.expected_date < CURRENT_DATE))
+        AND la.is_ai_excluded IS NOT TRUE
       ORDER BY wi.follow_up_date ASC NULLS LAST, wi.expected_date ASC NULLS LAST, wi.updated_at DESC
       LIMIT 8
     `, unavailable),
@@ -191,6 +194,7 @@ async function getTodayContext(userId: string, unavailable: string[], citations:
         AND c.status IN ('open', 'at_risk')
         AND c.due_date IS NOT NULL
         AND c.due_date <= CURRENT_DATE + INTERVAL '7 days'
+        AND la.is_ai_excluded IS NOT TRUE
       ORDER BY c.due_date ASC, c.updated_at DESC
       LIMIT 8
     `, unavailable),
@@ -201,6 +205,7 @@ async function getTodayContext(userId: string, unavailable: string[], citations:
       LEFT JOIN life_areas la ON la.id = n.life_area_id AND la.user_id = ${userId}
       WHERE n.user_id = ${userId}
         AND n.updated_at >= NOW() - INTERVAL '7 days'
+        AND la.is_ai_excluded IS NOT TRUE
       ORDER BY n.is_pinned DESC, n.updated_at DESC
       LIMIT 8
     `, unavailable),
@@ -311,6 +316,7 @@ async function getWeekContext(userId: string, unavailable: string[], citations: 
       FROM tasks t
       LEFT JOIN life_areas la ON la.id = t.life_area_id AND la.user_id = ${userId}
       WHERE t.user_id = ${userId}
+        AND la.is_ai_excluded IS NOT TRUE
         AND (
           (t.due_date >= ${weekStart}::date AND t.due_date < ${nextWeekStart}::date)
           OR (t.completed = TRUE AND COALESCE(t.updated_at, t.created_at) >= ${weekStart}::date AND COALESCE(t.updated_at, t.created_at) < ${nextWeekStart}::date)
@@ -323,6 +329,7 @@ async function getWeekContext(userId: string, unavailable: string[], citations: 
       FROM goals g
       LEFT JOIN life_areas la ON la.id = g.life_area_id AND la.user_id = ${userId}
       WHERE g.user_id = ${userId}
+        AND la.is_ai_excluded IS NOT TRUE
         AND (g.target_date <= ${weekEnd}::date OR COALESCE(g.updated_at, g.created_at) >= ${weekStart}::date)
       ORDER BY g.target_date ASC NULLS LAST, g.updated_at DESC
       LIMIT 10
@@ -345,7 +352,7 @@ async function getWeekContext(userId: string, unavailable: string[], citations: 
       LEFT JOIN habit_checkins hc ON hc.habit_id = h.id AND hc.user_id = ${userId}
         AND hc.checkin_date >= ${weekStart}::date
         AND hc.checkin_date < ${nextWeekStart}::date
-      WHERE h.user_id = ${userId} AND h.is_active = TRUE
+      WHERE h.user_id = ${userId} AND h.is_active = TRUE AND la.is_ai_excluded IS NOT TRUE
       GROUP BY h.id, h.name, la.name, h.sort_order
       ORDER BY completed_checkins ASC, h.sort_order ASC
       LIMIT 10
@@ -355,6 +362,7 @@ async function getWeekContext(userId: string, unavailable: string[], citations: 
       FROM projects p
       LEFT JOIN life_areas la ON la.id = p.life_area_id AND la.user_id = ${userId}
       WHERE p.user_id = ${userId}
+        AND la.is_ai_excluded IS NOT TRUE
         AND (p.status IN ('active', 'paused') OR COALESCE(p.updated_at, p.created_at) >= ${weekStart}::date)
       ORDER BY p.due_date ASC NULLS LAST, p.updated_at DESC
       LIMIT 10
@@ -424,6 +432,7 @@ async function getGoalsContext(userId: string, unavailable: string[], citations:
     LEFT JOIN tasks t ON t.goal_id = g.id AND t.user_id = ${userId}
     WHERE g.user_id = ${userId}
       AND COALESCE(g.status, 'active') <> 'completed'
+      AND la.is_ai_excluded IS NOT TRUE
     GROUP BY g.id, g.title, g.status, g.priority, g.progress, g.target_date, g.updated_at, la.name
     ORDER BY
       CASE WHEN g.target_date IS NOT NULL AND g.target_date < CURRENT_DATE THEN 0 ELSE 1 END,
@@ -461,6 +470,7 @@ async function getProjectsContext(userId: string, unavailable: string[], citatio
       LEFT JOIN tasks t ON t.id = pi.item_id AND pi.item_type = 'task' AND t.user_id = ${userId}
       WHERE p.user_id = ${userId}
         AND p.status IN ('active', 'paused')
+        AND la.is_ai_excluded IS NOT TRUE
       GROUP BY p.id, p.title, p.status, p.priority, p.progress, p.due_date, p.updated_at, la.name
       ORDER BY p.due_date ASC NULLS LAST, p.updated_at ASC
       LIMIT 18
@@ -515,7 +525,7 @@ async function getFinanceContext(userId: string, unavailable: string[], citation
       FROM budget_categories bc
       LEFT JOIN life_areas la ON la.id = bc.life_area_id AND la.user_id = ${userId}
       LEFT JOIN budget_transactions bt ON bt.category_id = bc.id AND bt.user_id = ${userId}
-      WHERE bc.user_id = ${userId}
+      WHERE bc.user_id = ${userId} AND la.is_ai_excluded IS NOT TRUE
       GROUP BY bc.id, bc.name, bc.budget_limit, la.name
       ORDER BY spent_this_month DESC
       LIMIT 12
@@ -534,7 +544,7 @@ async function getFinanceContext(userId: string, unavailable: string[], citation
       SELECT id, source_name, amount, frequency, next_payment_date, active, la.name AS life_area_name
       FROM income_sources i
       LEFT JOIN life_areas la ON la.id = i.life_area_id AND la.user_id = ${userId}
-      WHERE i.user_id = ${userId}
+      WHERE i.user_id = ${userId} AND la.is_ai_excluded IS NOT TRUE
       ORDER BY active DESC, next_payment_date ASC NULLS LAST
       LIMIT 8
     `, unavailable),
@@ -542,7 +552,7 @@ async function getFinanceContext(userId: string, unavailable: string[], citation
       SELECT id, name, symbol, amount, current_value, purchase_date, la.name AS life_area_name
       FROM investments inv
       LEFT JOIN life_areas la ON la.id = inv.life_area_id AND la.user_id = ${userId}
-      WHERE inv.user_id = ${userId}
+      WHERE inv.user_id = ${userId} AND la.is_ai_excluded IS NOT TRUE
       ORDER BY COALESCE(current_value, amount) DESC
       LIMIT 8
     `, unavailable),
@@ -629,7 +639,7 @@ async function getFullContext(userId: string, unavailable: string[], citations: 
     safeRows("life_areas", sql`
       SELECT id, name, description, color
       FROM life_areas
-      WHERE user_id = ${userId}
+      WHERE user_id = ${userId} AND is_ai_excluded IS NOT TRUE
       ORDER BY sort_order ASC, name ASC
       LIMIT 20
     `, unavailable),
@@ -648,7 +658,7 @@ async function getFullContext(userId: string, unavailable: string[], citations: 
       FROM notes n
       LEFT JOIN note_folders nf ON nf.id = n.folder_id AND nf.user_id = ${userId}
       LEFT JOIN life_areas la ON la.id = n.life_area_id AND la.user_id = ${userId}
-      WHERE n.user_id = ${userId}
+      WHERE n.user_id = ${userId} AND la.is_ai_excluded IS NOT TRUE
       ORDER BY n.updated_at DESC
       LIMIT 10
     `, unavailable),
@@ -671,13 +681,13 @@ async function getFullContext(userId: string, unavailable: string[], citations: 
       type: "life_area",
       id: row.id,
       title: row.name,
-      href: "/life-areas",
+      href: "/domains",
       subtitle: text(row.description, "no description"),
     })
     addCitation(citations, item)
     return lineFor(item)
   })
-  sections.push(`Life areas:\n${areaLines.length ? areaLines.join("\n") : "- No life areas"}`)
+  sections.push(`Life domains:\n${areaLines.length ? areaLines.join("\n") : "- No life domains"}`)
 
   const noteLines = notes.map((row) => {
     const tags = Array.isArray(row.tags) && row.tags.length ? `tags ${row.tags.slice(0, 4).join(", ")}` : "no tags"

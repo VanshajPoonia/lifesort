@@ -138,7 +138,7 @@ export async function POST(request: Request) {
     if (!title) return NextResponse.json({ error: "Title is required" }, { status: 400 })
 
     const lifeAreaId = await validateLifeAreaId(normalizeLifeAreaId(body.life_area_id), user.id)
-    if (lifeAreaId === undefined) return NextResponse.json({ error: "Life area not found" }, { status: 404 })
+    if (lifeAreaId === undefined) return NextResponse.json({ error: "Life domain not found" }, { status: 404 })
 
     const result = await sql`
       INSERT INTO someday_items (user_id, title, description, category, life_area_id, review_date, status)
@@ -185,7 +185,7 @@ export async function PUT(request: Request) {
     const lifeAreaId = hasField(body, "life_area_id")
       ? await validateLifeAreaId(normalizeLifeAreaId(body.life_area_id), user.id)
       : normalizeLifeAreaId(existing.life_area_id)
-    if (lifeAreaId === undefined) return NextResponse.json({ error: "Life area not found" }, { status: 404 })
+    if (lifeAreaId === undefined) return NextResponse.json({ error: "Life domain not found" }, { status: 404 })
 
     const result = await sql`
       UPDATE someday_items

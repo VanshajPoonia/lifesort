@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { BookOpenText, BriefcaseBusiness, CheckSquare, ChevronLeft, ChevronRight, Heart, Target } from "lucide-react"
+import { BookOpenText, BriefcaseBusiness, CheckSquare, ChevronLeft, ChevronRight, Heart, Plus, Target, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -10,21 +10,22 @@ import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
+import { LifeAreaIcon } from "@/components/life-area-controls"
 
 interface OnboardingModalProps {
   isOpen: boolean
   onComplete: () => void
 }
 
-const LIFE_AREAS = [
-  "Health",
-  "Work",
-  "Money",
-  "Relationships",
-  "Home",
-  "Learning",
-  "Admin",
-  "Fun",
+// Starter Life Domains (AI_LIFE_DOMAINS_SPEC.md section 1 and 4) -- pre-checked suggestions,
+// created as real life_areas rows via /api/life-areas on completion, not just a preference.
+const STARTER_DOMAINS = [
+  { name: "Physical", icon: "Dumbbell", color: "#EA580C", description: "Exercise, sleep, nutrition, and medical care" },
+  { name: "Mental", icon: "HeartPulse", color: "#DC2626", description: "Emotional wellbeing, stress, and mindset" },
+  { name: "Financial", icon: "Wallet", color: "#059669", description: "Money, budgeting, saving, and investing" },
+  { name: "Career", icon: "Briefcase", color: "#2563EB", description: "Work, professional growth, and projects" },
+  { name: "Relationships", icon: "Users", color: "#DB2777", description: "Family, friends, and community" },
+  { name: "Personal", icon: "User", color: "#4F46E5", description: "Personal admin, routines, and self-management" },
 ]
 
 const planningStyles = [
@@ -54,7 +55,9 @@ async function bestEffortWrite(url: string, body: unknown) {
 
 export function OnboardingModal({ isOpen, onComplete }: OnboardingModalProps) {
   const [step, setStep] = useState(1)
-  const [selectedLifeAreas, setSelectedLifeAreas] = useState<Set<string>>(new Set(["Work", "Health", "Money"]))
+  const [selectedDomains, setSelectedDomains] = useState<Set<string>>(new Set(STARTER_DOMAINS.map((domain) => domain.name)))
+  const [customDomains, setCustomDomains] = useState<string[]>([])
+  const [customDomainInput, setCustomDomainInput] = useState("")
   const [planningStyle, setPlanningStyle] = useState("light")
   const [workStart, setWorkStart] = useState("09:00")
   const [workEnd, setWorkEnd] = useState("17:00")
@@ -66,14 +69,31 @@ export function OnboardingModal({ isOpen, onComplete }: OnboardingModalProps) {
 
   const totalSteps = 4
 
-  const toggleLifeArea = (area: string) => {
-    setSelectedLifeAreas((current) => {
+  const toggleDomain = (name: string) => {
+    setSelectedDomains((current) => {
       const next = new Set(current)
-      if (next.has(area)) {
-        next.delete(area)
+      if (next.has(name)) {
+        next.delete(name)
       } else {
-        next.add(area)
+        next.add(name)
       }
+      return next
+    })
+  }
+
+  const addCustomDomain = () => {
+    const name = customDomainInput.trim()
+    if (!name || customDomains.includes(name) || STARTER_DOMAINS.some((domain) => domain.name === name)) return
+    setCustomDomains((current) => [...current, name])
+    setSelectedDomains((current) => new Set(current).add(name))
+    setCustomDomainInput("")
+  }
+
+  const removeCustomDomain = (name: string) => {
+    setCustomDomains((current) => current.filter((item) => item !== name))
+    setSelectedDomains((current) => {
+      const next = new Set(current)
+      next.delete(name)
       return next
     })
   }
@@ -85,6 +105,26 @@ export function OnboardingModal({ isOpen, onComplete }: OnboardingModalProps) {
     try {
       if (!skipped) {
         const optionalWrites = []
+
+        let sortOrder = 0
+        for (const domain of STARTER_DOMAINS) {
+          if (!selectedDomains.has(domain.name)) continue
+          optionalWrites.push(
+            bestEffortWrite("/api/life-areas", {
+              name: domain.name,
+              icon: domain.icon,
+              color: domain.color,
+              description: domain.description,
+              sort_order: sortOrder++,
+            }),
+          )
+        }
+        for (const name of customDomains) {
+          if (!selectedDomains.has(name)) continue
+          optionalWrites.push(
+            bestEffortWrite("/api/life-areas", { name, icon: "Target", color: "#2563EB", sort_order: sortOrder++ }),
+          )
+        }
 
         if (firstTask.trim()) {
           optionalWrites.push(bestEffortWrite("/api/tasks", { title: firstTask.trim(), priority: "medium" }))
@@ -133,7 +173,7 @@ export function OnboardingModal({ isOpen, onComplete }: OnboardingModalProps) {
             daily_popup_enabled: dailyPopupEnabled,
             onboarding_date: new Date().toISOString(),
             onboarding_skipped: skipped,
-            important_life_areas: Array.from(selectedLifeAreas),
+            important_life_areas: Array.from(selectedDomains),
             planning_style: planningStyle,
             work_hours_start: workStart,
             work_hours_end: workEnd,
@@ -178,28 +218,60 @@ export function OnboardingModal({ isOpen, onComplete }: OnboardingModalProps) {
         {step === 1 && (
           <div className="space-y-6 p-6">
             <div className="space-y-2 text-center">
-              <h2 className="text-2xl font-bold">Set up your LifeSort focus</h2>
-              <p className="text-muted-foreground">Choose the Life Areas you want LifeSort to keep close at hand.</p>
+              <h2 className="text-2xl font-bold">Set up your Life Domains</h2>
+              <p className="text-muted-foreground">These become real spaces in LifeSort — uncheck any you don't want, or add your own.</p>
             </div>
 
             <div className="grid gap-2 sm:grid-cols-2">
-              {LIFE_AREAS.map((area) => {
-                const selected = selectedLifeAreas.has(area)
+              {STARTER_DOMAINS.map((domain) => {
+                const selected = selectedDomains.has(domain.name)
                 return (
                   <Card
-                    key={area}
+                    key={domain.name}
                     className={`interactive-card cursor-pointer transition-colors ${
                       selected ? "border-primary bg-primary/5" : "hover:bg-secondary"
                     }`}
-                    onClick={() => toggleLifeArea(area)}
+                    onClick={() => toggleDomain(domain.name)}
                   >
                     <CardContent className="flex items-center gap-3 p-4">
-                      <Checkbox checked={selected} aria-label={`Use ${area} as an important Life Area`} />
-                      <span className="font-medium">{area}</span>
+                      <Checkbox checked={selected} aria-label={`Create ${domain.name} as a Life Domain`} />
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: domain.color }}>
+                        <LifeAreaIcon name={domain.icon} className="h-4 w-4" />
+                      </div>
+                      <span className="font-medium">{domain.name}</span>
                     </CardContent>
                   </Card>
                 )
               })}
+              {customDomains.map((name) => (
+                <Card key={name} className="border-primary bg-primary/5">
+                  <CardContent className="flex items-center gap-3 p-4">
+                    <Checkbox checked={selectedDomains.has(name)} onCheckedChange={() => toggleDomain(name)} aria-label={`Create ${name} as a Life Domain`} />
+                    <span className="min-w-0 flex-1 truncate font-medium">{name}</span>
+                    <button type="button" onClick={() => removeCustomDomain(name)} aria-label={`Remove ${name}`} className="shrink-0 text-muted-foreground hover:text-destructive">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            <div className="flex gap-2">
+              <Input
+                value={customDomainInput}
+                onChange={(event) => setCustomDomainInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault()
+                    addCustomDomain()
+                  }
+                }}
+                placeholder="Add a custom domain (e.g. Creativity)"
+              />
+              <Button type="button" variant="outline" onClick={addCustomDomain} className="shrink-0 gap-2">
+                <Plus className="h-4 w-4" />
+                Add
+              </Button>
             </div>
 
             <Button className="w-full gap-2" onClick={() => setStep(2)}>

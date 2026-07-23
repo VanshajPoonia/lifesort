@@ -212,7 +212,7 @@ export async function POST(request: Request) {
     if (type === "category") {
       const lifeAreaId = await validateLifeAreaId(normalizeLifeAreaId(data.life_area_id), user.id)
       if (lifeAreaId === undefined) {
-        return NextResponse.json({ error: "Life area not found" }, { status: 404 })
+        return NextResponse.json({ error: "Life domain not found" }, { status: 404 })
       }
 
       const result = await sql`
@@ -292,7 +292,7 @@ export async function PUT(request: Request) {
       const lifeAreaTouched = Object.prototype.hasOwnProperty.call(data, "life_area_id")
       const lifeAreaId = await validateLifeAreaId(normalizeLifeAreaId(data.life_area_id), user.id)
       if (lifeAreaId === undefined) {
-        return NextResponse.json({ error: "Life area not found" }, { status: 404 })
+        return NextResponse.json({ error: "Life domain not found" }, { status: 404 })
       }
 
       const result = await sql`

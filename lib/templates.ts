@@ -15,6 +15,9 @@ export type Template = {
   icon: string
   color: string
   items: TemplateItem[]
+  // Matches a Life Domain name (see components/onboarding-modal.tsx STARTER_DOMAINS) so
+  // applying this template from a domain page can auto-tag created items with life_area_id.
+  domainName?: string
 }
 
 export const ENDPOINT_MAP: Record<TemplateItem["type"], string> = {
@@ -244,6 +247,83 @@ export const TEMPLATES: Template[] = [
       { type: "note", title: "Reading List & Queue", content: "Currently reading:\n- \n\nUp next:\n- \n\nWant to read:\n- \n\nCompleted:\n- " },
       { type: "note", title: "Favourite Quotes", content: "Quotes that stuck with me:\n\n\"...\" — Author, Book\n\n\"...\" — Author, Book" },
       { type: "custom_section", title: "Reading Tracker", description: "Track books read, ratings, and notes", icon: "BookOpen" },
+    ],
+  },
+  {
+    id: "domain-physical-health",
+    name: "Physical Health Starter",
+    description: "A gentle starting system for movement, sleep, nutrition, and medical care.",
+    icon: "Dumbbell",
+    color: "from-orange-500 to-red-600",
+    domainName: "Physical",
+    items: [
+      { type: "goal", title: "Move my body most days of the week", category: "health", priority: "medium" },
+      { type: "goal", title: "Keep a consistent sleep schedule", category: "health", priority: "medium" },
+      { type: "task", title: "Book any overdue check-ups or appointments", priority: "medium", category: "Health" },
+      { type: "task", title: "Plan meals for the week", priority: "low", category: "Health" },
+      { type: "habit", name: "Move for 20 minutes", frequency: "daily", target_count: 1 },
+      { type: "habit", name: "Lights out by a consistent time", frequency: "daily", target_count: 1 },
+      { type: "note", title: "Health Notes", content: "Track symptoms, appointments, medications, and questions for your doctor here." },
+    ],
+  },
+  {
+    id: "domain-mental-health",
+    name: "Mental Health Starter",
+    description: "A light-touch system for checking in on stress, mood, and mindset.",
+    icon: "HeartPulse",
+    color: "from-rose-500 to-pink-600",
+    domainName: "Mental",
+    items: [
+      { type: "goal", title: "Build a regular check-in habit", category: "personal", priority: "medium" },
+      { type: "task", title: "Identify one thing that's been weighing on me", priority: "medium", category: "Personal" },
+      { type: "habit", name: "Take 5 minutes to check in with myself", frequency: "daily", target_count: 1 },
+      { type: "habit", name: "Do one thing just for enjoyment", frequency: "weekly", target_count: 1 },
+      { type: "note", title: "Mood & Reflection Notes", content: "What's on my mind:\n\nWhat helped recently:\n\nWhat I want to try:" },
+    ],
+  },
+  {
+    id: "domain-financial",
+    name: "Financial Starter",
+    description: "A simple starting system for tracking money, saving, and staying on top of bills.",
+    icon: "Wallet",
+    color: "from-emerald-500 to-teal-600",
+    domainName: "Financial",
+    items: [
+      { type: "goal", title: "Know exactly where my money goes each month", category: "finance", priority: "medium" },
+      { type: "goal", title: "Build a small emergency buffer", category: "finance", priority: "medium" },
+      { type: "task", title: "List all recurring bills and subscriptions", priority: "medium", category: "Finance" },
+      { type: "habit", name: "Log any spending outside the plan", frequency: "daily", target_count: 1 },
+      { type: "habit", name: "Review the budget", frequency: "weekly", target_count: 1 },
+      { type: "note", title: "Money Notes", content: "Recurring bills:\n\nUpcoming expenses:\n\nQuestions to look into:" },
+    ],
+  },
+  {
+    id: "domain-career",
+    name: "Career Starter",
+    description: "A starting system for work, professional growth, and current projects.",
+    icon: "Briefcase",
+    color: "from-blue-500 to-indigo-600",
+    domainName: "Career",
+    items: [
+      { type: "goal", title: "Make progress on a skill that matters for my career", category: "work", priority: "medium" },
+      { type: "project", title: "Current Focus Project", description: "Track the work project or initiative that matters most right now", priority: "medium" },
+      { type: "task", title: "Note down what I want to accomplish this quarter", priority: "medium", category: "Work" },
+      { type: "habit", name: "Spend focused time on career growth", frequency: "weekly", target_count: 1 },
+      { type: "note", title: "Career Notes", content: "Current priorities:\n\nWins to remember:\n\nSkills to build:" },
+    ],
+  },
+  {
+    id: "domain-relationships",
+    name: "Relationships Starter",
+    description: "A starting system for staying connected to family, friends, and community.",
+    icon: "Users",
+    color: "from-fuchsia-500 to-purple-600",
+    domainName: "Relationships",
+    items: [
+      { type: "goal", title: "Stay in regular touch with the people who matter", category: "personal", priority: "medium" },
+      { type: "task", title: "Reach out to someone I haven't spoken to in a while", priority: "low", category: "Personal" },
+      { type: "habit", name: "Reach out to one person", frequency: "weekly", target_count: 1 },
+      { type: "note", title: "People Notes", content: "People to check in with:\n\nUpcoming birthdays or events:\n\nThings to remember:" },
     ],
   },
 ]

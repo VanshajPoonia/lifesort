@@ -38,7 +38,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import type { LifeArea } from "@/lib/life-areas"
-import { normalizeLifeArea } from "@/lib/life-areas"
+import { denormalizedLifeArea, normalizeLifeArea } from "@/lib/life-areas"
 
 type CommitmentType = "personal" | "work" | "school" | "family" | "friend" | "client" | "financial" | "other"
 type CommitmentStatus = "open" | "at_risk" | "completed" | "missed" | "cancelled"
@@ -192,14 +192,12 @@ function areaForItem(item: Commitment, areas: LifeArea[]) {
   const area = areas.find((candidate) => String(candidate.id) === String(item.life_area_id))
   if (area) return area
   if (item.life_area_name) {
-    return {
+    return denormalizedLifeArea({
       id: String(item.life_area_id),
       name: item.life_area_name,
-      icon: item.life_area_icon || "Target",
-      color: item.life_area_color || "#64748B",
-      description: null,
-      sort_order: 0,
-    }
+      icon: item.life_area_icon,
+      color: item.life_area_color,
+    })
   }
   return null
 }
@@ -591,7 +589,7 @@ export default function CommitmentsPage() {
             ))}
           </div>
           <div className="grid gap-2 sm:grid-cols-[220px_minmax(0,320px)]">
-            <LifeAreaSelect areas={lifeAreas} value={lifeAreaFilter} onChange={setLifeAreaFilter} placeholder="All life areas" />
+            <LifeAreaSelect areas={lifeAreas} value={lifeAreaFilter} onChange={setLifeAreaFilter} placeholder="All life domains" />
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
@@ -813,7 +811,7 @@ export default function CommitmentsPage() {
                 <Input type="date" value={form.due_date} onChange={(event) => setFormField("due_date", event.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>Life Area</Label>
+                <Label>Life Domain</Label>
                 <LifeAreaSelect areas={lifeAreas} value={form.life_area_id} onChange={(value) => setFormField("life_area_id", value)} />
               </div>
               <div className="space-y-2">
@@ -923,7 +921,7 @@ export default function CommitmentsPage() {
                 </Select>
               </div>
               <div className="space-y-2 sm:col-span-2">
-                <Label>Life Area</Label>
+                <Label>Life Domain</Label>
                 <LifeAreaSelect
                   areas={lifeAreas}
                   value={taskForm.life_area_id}

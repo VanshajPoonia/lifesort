@@ -238,6 +238,7 @@ function taskItem(task: Row, label?: string) {
     custom: false,
     priority: task.priority || "medium",
     date: task.due_date || null,
+    life_area_id: task.life_area_id != null ? String(task.life_area_id) : null,
   }
 }
 
@@ -252,6 +253,7 @@ function goalItem(goal: Row, label?: string) {
     custom: false,
     priority: goal.priority || "medium",
     date: goal.target_date || null,
+    life_area_id: goal.life_area_id != null ? String(goal.life_area_id) : null,
   }
 }
 
@@ -266,6 +268,7 @@ function projectItem(project: Row, label?: string) {
     custom: false,
     priority: project.priority || "medium",
     date: project.due_date || null,
+    life_area_id: project.life_area_id != null ? String(project.life_area_id) : null,
   }
 }
 
@@ -322,6 +325,7 @@ function noteItem(note: Row) {
     href: "/notes",
     custom: false,
     date: note.updated_at || null,
+    life_area_id: note.life_area_id != null ? String(note.life_area_id) : null,
   }
 }
 
@@ -335,6 +339,7 @@ function calendarItem(event: Row) {
     href: "/calendar",
     custom: false,
     date: event.event_date || null,
+    life_area_id: event.life_area_id != null ? String(event.life_area_id) : null,
   }
 }
 
@@ -392,7 +397,7 @@ async function getDerivedCandidates(userId: string, planDate: string) {
     savingsProgress,
   ] = await Promise.all([
     safeRows("overdue tasks", sql`
-      SELECT id, title, priority, due_date, updated_at, created_at
+      SELECT id, title, priority, due_date, life_area_id, updated_at, created_at
       FROM tasks
       WHERE user_id = ${userId}
         AND completed = false
@@ -402,7 +407,7 @@ async function getDerivedCandidates(userId: string, planDate: string) {
       LIMIT 12
     `, unavailable),
     safeRows("today tasks", sql`
-      SELECT id, title, priority, due_date, updated_at, created_at
+      SELECT id, title, priority, due_date, life_area_id, updated_at, created_at
       FROM tasks
       WHERE user_id = ${userId}
         AND completed = false
@@ -413,7 +418,7 @@ async function getDerivedCandidates(userId: string, planDate: string) {
       LIMIT 16
     `, unavailable),
     safeRows("overdue goals", sql`
-      SELECT id, title, priority, target_date, status, updated_at, created_at
+      SELECT id, title, priority, target_date, status, life_area_id, updated_at, created_at
       FROM goals
       WHERE user_id = ${userId}
         AND COALESCE(status, 'active') != 'completed'
@@ -423,7 +428,7 @@ async function getDerivedCandidates(userId: string, planDate: string) {
       LIMIT 8
     `, unavailable),
     safeRows("today goals", sql`
-      SELECT id, title, priority, target_date, status, updated_at, created_at
+      SELECT id, title, priority, target_date, status, life_area_id, updated_at, created_at
       FROM goals
       WHERE user_id = ${userId}
         AND COALESCE(status, 'active') != 'completed'
@@ -434,7 +439,7 @@ async function getDerivedCandidates(userId: string, planDate: string) {
       LIMIT 8
     `, unavailable),
     safeRows("overdue projects", sql`
-      SELECT id, title, priority, due_date, status, updated_at, created_at
+      SELECT id, title, priority, due_date, status, life_area_id, updated_at, created_at
       FROM projects
       WHERE user_id = ${userId}
         AND status NOT IN ('completed', 'archived')
@@ -444,7 +449,7 @@ async function getDerivedCandidates(userId: string, planDate: string) {
       LIMIT 8
     `, unavailable),
     safeRows("today projects", sql`
-      SELECT id, title, priority, due_date, status, updated_at, created_at
+      SELECT id, title, priority, due_date, status, life_area_id, updated_at, created_at
       FROM projects
       WHERE user_id = ${userId}
         AND status NOT IN ('completed', 'archived')
@@ -487,7 +492,7 @@ async function getDerivedCandidates(userId: string, planDate: string) {
       LIMIT 8
     `, unavailable),
     safeRows("undated tasks", sql`
-      SELECT id, title, priority, due_date, updated_at, created_at
+      SELECT id, title, priority, due_date, life_area_id, updated_at, created_at
       FROM tasks
       WHERE user_id = ${userId}
         AND completed = false
@@ -496,7 +501,7 @@ async function getDerivedCandidates(userId: string, planDate: string) {
       LIMIT 6
     `, unavailable),
     safeRows("upcoming tasks", sql`
-      SELECT id, title, priority, due_date, updated_at, created_at
+      SELECT id, title, priority, due_date, life_area_id, updated_at, created_at
       FROM tasks
       WHERE user_id = ${userId}
         AND completed = false
@@ -506,7 +511,7 @@ async function getDerivedCandidates(userId: string, planDate: string) {
       LIMIT 12
     `, unavailable),
     safeRows("upcoming goals", sql`
-      SELECT id, title, priority, target_date, status, updated_at, created_at
+      SELECT id, title, priority, target_date, status, life_area_id, updated_at, created_at
       FROM goals
       WHERE user_id = ${userId}
         AND COALESCE(status, 'active') != 'completed'
@@ -516,7 +521,7 @@ async function getDerivedCandidates(userId: string, planDate: string) {
       LIMIT 12
     `, unavailable),
     safeRows("calendar today", sql`
-      SELECT id, title, event_date, start_time, end_time, location, updated_at, created_at
+      SELECT id, title, event_date, start_time, end_time, location, life_area_id, updated_at, created_at
       FROM calendar_events
       WHERE user_id = ${userId}
         AND event_date = ${planDate}
@@ -524,7 +529,7 @@ async function getDerivedCandidates(userId: string, planDate: string) {
       LIMIT 12
     `, unavailable),
     safeRows("recent notes", sql`
-      SELECT id, title, content, updated_at, created_at
+      SELECT id, title, content, life_area_id, updated_at, created_at
       FROM notes
       WHERE user_id = ${userId}
         AND COALESCE(updated_at, created_at) >= ${recentCutoff}

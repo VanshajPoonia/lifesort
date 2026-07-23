@@ -257,7 +257,7 @@ function HabitForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label>Life area (optional)</Label>
+          <Label>Life domain (optional)</Label>
           <LifeAreaSelect
             areas={lifeAreas}
             value={form.life_area_id}

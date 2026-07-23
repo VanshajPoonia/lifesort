@@ -419,7 +419,7 @@ export function GoalModal({
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Life Area</Label>
+                  <Label>Life Domain</Label>
                   <LifeAreaSelect
                     areas={lifeAreas}
                     value={localGoal.life_area_id ?? null}

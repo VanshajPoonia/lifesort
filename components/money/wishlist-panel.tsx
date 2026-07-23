@@ -199,7 +199,7 @@ export function WishlistPanel({ preferredCurrency = "USD" }: { preferredCurrency
         setLifeAreas((Array.isArray(data) ? data : []).map(normalizeLifeArea))
       }
     } catch (error) {
-      console.error("Failed to fetch life areas:", error)
+      console.error("Failed to fetch life domains:", error)
     }
   }
 
@@ -542,7 +542,7 @@ export function WishlistPanel({ preferredCurrency = "USD" }: { preferredCurrency
                   </div>
                 </div>
                 <div>
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Life Area</Label>
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Life Domain</Label>
                   <div className="mt-1">
                     <LifeAreaSelect
                       areas={lifeAreas}
@@ -1053,7 +1053,7 @@ export function WishlistPanel({ preferredCurrency = "USD" }: { preferredCurrency
                   />
                 </div>
                 <div>
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Life Area</Label>
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Life Domain</Label>
                   <div className="mt-1">
                     <LifeAreaSelect
                       areas={lifeAreas}

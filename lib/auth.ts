@@ -159,7 +159,7 @@ export async function createUser(email: string, password: string, name: string):
       `
     }
   } catch (error) {
-    console.error('[auth] Failed to seed default life areas:', error)
+    console.error('[auth] Failed to seed default life domains:', error)
   }
 
   return user

@@ -292,7 +292,7 @@ async function getDerivedSummary(userId: string, weekStart: string, weekEnd: str
         AND plan_date >= ${weekStart}::date
         AND plan_date < ${nextWeekStart}::date
     `, unavailable),
-    safeRows("life area balance", sql`
+    safeRows("life domain balance", sql`
       WITH activity AS (
         SELECT life_area_id, 'task' AS source_type, COUNT(*)::int AS activity_count
         FROM tasks
@@ -346,6 +346,7 @@ async function getDerivedSummary(userId: string, weekStart: string, weekEnd: str
       LEFT JOIN life_areas la
         ON la.id = activity.life_area_id
         AND la.user_id = ${userId}
+      WHERE la.is_ai_excluded IS NOT TRUE
       GROUP BY activity.life_area_id, la.name, la.icon, la.color
       ORDER BY SUM(activity.activity_count) DESC
       LIMIT 8

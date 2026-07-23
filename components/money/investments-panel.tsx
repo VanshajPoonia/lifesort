@@ -237,7 +237,7 @@ export function InvestmentsPanel({ preferredCurrency = "USD" }: { preferredCurre
         setLifeAreas((Array.isArray(data) ? data : []).map(normalizeLifeArea))
       }
     } catch (error) {
-      console.error("Error fetching life areas:", error)
+      console.error("Error fetching life domains:", error)
     }
   }
 
@@ -908,7 +908,7 @@ export function InvestmentsPanel({ preferredCurrency = "USD" }: { preferredCurre
                     </div>
                   </div>
                   <div>
-                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">Life Area</Label>
+                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">Life Domain</Label>
                     <div className="mt-1">
                       <LifeAreaSelect
                         areas={lifeAreas}
@@ -1427,7 +1427,7 @@ export function InvestmentsPanel({ preferredCurrency = "USD" }: { preferredCurre
                   />
                 </div>
                 <div>
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Life Area</Label>
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Life Domain</Label>
                   <div className="mt-1">
                     <LifeAreaSelect
                       areas={lifeAreas}

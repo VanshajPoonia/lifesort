@@ -30,6 +30,7 @@ type SearchRow = {
   href: string
   updated_at?: string | Date | null
   created_at?: string | Date | null
+  life_area_id?: string | number | null
 }
 
 type SearchResult = {
@@ -39,6 +40,7 @@ type SearchResult = {
   subtitle: string
   href: string
   updated_at: string | null
+  life_area_id: string | null
 }
 
 const groupLabels: Record<SearchType, string> = {
@@ -82,6 +84,7 @@ function normalizeRows(type: SearchType, rows: SearchRow[]): SearchResult[] {
     subtitle: row.subtitle?.trim() || groupLabels[type],
     href: row.href,
     updated_at: toIsoDate(row.updated_at || row.created_at || null),
+    life_area_id: row.life_area_id != null ? String(row.life_area_id) : null,
   }))
 }
 
@@ -137,7 +140,8 @@ export async function GET(request: Request) {
         COALESCE(life_areas.name, inbox_items.suggested_type, inbox_items.status) as subtitle,
         '/inbox' as href,
         inbox_items.updated_at,
-        inbox_items.created_at
+        inbox_items.created_at,
+        inbox_items.life_area_id
       FROM inbox_items
       LEFT JOIN life_areas
         ON inbox_items.life_area_id = life_areas.id
@@ -161,7 +165,8 @@ export async function GET(request: Request) {
         COALESCE(la.name, si.category, si.status) as subtitle,
         '/someday' as href,
         si.updated_at,
-        si.created_at
+        si.created_at,
+        si.life_area_id
       FROM someday_items si
       LEFT JOIN life_areas la
         ON si.life_area_id = la.id
@@ -184,7 +189,8 @@ export async function GET(request: Request) {
         COALESCE(la.name, p.title, pe.name, wi.waiting_on_name, wi.status) as subtitle,
         '/waiting' as href,
         wi.updated_at,
-        wi.created_at
+        wi.created_at,
+        wi.life_area_id
       FROM waiting_items wi
       LEFT JOIN life_areas la
         ON wi.life_area_id = la.id
@@ -217,7 +223,8 @@ export async function GET(request: Request) {
         COALESCE(la.name, p.title, pe.name, t.title, c.committed_to, c.status) as subtitle,
         '/commitments' as href,
         c.updated_at,
-        c.created_at
+        c.created_at,
+        c.life_area_id
       FROM commitments c
       LEFT JOIN life_areas la
         ON c.life_area_id = la.id
@@ -253,7 +260,8 @@ export async function GET(request: Request) {
         COALESCE(la.name, vi.title, mi.category, mi.recurrence, mi.status) as subtitle,
         '/maintenance' as href,
         mi.updated_at,
-        mi.created_at
+        mi.created_at,
+        mi.life_area_id
       FROM maintenance_items mi
       LEFT JOIN life_areas la
         ON mi.life_area_id = la.id
@@ -284,7 +292,7 @@ export async function GET(request: Request) {
         created_at: event.occurred_at,
       }))),
     safeRows("tasks", sql`
-      SELECT id, title, COALESCE(description, category, priority) as subtitle, '/tasks' as href, updated_at, created_at
+      SELECT id, title, COALESCE(description, category, priority) as subtitle, '/tasks' as href, updated_at, created_at, life_area_id
       FROM tasks
       WHERE user_id = ${user.id}
       AND (title ILIKE ${pattern} OR COALESCE(description, '') ILIKE ${pattern} OR COALESCE(category, '') ILIKE ${pattern})
@@ -292,7 +300,7 @@ export async function GET(request: Request) {
       LIMIT 5
     `),
     safeRows("goals", sql`
-      SELECT id, title, COALESCE(description, category, status) as subtitle, '/goals' as href, updated_at, created_at
+      SELECT id, title, COALESCE(description, category, status) as subtitle, '/goals' as href, updated_at, created_at, life_area_id
       FROM goals
       WHERE user_id = ${user.id}
       AND (title ILIKE ${pattern} OR COALESCE(description, '') ILIKE ${pattern} OR COALESCE(category, '') ILIKE ${pattern})
@@ -300,7 +308,7 @@ export async function GET(request: Request) {
       LIMIT 5
     `),
     safeRows("notes", sql`
-      SELECT notes.id, notes.title, notes.content as subtitle, '/notes' as href, notes.updated_at, notes.created_at
+      SELECT notes.id, notes.title, notes.content as subtitle, '/notes' as href, notes.updated_at, notes.created_at, notes.life_area_id
       FROM notes
       LEFT JOIN note_folders
         ON notes.folder_id = note_folders.id
@@ -326,7 +334,8 @@ export async function GET(request: Request) {
         COALESCE(projects.description, life_areas.name, projects.status) as subtitle,
         '/projects/' || projects.id::text as href,
         projects.updated_at,
-        projects.created_at
+        projects.created_at,
+        projects.life_area_id
       FROM projects
       LEFT JOIN life_areas
         ON projects.life_area_id = life_areas.id

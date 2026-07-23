@@ -226,9 +226,58 @@ export async function GET() {
     return acc
   }, { ...emptyCounts })
 
+  // Per-domain breakdown for the Life Domains Today widget (AI_LIFE_DOMAINS_SPEC.md section 8).
+  // Reuses the same due-today/overdue/habit-due signals computed above, grouped by life_area_id,
+  // instead of a separate aggregation endpoint.
+  const domainSummary: Record<string, { tasksToday: number; tasksOverdue: number; habitsDue: number }> = {}
+  try {
+    const [domainTasksToday, domainTasksOverdue, domainHabitsDue] = await Promise.all([
+      sql`
+        SELECT life_area_id, COUNT(*) AS count
+        FROM tasks
+        WHERE user_id = ${user.id} AND completed = FALSE AND due_date = ${today} AND life_area_id IS NOT NULL
+        GROUP BY life_area_id
+      `,
+      sql`
+        SELECT life_area_id, COUNT(*) AS count
+        FROM tasks
+        WHERE user_id = ${user.id} AND completed = FALSE AND due_date IS NOT NULL AND due_date < ${today} AND life_area_id IS NOT NULL
+        GROUP BY life_area_id
+      `,
+      sql`
+        SELECT h.life_area_id, COUNT(*) AS count
+        FROM habits h
+        WHERE h.user_id = ${user.id}
+          AND h.is_active = TRUE
+          AND h.life_area_id IS NOT NULL
+          AND (
+            h.frequency IN ('daily', 'weekly')
+            OR (h.frequency = 'custom' AND ${dayOfWeek} = ANY(h.custom_days))
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM habit_checkins hc
+            WHERE hc.user_id = ${user.id} AND hc.habit_id = h.id AND hc.checkin_date = ${today}
+          )
+        GROUP BY h.life_area_id
+      `,
+    ])
+
+    const ensure = (id: unknown) => {
+      const key = String(id)
+      if (!domainSummary[key]) domainSummary[key] = { tasksToday: 0, tasksOverdue: 0, habitsDue: 0 }
+      return domainSummary[key]
+    }
+    for (const row of domainTasksToday as any[]) ensure(row.life_area_id).tasksToday = Number(row.count) || 0
+    for (const row of domainTasksOverdue as any[]) ensure(row.life_area_id).tasksOverdue = Number(row.count) || 0
+    for (const row of domainHabitsDue as any[]) ensure(row.life_area_id).habitsDue = Number(row.count) || 0
+  } catch (error) {
+    if (!isMissingSchema(error)) console.error("[navigation-summary] domainSummary failed:", error)
+  }
+
   return NextResponse.json({
     counts,
     unavailable,
+    domainSummary,
     generated_at: new Date().toISOString(),
   })
 }

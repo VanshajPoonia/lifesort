@@ -41,7 +41,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import type { LifeArea } from "@/lib/life-areas"
-import { normalizeLifeArea } from "@/lib/life-areas"
+import { denormalizedLifeArea, normalizeLifeArea } from "@/lib/life-areas"
 
 type MaintenanceCategory = "home" | "vehicle" | "health" | "finance" | "digital" | "school" | "work" | "business" | "other"
 type MaintenanceRecurrence = "weekly" | "monthly" | "quarterly" | "yearly" | "custom"
@@ -664,16 +664,14 @@ export default function MaintenancePage() {
             ) : (
               <div className="grid gap-3">
                 {filteredItems.map((item) => {
-                  const area = item.life_area_id ? {
-                    id: String(item.life_area_id),
-                    name: item.life_area_name || "Life area",
-                    icon: item.life_area_icon || "Target",
-                    color: item.life_area_color || "#64748B",
-                    description: null,
-                    sort_order: 0,
-                    created_at: "",
-                    updated_at: "",
-                  } : null
+                  const area = item.life_area_id
+                    ? denormalizedLifeArea({
+                        id: String(item.life_area_id),
+                        name: item.life_area_name || "Life domain",
+                        icon: item.life_area_icon,
+                        color: item.life_area_color,
+                      })
+                    : null
 
                   return (
                     <Card key={item.id} className={isOverdue(item) ? "border-destructive/40" : undefined}>
@@ -864,7 +862,7 @@ export default function MaintenancePage() {
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="grid gap-2">
-                <Label>Life area</Label>
+                <Label>Life domain</Label>
                 <LifeAreaSelect
                   areas={lifeAreas}
                   value={form.life_area_id || null}

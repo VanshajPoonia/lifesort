@@ -91,7 +91,7 @@ async function getValidatedLinks(body: WaitingBody, userId: string, existing?: R
   const lifeAreaId = hasField(body, "life_area_id")
     ? await validateLinkedId("life_areas", normalizeLifeAreaId(body.life_area_id), userId)
     : normalizeLifeAreaId(existing?.life_area_id)
-  if (lifeAreaId === undefined) return { error: "Life area not found" }
+  if (lifeAreaId === undefined) return { error: "Life domain not found" }
 
   const projectId = hasField(body, "project_id")
     ? await validateLinkedId("projects", cleanId(body.project_id), userId)

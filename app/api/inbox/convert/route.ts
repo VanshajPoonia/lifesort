@@ -115,7 +115,7 @@ async function validateLifeAreaId(lifeAreaId: number | null, userId: string) {
 async function createTarget(userId: string, targetType: string, payload: Record<string, unknown>, fallbackTitle: string, fallbackText: string) {
   const lifeAreaId = await validateLifeAreaId(normalizeLifeAreaId(payload.life_area_id), userId)
   if (lifeAreaId === undefined) {
-    throw new Error("Life area not found")
+    throw new Error("Life domain not found")
   }
 
   if (targetType === "task") {

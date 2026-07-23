@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
 import { getUserFromSession } from "@/lib/auth"
+import { normalizeLifeAreaId } from "@/lib/life-areas"
 
 const sql = neon(process.env.DATABASE_URL!)
 
@@ -22,18 +23,27 @@ function cleanReminderDays(value: unknown, fallback = 1) {
   return Math.min(365, Math.max(0, parsed))
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const user = await getUserFromSession()
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const events = await sql`
-      SELECT * FROM calendar_events 
-      WHERE user_id = ${user.id}
-      ORDER BY event_date, start_time
-    `
+    const { searchParams } = new URL(request.url)
+    const lifeAreaId = normalizeLifeAreaId(searchParams.get("life_area_id"))
+
+    const events = lifeAreaId
+      ? await sql`
+          SELECT * FROM calendar_events
+          WHERE user_id = ${user.id} AND life_area_id = ${lifeAreaId}
+          ORDER BY event_date, start_time
+        `
+      : await sql`
+          SELECT * FROM calendar_events
+          WHERE user_id = ${user.id}
+          ORDER BY event_date, start_time
+        `
 
     return NextResponse.json(events)
   } catch (error) {
@@ -61,6 +71,7 @@ export async function POST(request: Request) {
       attendees,
       email_reminder,
       reminder_days,
+      life_area_id,
     } = body
 
     const eventTitle = cleanText(title)
@@ -81,7 +92,8 @@ export async function POST(request: Request) {
         location,
         attendees,
         email_reminder,
-        reminder_days
+        reminder_days,
+        life_area_id
       )
       VALUES (
         ${user.id},
@@ -94,7 +106,8 @@ export async function POST(request: Request) {
         ${cleanText(location)},
         ${cleanText(attendees)},
         ${Boolean(email_reminder)},
-        ${cleanReminderDays(reminder_days)}
+        ${cleanReminderDays(reminder_days)},
+        ${normalizeLifeAreaId(life_area_id)}
       )
       RETURNING *
     `
@@ -126,12 +139,23 @@ export async function PUT(request: Request) {
       attendees,
       email_reminder,
       reminder_days,
+      life_area_id,
     } = body
 
     const eventTitle = cleanText(title)
 
     if (!id || !eventTitle) {
       return NextResponse.json({ error: "Event ID and title are required" }, { status: 400 })
+    }
+
+    // Only touch life_area_id when the caller explicitly sends it, so drag/resize
+    // scheduling updates (which omit it) don't silently clear the domain assignment.
+    let nextLifeAreaId: number | null = null
+    if ("life_area_id" in body) {
+      nextLifeAreaId = normalizeLifeAreaId(life_area_id)
+    } else {
+      const existing = await sql`SELECT life_area_id FROM calendar_events WHERE id = ${id} AND user_id = ${user.id} LIMIT 1`
+      nextLifeAreaId = normalizeLifeAreaId(existing[0]?.life_area_id)
     }
 
     const result = await sql`
@@ -143,6 +167,7 @@ export async function PUT(request: Request) {
           attendees = ${cleanText(attendees)},
           email_reminder = ${Boolean(email_reminder)},
           reminder_days = ${cleanReminderDays(reminder_days)},
+          life_area_id = ${nextLifeAreaId},
           updated_at = NOW()
       WHERE id = ${id} AND user_id = ${user.id}
       RETURNING *

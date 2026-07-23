@@ -612,7 +612,7 @@ export default function SomedayPage() {
               <Input id="someday-review" type="date" value={form.review_date} onChange={(event) => setForm((current) => ({ ...current, review_date: event.target.value }))} />
             </div>
             <div className="space-y-2">
-              <Label>Life area</Label>
+              <Label>Life domain</Label>
               <LifeAreaSelect areas={lifeAreas} value={form.life_area_id} onChange={(value) => setForm((current) => ({ ...current, life_area_id: value || "" }))} />
             </div>
             <div className="space-y-2">

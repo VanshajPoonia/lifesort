@@ -186,7 +186,7 @@ export default function SpacesPage() {
           <AppEmptyState
             icon={FolderKanban}
             title="No spaces yet"
-            hint="Create a space for a life area, project cluster, research hub, or home system."
+            hint="Create a space for a life domain, project cluster, research hub, or home system."
             primaryAction={{ label: "Create space", onClick: () => setCreateOpen(true) }}
             className="border-dashed bg-background/70"
           />

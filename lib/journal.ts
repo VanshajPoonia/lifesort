@@ -36,6 +36,7 @@ export const journalEntryInputSchema = z.object({
   tomorrow_avoid: nullableText(1000),
   energy_level: z.enum(["low", "medium", "high"]).nullable().optional(),
   tags: z.array(z.string().trim().min(1).max(40)).max(20).default([]),
+  life_area_id: z.union([z.string(), z.number()]).nullable().optional(),
 })
 
 export type JournalTodoItem = z.infer<typeof journalTodoItemSchema>
@@ -45,6 +46,7 @@ export type JournalEntry = JournalEntryInput & {
   id: number
   journal_date: string
   locked_at: string | null
+  life_area_id: string | null
   created_at: string | null
   updated_at: string | null
 }
@@ -73,6 +75,7 @@ export function normalizeJournalInput(input: JournalEntryInput): JournalEntryInp
     tomorrow_avoid: input.tomorrow_avoid ?? null,
     energy_level: input.energy_level ?? null,
     tags: input.tags,
+    life_area_id: input.life_area_id ?? null,
   }
 }
 
@@ -129,6 +132,7 @@ export function mapJournalRow(row: Record<string, unknown>): JournalEntry {
     tomorrow_avoid: row.tomorrow_avoid ?? null,
     energy_level: row.energy_level ?? null,
     tags: jsonArray<string>(row.tags, []),
+    life_area_id: row.life_area_id ?? null,
   }))
 
   return {
@@ -136,6 +140,7 @@ export function mapJournalRow(row: Record<string, unknown>): JournalEntry {
     id: Number(row.id),
     journal_date: dateOnly(row.journal_date),
     locked_at: timestamp(row.locked_at),
+    life_area_id: row.life_area_id === null || row.life_area_id === undefined ? null : String(row.life_area_id),
     created_at: timestamp(row.created_at),
     updated_at: timestamp(row.updated_at),
   }

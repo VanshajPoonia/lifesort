@@ -66,7 +66,7 @@ export async function POST(request: Request) {
         : normalizeLifeAreaId(item.life_area_id),
       user.id,
     )
-    if (lifeAreaId === undefined) return NextResponse.json({ error: "Life area not found" }, { status: 404 })
+    if (lifeAreaId === undefined) return NextResponse.json({ error: "Life domain not found" }, { status: 404 })
 
     const task = await sql`
       INSERT INTO tasks (

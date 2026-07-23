@@ -289,10 +289,10 @@ export default function TimelinePage() {
               </Select>
               <Select value={lifeAreaFilter} onValueChange={setLifeAreaFilter} disabled={lifeAreas.length === 0}>
                 <SelectTrigger className="w-full md:w-[160px]">
-                  <SelectValue placeholder="Life area" />
+                  <SelectValue placeholder="Life domain" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All life areas</SelectItem>
+                  <SelectItem value="all">All life domains</SelectItem>
                   {lifeAreas.map((la) => (
                     <SelectItem key={la.id} value={String(la.id)}>{la.name}</SelectItem>
                   ))}

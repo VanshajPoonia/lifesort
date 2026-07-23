@@ -40,6 +40,7 @@ import {
 
 import { useAuth } from "@/components/auth-provider"
 import { DashboardLayout } from "@/components/dashboard-layout"
+import { LifeAreaSelect } from "@/components/life-area-controls"
 import { ReminderSettings } from "@/components/reminder-settings"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -57,6 +58,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { normalizeLifeArea, type LifeArea } from "@/lib/life-areas"
 import { cn } from "@/lib/utils"
 
 type CalendarView = "month" | "week"
@@ -75,6 +77,7 @@ interface LocalEvent {
   attendees?: string
   email_reminder?: boolean
   reminder_days?: number
+  life_area_id?: string | null
 }
 
 interface SyncedEvent {
@@ -254,6 +257,7 @@ function normalizeEvent(raw: Record<string, unknown>): LocalEvent {
     attendees: typeof raw.attendees === "string" ? raw.attendees : "",
     email_reminder: Boolean(raw.email_reminder),
     reminder_days: typeof raw.reminder_days === "number" ? raw.reminder_days : 1,
+    life_area_id: raw.life_area_id === null || raw.life_area_id === undefined ? null : String(raw.life_area_id),
   }
 }
 
@@ -280,7 +284,9 @@ export default function CalendarPage() {
     attendees: "",
     email_reminder: true,
     reminder_days: 1,
+    life_area_id: null,
   })
+  const [lifeAreas, setLifeAreas] = useState<LifeArea[]>([])
   const [integrations, setIntegrations] = useState<CalendarIntegration[]>([])
   const [syncedEvents, setSyncedEvents] = useState<SyncedEvent[]>([])
   const [showIntegrationsDialog, setShowIntegrationsDialog] = useState(false)
@@ -369,6 +375,14 @@ export default function CalendarPage() {
     fetchTasks()
     fetchIntegrations()
   }, [fetchEvents, fetchIntegrations, fetchTasks, user])
+
+  useEffect(() => {
+    if (!user) return
+    fetch("/api/life-areas")
+      .then((response) => (response.ok ? response.json() : []))
+      .then((data) => setLifeAreas(Array.isArray(data) ? data.map(normalizeLifeArea) : []))
+      .catch((error) => console.error("Failed to load life domains:", error))
+  }, [user])
 
   useEffect(() => {
     if (!user) return
@@ -492,6 +506,7 @@ export default function CalendarPage() {
       attendees: "",
       email_reminder: true,
       reminder_days: 1,
+      life_area_id: null,
     })
     setIsDialogOpen(true)
   }
@@ -509,6 +524,7 @@ export default function CalendarPage() {
       attendees: event.attendees,
       email_reminder: event.email_reminder ?? true,
       reminder_days: event.reminder_days ?? 1,
+      life_area_id: event.life_area_id ?? null,
     })
     setIsDialogOpen(true)
   }
@@ -530,6 +546,7 @@ export default function CalendarPage() {
       attendees: eventDraft.attendees || "",
       email_reminder: eventDraft.email_reminder ?? true,
       reminder_days: eventDraft.reminder_days ?? 1,
+      life_area_id: eventDraft.life_area_id ?? null,
     }
 
     try {
@@ -603,6 +620,7 @@ export default function CalendarPage() {
           attendees: event.attendees || "",
           email_reminder: event.email_reminder ?? true,
           reminder_days: event.reminder_days ?? 1,
+          life_area_id: event.life_area_id ?? null,
         }),
       })
       if (!response.ok) throw new Error("Could not update event")
@@ -857,6 +875,17 @@ export default function CalendarPage() {
                 </SelectContent>
               </Select>
             </div>
+            {lifeAreas.length > 0 && (
+              <div className="space-y-2">
+                <Label>Life Domain</Label>
+                <LifeAreaSelect
+                  areas={lifeAreas}
+                  value={eventDraft.life_area_id}
+                  onChange={(value) => setEventDraft({ ...eventDraft, life_area_id: value })}
+                  placeholder="No domain"
+                />
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
               <Textarea id="description" value={eventDraft.description || ""} onChange={(event) => setEventDraft({ ...eventDraft, description: event.target.value })} />

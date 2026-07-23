@@ -42,7 +42,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import type { LifeArea } from "@/lib/life-areas"
-import { normalizeLifeArea } from "@/lib/life-areas"
+import { denormalizedLifeArea, normalizeLifeArea } from "@/lib/life-areas"
 
 type InboxStatus = "unsorted" | "converted" | "archived" | "all"
 type InboxSource = "manual" | "quick_add" | "ai_capture"
@@ -111,14 +111,12 @@ function areaForItem(item: InboxItem, areas: LifeArea[]) {
   const area = areas.find((candidate) => String(candidate.id) === String(item.life_area_id))
   if (area) return area
   if (item.life_area_name) {
-    return {
+    return denormalizedLifeArea({
       id: String(item.life_area_id),
       name: item.life_area_name,
-      icon: item.life_area_icon || "Target",
-      color: item.life_area_color || "#64748B",
-      description: null,
-      sort_order: 0,
-    }
+      icon: item.life_area_icon,
+      color: item.life_area_color,
+    })
   }
   return null
 }
@@ -425,7 +423,7 @@ export default function InboxPage() {
             />
             <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
               <div className="space-y-2">
-                <Label>Life Area</Label>
+                <Label>Life Domain</Label>
                 <LifeAreaSelect
                   areas={lifeAreas}
                   value={capture.life_area_id}
@@ -612,7 +610,7 @@ export default function InboxPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Life Area</Label>
+                <Label>Life Domain</Label>
                 <LifeAreaSelect
                   areas={lifeAreas}
                   value={editValues.life_area_id}
@@ -818,7 +816,7 @@ function ConversionFields({
         )}
 
         <div className="space-y-2 sm:col-span-2">
-          <Label>Life Area</Label>
+          <Label>Life Domain</Label>
           <LifeAreaSelect areas={lifeAreas} value={payload.life_area_id} onChange={(value) => onChange("life_area_id", value)} />
         </div>
       </div>

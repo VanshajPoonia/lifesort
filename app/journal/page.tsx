@@ -50,6 +50,8 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
 import type { JournalEntry, JournalEntryInput, JournalTodoItem } from "@/lib/journal"
+import { LifeAreaSelect } from "@/components/life-area-controls"
+import { normalizeLifeArea, type LifeArea } from "@/lib/life-areas"
 import { motionPresets } from "@/lib/motion"
 import { richTextToPlainText } from "@/lib/rich-text"
 import { cn } from "@/lib/utils"
@@ -252,6 +254,7 @@ function emptyJournal(): JournalEntryInput {
     tomorrow_avoid: null,
     energy_level: null,
     tags: [],
+    life_area_id: null,
   }
 }
 
@@ -311,6 +314,7 @@ export default function JournalPage() {
   const [searchError, setSearchError] = useState("")
   const [pendingTask, setPendingTask] = useState<PendingTask | null>(null)
   const [creatingTask, setCreatingTask] = useState(false)
+  const [lifeAreas, setLifeAreas] = useState<LifeArea[]>([])
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const saveSequence = useRef(0)
   const hydrated = useRef(false)
@@ -389,6 +393,14 @@ export default function JournalPage() {
     loadRecent()
     loadIntentionLabels()
   }, [loadEntry, loadIntentionLabels, loadRecent, user])
+
+  useEffect(() => {
+    if (!user) return
+    fetch("/api/life-areas")
+      .then((response) => (response.ok ? response.json() : []))
+      .then((data) => setLifeAreas(Array.isArray(data) ? data.map(normalizeLifeArea) : []))
+      .catch((error) => console.error("Failed to load life domains:", error))
+  }, [user])
 
   useEffect(() => {
     const query = searchQuery.trim()
@@ -679,6 +691,23 @@ export default function JournalPage() {
                   </CardContent>
                 </Card>
               </div>
+            )}
+
+            {lifeAreas.length > 0 && (
+              <Card className={cn("journal-paper-card surface-card", motionPresets.fadeInUp)}>
+                <CardHeader>
+                  <CardTitle className="text-base">Life Domain</CardTitle>
+                  <CardDescription>Which part of life is today's entry about?</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <LifeAreaSelect
+                    areas={lifeAreas}
+                    value={entry.life_area_id}
+                    onChange={(value) => updateEntry("life_area_id", value)}
+                    placeholder="No domain"
+                  />
+                </CardContent>
+              </Card>
             )}
 
             <Card className={cn("journal-paper-card surface-card", motionPresets.fadeInUp)}>

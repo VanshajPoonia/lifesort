@@ -9,6 +9,7 @@ import {
   mapJournalRow,
   normalizeJournalInput,
 } from "@/lib/journal"
+import { normalizeLifeAreaId } from "@/lib/life-areas"
 
 const sql = neon(process.env.DATABASE_URL!)
 
@@ -159,6 +160,7 @@ export async function PUT(request: Request, context: RouteContext) {
     if (!parsed.success) return validationError(parsed.error)
 
     const entry = normalizeJournalInput(parsed.data)
+    const lifeAreaId = normalizeLifeAreaId(entry.life_area_id)
     const rows = await sql`
       INSERT INTO daily_journal_entries (
         user_id,
@@ -184,6 +186,7 @@ export async function PUT(request: Request, context: RouteContext) {
         tomorrow_avoid,
         energy_level,
         tags,
+        life_area_id,
         updated_at
       )
       VALUES (
@@ -210,6 +213,7 @@ export async function PUT(request: Request, context: RouteContext) {
         ${entry.tomorrow_avoid},
         ${entry.energy_level},
         ${JSON.stringify(entry.tags)}::jsonb,
+        ${lifeAreaId},
         NOW()
       )
       ON CONFLICT (user_id, journal_date) DO UPDATE SET
@@ -234,6 +238,7 @@ export async function PUT(request: Request, context: RouteContext) {
         tomorrow_avoid = EXCLUDED.tomorrow_avoid,
         energy_level = EXCLUDED.energy_level,
         tags = EXCLUDED.tags,
+        life_area_id = EXCLUDED.life_area_id,
         updated_at = NOW()
       RETURNING *
     `
