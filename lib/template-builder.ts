@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-export const TEMPLATE_BUILDER_MODEL = "openai/gpt-4o-mini"
+export const TEMPLATE_BUILDER_MODEL = "gemini-3.5-flash"
 
 export const templatePromptSchema = z.object({
   prompt: z.string().trim().min(2, "Describe the system you want to build.").max(500, "Keep the prompt under 500 characters."),

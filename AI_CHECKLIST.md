@@ -199,7 +199,7 @@ Run after changes to `DashboardLayout`, command/search/capture UI, Home preferen
 4. Keep autosave ownership in the parent page/API flow; the editor should only debounce `onChange`.
 5. Strip HTML with `lib/rich-text.ts` for previews, local search, history snippets, and character counts.
 6. Link creation should reject unsafe protocols and use `rel="noopener noreferrer"` for external links.
-7. AI Refine must use `/api/ai/refine-text`, require auth and `OPENROUTER_API_KEY`, send only selected text plus the requested action/tone, and show user confirmation before replacing or inserting text.
+7. AI Refine must use `/api/ai/refine-text`, require auth and `GEMINI_API_KEY`, send only selected text plus the requested action/tone, and show user confirmation before replacing or inserting text.
 8. Dictation is browser Web Speech only in v1; do not add audio upload, AssemblyAI, or server transcription without a future explicit task.
 9. Mobile checks should include toolbar wrapping, bubble menu behavior, contenteditable focus, dictation status, AI confirmation panels, and no horizontal overflow.
 
@@ -224,7 +224,7 @@ Observed env var names include:
 - `GOOGLE_CLIENT_SECRET`
 - `ALPHA_VANTAGE_API_KEY`
 - `GROQ_API_KEY`
-- `OPENROUTER_API_KEY`
+- `GEMINI_API_KEY`
 - `OAUTH_TOKEN_ENCRYPTION_KEY`
 - `LIVEBLOCKS_SECRET_KEY`
 - Vercel/Neon/Postgres provisioned variables such as `POSTGRES_URL`, `POSTGRES_PRISMA_URL`, `PGHOST`, `PGUSER`, and related names.
@@ -233,9 +233,9 @@ Check only names/presence unless explicitly authorized to inspect values.
 
 AI route env notes:
 
-- `OPENROUTER_API_KEY` powers `/api/chat` and `/api/daily-content/generate`.
-- `OPENROUTER_API_KEY` also powers `/api/templates/generate`; generated templates must remain preview-only until `/api/templates/apply` is called after explicit user confirmation.
-- `OPENROUTER_API_KEY` also powers `/api/ai/refine-text`; the route must remain selected-text-only and read-only.
+- `GEMINI_API_KEY` powers `/api/chat` and `/api/daily-content/generate`.
+- `GEMINI_API_KEY` also powers `/api/templates/generate`; generated templates must remain preview-only until `/api/templates/apply` is called after explicit user confirmation.
+- `GEMINI_API_KEY` also powers `/api/ai/refine-text`; the route must remain selected-text-only and read-only.
 - `GROQ_API_KEY` powers `/api/investments/parse-screenshot`.
 - AI routes should use the main opaque `session` cookie via `getUserFromSession()`, not JWT auth.
 - The `ai_usage_events` migration must be applied before conservative per-user AI caps are enforced; code tolerates the table being absent so deploys do not fail before migration.
@@ -243,7 +243,7 @@ AI route env notes:
 ## AI Template Builder Checklist
 
 1. `/templates?mode=ai` must show a generated preview before any write.
-2. `/api/templates/generate` must require auth, `OPENROUTER_API_KEY`, `template_builder` usage limits, and Zod-validated structured output.
+2. `/api/templates/generate` must require auth, `GEMINI_API_KEY`, `template_builder` usage limits, and Zod-validated structured output.
 3. `/api/templates/apply` must require auth and re-validate the full template body before creating records.
 4. Generated templates may create Spaces, Custom Sections, tasks, notes, habits, links, optional Whiteboard, and optional budget categories; do not create unrelated apps or agent flows.
 5. Space links are v1-limited to item types allowed by `space_items`: notes, whiteboards, tasks, links, and custom sections.

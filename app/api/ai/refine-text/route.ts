@@ -1,21 +1,13 @@
 import { generateText } from "ai"
-import { createOpenAI } from "@ai-sdk/openai"
 import { NextResponse } from "next/server"
 import { z } from "zod"
 
 import { checkAiUsageLimit, createAiUsageEvent, updateAiUsageEvent } from "@/lib/ai-usage"
 import { getUserFromSession } from "@/lib/auth"
 
-const REFINE_MODEL = "openai/gpt-4o-mini"
+import { gemini } from "@/lib/ai-provider"
+const REFINE_MODEL = "gemini-3.5-flash"
 
-const openrouter = createOpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY ?? "",
-  headers: {
-    "HTTP-Referer": "https://lifesort.app",
-    "X-Title": "LifeSort",
-  },
-})
 
 const refineActionSchema = z.enum([
   "improve_grammar",
@@ -77,7 +69,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: { "Cache-Control": "no-store" } })
   }
 
-  if (!process.env.OPENROUTER_API_KEY) {
+  if (!process.env.GEMINI_API_KEY) {
     return NextResponse.json(
       { error: "AI writing assistance is not configured yet." },
       { status: 503, headers: { "Cache-Control": "no-store" } },
@@ -98,7 +90,7 @@ export async function POST(request: Request) {
     await createAiUsageEvent({
       userId: user.id,
       route: "refine_text",
-      provider: "openrouter",
+      provider: "gemini",
       model: REFINE_MODEL,
       status: "rate_limited",
     })
@@ -111,13 +103,13 @@ export async function POST(request: Request) {
   const usageEventId = await createAiUsageEvent({
     userId: user.id,
     route: "refine_text",
-    provider: "openrouter",
+    provider: "gemini",
     model: REFINE_MODEL,
   })
 
   try {
     const { text } = await generateText({
-      model: openrouter(REFINE_MODEL),
+      model: gemini(REFINE_MODEL),
       prompt: buildPrompt(parsed.data),
     })
 

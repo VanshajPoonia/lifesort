@@ -1,20 +1,12 @@
 import { generateText } from "ai"
-import { createOpenAI } from "@ai-sdk/openai"
 import { NextResponse } from "next/server"
 import { getUserFromSession } from "@/lib/auth"
 import { checkAiUsageLimit, createAiUsageEvent, updateAiUsageEvent } from "@/lib/ai-usage"
 import { getPersonalRulesContext } from "@/lib/personal-rules"
 
-const WEEKLY_SUMMARY_MODEL = "google/gemini-2.0-flash-exp:free"
+import { gemini } from "@/lib/ai-provider"
+const WEEKLY_SUMMARY_MODEL = "gemini-3.5-flash"
 
-const openrouter = createOpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY ?? "",
-  headers: {
-    "HTTP-Referer": "https://lifesort.app",
-    "X-Title": "LifeSort",
-  },
-})
 
 export type AiWeeklySummaryResult = {
   summary: string
@@ -143,7 +135,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  if (!process.env.OPENROUTER_API_KEY) {
+  if (!process.env.GEMINI_API_KEY) {
     return NextResponse.json({ error: "AI features are not configured" }, { status: 503 })
   }
 
@@ -176,7 +168,7 @@ export async function POST(req: Request) {
     await createAiUsageEvent({
       userId: user.id,
       route: "weekly_summary",
-      provider: "openrouter",
+      provider: "gemini",
       model: WEEKLY_SUMMARY_MODEL,
       status: "rate_limited",
     })
@@ -189,7 +181,7 @@ export async function POST(req: Request) {
   const usageEventId = await createAiUsageEvent({
     userId: user.id,
     route: "weekly_summary",
-    provider: "openrouter",
+    provider: "gemini",
     model: WEEKLY_SUMMARY_MODEL,
   })
 
@@ -198,7 +190,7 @@ export async function POST(req: Request) {
     const prompt = buildPrompt(week_start, weekEnd, data, rulesContext.preview)
 
     const { text } = await generateText({
-      model: openrouter(WEEKLY_SUMMARY_MODEL),
+      model: gemini(WEEKLY_SUMMARY_MODEL),
       prompt,
     })
 

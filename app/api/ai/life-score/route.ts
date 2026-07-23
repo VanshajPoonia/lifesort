@@ -1,21 +1,13 @@
 import { generateText } from "ai"
-import { createOpenAI } from "@ai-sdk/openai"
 import { NextResponse } from "next/server"
 
 import { checkAiUsageLimit, createAiUsageEvent, updateAiUsageEvent } from "@/lib/ai-usage"
 import { getUserFromSession } from "@/lib/auth"
 import { getLifeScoreData, type LifeScoreData } from "@/lib/life-score"
 
-const LIFE_SCORE_MODEL = "google/gemini-2.0-flash-exp:free"
+import { gemini } from "@/lib/ai-provider"
+const LIFE_SCORE_MODEL = "gemini-3.5-flash"
 
-const openrouter = createOpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY ?? "",
-  headers: {
-    "HTTP-Referer": "https://lifesort.app",
-    "X-Title": "LifeSort",
-  },
-})
 
 type LifeScoreAiExplanation = {
   summary: string
@@ -113,7 +105,7 @@ export async function POST() {
     )
   }
 
-  if (!process.env.OPENROUTER_API_KEY) {
+  if (!process.env.GEMINI_API_KEY) {
     return NextResponse.json({ error: "AI features are not configured" }, { status: 503 })
   }
 
@@ -122,7 +114,7 @@ export async function POST() {
     await createAiUsageEvent({
       userId: user.id,
       route: "life_score_explanation",
-      provider: "openrouter",
+      provider: "gemini",
       model: LIFE_SCORE_MODEL,
       status: "rate_limited",
     })
@@ -135,13 +127,13 @@ export async function POST() {
   const usageEventId = await createAiUsageEvent({
     userId: user.id,
     route: "life_score_explanation",
-    provider: "openrouter",
+    provider: "gemini",
     model: LIFE_SCORE_MODEL,
   })
 
   try {
     const { text } = await generateText({
-      model: openrouter(LIFE_SCORE_MODEL),
+      model: gemini(LIFE_SCORE_MODEL),
       prompt: buildPrompt(lifeScore),
       temperature: 0.25,
     })

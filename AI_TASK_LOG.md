@@ -17,6 +17,57 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-07-23 10:32 IST - Migrated AI Provider From OpenRouter To Google Gemini
+
+- Agent/tool used: Claude Code, acting as the primary coding agent for this task per explicit user direction (overriding the default reviewer/planner role in `CLAUDE.md`).
+- Task completed: Replaced OpenRouter with direct Google Gemini API calls across every AI feature in the app, added `GEMINI_API_KEY` to local and Vercel production environments, and updated project memory docs to match.
+
+#### Files Modified
+- `lib/ai-provider.ts` (new) - Shared Gemini client: `export const gemini = createGoogleGenerativeAI({ apiKey: process.env.GEMINI_API_KEY ?? "" })`, plus `GEMINI_FLASH_MODEL` / `GEMINI_PRO_MODEL` constants.
+- `lib/ai-models.ts` - `AVAILABLE_MODELS` now lists only Gemini Flash (`gemini-flash-latest`, free) and Gemini Pro (`gemini-pro-latest`, paid). Removed the GPT/Claude/free-router OpenRouter-alias entries. `DEFAULT_MODEL` is now `gemini-flash-latest`.
+- `lib/template-builder.ts` - `TEMPLATE_BUILDER_MODEL` changed from `"openai/gpt-4o-mini"` to `"gemini-flash-latest"`.
+- `app/api/chat/route.ts`, `app/api/ai/capture/route.ts`, `app/api/ai/life-balance/route.ts`, `app/api/ai/life-score/route.ts`, `app/api/ai/refine-text/route.ts`, `app/api/ai/reset-suggestions/route.ts`, `app/api/ai/today-plan/route.ts`, `app/api/ai/weekly-summary/route.ts`, `app/api/ai/what-am-i-ignoring/route.ts`, `app/api/daily-content/generate/route.ts`, `app/api/templates/generate/route.ts` - Removed each file's local `createOpenAI({ baseURL: "https://openrouter.ai/api/v1", ... })` client and OpenRouter attribution headers; now import the shared `gemini` client from `lib/ai-provider.ts`. All `OPENROUTER_API_KEY` env checks/error messages became `GEMINI_API_KEY`. All `provider: "openrouter"` usage-event fields became `provider: "gemini"`. Per-route model constants (`CAPTURE_MODEL`, `LIFE_BALANCE_MODEL`, etc.) now hold Gemini model ids instead of OpenRouter aliases.
+- `app/ai-chat/page.tsx` - Updated the "not configured" client error copy from `OPENROUTER_API_KEY` to `GEMINI_API_KEY`. Left the unrelated `OpenRouter` entry in the `PROVIDER_COLORS` badge-color map as-is (harmless, unreachable now that no model reports that provider).
+- `package.json` / `pnpm-lock.yaml` - Added `@ai-sdk/google@^3.0.99` (see version note below).
+- `.env.local` - Added `GEMINI_API_KEY` (value provided directly by the user; not printed to any log).
+- `AI_PROJECT.md`, `AI_DECISIONS.md`, `AI_CHECKLIST.md` - Updated every OpenRouter/`OPENROUTER_API_KEY` reference to Gemini/`GEMINI_API_KEY`; added a dated architecture-decision entry to `AI_DECISIONS.md` under "AI Provider Migration (2026-07-23)".
+- `AI_TASK_LOG.md` - This entry.
+
+#### Summary
+- User explicitly asked Claude to act as the coding agent for this task (see Handoff Notes) and confirmed via `AskUserQuestion`: (1) full replace of OpenRouter, not an added-alongside option, (2) Claude implements directly rather than handing off to Codex, (3) add `GEMINI_API_KEY` to Vercel production now.
+- **Package version note**: `@ai-sdk/google@^4.x` (the version `pnpm add` resolves by default) speaks the `LanguageModelV4` provider spec and does not type-check against this repo's `ai@6.0.50` / `@ai-sdk/openai@3.0.64`, which speak `LanguageModelV2`/`V3`. Pinned to `@ai-sdk/google@^3.0.99` instead, which matches `@ai-sdk/openai@3.0.64`'s spec version and type-checks cleanly. If `ai` is ever upgraded to a v7+ major in the future, `@ai-sdk/google` will need to move in lockstep.
+- **Model id note**: The obvious model ids (`gemini-2.5-flash`, `gemini-2.5-pro`) type-checked and built fine but failed at runtime with "This model ... is no longer available to new users" when live-tested against the user's actual API key — expected, since this agent's knowledge cutoff (Jan 2026) predates the current date. Queried Google's live `ListModels` endpoint with the user's key to get the actual current model catalog. Initially switched every model constant to the `-latest` alias ids (`gemini-flash-latest`, `gemini-pro-latest`); the user then explicitly asked to pin to Gemini 3.5 instead, so all flash-tier constants (`CAPTURE_MODEL`, `LIFE_BALANCE_MODEL`, `LIFE_SCORE_MODEL`, `REFINE_MODEL`, `RESET_MODEL`, `TODAY_PLAN_MODEL`, `WEEKLY_SUMMARY_MODEL`, `IGNORING_MODEL`, `DAILY_CONTENT_MODEL`, `TEMPLATE_BUILDER_MODEL`, `GEMINI_FLASH_MODEL`, `DEFAULT_MODEL`, and the `gemini-3.5-flash` entry in `AVAILABLE_MODELS`) now use the literal id `gemini-3.5-flash`, confirmed present in the live model catalog. No `gemini-3.5-pro` exists yet, so the Pro-tier entry (`GEMINI_PRO_MODEL`, the `AVAILABLE_MODELS` Pro entry) stays on the `gemini-pro-latest` alias.
+- **Live-verified, not just built**: Ran direct `generateText` calls against the real Gemini API with the user's key outside the Next.js app. Both `gemini-3.5-flash` and `gemini-3.5-flash-lite` returned successful completions. `gemini-pro-latest` (currently resolving to `gemini-3.1-pro` server-side) returned a quota-exceeded error — the user's Gemini API project has a **0 free-tier quota for Pro-tier models**; this is a Google Cloud billing/plan setting on their account, not a bug in this code. Flagged to the user; Gemini Pro will 500/429 in the Coach model picker until they enable billing on that Google Cloud project.
+- Added `GEMINI_API_KEY` to Vercel production via `vercel env add` (see Commands Run). Left the old `OPENROUTER_API_KEY` in place in both `.env.local` and Vercel — it is no longer read by any route, but removing it wasn't requested and doing so isn't necessary for this task to work.
+
+#### Commands Run
+- `pnpm add @ai-sdk/google` - installed `4.0.21`, which failed `tsc` (see version note above).
+- `pnpm add @ai-sdk/google@^3.0.99` - installed `3.0.99`, resolved the type error.
+- `npx tsc --noEmit` - passed (no output), both before and after the model-id `-latest` rename.
+- `npm run build` - passed; all 148 routes generated successfully.
+- Direct Node script using `@ai-sdk/google` + `ai` against the live Gemini API (not through the Next.js app) - confirmed `GEMINI_API_KEY` authenticates successfully and `gemini-flash-latest` returns real completions.
+- `vercel env add GEMINI_API_KEY production` - added the key to Vercel production env (see Handoff Notes for scope; preview/development environments were not touched unless the user asks for that separately).
+
+#### Bugs Found Or Fixed
+- Not a pre-existing bug, but worth recording as a near-miss: an early `grep "OPENROUTER_API_KEY" .env.local` (meant only to check whether the line existed) matched and printed the full existing OpenRouter key value into the session transcript before the Gemini key was added. Caught immediately, no further greps against `.env.local` matched full lines for the rest of the session (switched to `grep -n "^[A-Z_]*=" .env.local | cut -d= -f1` for name-only checks). The exposed key is the one just retired by this migration; recommended the user rotate it at openrouter.ai as a precaution since it's no longer used by the app anyway.
+
+#### Remaining Issues And Limitations
+- No authenticated browser or curl-level QA was performed against the live app's AI routes in this session (only a standalone Node script against the Gemini API directly, and `npm run build`/`tsc`). The next session should do authenticated QA of at least `/api/chat`, `/api/ai/capture`, and `/api/templates/generate` against a disposable test account, per the existing QA checklist in `AI_CHECKLIST.md`.
+- `gemini-pro-latest` will fail with a quota error for this user until billing is enabled on their Google Cloud / Gemini API project. The Coach model picker still offers it as an option; no code-level guard was added to hide it, since that's a plan/billing decision for the user, not a code defect.
+- The stale `OpenRouter` key in `app/ai-chat/page.tsx`'s `PROVIDER_COLORS` map was left in place (harmless, unreachable) rather than removed, to keep this change scoped to the provider swap.
+- `OPENROUTER_API_KEY` was left defined in both `.env.local` and Vercel; nothing reads it anymore.
+
+#### Suggested Next Steps
+- Do the authenticated QA pass noted above (Coach chat, Universal Capture, AI Template Builder at minimum) against a disposable account.
+- Decide whether to enable billing on the Gemini API project (for Pro-tier access) or hide/relabel the Pro option in the Coach picker until then.
+- Consider removing `OPENROUTER_API_KEY` from `.env.local`/Vercel once confident nothing depends on it, and rotating it at openrouter.ai regardless since a value was briefly echoed into this session's transcript.
+- `gemini-3.5-flash` is pinned to a specific dated model generation, not an alias — it will eventually be deprecated the same way `gemini-2.5-flash` just was. Revisit periodically. `GEMINI_PRO_MODEL` still uses the `gemini-pro-latest` alias since no `gemini-3.5-pro` exists yet; watch for one shipping if the user wants Pro pinned to 3.5 too.
+
+#### Handoff Notes
+- This task was implemented directly by Claude Code rather than handed to Codex, per the user's explicit instruction in this session ("I will now be using claude as the primary coding agent"). Per `CLAUDE.md`, this is a session-scoped override, not a standing change to Claude's default reviewer/planner role — confirm with the user again next time before assuming Claude should keep implementing rather than reviewing/planning.
+- Every AI feature in the app now depends on `GEMINI_API_KEY` instead of `OPENROUTER_API_KEY`. If `GEMINI_API_KEY` is ever unset, every AI route returns its existing 503 "not configured" behavior — no route silently falls back to OpenRouter or fails differently than before.
+- `lib/ai-provider.ts` is now the single place that constructs the AI client; any future provider change should start there instead of re-adding a per-route client like the old OpenRouter pattern did.
+
 ### 2026-06-20 11:51 IST - Applied Pending Migrations, Authenticated QA, And Timezone Date Bug Fixes
 
 - Agent/tool used: Claude Code.

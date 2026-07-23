@@ -1,5 +1,4 @@
 import { generateText } from "ai"
-import { createOpenAI } from "@ai-sdk/openai"
 import { NextResponse } from "next/server"
 
 import { checkAiUsageLimit, createAiUsageEvent, updateAiUsageEvent } from "@/lib/ai-usage"
@@ -7,16 +6,9 @@ import { getUserFromSession } from "@/lib/auth"
 import { getIgnoringInsightsData, type IgnoringInsightsData } from "@/lib/ignoring-insights"
 import { getPersonalRulesContext } from "@/lib/personal-rules"
 
-const IGNORING_MODEL = "google/gemini-2.0-flash-exp:free"
+import { gemini } from "@/lib/ai-provider"
+const IGNORING_MODEL = "gemini-3.5-flash"
 
-const openrouter = createOpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY ?? "",
-  headers: {
-    "HTTP-Referer": "https://lifesort.app",
-    "X-Title": "LifeSort",
-  },
-})
 
 type AiIgnoringResult = {
   summary: string
@@ -167,7 +159,7 @@ export async function POST() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  if (!process.env.OPENROUTER_API_KEY) {
+  if (!process.env.GEMINI_API_KEY) {
     return NextResponse.json({ error: "AI features are not configured" }, { status: 503 })
   }
 
@@ -176,7 +168,7 @@ export async function POST() {
     await createAiUsageEvent({
       userId: user.id,
       route: "ignoring_insights",
-      provider: "openrouter",
+      provider: "gemini",
       model: IGNORING_MODEL,
       status: "rate_limited",
     })
@@ -190,14 +182,14 @@ export async function POST() {
   const usageEventId = await createAiUsageEvent({
     userId: user.id,
     route: "ignoring_insights",
-    provider: "openrouter",
+    provider: "gemini",
     model: IGNORING_MODEL,
   })
 
   try {
     const rulesContext = await getPersonalRulesContext(user.id)
     const { text } = await generateText({
-      model: openrouter(IGNORING_MODEL),
+      model: gemini(IGNORING_MODEL),
       prompt: buildPrompt(insights, rulesContext.preview),
       temperature: 0.25,
     })

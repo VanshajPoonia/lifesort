@@ -1,5 +1,4 @@
 import { generateText, Output } from "ai"
-import { createOpenAI } from "@ai-sdk/openai"
 import { NextResponse } from "next/server"
 
 import { getUserFromSession } from "@/lib/auth"
@@ -11,11 +10,7 @@ import {
   templatePromptSchema,
   TEMPLATE_BUILDER_MODEL,
 } from "@/lib/template-builder"
-
-const openrouter = createOpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY ?? "",
-})
+import { gemini } from "@/lib/ai-provider"
 
 export async function POST(request: Request) {
   const user = await getUserFromSession()
@@ -23,7 +18,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: { "Cache-Control": "no-store" } })
   }
 
-  if (!process.env.OPENROUTER_API_KEY) {
+  if (!process.env.GEMINI_API_KEY) {
     return NextResponse.json(
       { error: "AI Template Builder is not configured yet." },
       { status: 503, headers: { "Cache-Control": "no-store" } },
@@ -44,7 +39,7 @@ export async function POST(request: Request) {
     await createAiUsageEvent({
       userId: user.id,
       route: "template_builder",
-      provider: "openrouter",
+      provider: "gemini",
       model: TEMPLATE_BUILDER_MODEL,
       status: "rate_limited",
     })
@@ -57,13 +52,13 @@ export async function POST(request: Request) {
   const usageEventId = await createAiUsageEvent({
     userId: user.id,
     route: "template_builder",
-    provider: "openrouter",
+    provider: "gemini",
     model: TEMPLATE_BUILDER_MODEL,
   })
 
   try {
     const result = await generateText({
-      model: openrouter(TEMPLATE_BUILDER_MODEL),
+      model: gemini(TEMPLATE_BUILDER_MODEL),
       output: Output.object({ schema: generatedTemplateSchema }),
       prompt: buildTemplateBuilderPrompt(parsed.data.prompt),
     })

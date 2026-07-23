@@ -1,5 +1,4 @@
 import { generateText } from "ai"
-import { createOpenAI } from "@ai-sdk/openai"
 import { neon } from "@neondatabase/serverless"
 import { NextResponse } from "next/server"
 import { getUserFromSession } from "@/lib/auth"
@@ -7,16 +6,9 @@ import { checkAiUsageLimit, createAiUsageEvent, updateAiUsageEvent } from "@/lib
 import { getPersonalRulesContext } from "@/lib/personal-rules"
 
 const sql = neon(process.env.DATABASE_URL!)
-const LIFE_BALANCE_MODEL = "google/gemini-2.0-flash-exp:free"
+import { gemini } from "@/lib/ai-provider"
+const LIFE_BALANCE_MODEL = "gemini-3.5-flash"
 
-const openrouter = createOpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY ?? "",
-  headers: {
-    "HTTP-Referer": "https://lifesort.app",
-    "X-Title": "LifeSort",
-  },
-})
 
 type AreaMetrics = {
   key: string
@@ -443,7 +435,7 @@ export async function POST() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  if (!process.env.OPENROUTER_API_KEY) {
+  if (!process.env.GEMINI_API_KEY) {
     return NextResponse.json({ error: "AI features are not configured" }, { status: 503 })
   }
 
@@ -453,7 +445,7 @@ export async function POST() {
     await createAiUsageEvent({
       userId: user.id,
       route: "life_balance_insights",
-      provider: "openrouter",
+      provider: "gemini",
       model: LIFE_BALANCE_MODEL,
       status: "rate_limited",
     })
@@ -466,13 +458,13 @@ export async function POST() {
   const usageEventId = await createAiUsageEvent({
     userId: user.id,
     route: "life_balance_insights",
-    provider: "openrouter",
+    provider: "gemini",
     model: LIFE_BALANCE_MODEL,
   })
 
   try {
     const { text } = await generateText({
-      model: openrouter(LIFE_BALANCE_MODEL),
+      model: gemini(LIFE_BALANCE_MODEL),
       prompt: buildPrompt(metrics, (await getPersonalRulesContext(user.id)).preview),
       temperature: 0.3,
     })

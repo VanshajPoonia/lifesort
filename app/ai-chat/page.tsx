@@ -191,7 +191,7 @@ export default function AIChatPage() {
           setSelectedModel(data.default)
         }
         if (data.available === false) {
-          setModelError("AI chat is not configured yet. Add OPENROUTER_API_KEY to enable responses.")
+          setModelError("AI chat is not configured yet. Add GEMINI_API_KEY to enable responses.")
         }
       })
       .catch((err) => {

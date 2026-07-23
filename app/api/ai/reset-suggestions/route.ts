@@ -1,5 +1,4 @@
 import { generateText } from "ai"
-import { createOpenAI } from "@ai-sdk/openai"
 import { NextResponse } from "next/server"
 
 import { getUserFromSession } from "@/lib/auth"
@@ -7,16 +6,9 @@ import { checkAiUsageLimit, createAiUsageEvent, updateAiUsageEvent } from "@/lib
 import { getPersonalRulesContext } from "@/lib/personal-rules"
 import { getResetData, type ResetActionType, type ResetItem } from "@/lib/reset"
 
-const RESET_MODEL = "google/gemini-2.0-flash-exp:free"
+import { gemini } from "@/lib/ai-provider"
+const RESET_MODEL = "gemini-3.5-flash"
 
-const openrouter = createOpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY ?? "",
-  headers: {
-    "HTTP-Referer": "https://lifesort.app",
-    "X-Title": "LifeSort",
-  },
-})
 
 type ResetSuggestion = {
   item_type: string
@@ -129,7 +121,7 @@ export async function POST() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  if (!process.env.OPENROUTER_API_KEY) {
+  if (!process.env.GEMINI_API_KEY) {
     return NextResponse.json({ error: "AI features are not configured" }, { status: 503 })
   }
 
@@ -138,7 +130,7 @@ export async function POST() {
     await createAiUsageEvent({
       userId: user.id,
       route: "reset_suggestions",
-      provider: "openrouter",
+      provider: "gemini",
       model: RESET_MODEL,
       status: "rate_limited",
     })
@@ -164,14 +156,14 @@ export async function POST() {
   const usageEventId = await createAiUsageEvent({
     userId: user.id,
     route: "reset_suggestions",
-    provider: "openrouter",
+    provider: "gemini",
     model: RESET_MODEL,
   })
 
   try {
     const rulesContext = await getPersonalRulesContext(user.id)
     const { text } = await generateText({
-      model: openrouter(RESET_MODEL),
+      model: gemini(RESET_MODEL),
       prompt: buildPrompt(items, rulesContext.preview),
       temperature: 0.2,
     })

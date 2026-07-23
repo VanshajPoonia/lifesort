@@ -1,5 +1,4 @@
 import { convertToModelMessages, streamText, type UIMessage } from "ai"
-import { createOpenAI } from "@ai-sdk/openai"
 import { NextResponse } from "next/server"
 import { getUserFromSession } from "@/lib/auth"
 import {
@@ -15,20 +14,12 @@ import {
   getLifeSortCoachContext,
   normalizeCoachContextMode,
 } from "@/lib/lifesort-coach-context"
+import { gemini } from "@/lib/ai-provider"
 
 export const maxDuration = 60
 
 const MAX_CHAT_MESSAGES = 30
 const MAX_CHAT_TEXT_LENGTH = 12000
-
-const openrouter = createOpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY ?? "",
-  headers: {
-    "HTTP-Referer": "https://lifesort.app",
-    "X-Title": "LifeSort",
-  },
-})
 
 const SYSTEM_PROMPT = `You are LifeSort Coach, a helpful AI coach inside LifeSort, a personal life-management app.
 Answer using the logged-in user's provided LifeSort context when it is relevant.
@@ -125,7 +116,7 @@ export async function GET() {
     default: DEFAULT_MODEL,
     contextModes: COACH_CONTEXT_MODES,
     dailyLimit: getAiDailyLimit("chat"),
-    available: Boolean(process.env.OPENROUTER_API_KEY),
+    available: Boolean(process.env.GEMINI_API_KEY),
   })
 }
 
@@ -135,8 +126,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  if (!process.env.OPENROUTER_API_KEY) {
-    return NextResponse.json({ error: "OPENROUTER_API_KEY is not configured" }, { status: 503 })
+  if (!process.env.GEMINI_API_KEY) {
+    return NextResponse.json({ error: "GEMINI_API_KEY is not configured" }, { status: 503 })
   }
 
   let body: unknown
@@ -168,7 +159,7 @@ export async function POST(req: Request) {
     await createAiUsageEvent({
       userId: user.id,
       route: "chat",
-      provider: "openrouter",
+      provider: "gemini",
       model: selectedModel.id,
       status: "rate_limited",
     })
@@ -186,7 +177,7 @@ export async function POST(req: Request) {
   const usageEventId = await createAiUsageEvent({
     userId: user.id,
     route: "chat",
-    provider: "openrouter",
+    provider: "gemini",
     model: selectedModel.id,
   })
 
@@ -196,7 +187,7 @@ export async function POST(req: Request) {
     const coachContext = await getLifeSortCoachContext(user.id, contextMode)
 
     const result = streamText({
-      model: openrouter(selectedModel.id),
+      model: gemini(selectedModel.id),
       system: `${SYSTEM_PROMPT}
 
 Visible Personal Operating Rules and Preferences:

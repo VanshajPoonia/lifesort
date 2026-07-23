@@ -1,22 +1,14 @@
 "use server"
 
 import { generateText } from "ai"
-import { createOpenAI } from "@ai-sdk/openai"
 import { NextResponse } from "next/server"
 import { getUserFromSession } from "@/lib/auth"
 import { checkAiUsageLimit, createAiUsageEvent, updateAiUsageEvent } from "@/lib/ai-usage"
 
-const DAILY_CONTENT_MODEL = "openai/gpt-4o-mini"
+import { gemini } from "@/lib/ai-provider"
+const DAILY_CONTENT_MODEL = "gemini-3.5-flash"
 const MAX_CATEGORY_LENGTH = 40
 
-const openrouter = createOpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY ?? "",
-  headers: {
-    "HTTP-Referer": "https://lifesort.app",
-    "X-Title": "LifeSort",
-  },
-})
 
 const JOKE_PROMPTS: Record<string, string> = {
   funny: "a clean, family-friendly, genuinely funny joke",
@@ -79,8 +71,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    if (!process.env.OPENROUTER_API_KEY) {
-      return NextResponse.json({ error: "OPENROUTER_API_KEY is not configured" }, { status: 503 })
+    if (!process.env.GEMINI_API_KEY) {
+      return NextResponse.json({ error: "GEMINI_API_KEY is not configured" }, { status: 503 })
     }
 
     let body: unknown
@@ -102,7 +94,7 @@ export async function POST(request: Request) {
       await createAiUsageEvent({
         userId: user.id,
         route: "daily_content_generate",
-        provider: "openrouter",
+        provider: "gemini",
         model: DAILY_CONTENT_MODEL,
         status: "rate_limited",
       })
@@ -172,12 +164,12 @@ Do not include any other text, just the JSON.`
     usageEventId = await createAiUsageEvent({
       userId: user.id,
       route: "daily_content_generate",
-      provider: "openrouter",
+      provider: "gemini",
       model: DAILY_CONTENT_MODEL,
     })
 
     const result = await generateText({
-      model: openrouter(DAILY_CONTENT_MODEL),
+      model: gemini(DAILY_CONTENT_MODEL),
       prompt,
       temperature: 0.9,
     })

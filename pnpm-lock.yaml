@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@ai-sdk/google':
+        specifier: ^3.0.99
+        version: 3.0.99(zod@3.25.76)
       '@ai-sdk/groq':
         specifier: ^3.0.39
         version: 3.0.39(zod@3.25.76)
@@ -124,7 +127,7 @@ importers:
         version: 1.1.6(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@react-email/render':
         specifier: latest
-        version: 2.0.8(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+        version: 2.1.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@tiptap/extension-link':
         specifier: ^3.23.5
         version: 3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))(@tiptap/pm@3.23.5)
@@ -214,7 +217,7 @@ importers:
         version: 2.15.4(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       resend:
         specifier: 6.8.0
-        version: 6.8.0(@react-email/render@2.0.8(react-dom@19.2.0(react@19.2.0))(react@19.2.0))
+        version: 6.8.0(@react-email/render@2.1.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0))
       sonner:
         specifier: ^1.7.4
         version: 1.7.4(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -264,6 +267,12 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
+  '@ai-sdk/google@3.0.99':
+    resolution: {integrity: sha512-mZnXQRMIlQKCUa3gPD+MaFmONzXppeIzBP+XcPhEkwcw2bQZucZsHMXW8nGqaJ/tOIbZdYG8UmtnIRqrrxpzOA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
   '@ai-sdk/groq@3.0.39':
     resolution: {integrity: sha512-BZAr6DjCbzWQ0Qn1/TSsHo/bmCt4JaAMb4A7HCSUZBQCAcOjne/03D0sVjHnQhUC3TpwcmYiv7tHAviK7BluRw==}
     engines: {node: '>=18'}
@@ -282,6 +291,12 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
+  '@ai-sdk/provider-utils@4.0.40':
+    resolution: {integrity: sha512-OL5IrpUm9Y8Dwy+w/vvFwPotS6m52O9W0op2oXgXdCROMJIBalBI0oro6OIBYkPxvm5Xg02GSkoQN25RlR0bnw==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
   '@ai-sdk/provider-utils@4.0.9':
     resolution: {integrity: sha512-bB4r6nfhBOpmoS9mePxjRoCy+LnzP3AfhyMGCkGL4Mn9clVNlqEeKj26zEKEtB6yoSVcT1IQ0Zh9fytwMCDnow==}
     engines: {node: '>=18'}
@@ -290,6 +305,10 @@ packages:
 
   '@ai-sdk/provider@3.0.10':
     resolution: {integrity: sha512-Q3BZ27qfpYqnCYGvE3vt+Qi6LGOF9R5Nmzn+9JoM1lCRsD9mYaIhfJLkSunN48nfGXJ6n+XNV0J/XVpqGQl7Dw==}
+    engines: {node: '>=18'}
+
+  '@ai-sdk/provider@3.0.14':
+    resolution: {integrity: sha512-5X1k57JBJ4H7H1QjX7CnJYAB1I19r/trVZTMcSms7/kLNZ8RaU4Nt2agcwZzv82Hfx6Q7/TOLU7agAKeFfc8cA==}
     engines: {node: '>=18'}
 
   '@ai-sdk/provider@3.0.5':
@@ -1281,8 +1300,8 @@ packages:
   '@radix-ui/rect@1.1.0':
     resolution: {integrity: sha512-A9+lCBZoaMJlVKcRBz2YByCG+Cp2t6nAnMnNba+XiWxnj6r4JUFqfsgwocMBZU9LPtdxC6wB56ySYpc7LQIoJg==}
 
-  '@react-email/render@2.0.8':
-    resolution: {integrity: sha512-5udvVr3U/WuGJZfLdLBOhkzrqRWd2Q5ZYmF7ppcy7FzWcwgshdqLMNqJOXcVzAXJXg/2bm7D+WGJzTtZOZMQnQ==}
+  '@react-email/render@2.1.0':
+    resolution: {integrity: sha512-F+zE3O6d6sW6Aj2UjvZAA17R7tJKM7kcq2mgV6k4HCT8jeLLFaVP2txMtH1lgqYFRMZ0Gxsd37q2PRyiXLXXxA==}
     engines: {node: '>=20.0.0'}
     peerDependencies:
       react: ^18.0 || ^19.0 || ^19.0.0-rc
@@ -1814,6 +1833,9 @@ packages:
     resolution: {integrity: sha512-qY60FjREgVZL03vJU6IfMV4GDjGBIoOyvuFdpBDIX9yTlDw0TjxVBQp+P8NvpdIXNJvfWBTNul7fsAQJq2FNpg==}
     engines: {node: '>=14'}
 
+  html5parser@3.0.0:
+    resolution: {integrity: sha512-iNpSopa+4YHX50UOk825tBy7MghmXHo/ZpLskBYN0kAr1xhH8GlIMk5bLRXcZlfP3AnLUcSuFMu8C4MdOUxA8A==}
+
   htmlparser2@8.0.2:
     resolution: {integrity: sha512-GYdjWKDkbRLkZ5geuHs5NY1puJ+PXwP7+fHPRz06Eirsb9ugf6d8kkXav6ADhcODhFFPMIXyxkxSuMf3D6NCFA==}
 
@@ -2269,6 +2291,7 @@ packages:
   recharts@2.15.4:
     resolution: {integrity: sha512-UT/q6fwS3c1dHbXv2uFgYJ9BMFHu3fwnd7AYZaEQhXuYQ4hgsxLvsUXzGdKeZrW5xopzDCvuA2N41WJ88I7zIw==}
     engines: {node: '>=14'}
+    deprecated: 1.x and 2.x branches are no longer active. Bump to Recharts v3 to receive latest features and bugfixes. See https://github.com/recharts/recharts/wiki/3.0-migration-guide
     peerDependencies:
       react: ^16.0.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
       react-dom: ^16.0.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
@@ -2505,6 +2528,12 @@ snapshots:
       '@vercel/oidc': 3.1.0
       zod: 3.25.76
 
+  '@ai-sdk/google@3.0.99(zod@3.25.76)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.14
+      '@ai-sdk/provider-utils': 4.0.40(zod@3.25.76)
+      zod: 3.25.76
+
   '@ai-sdk/groq@3.0.39(zod@3.25.76)':
     dependencies:
       '@ai-sdk/provider': 3.0.10
@@ -2524,6 +2553,13 @@ snapshots:
       eventsource-parser: 3.0.8
       zod: 3.25.76
 
+  '@ai-sdk/provider-utils@4.0.40(zod@3.25.76)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.14
+      '@standard-schema/spec': 1.1.0
+      eventsource-parser: 3.0.8
+      zod: 3.25.76
+
   '@ai-sdk/provider-utils@4.0.9(zod@3.25.76)':
     dependencies:
       '@ai-sdk/provider': 3.0.5
@@ -2532,6 +2568,10 @@ snapshots:
       zod: 3.25.76
 
   '@ai-sdk/provider@3.0.10':
+    dependencies:
+      json-schema: 0.4.0
+
+  '@ai-sdk/provider@3.0.14':
     dependencies:
       json-schema: 0.4.0
 
@@ -3490,9 +3530,11 @@ snapshots:
 
   '@radix-ui/rect@1.1.0': {}
 
-  '@react-email/render@2.0.8(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
+  '@react-email/render@2.1.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
     dependencies:
+      entities: 4.5.0
       html-to-text: 9.0.5
+      html5parser: 3.0.0
       prettier: 3.8.1
       react: 19.2.0
       react-dom: 19.2.0(react@19.2.0)
@@ -4021,6 +4063,8 @@ snapshots:
       htmlparser2: 8.0.2
       selderee: 0.11.0
 
+  html5parser@3.0.0: {}
+
   htmlparser2@8.0.2:
     dependencies:
       domelementtype: 2.3.0
@@ -4464,11 +4508,11 @@ snapshots:
       tiny-invariant: 1.3.3
       victory-vendor: 36.9.2
 
-  resend@6.8.0(@react-email/render@2.0.8(react-dom@19.2.0(react@19.2.0))(react@19.2.0)):
+  resend@6.8.0(@react-email/render@2.1.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)):
     dependencies:
       svix: 1.84.1
     optionalDependencies:
-      '@react-email/render': 2.0.8(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      '@react-email/render': 2.1.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
 
   resolve@1.22.11:
     dependencies:
