@@ -69,6 +69,7 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- "Life Domains" in the product (AI_LIFE_DOMAINS_SPEC.md) -- table stays life_areas until the deferred Phase-1 rename migration.
 CREATE TABLE IF NOT EXISTS life_areas (
   id SERIAL PRIMARY KEY,
   user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -77,6 +78,19 @@ CREATE TABLE IF NOT EXISTS life_areas (
   color VARCHAR(20) NOT NULL DEFAULT '#2563EB',
   description TEXT,
   sort_order INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'paused', 'archived', 'hidden')),
+  importance TEXT CHECK (importance IN ('low', 'medium', 'high')),
+  desired_attention TEXT CHECK (desired_attention IN ('low', 'medium', 'high')),
+  review_frequency TEXT NOT NULL DEFAULT 'none' CHECK (review_frequency IN ('weekly', 'monthly', 'quarterly', 'custom', 'none')),
+  health_status TEXT NOT NULL DEFAULT 'not_assessed' CHECK (health_status IN ('thriving', 'stable', 'needs_attention', 'paused', 'not_assessed')),
+  parent_domain_id INTEGER REFERENCES life_areas(id) ON DELETE SET NULL,
+  definition_of_success TEXT,
+  current_concerns TEXT,
+  long_term_vision TEXT,
+  current_focus TEXT,
+  boundaries TEXT,
+  is_ai_excluded BOOLEAN NOT NULL DEFAULT false,
+  requires_reauth BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
   UNIQUE(user_id, name)
@@ -130,6 +144,7 @@ CREATE TABLE IF NOT EXISTS daily_journal_entries (
   energy_level TEXT CHECK (energy_level IS NULL OR energy_level IN ('low', 'medium', 'high')),
   tags JSONB NOT NULL DEFAULT '[]'::jsonb,
   locked_at TIMESTAMP,
+  life_area_id INTEGER REFERENCES life_areas(id) ON DELETE SET NULL,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
   UNIQUE(user_id, journal_date)
@@ -197,6 +212,26 @@ CREATE TABLE IF NOT EXISTS weekly_reviews (
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
   UNIQUE(user_id, week_start)
+);
+
+-- Per-domain reviews (AI_LIFE_DOMAINS_SPEC.md section 3.2/11) -- mirrors weekly_reviews, scoped to one life_area.
+CREATE TABLE IF NOT EXISTS life_area_reviews (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  life_area_id INTEGER NOT NULL REFERENCES life_areas(id) ON DELETE CASCADE,
+  period_type TEXT NOT NULL DEFAULT 'custom' CHECK (period_type IN ('weekly', 'monthly', 'quarterly', 'custom')),
+  period_start DATE,
+  period_end DATE,
+  feeling TEXT,
+  improved TEXT,
+  needs_attention TEXT,
+  stress TEXT,
+  stop_doing TEXT,
+  continue_doing TEXT,
+  next_action TEXT,
+  attention_adjustment TEXT CHECK (attention_adjustment IN ('increase', 'decrease', 'keep_same') OR attention_adjustment IS NULL),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS life_score_history (
@@ -541,6 +576,7 @@ CREATE TABLE IF NOT EXISTS calendar_events (
   email_reminder BOOLEAN DEFAULT FALSE,
   reminder_days INTEGER DEFAULT 1,
   reminder_sent BOOLEAN DEFAULT FALSE,
+  life_area_id INTEGER REFERENCES life_areas(id) ON DELETE SET NULL,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -1163,6 +1199,49 @@ CREATE TABLE IF NOT EXISTS notifications (
 
 CREATE INDEX IF NOT EXISTS idx_notifications_user_unread
   ON notifications(user_id, is_read, created_at DESC);
+
+-- ── Generic tags (2026-07-23-generic-tags.sql) ──────────────────────────────
+-- Additive only -- does not replace the existing TEXT[] tags columns on
+-- notes/people/vault_items/budget_transactions. Used for tasks/goals/projects,
+-- which have no tagging otherwise. See AI_DECISIONS.md.
+CREATE TABLE IF NOT EXISTS tags (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  color VARCHAR(20) NOT NULL DEFAULT '#64748B',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS item_tags (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+  item_type TEXT NOT NULL CHECK (item_type IN ('task', 'goal', 'project')),
+  item_id INTEGER NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(tag_id, item_type, item_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_item_tags_item ON item_tags(user_id, item_type, item_id);
+CREATE INDEX IF NOT EXISTS idx_item_tags_tag ON item_tags(tag_id);
+
+-- ── Generic attachments (2026-07-23-attachments.sql) ────────────────────────
+-- Files live in Cloudflare R2 (private bucket, presigned URLs); this table only
+-- stores per-file metadata plus the R2 object key.
+CREATE TABLE IF NOT EXISTS attachments (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  item_type TEXT NOT NULL CHECK (item_type IN ('task', 'goal', 'project', 'note', 'vault_item')),
+  item_id INTEGER NOT NULL,
+  storage_key TEXT NOT NULL UNIQUE,
+  file_name TEXT NOT NULL,
+  file_size INTEGER NOT NULL,
+  mime_type TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_attachments_item ON attachments(user_id, item_type, item_id);
 
 -- ── Agent Action Events (2026-05-18-agent-action-events.sql) ───────────────
 -- See scripts/migrations/2026-05-18-agent-action-events.sql for the
