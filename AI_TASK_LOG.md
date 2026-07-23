@@ -17,6 +17,67 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-06-20 11:51 IST - Applied Pending Migrations, Authenticated QA, And Timezone Date Bug Fixes
+
+- Agent/tool used: Claude Code.
+- Task completed: Applied the three pending forward migrations from the Part 1-6 product work to the production Neon database, ran authenticated end-to-end QA against real APIs using a disposable test account, found and fixed two live timezone-related date bugs discovered during that QA, and identified a wider systemic pattern of the same bug class across the codebase for follow-up.
+
+#### Files Modified
+- `app/api/liabilities/route.ts` - Fixed `due_date` serialization. `String(dateObject)` was returning JS `Date.toString()` format ("Wed Jul 01") instead of an ISO date; replaced with a `formatDateOnly()` helper using local date getters.
+- `lib/journal.ts` - Fixed `dateOnly()` helper. `Date.prototype.toISOString().slice(0, 10)` on a local-midnight `Date` object shifts the date back one calendar day in timezones ahead of UTC (confirmed on this server's IST timezone); replaced with local-getter-based formatting. This was silently returning the wrong `journal_date` and `affirmation_pinned_until` on every journal read.
+- `app/api/journal/[date]/route.ts` - Fixed `addDays()`. `new Date(\`${date}T00:00:00\`)` parses as local time, not UTC; in IST this caused the "tomorrow's focus" Today-plan bridge to write the focus item into the *same day's* plan instead of the next day's, defeating the feature's purpose. Replaced with explicit `Date.UTC(year, month - 1, day)` construction before adding days.
+- `AI_TASK_LOG.md` - Recorded this session.
+
+#### Summary
+- Reviewed all three pending migration files line by line before running anything: all are additive-only (`CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`), idempotent, and already mirrored in `scripts/schema.sql` from prior sessions. No `DROP`/`DELETE`/`TRUNCATE` statements. Confirmed `users.id` is `VARCHAR(255)` matching the FK types used.
+- User confirmed `DATABASE_URL` points at the production database before anything was run.
+- Applied in date order via `psql` against the live Neon database:
+  - `2026-06-03-journal-intention-labels.sql` - `ALTER TABLE`, `UPDATE 2` (normalized existing rows only, no data loss).
+  - `2026-06-03-money-dashboard-liabilities-currency.sql` - `ALTER TABLE`, `UPDATE 2`, `ALTER TABLE`, `CREATE INDEX`, `CREATE TABLE`, `CREATE INDEX`.
+  - `2026-06-03-user-templates.sql` - `CREATE TABLE`, `CREATE INDEX`, `CREATE INDEX`.
+  - Verified post-migration via `\d users`, `\d liabilities`, `\d user_templates`, `\d budget_goals` — all columns/tables/FKs present with correct types; both new tables empty as expected.
+- Performed authenticated browser-equivalent QA (curl against a disposable registered account, `lifesort-qa-*@example.invalid`) since no browser automation was available, covering the gap flagged in prior sessions' "Remaining Issues" sections:
+  - Settings: `preferred_currency` and custom `journal_intention_1/2/3` save and reload correctly via `/api/profile`.
+  - Liabilities: create/list/delete round-trip correctly after the date fix.
+  - User Templates: create/list/delete round-trip correctly via `/api/user-templates`.
+  - Wishlist -> Budget Goal link: "Save for this" creates a linked goal via `/api/budget` with `wishlist_item_id`; duplicate attempts correctly return `409` with `existing_goal_id`.
+  - Journal: tags and `energy_level` persist and reload correctly.
+  - Journal -> Today bridge (`tomorrow_focus`): initially found writing into the wrong day's plan (see bugs below); confirmed correct after the `addDays` fix — focus item lands in tomorrow's plan, not today's, and clearing `tomorrow_focus` removes it.
+- All QA was performed on a disposable test account, fully deleted afterward (`DELETE FROM users WHERE id = ...`, confirmed cascade via `ON DELETE CASCADE` on `sessions` and other user-owned tables). No real user data was read, modified, or left behind.
+- One real connection-string exposure incident occurred during this session: an early `grep | cut` command to extract `DATABASE_URL` from `.env.local` was malformed and its psql error message echoed the full connection string (including password) into command output visible in the transcript. Switched immediately to sourcing `.env.local` in a subshell for all subsequent commands, which never prints the value. Flagged directly to the user; recommended rotating the Neon password as a precaution.
+
+#### Bugs Found Or Fixed
+- Fixed `liabilities.due_date` serialization returning `Date.toString()`-formatted garbage instead of an ISO date.
+- Fixed `lib/journal.ts` `dateOnly()` returning a date one day earlier than the actual stored date for any server timezone ahead of UTC (confirmed on this IST server) — affected `journal_date` and `affirmation_pinned_until` on every journal GET/PUT response.
+- Fixed `addDays()` in the Journal-to-Today bridge writing the next-day focus item into the current day's plan instead of tomorrow's, for the same IST/UTC-offset reason. This silently broke the entire purpose of the "tomorrow's focus" feature shipped in the 2026-06-03 Journal session.
+- Found (not yet fixed) the same `Date.toISOString().slice(0, 10)` anti-pattern in 15 additional files: `lib/reset.ts`, `lib/ignoring-insights.ts`, `lib/timeline.ts`, `lib/template-builder.ts`, `lib/life-score.ts`, `lib/lifesort-coach-context.ts` (this one already uses `Date.UTC` partially, needs re-check), `app/api/journal/weekly-digest/route.ts`, `app/api/journal/insights/route.ts`, `app/api/tasks/route.ts`, `app/api/goals/route.ts`, `app/api/weekly-review/route.ts`, `app/api/projects/route.ts`, `app/api/habits/checkins/route.ts`, `app/api/ai/capture/route.ts`, `app/api/today-plan/route.ts`, `app/api/maintenance/complete/route.ts`, `app/api/navigation-summary/route.ts`. Each needs individual verification — some may operate on already-string values or non-DATE columns and not actually be affected. This is a systemic risk for any DATE column read from Postgres via `@neondatabase/serverless` on a server running in a timezone ahead of UTC, because the driver returns `DATE` columns as local-midnight `Date` objects, and `.toISOString()` converts to UTC and can roll the calendar date backward.
+
+#### Commands Run
+- `psql "$DATABASE_URL" -f scripts/migrations/2026-06-03-journal-intention-labels.sql` - passed.
+- `psql "$DATABASE_URL" -f scripts/migrations/2026-06-03-money-dashboard-liabilities-currency.sql` - passed.
+- `psql "$DATABASE_URL" -f scripts/migrations/2026-06-03-user-templates.sql` - passed.
+- `npx tsc --noEmit` - passed (no output) after both fixes.
+- `npm run build` - passed.
+- `npm run dev -- -p 3000` (temporary, stopped after QA) - used for all authenticated QA via curl.
+- Direct diagnostic Node script using `@neondatabase/serverless` against a live liability row - confirmed the exact local-midnight `Date` object behavior driving both bugs (`Asia/Calcutta`, UTC+5:30).
+
+#### Remaining Issues And Limitations
+- The other 15 files listed above containing the same `toISOString().slice(0, 10)` pattern have not been individually audited or fixed. This should be a dedicated follow-up task, not bundled into unrelated work, since the blast radius (Tasks, Goals, Projects, Habits, Weekly Review, Maintenance, Today Plan, Navigation Summary, Life Score, Timeline, Reset, Ignoring Insights, AI Capture, Coach context, Template Builder) is large and each call site needs to be checked for whether it actually receives a `Date` instance from a `DATE` column versus a `TIMESTAMP` column or an already-string value.
+- No automated test exists to catch this class of bug; manual QA in a non-UTC timezone is currently the only way it surfaces.
+- `npm run lint` remains blocked by the pre-existing missing ESLint flat config (unrelated, pre-existing).
+- Browser-based (actual click-through UI) QA still was not performed — this session's QA was authenticated API-level QA via curl, which is a meaningfully stronger signal than the previous build-only verification but still does not catch rendering/UI bugs.
+
+#### Suggested Next Steps
+- Audit and fix the remaining 15 files with the same date pattern as a dedicated task. Suggest extracting a single shared `dateOnly()` / `formatDateOnly()` helper into `lib/dates.ts` (or similar) used everywhere instead of each file reimplementing it slightly differently, to prevent this regressing again.
+- Consider setting `TZ=UTC` in the server environment as a defense-in-depth measure, though the proper fix is still to avoid relying on local-timezone-sensitive Date conversion for DATE-only columns.
+- Do an actual browser/UI click-through QA pass per the original recheck prompts for full confidence beyond the API layer.
+
+#### Handoff Notes
+- The `liabilities`, `user_templates` tables and the `journal_intention_1/2/3`, `preferred_currency`, `budget_goals.wishlist_item_id` columns are now live in production. Features depending on them are unblocked.
+- Do not re-run the three migrations from this session; they are now applied. Re-running is safe (idempotent) but unnecessary.
+- Any future DATE-column serialization should use local `Date` getters (`getFullYear`/`getMonth`/`getDate`), not `toISOString()`, unless the value is known to already be UTC-normalized.
+- Rotate the Neon database password if connection-string exposure in this session's transcript is a concern.
+
 ### 2026-06-03 22:17 IST - Part 6 Existing-Page Improvements
 
 - Agent/tool used: Codex (GPT-5 coding agent).

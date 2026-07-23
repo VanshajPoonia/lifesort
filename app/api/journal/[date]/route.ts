@@ -33,7 +33,8 @@ function validationError(error: z.ZodError) {
 }
 
 function addDays(date: string, days: number) {
-  const next = new Date(`${date}T00:00:00`)
+  const [year, month, day] = date.split("-").map(Number)
+  const next = new Date(Date.UTC(year, month - 1, day))
   next.setUTCDate(next.getUTCDate() + days)
   return next.toISOString().slice(0, 10)
 }

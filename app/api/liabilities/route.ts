@@ -18,13 +18,24 @@ function cleanId(value: unknown) {
   return Number.isFinite(id) && id > 0 ? id : null
 }
 
+function formatDateOnly(value: unknown) {
+  if (!value) return null
+  if (value instanceof Date) {
+    const year = value.getFullYear()
+    const month = String(value.getMonth() + 1).padStart(2, "0")
+    const day = String(value.getDate()).padStart(2, "0")
+    return `${year}-${month}-${day}`
+  }
+  return String(value).slice(0, 10)
+}
+
 function serializeLiability(row: Record<string, unknown>) {
   return {
     ...row,
     balance: Number(row.balance || 0),
     interest_rate: Number(row.interest_rate || 0),
     monthly_payment: Number(row.monthly_payment || 0),
-    due_date: row.due_date ? String(row.due_date).slice(0, 10) : null,
+    due_date: formatDateOnly(row.due_date),
   }
 }
 
