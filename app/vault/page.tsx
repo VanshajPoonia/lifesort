@@ -13,6 +13,7 @@ import {
   Trash2,
   X,
 } from "lucide-react"
+import { AttachmentList } from "@/components/attachment-list"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -231,7 +232,7 @@ function VaultItemForm({
           </Select>
         </div>
         <div className="space-y-2">
-          <Label>Life area</Label>
+          <Label>Life domain</Label>
           <LifeAreaSelect
             areas={lifeAreas}
             value={form.life_area_id}
@@ -355,6 +356,10 @@ function VaultCard({
               <ExternalLink className="h-3 w-3" />Link
             </a>
           )}
+        </div>
+
+        <div className="mt-3 border-t border-border pt-3">
+          <AttachmentList itemType="vault_item" itemId={item.id} />
         </div>
       </CardContent>
     </Card>
