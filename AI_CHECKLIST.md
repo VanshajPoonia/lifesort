@@ -227,6 +227,7 @@ Observed env var names include:
 - `GEMINI_API_KEY`
 - `OAUTH_TOKEN_ENCRYPTION_KEY`
 - `LIVEBLOCKS_SECRET_KEY`
+- `R2_ENDPOINT`, `R2_BUCKET_NAME`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` — Cloudflare R2 (S3-compatible), used by `lib/r2.ts` / `app/api/attachments/*` for the generic attachments feature. Bucket must stay private (no Custom Domain, no Public Development URL) — all access is via short-lived presigned URLs. Only set in local `.env.local` so far; **not yet added to Vercel's project env vars** (needed before deploying attachments to production). See `AI_TASK_LOG.md` 2026-07-23 19:40 IST entry for the credential-rotation note before shipping this.
 - Vercel/Neon/Postgres provisioned variables such as `POSTGRES_URL`, `POSTGRES_PRISMA_URL`, `PGHOST`, `PGUSER`, and related names.
 
 Check only names/presence unless explicitly authorized to inspect values.
