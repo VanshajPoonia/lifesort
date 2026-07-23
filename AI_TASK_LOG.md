@@ -17,6 +17,40 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-07-23 10:46 IST - Removed Gemini Pro Option, Flash-Only
+
+- Agent/tool used: Claude Code, continuing as primary coding agent for this task at the user's explicit request.
+- Task completed: Removed the Gemini Pro tier from the LifeSort Coach model picker, per the user's instruction that Flash is enough. This is a direct follow-up to the OpenRouter→Gemini migration below, which had shipped both Flash and Pro options.
+
+#### Files Modified
+- `lib/ai-models.ts` - Removed the `gemini-pro-latest` entry from `AVAILABLE_MODELS`; only `gemini-3.5-flash` remains.
+- `lib/ai-provider.ts` - Removed the unused `GEMINI_PRO_MODEL` export (it was never imported anywhere — confirmed with a repo-wide grep before removing). `GEMINI_FLASH_MODEL` stays, though it's also currently unused dead code since every route keeps its own local `_MODEL` constant instead of importing from here.
+- `AI_DECISIONS.md` - Updated the "AI Provider Migration (2026-07-23)" decision entry to reflect the final Flash-only state instead of the transient Flash+Pro state it originally described.
+- `AI_TASK_LOG.md` - This entry.
+
+#### Summary
+- No other code referenced `gemini-pro-latest` or `GEMINI_PRO_MODEL` (verified with `grep -rn "GEMINI_PRO_MODEL\|gemini-pro-latest\|Gemini Pro" app lib` before editing), so this was a clean two-line removal plus the model list entry — no route logic changed.
+- This also resolves the quota-exceeded issue noted in the prior entry (Gemini Pro was 429ing due to a 0 free-tier quota on the user's Google Cloud project) by removing the option that hit it, rather than requiring the user to enable billing.
+
+#### Commands Run
+- `grep -rn "GEMINI_PRO_MODEL\|gemini-pro-latest\|Gemini Pro" app lib` - confirmed no other call sites before removing.
+- `npx tsc --noEmit` - passed (no output).
+- `npm run build` - passed; all routes generated successfully.
+
+#### Bugs Found Or Fixed
+- None; this was a scope reduction, not a bug fix.
+
+#### Remaining Issues And Limitations
+- `GEMINI_FLASH_MODEL` in `lib/ai-provider.ts` remains unused dead code (every route still defines its own local `_MODEL` constant set to the literal `"gemini-3.5-flash"` rather than importing it). Not fixed here since it wasn't part of what was asked; a future consolidation pass could have every route import `GEMINI_FLASH_MODEL` instead of repeating the literal in 10 files.
+- Authenticated QA of `/api/chat` with the now-single-model picker still has not been done in a real browser session (same gap noted in the migration entry below).
+
+#### Suggested Next Steps
+- Same as the migration entry below: do an authenticated QA pass on Coach chat, Capture, and Template Builder.
+- Consider whether the model picker UI in `app/ai-chat/page.tsx` should collapse to a static label now that there's only one model, versus leaving the dropdown in place for when a second model is added back.
+
+#### Handoff Notes
+- LifeSort Coach and every other AI feature in the app now use exactly one model: `gemini-3.5-flash`. There is no Pro/higher-capability tier anymore. If a future task wants to reintroduce a second tier, add it back to `AVAILABLE_MODELS` in `lib/ai-models.ts` and pick a live-verified model id the same way this session did (query Google's `ListModels` endpoint with the real key rather than guessing a model id from training data).
+
 ### 2026-07-23 10:32 IST - Migrated AI Provider From OpenRouter To Google Gemini
 
 - Agent/tool used: Claude Code, acting as the primary coding agent for this task per explicit user direction (overriding the default reviewer/planner role in `CLAUDE.md`).
