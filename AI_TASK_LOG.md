@@ -17,6 +17,39 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-07-23 11:10 IST - Added Design System Tooling And LifeSort Hybrid DESIGN.md
+
+- **Agent/tool used:** Claude Code (Opus 4.8), acting as primary coding agent per user direction.
+- **Task completed:** Installed the frontend design toolchain the user requested and authored the active LifeSort design reference as a Linear + Notion hybrid. No application/source code changed in this step — design docs + skill tooling only.
+- **Files changed / added:**
+  - `DESIGN.md` (new, root) — the **active** LifeSort hybrid design system (see below). This is the file coding agents read before writing UI.
+  - `linear/DESIGN.md` (moved from root) — raw Linear analysis, kept as a source reference.
+  - `notion/DESIGN.md` (new) — raw Notion analysis, source reference.
+  - `.claude/skills/impeccable` → symlink to `.agents/skills/impeccable` (new) — `impeccable` design skill added project-level (repo `pbakaus/impeccable`).
+  - `.agents/skills/impeccable/` (new) — installed skill payload.
+  - `skills-lock.json` (new) — skills lockfile for restore.
+  - `AI_TASK_LOG.md` (this entry).
+- **What / why:**
+  - Ran `npx skills use github.com/anthropics/skills --skill frontend-design` and followed its guidance while authoring the design doc.
+  - Ran `npx getdesign@latest add linear.app` and `npx getdesign@latest add notion` to pull raw design analyses. getdesign wrote Linear to root `DESIGN.md` and Notion to `notion/DESIGN.md`; I moved Linear into `linear/DESIGN.md` and wrote a new synthesized hybrid at root so the two raw refs stay available but the active file is LifeSort's own.
+  - Added `impeccable` project-level via `npx skills add pbakaus/impeccable@impeccable` (it was previously only global at `~/.claude/skills/impeccable`; impeccable's scripts are project-relative so a project install is correct).
+  - Authored `DESIGN.md` per the user's LifeSort design brief: **fast like Linear, flexible like Notion, calm like a wellbeing app.** Linear supplies the application shell (sidebar, ⌘K palette, dense lists, filters, speed); Notion supplies flexible block content (notes, journal, docs, reflections); LifeSort's own identity is a warm paper canvas, a single calm-teal action color, a scarce warm "ember" for personal moments, and a muted domain palette driving the signature "domain spine." Encoded page categories (Structured / Flexible / Hybrid), a three-role type system (Inter UI / Source Serif 4 reading / Geist Mono data), both light + dark themes mapped onto the app's existing HSL CSS variables, and component specs. Grounded in the real codebase: current app uses Inter, HSL vars, shadcn, and already has calm `--motion-journal: 650ms` tokens; the doc says to migrate onto that system and retire the templated shadcn violet (`262 83% 58%`).
+- **Commands run:**
+  - `npx skills use ... --skill frontend-design` → success (skill guidance loaded).
+  - `npx getdesign@latest add linear.app` → success (DESIGN.md written).
+  - `npx getdesign@latest add notion` → success (notion/DESIGN.md written; detected existing root DESIGN.md).
+  - `npx skills add pbakaus/impeccable@impeccable -y` → success (installed + symlinked to Claude Code).
+  - No `tsc`/`build` run: this step changed only Markdown design docs and skill tooling, not TypeScript/source. (The separately-pending Gemini Pro removal was already tsc/build-verified in the prior entry.)
+- **Bugs found / fixed:** none.
+- **Remaining issues / known limitations:**
+  - `DESIGN.md` is a *target*, not yet implemented — the app's `globals.css` still uses the violet primary and clinical greys. Migrating tokens (teal primary, warm neutrals, Source Serif for content surfaces, dark-mode warmth) is future implementation work, done page-category by page-category.
+  - Source Serif 4 and Geist Mono are recommended but not yet wired into `next/font`.
+  - `.agents/`, `.claude/skills/`, `skills-lock.json`, `linear/`, `notion/`, `DESIGN.md` are currently untracked; decide whether to commit them (design refs + lockfile are worth versioning; the `.agents` skill payload may warrant `.gitignore`).
+- **Suggested next steps:**
+  - Confirm whether to commit the design tooling + docs (and whether to gitignore `.agents/skills`).
+  - When ready to implement: start with the app shell + one structured page (e.g. Today) to migrate `globals.css` tokens to the LifeSort palette, then run `impeccable` for a craft pass.
+- **Handoff notes:** The active design reference is root `DESIGN.md`; `linear/` and `notion/` are raw sources it synthesizes. Read `DESIGN.md` before any UI work. The still-uncommitted Gemini Pro removal (`lib/ai-models.ts`, `lib/ai-provider.ts`, `AI_DECISIONS.md` + its log entry) is unrelated to this design work.
+
 ### 2026-07-23 10:46 IST - Removed Gemini Pro Option, Flash-Only
 
 - Agent/tool used: Claude Code, continuing as primary coding agent for this task at the user's explicit request.

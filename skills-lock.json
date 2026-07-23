@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "impeccable": {
+      "source": "pbakaus/impeccable",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/impeccable/SKILL.md",
+      "computedHash": "677a512a30bb989a891a262f0c81a6dc99d0d7809704ff988f9f22e20711fb92"
+    }
+  }
+}
