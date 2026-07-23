@@ -30,6 +30,7 @@ import { EditableText } from "@/components/editable-text"
 import { ReminderSettings } from "@/components/reminder-settings"
 import { LifeAreaBadge, LifeAreaSelect } from "@/components/life-area-controls"
 import { SortableList } from "@/components/sortable-list"
+import { TagPicker, type Tag as ItemTag } from "@/components/tag-picker"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -276,6 +277,7 @@ export default function TasksPage() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState("")
   const [lifeAreas, setLifeAreas] = useState<LifeArea[]>([])
+  const [taskTagsById, setTaskTagsById] = useState<Record<string, ItemTag[]>>({})
   const [creating, setCreating] = useState(false)
   const [newTaskTitle, setNewTaskTitle] = useState("")
   const [activeView, setActiveView] = useState<TaskView>("all")
@@ -316,7 +318,7 @@ export default function TasksPage() {
       const data = await response.json()
       setLifeAreas(Array.isArray(data) ? data.map(normalizeLifeArea) : [])
     } catch (error) {
-      console.error("Failed to fetch life areas:", error)
+      console.error("Failed to fetch life domains:", error)
     }
   }
 
@@ -332,13 +334,41 @@ export default function TasksPage() {
       }
 
       const data = await response.json()
-      setTasks(Array.isArray(data) ? data : [])
+      const nextTasks = Array.isArray(data) ? data : []
+      setTasks(nextTasks)
+      fetchTaskTags(nextTasks)
     } catch (error) {
       console.error("Failed to fetch tasks:", error)
       setLoadError("Tasks could not be loaded.")
       setTasks([])
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchTaskTags = async (forTasks: Task[]) => {
+    if (forTasks.length === 0) return
+    try {
+      const ids = forTasks.map((task) => task.id).join(",")
+      const response = await fetch(`/api/item-tags?item_type=task&item_ids=${encodeURIComponent(ids)}`)
+      if (!response.ok) return
+      const map = await response.json()
+      setTaskTagsById(map && typeof map === "object" ? map : {})
+    } catch (error) {
+      console.error("Failed to fetch task tags:", error)
+    }
+  }
+
+  const saveTaskTags = async (taskId: Task["id"], tags: ItemTag[]) => {
+    setTaskTagsById((prev) => ({ ...prev, [String(taskId)]: tags }))
+    try {
+      await fetch("/api/item-tags", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ item_type: "task", item_id: taskId, tag_ids: tags.map((tag) => tag.id) }),
+      })
+    } catch (error) {
+      console.error("Failed to save task tags:", error)
     }
   }
 
@@ -944,7 +974,7 @@ export default function TasksPage() {
                             </div>
 
                             <div className="space-y-1.5">
-                              <Label className="text-xs text-muted-foreground">Life Area</Label>
+                              <Label className="text-xs text-muted-foreground">Life Domain</Label>
                               <LifeAreaSelect
                                 areas={lifeAreas}
                                 value={task.life_area_id || null}
@@ -965,6 +995,11 @@ export default function TasksPage() {
                               </div>
                             </div>
                           </div>
+
+                          <TagPicker
+                            selected={taskTagsById[String(task.id)] || []}
+                            onChange={(tags) => saveTaskTags(task.id, tags)}
+                          />
 
                           <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                             {task.due_date ? (
