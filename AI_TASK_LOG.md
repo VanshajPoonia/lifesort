@@ -17,6 +17,45 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-07-24 09:15 IST - Build plan confirmed by user + completeness audit against all 33 spec sections (docs only)
+
+- **Agent/tool used:** Claude Code (Sonnet 5), acting as primary coding agent per user direction.
+- **Task completed:** User confirmed the A4 (capture/GTD consolidation) and A9 (nav restructure) directions from the previous session's `AI_BUILD_PLAN.md` ("go with your suggestions, as I don't want to overclutter the app") and asked to verify the plan actually captures everything from the original 33-numbered-section spec. **No code was changed** — docs only.
+- **Files changed:**
+  - `AI_BUILD_PLAN.md` — (1) recorded the A4/A9 user confirmation inline in both sections plus a new Part B item, with the explicit caveat that confirming the *approach* does not pre-authorize deleting/migrating any specific existing surface's data; (2) added new section **A10** documenting a full section-by-section cross-check of Appendix A (and the phase/schema/criteria parts built on it) against the original 33-section spec, with a coverage table; (3) fixed three real gaps the cross-check found rather than just noting them: added an explicit "Auth/authorization review" bullet to Phase 0 (spec §29 names this and it was missing), added a "Search depth" bullet to Phase 3 (Search was marked blanket-✅ without ever being checked against §20's specific filter/action list), added a "Production cleanup" bullet to Phase 7 (§29 names this and it was missing — ties to existing known items: `global-search.tsx` dead-code status, `pomodoro_*` table disposition from `AI_AUDIT.md` §J, `package.json` name); (4) fixed one drift — Appendix A §3 had picked up a "People" domain-dashboard tab not present in the user's original text, corrected to match the source exactly.
+  - `AI_DECISIONS.md` — appended the user-confirmation note and the completeness-audit note to the existing "Full LifeSort Product Build Plan" decision section.
+- **Audit method:** every one of the 33 numbered sections in the user's original prompt was read against the corresponding paragraph in `AI_BUILD_PLAN.md` Appendix A field-by-field (e.g. §9 Tasks' full field list, §27's full table list, §30's full 30-item avoid-list), then checked that each also appears as an actionable line in Part C (roadmap), Part D (schema), or Part F (completion criteria) rather than only being mentioned in the appendix. Result: all 33 sections are substantively covered; the only issues found were the three roadmap gaps and one wording drift listed above, all now fixed.
+- **Commands run:** none — no code changed.
+- **Bugs found / fixed:** the three plan gaps and one appendix drift above (all documentation, not code).
+- **Remaining issues / known limitations:** none new. The underlying gap this session doesn't resolve is that A4's per-surface consolidation (which existing tracker becomes which task status/view) is still undesigned in detail — only the direction is confirmed.
+- **Suggested next steps:** begin **Phase 0** from `AI_BUILD_PLAN.md` Part C. Sequence proposed for the next sessions (each as its own coherent, reviewable commit per the spec's own §32 working style — not all at once): (1) design-token migration onto `DESIGN.md`'s warm/teal palette in `app/globals.css`, visually verified in both themes; (2) `item_relationships` table migration + minimal API; (3) nav restructure to the §4 grouping with redirects preserved; (4) test harness (Vitest) + first real tests; (5) the lightweight auth/authorization pattern review added to Phase 0 this session.
+- **Handoff notes:** `AI_BUILD_PLAN.md` A10 is now the durable record that the plan's coverage was verified against the source spec — no need to re-derive that check unless the spec itself changes. Read Part B for the current confirmed-decision list before starting Phase 0.
+- **Addendum (same session):** user asked for a reusable prompt to continue this work in a fresh chat. Added a **"Build Plan Continuation Prompt"** section to `AI_CHECKLIST.md` (between the existing Codex Kickoff and Codex Handoff prompts) — it's self-updating (points at `AI_BUILD_PLAN.md`/`AI_TASK_LOG.md` for "what's next" rather than hardcoding a step), so it stays valid across every future session, not just the next one.
+
+### 2026-07-23 21:30 IST - Full-product build plan + spec reconciliation audit (docs only)
+
+- **Agent/tool used:** Claude Code (Opus 4.8), acting as primary coding agent per user direction.
+- **Task completed:** User supplied the complete LifeSort full-product specification and asked to (1) persist it so it never needs re-pasting, (2) audit/update the memory docs against it, and (3) audit the spec against the real codebase for anything unusual and reconcile it. **No code was changed** — this is a documentation/planning task.
+- **Files changed/added:**
+  - `AI_BUILD_PLAN.md` (new) — the master, persistent, *reconciled* build plan for the whole product. Contains: how-to-use contract (don't re-paste the prompt — point here), a reconciliation audit (Part A) flagging every place the raw spec conflicts with reality + the decision for each, canonical decisions (Part B), a phased roadmap grounded in current state with ✅/🟡/🟠 status (Part C), a schema plan (Part D), guardrails (Part E), completion criteria with live status (Part F), and the full spec preserved verbatim-in-substance (Appendix A).
+  - `AI_PROJECT.md` — "Planned / Specified Work" now points to `AI_BUILD_PLAN.md` as the master roadmap and records the key reconciliations; also fixed a stale line that said Life Domains Phase 2/3 were "not started" (they are implemented — the rest of the file already said so).
+  - `AI_DECISIONS.md` — new "Full LifeSort Product Build Plan (2026-07-23)" decision section recording: agents/OpenClaw descoped + `agent_action_events` repurposed; Money preserved; additive `item_relationships`; `life_areas` name retained; extend-Tiptap over `note_blocks`; §27 tables mapped to existing equivalents.
+  - `AGENTS.md`, `AI_CHECKLIST.md` — added `AI_BUILD_PLAN.md` (and pointers to `DESIGN.md` / `AI_LIFE_DOMAINS_SPEC.md`) to the reading guidance / memory reference so future agents consult it before full-product feature work.
+- **Key audit findings (the "unusual things" reconciled in `AI_BUILD_PLAN.md` Part A):**
+  1. "Replace Life Areas" is already done; `life_areas` table name kept deliberately — do NOT trigger a rename. (A1)
+  2. Spec bans autonomous agents/OpenClaw, but stubbed agent infra exists — descope the autonomy, repurpose the confirm-execute layer as the AI safety substrate the spec requires. (A2)
+  3. Spec barely mentions the large existing Money surface — preserve it; don't read "unmentioned" as "remove." (A3)
+  4. Many overlapping capture/GTD surfaces vs. "one Inbox" — consolidate carefully, never rip-and-replace; needs user confirmation before removing any surface. (A4)
+  5. Rich editor: extend Tiptap, no `note_blocks` table. (A5)
+  6. Add one additive `item_relationships` table; keep typed links authoritative. (A6)
+  7. Most of spec §27's tables already exist under other names (`habit_checkins`, `routine_steps`, `weekly_reviews`, `user_templates`, Liveblocks canvas) — reuse, don't duplicate. (A7)
+  8. `AI_AUDIT.md` is a stale 2026-05 snapshot (still says OpenRouter; agents framing superseded) — re-verify before acting on it. (A8)
+- **Commands run:** none. No code changed, so `npx tsc --noEmit` and `npm run build` were not applicable; `git status --short` was clean before this doc work.
+- **Bugs found / fixed:** Fixed the internally-inconsistent "Phase 2/3 not started" line in `AI_PROJECT.md`'s Planned section (a docs bug, not code).
+- **Remaining issues / known limitations:** The plan is written but not executed. The biggest open *decision* needing user sign-off before any code moves is the capture/GTD consolidation (A4) and the nav restructure (A9) — both touch working, data-backed surfaces.
+- **Suggested next steps:** On user confirmation, begin **Phase 0 (Foundation)** from `AI_BUILD_PLAN.md` Part C — design-token migration onto `DESIGN.md` values, shared object types, the additive `item_relationships` table + minimal API, nav restructure (keeping redirects), and a test harness. Confirm the A4/A9 direction first.
+- **Handoff notes:** `AI_BUILD_PLAN.md` is now the source of truth for the forward roadmap. Read it (and `DESIGN.md`, `AI_LIFE_DOMAINS_SPEC.md`) before feature work. When a phase ships, tick its status there and mirror into `AI_PROJECT.md`.
+
 ### 2026-07-23 19:40 IST - Generic Attachments on Cloudflare R2 (Core Organization)
 
 - **Agent/tool used:** Claude Code (Sonnet 5), acting as primary coding agent per user direction.
