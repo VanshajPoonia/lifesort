@@ -6,6 +6,10 @@ import { normalizeLifeAreaId } from '@/lib/life-areas'
 const sql = neon(process.env.DATABASE_URL!)
 
 const priorities = new Set(['low', 'medium', 'high'])
+const taskStatuses = new Set(['inbox', 'next', 'in_progress', 'waiting', 'someday', 'completed', 'cancelled'])
+const terminalStatuses = new Set(['completed', 'cancelled'])
+
+type TaskStatus = 'inbox' | 'next' | 'in_progress' | 'waiting' | 'someday' | 'completed' | 'cancelled'
 
 type TaskBody = {
   id?: number | string
@@ -15,6 +19,10 @@ type TaskBody = {
   priority?: string | null
   due_date?: string | null
   due_time?: string | null
+  scheduled_date?: string | null
+  scheduled_time?: string | null
+  duration_minutes?: number | string | null
+  status?: string | null
   reminder_at?: string | null
   email_reminder?: boolean | null
   reminder_days?: number | string | null
@@ -56,6 +64,48 @@ function cleanTime(value: unknown) {
 function cleanPriority(value: unknown, fallback = 'medium') {
   if (typeof value !== 'string') return fallback
   return priorities.has(value) ? value : fallback
+}
+
+function cleanStatus(value: unknown, fallback: TaskStatus = 'next'): TaskStatus {
+  if (typeof value !== 'string') return fallback
+  return (taskStatuses.has(value) ? value : fallback) as TaskStatus
+}
+
+function cleanDuration(value: unknown) {
+  if (value === null || value === undefined || value === '') return null
+  const parsed = typeof value === 'number' ? value : Number.parseInt(String(value), 10)
+  if (!Number.isFinite(parsed) || parsed <= 0) return null
+  return Math.min(10080, parsed) // cap at 7 days, in minutes
+}
+
+// `completed` stays a synced/derived convenience column so every existing
+// open/overdue/completion-rate query keeps working unchanged (see
+// AI_DECISIONS.md). `status` is the source of truth going forward:
+// - explicit `status` in the request wins outright.
+// - explicit `completed` (no `status`) toggles the terminal state: checking
+//   it sets status to 'completed'; unchecking it reverts a terminal status
+//   ('completed'/'cancelled') back to 'next', otherwise leaves a non-terminal
+//   status (e.g. 'waiting') alone.
+// - neither present -> keep whatever the row already had.
+function resolveStatusAndCompleted(
+  body: TaskBody,
+  existing: { status?: string | null; completed?: boolean | null } | null,
+) {
+  const existingStatus = cleanStatus(existing?.status, 'next')
+
+  if (hasField(body, 'status')) {
+    const status = cleanStatus(body.status, existingStatus)
+    return { status, completed: terminalStatuses.has(status) }
+  }
+
+  if (hasField(body, 'completed')) {
+    const completed = Boolean(body.completed)
+    if (completed) return { status: 'completed' as TaskStatus, completed: true }
+    const status = terminalStatuses.has(existingStatus) ? ('next' as TaskStatus) : existingStatus
+    return { status, completed: false }
+  }
+
+  return { status: existingStatus, completed: Boolean(existing?.completed) }
 }
 
 function cleanReminderDays(value: unknown, fallback = 1) {
@@ -190,9 +240,13 @@ export async function POST(request: Request) {
 
     const dueDate = cleanDate(body.due_date)
     const dueTime = cleanTime(body.due_time)
+    const scheduledDate = cleanDate(body.scheduled_date)
+    const scheduledTime = cleanTime(body.scheduled_time)
+    const durationMinutes = cleanDuration(body.duration_minutes)
     const emailReminder = Boolean(body.email_reminder && dueDate)
     const reminderDays = cleanReminderDays(body.reminder_days, 1)
     const reminderAt = computeReminderAt(dueDate, dueTime, emailReminder, reminderDays)
+    const { status, completed } = resolveStatusAndCompleted(body, null)
     const goalId = await validateGoalId(cleanId(body.goal_id), user.id)
     const lifeAreaId = await validateLifeAreaId(normalizeLifeAreaId(body.life_area_id), user.id)
     const orderRows = await sql`
@@ -218,6 +272,10 @@ export async function POST(request: Request) {
         priority,
         due_date,
         due_time,
+        scheduled_date,
+        scheduled_time,
+        duration_minutes,
+        status,
         reminder_at,
         email_reminder,
         reminder_days,
@@ -235,12 +293,16 @@ export async function POST(request: Request) {
         ${cleanPriority(body.priority)},
         ${dueDate},
         ${dueTime},
+        ${scheduledDate},
+        ${scheduledTime},
+        ${durationMinutes},
+        ${status},
         ${reminderAt},
         ${emailReminder},
         ${reminderDays},
         ${Boolean(body.reminder_sent) && Boolean(reminderAt)},
         ${cleanText(body.category)},
-        ${Boolean(body.completed)},
+        ${completed},
         ${goalId},
         ${lifeAreaId},
         ${sortOrder}
@@ -343,8 +405,11 @@ export async function PUT(request: Request) {
     const nextPriority = hasField(body, 'priority') ? cleanPriority(body.priority, existing.priority || 'medium') : existing.priority || 'medium'
     const nextDueDate = hasField(body, 'due_date') ? cleanDate(body.due_date) : dateOnly(existing.due_date)
     const nextDueTime = hasField(body, 'due_time') ? cleanTime(body.due_time) : timeOnly(existing.due_time)
+    const nextScheduledDate = hasField(body, 'scheduled_date') ? cleanDate(body.scheduled_date) : dateOnly(existing.scheduled_date)
+    const nextScheduledTime = hasField(body, 'scheduled_time') ? cleanTime(body.scheduled_time) : timeOnly(existing.scheduled_time)
+    const nextDurationMinutes = hasField(body, 'duration_minutes') ? cleanDuration(body.duration_minutes) : existing.duration_minutes
     const nextCategory = hasField(body, 'category') ? cleanText(body.category) : existing.category
-    const nextCompleted = hasField(body, 'completed') ? Boolean(body.completed) : Boolean(existing.completed)
+    const { status: nextStatus, completed: nextCompleted } = resolveStatusAndCompleted(body, existing)
     const nextGoalId = hasField(body, 'goal_id')
       ? await validateGoalId(cleanId(body.goal_id), user.id)
       : cleanId(existing.goal_id)
@@ -387,6 +452,10 @@ export async function PUT(request: Request) {
         priority = ${nextPriority},
         due_date = ${nextDueDate},
         due_time = ${nextDueTime},
+        scheduled_date = ${nextScheduledDate},
+        scheduled_time = ${nextScheduledTime},
+        duration_minutes = ${nextDurationMinutes},
+        status = ${nextStatus},
         reminder_at = ${nextReminderAt},
         email_reminder = ${nextEmailReminder},
         reminder_days = ${nextReminderDays},

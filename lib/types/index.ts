@@ -24,6 +24,8 @@ export type { Whiteboard, WhiteboardRole, WhiteboardVisibility } from "@/lib/whi
 export type { Session, User } from "@/lib/auth"
 export type { ItemRelationship, ItemRelationshipType, RelationType } from "@/lib/item-relationships"
 
+export type TaskStatus = "inbox" | "next" | "in_progress" | "waiting" | "someday" | "completed" | "cancelled"
+
 export type Task = {
   id: number
   user_id: string
@@ -32,6 +34,10 @@ export type Task = {
   priority: string | null
   due_date: string | null
   due_time: string | null
+  scheduled_date: string | null
+  scheduled_time: string | null
+  duration_minutes: number | null
+  status: TaskStatus
   reminder_at: string | null
   completed: boolean | null
   category: string | null

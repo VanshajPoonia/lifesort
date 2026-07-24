@@ -8,9 +8,11 @@ import {
   AlertCircle,
   Bell,
   Calendar,
+  CalendarClock,
   CheckCircle2,
   CheckSquare,
   Circle,
+  CircleDot,
   Clock,
   Filter,
   FolderKanban,
@@ -18,6 +20,7 @@ import {
   ListChecks,
   Plus,
   Tag,
+  Timer,
   Trash2,
   TrendingUp,
   X,
@@ -44,6 +47,8 @@ import { cn } from "@/lib/utils"
 
 type Priority = "low" | "medium" | "high"
 type PriorityFilter = "all" | Priority
+type TaskStatus = "inbox" | "next" | "in_progress" | "waiting" | "someday" | "completed" | "cancelled"
+type StatusFilter = "all" | TaskStatus
 type CompletionFilter = "all" | "open" | "completed"
 type SortMode = "manual" | "due_date"
 type TaskView = "all" | "today" | "overdue" | "no_due_date"
@@ -54,9 +59,13 @@ interface Task {
   description?: string | null
   completed: boolean
   priority: Priority
+  status: TaskStatus
   category?: string | null
   due_date?: string | null
   due_time?: string | null
+  scheduled_date?: string | null
+  scheduled_time?: string | null
+  duration_minutes?: number | null
   reminder_at?: string | null
   email_reminder?: boolean | null
   reminder_days?: number | null
@@ -74,6 +83,9 @@ interface Project {
 interface ReminderForm {
   due_date: string
   due_time: string
+  scheduled_date: string
+  scheduled_time: string
+  duration_minutes: string
   email_reminder: boolean
   reminder_days: number
 }
@@ -93,9 +105,24 @@ const priorityOptions: Array<{ value: PriorityFilter; label: string }> = [
 ]
 
 const completionOptions: Array<{ value: CompletionFilter; label: string }> = [
-  { value: "all", label: "All statuses" },
+  { value: "all", label: "All tasks" },
   { value: "open", label: "Open" },
   { value: "completed", label: "Completed" },
+]
+
+const statusOptions: Array<{ value: TaskStatus; label: string }> = [
+  { value: "inbox", label: "Inbox" },
+  { value: "next", label: "Next" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "waiting", label: "Waiting" },
+  { value: "someday", label: "Someday" },
+  { value: "completed", label: "Completed" },
+  { value: "cancelled", label: "Cancelled" },
+]
+
+const statusFilterOptions: Array<{ value: StatusFilter; label: string }> = [
+  { value: "all", label: "All statuses" },
+  ...statusOptions,
 ]
 
 const sortOptions: Array<{ value: SortMode; label: string }> = [
@@ -165,6 +192,14 @@ function formatTime(value?: string | null) {
   })
 }
 
+function formatDuration(minutes?: number | null) {
+  if (!minutes || minutes <= 0) return ""
+  if (minutes < 60) return `${minutes}m`
+  const hours = Math.floor(minutes / 60)
+  const rest = minutes % 60
+  return rest ? `${hours}h ${rest}m` : `${hours}h`
+}
+
 function computeReminderAt(dueDate: string, dueTime: string, enabled: boolean, reminderDays: number) {
   if (!enabled || !dueDate) return ""
   const [year, month, day] = dueDate.split("-").map(Number)
@@ -203,24 +238,32 @@ function getPriorityColor(priority: string) {
   return colors[priority as keyof typeof colors] || colors.medium
 }
 
-function getStatusBadge(task: Task) {
-  const today = startOfToday()
-  const dueDate = parseTaskDate(task.due_date)
-
-  if (task.completed) {
-    return (
-      <Badge className="border-emerald-200 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-        Completed
-      </Badge>
-    )
+function getStatusColor(status: TaskStatus) {
+  const colors: Record<TaskStatus, string> = {
+    inbox: "bg-muted text-muted-foreground border-muted",
+    next: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
+    in_progress: "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-900/30 dark:text-violet-400",
+    waiting: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400",
+    someday: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-900/30 dark:text-slate-400",
+    completed: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400",
+    cancelled: "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400",
   }
-  if (dueDate && dueDate < today) {
+  return colors[status] || colors.next
+}
+
+// Due-date urgency is orthogonal to workflow status, so it's a separate,
+// contextual badge rather than folded into the status Select -- only shown
+// for tasks that are still active (isOverdue/isTodayTask already exclude
+// completed/cancelled since those set `completed = true`).
+function getUrgencyBadge(task: Task) {
+  const today = startOfToday()
+  if (isOverdue(task, today)) {
     return <Badge className="border-red-200 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Overdue</Badge>
   }
-  if (isSameDay(dueDate, today)) {
+  if (isTodayTask(task, today)) {
     return <Badge className="border-amber-200 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Due Today</Badge>
   }
-  return <Badge className="border-blue-200 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">Open</Badge>
+  return null
 }
 
 function EmptyState({
@@ -283,6 +326,7 @@ export default function TasksPage() {
   const [newTaskTitle, setNewTaskTitle] = useState("")
   const [activeView, setActiveView] = useState<TaskView>("all")
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("all")
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [completionFilter, setCompletionFilter] = useState<CompletionFilter>("all")
   const [sortMode, setSortMode] = useState<SortMode>("manual")
   const [selectionMode, setSelectionMode] = useState(false)
@@ -294,6 +338,9 @@ export default function TasksPage() {
   const [reminderForm, setReminderForm] = useState<ReminderForm>({
     due_date: "",
     due_time: "",
+    scheduled_date: "",
+    scheduled_time: "",
+    duration_minutes: "",
     email_reminder: false,
     reminder_days: 1,
   })
@@ -467,6 +514,9 @@ export default function TasksPage() {
     setReminderForm({
       due_date: dateInputValue(task.due_date),
       due_time: timeInputValue(task.due_time),
+      scheduled_date: dateInputValue(task.scheduled_date),
+      scheduled_time: timeInputValue(task.scheduled_time),
+      duration_minutes: task.duration_minutes ? String(task.duration_minutes) : "",
       email_reminder: Boolean(task.email_reminder),
       reminder_days: task.reminder_days ?? 1,
     })
@@ -478,6 +528,9 @@ export default function TasksPage() {
     await handleUpdateTask(selectedTask.id, {
       due_date: reminderForm.due_date || null,
       due_time: reminderForm.due_time || null,
+      scheduled_date: reminderForm.scheduled_date || null,
+      scheduled_time: reminderForm.scheduled_time || null,
+      duration_minutes: reminderForm.duration_minutes ? Number(reminderForm.duration_minutes) : null,
       email_reminder: Boolean(reminderForm.email_reminder && reminderForm.due_date),
       reminder_days: reminderForm.reminder_days,
     })
@@ -487,13 +540,18 @@ export default function TasksPage() {
 
   const stats = useMemo(() => {
     const today = startOfToday()
-    const completed = tasks.filter((task) => task.completed).length
+    // Cancelled tasks are excluded from the completion rate entirely (neither
+    // "done" nor "still open") rather than counted as completed, even though
+    // both set `completed = true` server-side -- see AI_DECISIONS.md.
+    const completed = tasks.filter((task) => task.status === "completed").length
+    const cancelled = tasks.filter((task) => task.status === "cancelled").length
+    const ratedTotal = tasks.length - cancelled
     return {
       total: tasks.length,
       completed,
       today: tasks.filter((task) => isTodayTask(task, today)).length,
       overdue: tasks.filter((task) => isOverdue(task, today)).length,
-      completionRate: tasks.length ? Math.round((completed / tasks.length) * 100) : 0,
+      completionRate: ratedTotal > 0 ? Math.round((completed / ratedTotal) * 100) : 0,
     }
   }, [tasks])
 
@@ -510,13 +568,14 @@ export default function TasksPage() {
         return hasNoDueDate(task)
       })
       .filter((task) => priorityFilter === "all" || task.priority === priorityFilter)
+      .filter((task) => statusFilter === "all" || task.status === statusFilter)
       .filter((task) => {
         if (completionFilter === "open") return !task.completed
         if (completionFilter === "completed") return task.completed
         return true
       })
       .sort(sortMode === "manual" ? sortManualTasks : sortTasks)
-  }, [activeView, completionFilter, priorityFilter, sortMode, tasks])
+  }, [activeView, completionFilter, priorityFilter, sortMode, statusFilter, tasks])
 
   const selectedTasks = useMemo(
     () => tasks.filter((task) => selectedTaskSet.has(String(task.id))),
@@ -761,7 +820,7 @@ export default function TasksPage() {
               ))}
             </TabsList>
 
-            <div className="grid gap-2 sm:grid-cols-3">
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
               <Select value={sortMode} onValueChange={(value) => setSortMode(value as SortMode)}>
                 <SelectTrigger className="w-full sm:min-w-[150px]">
                   <ArrowUpDown className="mr-2 h-4 w-4" />
@@ -783,6 +842,20 @@ export default function TasksPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {priorityOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
+                <SelectTrigger className="w-full sm:min-w-[170px]">
+                  <CircleDot className="mr-2 h-4 w-4" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {statusFilterOptions.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
                     </SelectItem>
@@ -945,7 +1018,7 @@ export default function TasksPage() {
                             />
                             <Badge className={getPriorityColor(task.priority)}>{task.priority}</Badge>
                             <LifeAreaBadge area={task.life_area_id ? areaById.get(String(task.life_area_id)) : null} fallback="No area" />
-                            {getStatusBadge(task)}
+                            {getUrgencyBadge(task)}
                           </div>
 
                           <EditableText
@@ -956,7 +1029,7 @@ export default function TasksPage() {
                             multiline
                           />
 
-                          <div className="grid gap-3 lg:grid-cols-[180px_220px_1fr]">
+                          <div className="grid gap-3 lg:grid-cols-[160px_160px_200px_1fr]">
                             <div className="space-y-1.5">
                               <Label className="text-xs text-muted-foreground">Priority</Label>
                               <Select
@@ -970,6 +1043,25 @@ export default function TasksPage() {
                                   <SelectItem value="high">High</SelectItem>
                                   <SelectItem value="medium">Medium</SelectItem>
                                   <SelectItem value="low">Low</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            <div className="space-y-1.5">
+                              <Label className="text-xs text-muted-foreground">Status</Label>
+                              <Select
+                                value={task.status}
+                                onValueChange={(value) => handleUpdateTask(task.id, { status: value as TaskStatus })}
+                              >
+                                <SelectTrigger className={cn("h-9", getStatusColor(task.status))}>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {statusOptions.map((option) => (
+                                    <SelectItem key={option.value} value={option.value}>
+                                      {option.label}
+                                    </SelectItem>
+                                  ))}
                                 </SelectContent>
                               </Select>
                             </div>
@@ -1025,6 +1117,21 @@ export default function TasksPage() {
                                 Reminder set
                               </Badge>
                             )}
+                            {task.scheduled_date && (
+                              <div className="flex items-center gap-2">
+                                <CalendarClock className="h-3.5 w-3.5" />
+                                <span>
+                                  Scheduled {formatDate(task.scheduled_date)}
+                                  {task.scheduled_time ? ` at ${formatTime(task.scheduled_time)}` : ""}
+                                </span>
+                              </div>
+                            )}
+                            {task.duration_minutes ? (
+                              <div className="flex items-center gap-2">
+                                <Timer className="h-3.5 w-3.5" />
+                                <span>{formatDuration(task.duration_minutes)}</span>
+                              </div>
+                            ) : null}
                           </div>
                         </div>
 
@@ -1034,7 +1141,7 @@ export default function TasksPage() {
                             size="icon"
                             onClick={() => openReminderDialog(task)}
                             className="text-muted-foreground hover:text-primary"
-                            title="Set deadline and reminder"
+                            title="Set dates, duration & reminder"
                           >
                             <Bell className="h-4 w-4" />
                           </Button>
@@ -1059,7 +1166,7 @@ export default function TasksPage() {
         <Dialog open={reminderDialogOpen} onOpenChange={setReminderDialogOpen}>
           <DialogContent className="sm:max-w-[440px]">
             <DialogHeader>
-              <DialogTitle>Set Deadline & Reminder</DialogTitle>
+              <DialogTitle>Dates, Duration & Reminder</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="grid gap-3 sm:grid-cols-2">
@@ -1088,6 +1195,43 @@ export default function TasksPage() {
                     onChange={(event) => setReminderForm((current) => ({ ...current, due_time: event.target.value }))}
                   />
                 </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="scheduled-date">Scheduled Date</Label>
+                  <Input
+                    id="scheduled-date"
+                    type="date"
+                    value={reminderForm.scheduled_date}
+                    onChange={(event) => setReminderForm((current) => ({ ...current, scheduled_date: event.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="scheduled-time">Scheduled Time</Label>
+                  <Input
+                    id="scheduled-time"
+                    type="time"
+                    value={reminderForm.scheduled_time}
+                    disabled={!reminderForm.scheduled_date}
+                    onChange={(event) => setReminderForm((current) => ({ ...current, scheduled_time: event.target.value }))}
+                  />
+                </div>
+              </div>
+              <CardDescription>
+                Due is the deadline; Scheduled is when you plan to actually work on it.
+              </CardDescription>
+
+              <div className="space-y-2">
+                <Label htmlFor="duration-minutes">Estimated Duration (minutes)</Label>
+                <Input
+                  id="duration-minutes"
+                  type="number"
+                  min={1}
+                  placeholder="e.g. 30"
+                  value={reminderForm.duration_minutes}
+                  onChange={(event) => setReminderForm((current) => ({ ...current, duration_minutes: event.target.value }))}
+                />
               </div>
 
               {reminderForm.due_date && (
@@ -1119,6 +1263,9 @@ export default function TasksPage() {
                   setReminderForm({
                     due_date: "",
                     due_time: "",
+                    scheduled_date: "",
+                    scheduled_time: "",
+                    duration_minutes: "",
                     email_reminder: false,
                     reminder_days: 1,
                   })

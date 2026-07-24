@@ -1290,6 +1290,18 @@ CREATE TABLE IF NOT EXISTS task_checklist_items (
 
 CREATE INDEX IF NOT EXISTS idx_task_checklist_items_task ON task_checklist_items(user_id, task_id);
 
+-- ── Tasks depth: scheduling + status (2026-07-24-tasks-scheduling-status.sql) ──
+-- AI_BUILD_PLAN.md Phase 1 "Tasks depth", sub-step 2: due vs scheduled vs
+-- duration, plus the full status set. `completed` stays a synced/derived
+-- convenience column -- see AI_DECISIONS.md.
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS scheduled_date DATE;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS scheduled_time TIME;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS duration_minutes INTEGER;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'next' CHECK (status IN (
+  'inbox', 'next', 'in_progress', 'waiting', 'someday', 'completed', 'cancelled'
+));
+UPDATE tasks SET status = 'completed' WHERE completed = TRUE AND status = 'next';
+
 -- ── Agent Action Events (2026-05-18-agent-action-events.sql) ───────────────
 -- See scripts/migrations/2026-05-18-agent-action-events.sql for the
 -- standalone migration file. Replicated here so a fresh-DB build using
