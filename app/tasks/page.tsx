@@ -31,6 +31,7 @@ import { ReminderSettings } from "@/components/reminder-settings"
 import { LifeAreaBadge, LifeAreaSelect } from "@/components/life-area-controls"
 import { SortableList } from "@/components/sortable-list"
 import { TagPicker, type Tag as ItemTag } from "@/components/tag-picker"
+import { TaskChecklist } from "@/components/task-checklist"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -1000,6 +1001,8 @@ export default function TasksPage() {
                             selected={taskTagsById[String(task.id)] || []}
                             onChange={(tags) => saveTaskTags(task.id, tags)}
                           />
+
+                          <TaskChecklist taskId={Number(task.id)} />
 
                           <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                             {task.due_date ? (

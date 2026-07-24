@@ -46,6 +46,17 @@ export type Task = {
   updated_at: string
 }
 
+export type TaskChecklistItem = {
+  id: number
+  task_id: number
+  user_id: string
+  title: string
+  completed: boolean
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
 export type Goal = {
   id: number
   user_id: string

@@ -77,12 +77,14 @@ There is no automated migration runner in this repo. Pick whichever of the three
 brew install libpq && brew link --force libpq
 
 # then for each migration (date order):
-psql "$(grep '^DATABASE_URL=' .env.local | cut -d= -f2-)" \
+psql "$(grep '^DATABASE_URL=' .env.local | sed -E 's/^DATABASE_URL="?//; s/"$//')" \
   -f scripts/migrations/2026-05-18-agent-action-events.sql
-psql "$(grep '^DATABASE_URL=' .env.local | cut -d= -f2-)" \
+psql "$(grep '^DATABASE_URL=' .env.local | sed -E 's/^DATABASE_URL="?//; s/"$//')" \
   -f scripts/migrations/2026-05-18-add-indexes.sql
 ```
 Neon connection strings already include the right SSL params, so nothing extra to add.
+
+`.env.local` in this repo wraps the value in literal double quotes (`DATABASE_URL="postgresql://..."`). A bare `cut -d= -f2-` leaves those quote characters in the string, which `psql` then fails to parse — and can echo the broken (password-containing) value into its own error output. The `sed` form above strips them. If a command errors, redirect through a redaction filter before it reaches a transcript/log you don't control, e.g. `2>&1 | sed -E 's#(postgresql://[^:]+):[^@]+@#\1:[REDACTED]@#g'`.
 
 ### Option C — One-off Node script using `@neondatabase/serverless`
 

@@ -97,7 +97,8 @@ The spec's §27 schema is generic and aspirational. Auditing each against the re
 | `user_preferences` | Columns on `users` + JSONB prefs tables | Consolidate into one table only if it reduces churn (optional) |
 | `focus_sessions`, `time_entries` | Partial (`pomodoro_sessions`, Today focus overlay) | 🟠 New — add in the Execution phase |
 | `item_relationships` | None | 🟠 New — see A6 |
-| `task_recurrence`, `task_dependencies`, `task_checklist_items` | None | 🟠 New — add in Tasks depth work |
+| `task_recurrence`, `task_dependencies` | None | 🟠 New — add in Tasks depth work |
+| `task_checklist_items` | ✅ Added 2026-07-24, applied to the live database | Done — see `AI_DECISIONS.md` |
 | `favorites`, `recent_items` | None (favorites is a UI placeholder) | 🟠 New — Utilities phase |
 | `note_blocks` | N/A — HTML-in-column | **Do not** add (see A5) |
 
@@ -194,7 +195,10 @@ Follows the raw spec's build order (§29) but annotated with what already exists
 
 ### Phase 1 — Core organization
 - ✅ Life Domains (Phases 1–3 of `AI_LIFE_DOMAINS_SPEC.md`), Goals, Projects, Tasks (base), Tags (`tags`/`item_tags`), Attachments (R2).
-- 🟡 **Tasks depth** — the spec (§9) separates **due date vs scheduled date vs duration** and wants subtasks, checklist, recurrence, reminder, actual duration, the full status set (Inbox/Next/In Progress/Waiting/Someday/Completed/Cancelled). Today's tasks have priority/due/reminder/order but not the rest. Add `task_checklist_items`, `task_recurrence`, `task_dependencies` (A7). Recurrence is the meatiest piece.
+- 🟡 **Tasks depth** — the spec (§9) separates **due date vs scheduled date vs duration** and wants subtasks, checklist, recurrence, reminder, actual duration, the full status set (Inbox/Next/In Progress/Waiting/Someday/Completed/Cancelled). Sequenced into 3 sub-steps (`AI_TASK_LOG.md` 2026-07-24 16:20 entry):
+  - ✅ Sub-step 1 — `task_checklist_items` (subtasks/checklist), collapsible panel on `/tasks` (2026-07-24, see `AI_TASK_LOG.md` and `AI_DECISIONS.md`). Migration applied to the live database.
+  - 🟠 Sub-step 2 — split due/scheduled/duration + the full status set (schema + UI). Not started.
+  - 🟠 Sub-step 3 — `task_recurrence` + `task_dependencies`. Not started; recurrence is the meatiest piece.
 - ✅ **Wire Tags + Attachments** into Goals/Projects/Notes (2026-07-24, see `AI_TASK_LOG.md`). Tags (`TagPicker`/`item_tags`) wired into the Goal modal and Project detail page only — Notes deliberately excluded since it already has its own freeform `TEXT[]` tags (`AI_DECISIONS.md`). Attachments wired into Goals, Projects, and Notes (all three already allowed in the `attachments` CHECK constraint; no migration needed).
 - 🟠 **Relationships UI** — "related items" / backlinks surfaced on Task/Goal/Project/Note/Domain via `item_relationships`.
 - **Exit:** a task can carry due≠scheduled≠duration, subtasks, a recurrence rule, and related items, all persisted; Tags/Attachments usable beyond their first surface.
