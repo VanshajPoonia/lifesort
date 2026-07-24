@@ -57,6 +57,27 @@ Architecture and product decision memory for LifeSort.
   - Status: table live in production, API and one UI surface (Vault) built and smoke-tested (no live-bucket authenticated round trip verified yet). `R2_*` env vars exist only in local `.env.local` — **not yet in Vercel's project environment variables**, so this does not work in production/preview deploys yet.
   - Item types supported: `task`, `goal`, `project`, `note`, `vault_item` (same CHECK-constraint style as `item_tags`). Extending to a new item type means adding it to the CHECK constraint, the `ITEM_TYPES` set in `app/api/attachments/route.ts`, and the `itemBelongsToUser()` switch — not a schema change.
 
+## Full LifeSort Product Build Plan (2026-07-23)
+
+- Decision: Adopt `AI_BUILD_PLAN.md` as the single persistent, reconciled roadmap for building the complete LifeSort product. The user's full-product specification lives there (Appendix A) so it never needs re-pasting; Parts A–F are the project-grounded plan and win wherever they disagree with the raw spec.
+  - Rationale: user supplied the entire product vision and required it be persisted, audited against the real codebase, and reconciled — not turned into another abstract concept document.
+
+- Decision: The **OpenClaw / autonomous-agents direction is descoped.** Do not build autonomous external agents, multi-agent orchestration, or fully automatic calendar control (spec §22/§30). **Repurpose** the existing `agent_action_events` table and `/api/agent/{actions,execute}` routes as the draft→confirm→execute / undo / audit substrate for the spec's required AI-safety model. Keep the table and confirmation pattern; drop the autonomy ambition (and the `501` execute stub's goal of calling arbitrary tools).
+  - Supersedes: the `AI_AUDIT.md` (2026-05-17) framing, which existed to make the app "Agents (OpenClaw-style)"-ready. That audit is now historical; re-verify its security findings before acting on them (`lib/safe-fetch.ts` already exists, addressing its SSRF item).
+
+- Decision: The **Money/finance surface is preserved** and framed as Financial-domain tooling. The full-product spec under-specifies it, but "unmentioned" is never "remove." No crypto/token/reward gamification (spec §30); investment price tracking stays.
+
+- Decision: Capture/planning canonical surfaces are **Inbox → Today → Tasks (+ statuses)**. The existing specialized trackers (`waiting`, `someday`, `commitments`, `maintenance`, `vault`, `reset`, `timeline`, `nuke`) are consolidated *carefully* over time and **never rip-and-replaced**; no data-backed surface is removed or migrated without explicit user confirmation.
+
+- Decision: Rich text stays **Tiptap with HTML-in-column** (extend it — slash menu, tables, callouts, embeds, mentions); **no `note_blocks` table.** Backlinks/mentions are served by a new additive generic `item_relationships` table (general graph only — existing typed links like `project_items`, `life_area_id`, `goal_id`, `converted_*/promoted_*` remain authoritative for their own domains). This is the justified use `AI_LIFE_DOMAINS_SPEC.md` §3.3 held out for.
+
+- Decision: **Reuse existing tables** rather than recreate spec §27 names. `habit_entries`→`habit_checkins`, `routine_items`→`routine_steps`, `reviews`/`review_responses`→`weekly_reviews`+`life_area_reviews` (add Monthly as a `period_type`), `templates`→`user_templates`, `whiteboard_elements`→Liveblocks Storage (no Postgres table). Genuinely new: `item_relationships`, `task_recurrence`/`task_dependencies`/`task_checklist_items`, `focus_sessions`/`time_entries`, `favorites`/`recent_items`.
+
+- Decision: The `life_areas` table/route/API/component names are **retained** ("Life Domains" is the product name only) — see `AI_LIFE_DOMAINS_SPEC.md` §2. A careless read of the spec's "replace Life Areas" must not trigger an 18-FK rename migration.
+
+- **User confirmation (2026-07-24):** user approved proceeding with the A4 (capture/GTD consolidation) and A9 (nav restructure) directions from `AI_BUILD_PLAN.md`, explicitly motivated by not wanting to overclutter the app. This unblocks starting Phase 0. It confirms the *approach*, not a blanket authorization to delete/migrate any specific existing surface (`waiting`, `someday`, `commitments`, `maintenance`, `vault`, `nuke`) — get explicit confirmation at the point any one of those is actually proposed for removal or data migration. "Don't overclutter" is now a standing, user-stated constraint: on borderline scope calls, prefer folding a capability into an existing surface over adding a new nav item, tab, or page.
+  - Also on 2026-07-24: ran a full completeness cross-check of `AI_BUILD_PLAN.md` against all 33 sections of the original spec (recorded as A10 in that file). Found and fixed three real gaps — Phase 0 was missing the spec's explicit auth/authorization review item, Phase 3 marked Search as fully done without checking it against the spec's filter/action list, Phase 7 had no explicit production-cleanup item — plus one drift (Appendix A §3 had picked up a "People" domain-dashboard tab not present in the source spec). All fixed in `AI_BUILD_PLAN.md` directly rather than left as findings.
+
 ## Patterns Agents Should Preserve
 
 - Keep App Router page and route-handler structure.
