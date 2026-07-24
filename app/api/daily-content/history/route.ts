@@ -1,7 +1,7 @@
 "use server"
 
 import { NextResponse } from "next/server"
-import { neon } from "@neondatabase/serverless"
+import { neon } from "@/lib/neon-client"
 import { getUserFromSession } from "@/lib/auth"
 
 const sql = neon(process.env.DATABASE_URL!)

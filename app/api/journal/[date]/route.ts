@@ -1,4 +1,4 @@
-import { neon } from "@neondatabase/serverless"
+import { neon } from "@/lib/neon-client"
 import { NextResponse } from "next/server"
 import { z } from "zod"
 

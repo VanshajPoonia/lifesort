@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { neon } from "@neondatabase/serverless"
+import { neon } from "@/lib/neon-client"
 import { getUserFromRequest } from "@/lib/auth"
 import { normalizeLifeAreaId } from "@/lib/life-areas"
 

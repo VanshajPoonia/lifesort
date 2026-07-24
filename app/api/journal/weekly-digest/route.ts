@@ -1,22 +1,26 @@
-import { neon } from "@neondatabase/serverless"
+import { neon } from "@/lib/neon-client"
 import { NextResponse } from "next/server"
 
 import { getUserFromSession } from "@/lib/auth"
 import { journalDateSchema, mapJournalRow } from "@/lib/journal"
+import { addDaysToDate } from "@/lib/date-math"
 
 const sql = neon(process.env.DATABASE_URL!)
 
+// UTC-explicit throughout -- see lib/date-math.ts and AI_DECISIONS.md. The
+// previous local-midnight-then-UTC-read version shifted the result back a
+// day on any non-UTC server.
 function weekBounds(dateValue: string) {
-  const date = new Date(`${dateValue}T00:00:00`)
-  const day = date.getDay()
-  const diffToMonday = (day + 6) % 7
-  const start = new Date(date)
-  start.setDate(date.getDate() - diffToMonday)
-  const end = new Date(start)
-  end.setDate(start.getDate() + 6)
+  const [year, month, day] = dateValue.split("-").map(Number)
+  const date = new Date(Date.UTC(year, month - 1, day))
+  const dow = date.getUTCDay()
+  const diffToMonday = (dow + 6) % 7
+  const startDate = new Date(date)
+  startDate.setUTCDate(date.getUTCDate() - diffToMonday)
+  const start = startDate.toISOString().slice(0, 10)
   return {
-    start: start.toISOString().slice(0, 10),
-    end: end.toISOString().slice(0, 10),
+    start,
+    end: addDaysToDate(start, 6),
   }
 }
 

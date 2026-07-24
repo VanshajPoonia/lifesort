@@ -1,4 +1,4 @@
-import { neon } from "@neondatabase/serverless"
+import { neon } from "@/lib/neon-client"
 
 const sql = neon(process.env.DATABASE_URL!)
 

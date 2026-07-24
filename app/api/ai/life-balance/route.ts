@@ -1,5 +1,5 @@
 import { generateText } from "ai"
-import { neon } from "@neondatabase/serverless"
+import { neon } from "@/lib/neon-client"
 import { NextResponse } from "next/server"
 import { getUserFromSession } from "@/lib/auth"
 import { checkAiUsageLimit, createAiUsageEvent, updateAiUsageEvent } from "@/lib/ai-usage"

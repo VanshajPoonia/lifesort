@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
-import { neon } from '@neondatabase/serverless'
+import { neon } from '@/lib/neon-client'
 import { getUserFromSession } from '@/lib/auth'
 import { normalizeLifeAreaId } from '@/lib/life-areas'
+import { addDaysToDate, addMonthsToDate, daysBetweenDates } from '@/lib/date-math'
 
 const sql = neon(process.env.DATABASE_URL!)
 
@@ -158,31 +159,6 @@ function computeReminderAt(dueDate: string | null, dueTime: string | null, enabl
   reminder.setUTCDate(reminder.getUTCDate() - reminderDays)
 
   return reminder.toISOString().slice(0, 19).replace('T', ' ')
-}
-
-function addDaysToDate(dateStr: string, days: number) {
-  const [y, m, d] = dateStr.split('-').map(Number)
-  const dt = new Date(Date.UTC(y, m - 1, d))
-  dt.setUTCDate(dt.getUTCDate() + days)
-  return dt.toISOString().slice(0, 10)
-}
-
-// Clamps to the target month's last day instead of letting JS Date overflow
-// into the following month (e.g. Jan 31 + 1 month lands on Feb 28, not Mar 3).
-function addMonthsToDate(dateStr: string, months: number) {
-  const [y, m, d] = dateStr.split('-').map(Number)
-  const targetIndex = (m - 1) + months
-  const targetYear = y + Math.floor(targetIndex / 12)
-  const targetMonth = ((targetIndex % 12) + 12) % 12
-  const daysInTargetMonth = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate()
-  const dt = new Date(Date.UTC(targetYear, targetMonth, Math.min(d, daysInTargetMonth)))
-  return dt.toISOString().slice(0, 10)
-}
-
-function daysBetweenDates(a: string, b: string) {
-  const [ay, am, ad] = a.split('-').map(Number)
-  const [by, bm, bd] = b.split('-').map(Number)
-  return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 86400000)
 }
 
 // Skips to the next Mon-Fri date, for the 'weekdays' recurrence frequency.

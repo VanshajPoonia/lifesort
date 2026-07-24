@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 
 import { getUserFromSession } from "@/lib/auth"
 import { sql } from "@/lib/db"
+import { addDaysToDate, addMonthsToDate } from "@/lib/date-math"
 
 function cleanId(value: unknown) {
   if (value === null || value === undefined || value === "") return null
@@ -19,17 +20,17 @@ function dateString(date: Date) {
   return date.toISOString().slice(0, 10)
 }
 
+// UTC-explicit throughout -- see lib/date-math.ts and AI_DECISIONS.md. The
+// previous local-midnight-then-UTC-read version shifted the result back a
+// day on any non-UTC server.
 function nextDueDate(completedDate: string, recurrence: string, customIntervalDays: number | null) {
-  const next = new Date(`${completedDate}T00:00:00`)
-  if (Number.isNaN(next.getTime())) return null
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(completedDate)) return null
 
-  if (recurrence === "weekly") next.setDate(next.getDate() + 7)
-  else if (recurrence === "monthly") next.setMonth(next.getMonth() + 1)
-  else if (recurrence === "quarterly") next.setMonth(next.getMonth() + 3)
-  else if (recurrence === "yearly") next.setFullYear(next.getFullYear() + 1)
-  else next.setDate(next.getDate() + Math.max(1, Math.min(3650, customIntervalDays || 30)))
-
-  return dateString(next)
+  if (recurrence === "weekly") return addDaysToDate(completedDate, 7)
+  if (recurrence === "monthly") return addMonthsToDate(completedDate, 1)
+  if (recurrence === "quarterly") return addMonthsToDate(completedDate, 3)
+  if (recurrence === "yearly") return addMonthsToDate(completedDate, 12)
+  return addDaysToDate(completedDate, Math.max(1, Math.min(3650, customIntervalDays || 30)))
 }
 
 export async function POST(request: Request) {

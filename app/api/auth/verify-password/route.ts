@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { neon } from "@neondatabase/serverless"
+import { neon } from "@/lib/neon-client"
 
 import { getUserFromSession, verifyPassword } from "@/lib/auth"
 

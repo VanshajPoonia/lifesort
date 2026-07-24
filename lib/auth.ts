@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers'
-import { neon } from '@neondatabase/serverless'
+import { neon } from '@/lib/neon-client'
 import bcrypt from 'bcryptjs'
 import { DEFAULT_LIFE_AREAS } from '@/lib/life-areas'
 

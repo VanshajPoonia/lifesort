@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 const { sql } = vi.hoisted(() => ({ sql: vi.fn() }))
 const { getUserFromSession } = vi.hoisted(() => ({ getUserFromSession: vi.fn() }))
 
-vi.mock("@neondatabase/serverless", () => ({ neon: () => sql }))
+vi.mock("@/lib/neon-client", () => ({ neon: () => sql }))
 vi.mock("@/lib/auth", () => ({ getUserFromSession }))
 
 import { DELETE, GET, PATCH, POST, PUT } from "@/app/api/tasks/route"
