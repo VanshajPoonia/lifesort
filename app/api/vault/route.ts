@@ -130,7 +130,7 @@ export async function POST(request: Request) {
         ${cleanDate(body.reminder_date)},
         ${cleanUrl(body.url)},
         ${lifeAreaId},
-        ${JSON.stringify(tags)}::text[]
+        ${tags}::text[]
       )
       RETURNING *
     `
@@ -172,7 +172,7 @@ export async function PUT(request: Request) {
         reminder_date = ${'reminder_date' in body ? cleanDate(body.reminder_date) : e.reminder_date},
         url = ${'url' in body ? cleanUrl(body.url) : e.url},
         life_area_id = ${lifeAreaId},
-        tags = ${JSON.stringify(tags)}::text[],
+        tags = ${tags}::text[],
         updated_at = NOW()
       WHERE id = ${id} AND user_id = ${user.id}
       RETURNING *

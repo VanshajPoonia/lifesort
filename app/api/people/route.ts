@@ -133,7 +133,7 @@ export async function POST(request: Request) {
         ${cleanText(body.location)},
         ${cleanText(body.notes)},
         ${lifeAreaId},
-        ${JSON.stringify(tags)}::text[],
+        ${tags}::text[],
         ${cleanColor(body.avatar_color)},
         ${cleanId(body.sort_order) ?? 0}
       )
@@ -175,7 +175,7 @@ export async function PUT(request: Request) {
         location = ${'location' in body ? cleanText(body.location) : e.location},
         notes = ${'notes' in body ? cleanText(body.notes) : e.notes},
         life_area_id = ${lifeAreaId},
-        tags = ${JSON.stringify(tags)}::text[],
+        tags = ${tags}::text[],
         avatar_color = ${'avatar_color' in body ? cleanColor(body.avatar_color) : e.avatar_color},
         sort_order = ${'sort_order' in body ? (cleanId(body.sort_order) ?? 0) : e.sort_order},
         updated_at = NOW()

@@ -8,14 +8,33 @@ This file is the working memory and handoff log. Do not rely on chat history as 
 
 LifeSort is a broad Next.js App Router application with many implemented product areas and a Vercel-oriented deployment. The repo now has persistent AI memory files in the project root.
 
-Current verification state:
+Current verification state (2026-07-25):
 
-- `npm run build` passes, but skips type validation and linting through `next.config.mjs`.
-- The previous unsupported `metadata.themeColor` / `metadata.viewport` build warnings have been fixed.
-- `npm run lint` fails because no `eslint.config.*` file exists for ESLint 10.
-- No test, typecheck, formatter, or database migration runner script is defined in `package.json`.
+- `npm run build` passes with TypeScript validation now actually enforced (`next.config.mjs`'s `typescript.ignoreBuildErrors` is `false`; `tsc --noEmit` is clean). `eslint.ignoreDuringBuilds` remains `true` — 164 pre-existing lint findings (127 errors, 37 warnings) aren't cleared yet, almost all from the newer React-Compiler-readiness hook rules (`react-hooks/set-state-in-effect`, `immutability`, `purity`, `exhaustive-deps`), which need case-by-case behavioral review rather than a mechanical bulk fix — see the "Production-Level Hardening Pass" entry below and `AI_DECISIONS.md`.
+- `npm run lint` runs cleanly via `eslint.config.mjs` (ESLint 9.x + `eslint-config-next@16`) — it exits non-zero on real findings, it does not fail to run.
+- `npm test` runs Vitest: 102/102 tests passing across 7 suites (`lib/auth.test.ts`, `lib/date-math.test.ts`, `app/api/tags/route.test.ts`, `app/api/item-relationships/route.test.ts`, `app/api/tasks/[id]/checklist-items/route.test.ts`, `app/api/tasks/[id]/recurrence/route.test.ts`, `app/api/tasks/route.test.ts`).
+- `npx tsc --noEmit` is clean.
 
 ## Completed Work
+
+### 2026-07-25 18:40 IST - Production-Level Hardening Pass (post-hoc verification + bug fixes + type/lint cleanup)
+
+- Agent/tool used: Claude Code (Sonnet 5), acting as coding agent per repo convention (user has previously confirmed this override — see chat history).
+- Task: user asked "are you sure everything that was required to be done till now is finished?" after the DATE-timezone fix report, then "fix everything and make it production level" before moving to the next phase. This entry covers both: an independent re-verification of the prior session's claims, and the follow-up hardening work.
+- **Re-verification findings (nothing was actually incomplete, but doc drift was found):** re-ran `tsc`/`test`/`build` fresh rather than trusting the prior report; confirmed commits `56f78a8`/`c35db38` matched their claimed diffs; confirmed `AI_DECISIONS.md`'s two new entries existed (a `head -6` truncation on my own first check made them look missing — false alarm, they were there). Running `npm run build` twice against a live `npm run dev` reproduced the known `.next`-collision bug from earlier in the session (`/login` 500s with `MODULE_NOT_FOUND`) — not a code defect, just a reminder that build and dev must not share a live `.next` directory; fixed each time by killing the server, `rm -rf .next`, and restarting clean.
+- **Bugs found and fixed:**
+  - **`POST`/`PUT /api/people` and `POST`/`PUT /api/vault` failed (500, "malformed array literal") whenever `tags` was a non-empty array.** Root cause: both routes wrote `${JSON.stringify(tags)}::text[]` — Postgres's `::text[]` cast expects its own array-literal syntax (`{qa,friend}`), not JSON syntax (`["qa","friend"]"`), so the cast threw. `app/api/notes/route.ts` already had the correct working pattern (pass the raw JS array straight into the tagged template, no `JSON.stringify`, and let the driver serialize it) — copied that pattern into both files. Verified live end-to-end (create + update, both routes) with a throwaway QA account via Playwright; all 8 assertions passed; QA account cleaned up via `DELETE FROM users WHERE email LIKE ...` (cascades to its `people`/`vault_items` rows). This was flagged-not-fixed in the previous entry below — now fixed.
+  - **Stale documentation in this file's "Active Bugs / Issues" / "Current Status" / "Testing Status" sections**, several of which had drifted since the pre-Vitest/pre-ESLint-fix era and were never updated after later sessions actually fixed them: (1) "npm run lint fails, no eslint.config.* exists" — false since 2026-07-24 (`eslint.config.mjs` exists, lint runs and reports findings). (2) "Calendar sync route reads session_id, not the main session cookie" — false; `app/api/calendar/sync/route.ts` already uses `getUserFromSession()`, with a code comment documenting the historical fix. (3) "Investment screenshot parsing uses a JWT helper with a fallback secret" — false; `app/api/investments/parse-screenshot/route.ts` already uses `getUserFromSession()`. (4) "URL preview route... may need SSRF hardening" — false; `app/api/url-preview/route.ts` already routes through `lib/safe-fetch.ts`'s `safeFetch()`, which blocks private/loopback/metadata IPs, requires `https://`, and caps size/timeout. (5) "Next build warns about unsupported metadata fields" — not reproducible; `Current Status` itself already said this was fixed, contradicting the Active Bugs entry. Rewrote all four sections to reflect verified-true current state rather than delete-and-forget; see the diff for exact wording.
+- **Type/lint hardening:**
+  - `next.config.mjs`: flipped `typescript.ignoreBuildErrors` from `true` to `false` — safe because `tsc --noEmit` was already clean; re-verified with a full `npm run build` afterward (also clean). Left `eslint.ignoreDuringBuilds: true` — see below for why.
+  - Fixed all 23 `@typescript-eslint/no-explicit-any` findings across 15 files (`lib/ignoring-insights.ts`, `lib/life-score.ts`, `lib/lifesort-coach-context.ts`, `lib/reset.ts`, `app/api/dashboard/route.ts`, `app/api/today-plan/route.ts`, `app/api/weekly-review/route.ts`, `app/api/item-tags/route.ts`, `app/api/navigation-summary/route.ts`, `app/api/search/route.ts`, `app/api/calendar/sync/route.ts`, `app/domains/[id]/page.tsx`, `components/money/income-panel.tsx`, `components/money/investments-panel.tsx`, `components/money/wishlist-panel.tsx`). Pattern used: raw-SQL-row placeholder types (`type Row = Record<string, any>`) became `Record<string, unknown>`, with a precise `as <type>` cast at each point where a field is actually consumed (e.g. `new Date(row.field as string | number | Date)`) — chosen over broad casts so the type stays honest about what's really being assumed. One file, `app/domains/[id]/page.tsx`, is a deliberately generic cross-domain renderer (the same `RecordItem` shape stands in for tasks/goals/habits/projects/notes/categories/wishlist/events/journal rows and gets rendered directly as JSX children) — `Record<string, unknown>` doesn't satisfy React's `ReactNode` requirement without narrowing at every one of ~20 call sites, so that file specifically uses `Record<string, string | number | boolean | null | undefined>` instead: still not `any`, but shaped to match how the file is actually used. Verified zero ripple / zero behavior change after each file via `tsc --noEmit`, and confirmed the final lint count dropped by exactly 23 (187 → 164) with no new findings introduced.
+  - **Deliberately left unfixed, with reasoning (not an oversight):** the remaining 164 lint findings are almost entirely `react-hooks/set-state-in-effect` (58), `react-hooks/immutability` (54), `react-hooks/exhaustive-deps` (28), `react-hooks/purity` (13), plus a couple of singletons — these are React-Compiler-readiness rules from `eslint-plugin-react-hooks`, and sampling many of them showed the flagged code is standard, currently-correct React (fetch-on-mount effects, ordinary `setState` calls, `Date.now()`/`Math.random()` for IDs) rather than actual runtime bugs. Mechanically "fixing" `exhaustive-deps` in particular is genuinely risky without individual review — blindly adding a missing dependency that isn't wrapped in `useCallback` can turn a normal effect into an infinite re-render loop. This is a real, separate, file-by-file review task, not something to rush under a general "clean up lint" pass. Also deliberately left: the 12 `@next/next/no-img-element` warnings (`app/links/page.tsx`, `app/share/[token]/page.tsx`, `components/money/wishlist-panel.tsx`) — all render external/user-provided image sources (YouTube thumbnails, link previews, wishlist images) with unknown dimensions inside `next.config.mjs`'s `images: { unoptimized: true }`, which means `next/image` would provide none of its actual optimization benefit here, only the lint-silencing itself, at the cost of `fill`/`sizes` layout work per call site.
+- Files changed: `app/api/people/route.ts`, `app/api/vault/route.ts`, `next.config.mjs`, `lib/ignoring-insights.ts`, `lib/life-score.ts`, `lib/lifesort-coach-context.ts`, `lib/reset.ts`, `app/api/dashboard/route.ts`, `app/api/today-plan/route.ts`, `app/api/weekly-review/route.ts`, `app/api/item-tags/route.ts`, `app/api/navigation-summary/route.ts`, `app/api/search/route.ts`, `app/api/calendar/sync/route.ts`, `app/domains/[id]/page.tsx`, `components/money/income-panel.tsx`, `components/money/investments-panel.tsx`, `components/money/wishlist-panel.tsx`, `AI_TASK_LOG.md`, `AI_DECISIONS.md`, `AI_CHECKLIST.md`.
+- Commands run: `npx tsc --noEmit` (clean throughout, checked after nearly every file), `npm test` (102/102 passing, unchanged), `npm run build` (clean, both before and after enabling `typescript.ignoreBuildErrors: false`), `npm run lint` (187 → 164, no new findings), a Playwright script verifying the tags-array fix live against both routes (8/8 assertions passed).
+- Bugs found or fixed: see above (tags-array bug in `people`/`vault`, five stale doc entries corrected).
+- Remaining issues or known limitations: 164 lint findings remain, need file-by-file behavioral review (see reasoning above) before `eslint.ignoreDuringBuilds` can safely flip off; 12 `no-img-element` warnings deliberately left given `images.unoptimized: true`; `people`/`vault` routes still have no dedicated test files (existing gap, not introduced here).
+- Suggested next steps: user indicated the next phase begins after their explicit go-ahead — likely candidates from prior sessions are the Phase 1 "Relationships UI" item and pushing the (now several) local commits to origin, both still awaiting that go-ahead.
+- Handoff notes: nothing is mid-flight; working tree was clean and re-verified (`tsc`/`test`/`build`/dev-server-health) immediately before this entry was written. Do not re-attempt a mechanical bulk fix of the `react-hooks/*` lint findings without reading them file-by-file first — see reasoning above.
 
 ### 2026-07-25 17:10 IST - Fix DATE-timezone bug at the root (found in sub-step 3, fixed per explicit user request)
 
@@ -3749,35 +3768,30 @@ After that, re-run the regression checkpoint and the schema-drift 500s should di
 
 ## Proposed Next Work
 
-- Add an ESLint flat config compatible with the installed ESLint version.
+- Triage the 164 remaining lint findings (mostly `react-hooks/set-state-in-effect`, `immutability`, `purity`, `exhaustive-deps` — React-Compiler-readiness rules, not current runtime bugs) file-by-file; only then flip `eslint.ignoreDuringBuilds` off in `next.config.mjs`.
 - Add `typecheck` and possibly `format` scripts.
-- Decide whether `next.config.mjs` should continue skipping build errors and lint errors.
-- Normalize auth/session handling in `app/api/calendar/sync/route.ts` and `app/api/investments/parse-screenshot/route.ts`.
 - Consolidate database schema/migration guidance around `scripts/website-current-schema.sql`.
+- Give `people`/`vault` routes dedicated test coverage (currently none — see "Production-Level Hardening Pass" entry below).
 
 ## Active Bugs / Issues
 
-- `npm run lint` fails because no `eslint.config.*` file exists.
-- `npm run build` passes while skipping type and lint validation.
-- Next build warns about unsupported metadata fields.
-- Calendar sync route reads `session_id`, not the main `session` cookie.
-- Investment screenshot parsing uses a JWT helper with a fallback secret instead of the main session helper.
-- URL preview route fetches arbitrary URLs and may need SSRF hardening.
-- **`POST /api/people` fails (500, "malformed array literal") whenever `tags` is a non-empty JS array** — discovered 2026-07-25 while spot-checking an unrelated DATE-timezone fix, not caused by it (confirmed via `git diff` on the file: only its import path changed). `@neondatabase/serverless` is serializing the JS array as `["qa"]` (JSON-array syntax) instead of Postgres's `{qa}` array-literal syntax for the `tags TEXT[]` column; `cleanTags()` always returns an array (`[]` when absent), so this can hit on every person creation depending on how the real UI encodes `tags` before sending. Not fixed — needs its own scoped task (likely an explicit `${sql.array(tags)}`-style encoding or a `::text[]` cast). See `AI_DECISIONS.md`'s "Tasks Depth Sub-step 3 — DATE-Timezone Bug: Root-Cause Fix" entry for how it was found.
+*(Last verified 2026-07-25 — several older entries here were already fixed in prior sessions and were never removed; see that entry's "stale doc entries" note before trusting an old bug claim in this file.)*
+
+- None currently known. The `POST /api/people` and `POST /api/vault` tags-array bugs (found 2026-07-25) were fixed the same day — see "Production-Level Hardening Pass" below.
 
 ## Architecture Concerns
 
 - Raw SQL is duplicated across many route handlers.
 - Schema migration history is spread across many SQL files with overlapping changes.
 - Client pages hold large amounts of local state and fetch logic.
-- No automated tests currently guard auth, CRUD, sharing, reminders, integrations, or AI routes.
+- Automated tests exist for `lib/auth.ts`, `lib/date-math.ts`, and the tags/tasks/checklist-items/recurrence/item-relationships routes (102 tests total) — most other CRUD, sharing, reminders, integrations, and AI routes still have no test coverage.
 
 ## Testing Status
 
-- No test framework or `test` script is configured.
-- No typecheck script is configured.
-- Lint script exists but currently fails before checking source files.
-- Build passes with warnings and disabled type/lint gates.
+- `npm test` runs Vitest — 102/102 tests passing (see `AI_CHECKLIST.md` for the current suite list).
+- No `typecheck` script is configured, but `npx tsc --noEmit` works directly and is clean.
+- `npm run lint` runs cleanly (as a command) via `eslint.config.mjs`; it currently reports 164 findings in the source it checks (127 errors, 37 warnings) — see Current Status above.
+- Build passes with TypeScript validation enforced; lint validation is still gated off during builds until the 164 findings are triaged.
 
 ## Known Risks
 

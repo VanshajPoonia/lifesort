@@ -3,7 +3,7 @@ import { NextResponse } from "next/server"
 import { getUserFromSession } from "@/lib/auth"
 import { sql } from "@/lib/db"
 
-type Row = Record<string, any>
+type Row = Record<string, unknown>
 
 function isValidDate(value: string | null) {
   return Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value))

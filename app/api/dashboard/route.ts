@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { sql } from "@/lib/db"
 import { getUserFromSession } from "@/lib/auth"
 
-type Row = Record<string, any>
+type Row = Record<string, unknown>
 
 const startOfToday = () => {
   const date = new Date()
@@ -21,7 +21,7 @@ const toNumber = (value: unknown) => {
   return Number.isFinite(parsed) ? parsed : 0
 }
 
-const safeRows = async (label: string, query: Promise<any>): Promise<Row[]> => {
+const safeRows = async (label: string, query: Promise<Row[]>): Promise<Row[]> => {
   try {
     return await query
   } catch (error) {
@@ -174,7 +174,7 @@ export async function GET() {
       id: `task-${task.id}`,
       title: task.title,
       type: "Task",
-      date: task.due_date,
+      date: task.due_date as string | Date | null,
       href: "/tasks",
     })),
     ...goals
@@ -183,7 +183,7 @@ export async function GET() {
         id: `goal-${goal.id}`,
         title: goal.title,
         type: "Goal",
-        date: goal.target_date,
+        date: goal.target_date as string | Date | null,
         href: "/goals",
       })),
     ...nukeGoals
@@ -192,19 +192,19 @@ export async function GET() {
         id: `nuke-${goal.id}`,
         title: goal.title,
         type: "Focus Goal",
-        date: goal.deadline,
+        date: goal.deadline as string | Date | null,
         href: "/nuke",
       })),
   ]
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .sort((a, b) => new Date(a.date as string | number | Date).getTime() - new Date(b.date as string | number | Date).getTime())
     .slice(0, 6)
 
   const activity = [
-    ...goals.slice(0, 3).map(goal => toActivity("Goal updated", goal.title, "/goals", goal.updated_at || goal.created_at, "goal")),
-    ...todayTasks.slice(0, 3).map(task => toActivity(task.completed ? "Task completed" : "Task added", task.title, "/tasks", task.updated_at || task.created_at, "task")),
-    ...notes.slice(0, 3).map(note => toActivity("Note edited", note.title || "Untitled note", "/notes", note.updated_at || note.created_at, "note")),
-    ...links.slice(0, 2).map(link => toActivity("Link saved", link.title, "/links", link.updated_at || link.created_at, "link")),
-    ...investments.slice(0, 2).map(inv => toActivity("Investment updated", inv.name, "/investments", inv.updated_at || inv.created_at, "investment")),
+    ...goals.slice(0, 3).map(goal => toActivity("Goal updated", goal.title as string, "/goals", (goal.updated_at || goal.created_at) as string | Date | null, "goal")),
+    ...todayTasks.slice(0, 3).map(task => toActivity(task.completed ? "Task completed" : "Task added", task.title as string, "/tasks", (task.updated_at || task.created_at) as string | Date | null, "task")),
+    ...notes.slice(0, 3).map(note => toActivity("Note edited", (note.title as string | null) || "Untitled note", "/notes", (note.updated_at || note.created_at) as string | Date | null, "note")),
+    ...links.slice(0, 2).map(link => toActivity("Link saved", link.title as string, "/links", (link.updated_at || link.created_at) as string | Date | null, "link")),
+    ...investments.slice(0, 2).map(inv => toActivity("Investment updated", inv.name as string, "/investments", (inv.updated_at || inv.created_at) as string | Date | null, "investment")),
   ]
     .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
     .slice(0, 8)

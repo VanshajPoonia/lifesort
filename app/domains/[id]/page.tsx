@@ -43,7 +43,7 @@ import {
   normalizeLifeArea,
 } from "@/lib/life-areas"
 
-type RecordItem = Record<string, any>
+type RecordItem = Record<string, string | number | boolean | null | undefined>
 type DataState = {
   tasks: RecordItem[]
   goals: RecordItem[]
@@ -763,13 +763,13 @@ export default function DomainDetailPage() {
                 ) : (
                   <div className="space-y-3">
                     {reviews.map((review) => (
-                      <Card key={review.id}>
+                      <Card key={review.id as string | number}>
                         <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
                           <div>
                             <CardTitle className="text-sm capitalize">{review.period_type} review</CardTitle>
-                            <CardDescription>{review.created_at ? new Date(review.created_at).toLocaleDateString() : ""}</CardDescription>
+                            <CardDescription>{review.created_at ? new Date(review.created_at as string | number | Date).toLocaleDateString() : ""}</CardDescription>
                           </div>
-                          <Button size="icon" variant="ghost" className="text-destructive" onClick={() => deleteReview(review.id)}>
+                          <Button size="icon" variant="ghost" className="text-destructive" onClick={() => deleteReview(review.id as string | number)}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </CardHeader>
@@ -781,7 +781,7 @@ export default function DomainDetailPage() {
                           {review.stop_doing && <p><span className="font-medium">Stop doing: </span><span className="text-muted-foreground">{review.stop_doing}</span></p>}
                           {review.continue_doing && <p><span className="font-medium">Continue doing: </span><span className="text-muted-foreground">{review.continue_doing}</span></p>}
                           {review.next_action && <p><span className="font-medium">Next action: </span><span className="text-muted-foreground">{review.next_action}</span></p>}
-                          {review.attention_adjustment && <Badge variant="outline" className="capitalize">{review.attention_adjustment.replace("_", " ")} attention</Badge>}
+                          {review.attention_adjustment && <Badge variant="outline" className="capitalize">{String(review.attention_adjustment).replace("_", " ")} attention</Badge>}
                         </CardContent>
                       </Card>
                     ))}

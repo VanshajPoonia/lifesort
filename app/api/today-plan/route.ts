@@ -3,7 +3,7 @@ import { NextResponse } from "next/server"
 import { getUserFromSession } from "@/lib/auth"
 import { sql } from "@/lib/db"
 
-type Row = Record<string, any>
+type Row = Record<string, unknown>
 
 type FocusItem = {
   id: string
@@ -237,7 +237,7 @@ function taskItem(task: Row, label?: string) {
     href: "/tasks",
     custom: false,
     priority: task.priority || "medium",
-    date: task.due_date || null,
+    date: (task.due_date || null) as string | Date | null,
     life_area_id: task.life_area_id != null ? String(task.life_area_id) : null,
   }
 }
@@ -252,7 +252,7 @@ function goalItem(goal: Row, label?: string) {
     href: "/goals",
     custom: false,
     priority: goal.priority || "medium",
-    date: goal.target_date || null,
+    date: (goal.target_date || null) as string | Date | null,
     life_area_id: goal.life_area_id != null ? String(goal.life_area_id) : null,
   }
 }
@@ -267,13 +267,13 @@ function projectItem(project: Row, label?: string) {
     href: `/projects/${project.id}`,
     custom: false,
     priority: project.priority || "medium",
-    date: project.due_date || null,
+    date: (project.due_date || null) as string | Date | null,
     life_area_id: project.life_area_id != null ? String(project.life_area_id) : null,
   }
 }
 
 function waitingItem(item: Row, label?: string) {
-  const date = item.follow_up_date || item.expected_date || null
+  const date = (item.follow_up_date || item.expected_date || null) as string | Date | null
   return {
     id: `waiting-${item.id}`,
     source_type: "waiting",
@@ -297,7 +297,7 @@ function commitmentItem(item: Row, label?: string) {
     href: "/commitments",
     custom: false,
     priority: item.status === "at_risk" ? "high" : "medium",
-    date: item.due_date || null,
+    date: (item.due_date || null) as string | Date | null,
   }
 }
 
@@ -311,7 +311,7 @@ function maintenanceItem(item: Row, label?: string) {
     href: "/maintenance",
     custom: false,
     priority: "medium",
-    date: item.next_due_date || null,
+    date: (item.next_due_date || null) as string | Date | null,
   }
 }
 
@@ -321,10 +321,10 @@ function noteItem(note: Row) {
     source_type: "note",
     source_id: String(note.id),
     title: String(note.title || "Untitled note"),
-    subtitle: note.updated_at ? `Updated ${new Date(note.updated_at).toLocaleDateString()}` : "Recently updated",
+    subtitle: note.updated_at ? `Updated ${new Date(note.updated_at as string | number | Date).toLocaleDateString()}` : "Recently updated",
     href: "/notes",
     custom: false,
-    date: note.updated_at || null,
+    date: (note.updated_at || null) as string | Date | null,
     life_area_id: note.life_area_id != null ? String(note.life_area_id) : null,
   }
 }
@@ -338,7 +338,7 @@ function calendarItem(event: Row) {
     subtitle: [event.start_time, event.location].filter(Boolean).join(" · "),
     href: "/calendar",
     custom: false,
-    date: event.event_date || null,
+    date: (event.event_date || null) as string | Date | null,
     life_area_id: event.life_area_id != null ? String(event.life_area_id) : null,
   }
 }
@@ -643,12 +643,12 @@ async function getDerivedCandidates(userId: string, planDate: string) {
       const target = toNumber(goal.target_amount)
       const current = toNumber(goal.current_amount)
       const remaining = Math.max(0, target - current)
-      return budgetItem(`budget-goal-${goal.id}`, goal.name || "Savings goal", `$${remaining.toFixed(0)} left · due ${goal.deadline}`)
+      return budgetItem(`budget-goal-${goal.id}`, (goal.name as string | null) || "Savings goal", `$${remaining.toFixed(0)} left · due ${goal.deadline}`)
     }),
   ]
 
   const shouldDo = [
-    ...upcomingGoals.filter((goal) => goal.target_date <= sevenDays).map((goal) => goalItem(goal, `Goal due ${goal.target_date}`)),
+    ...upcomingGoals.filter((goal) => (goal.target_date as string) <= sevenDays).map((goal) => goalItem(goal, `Goal due ${goal.target_date}`)),
     ...budgetReminders,
   ].slice(0, 12)
 

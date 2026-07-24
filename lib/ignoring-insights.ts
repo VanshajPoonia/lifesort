@@ -45,7 +45,7 @@ export type IgnoringInsightsData = {
   unavailable: string[]
 }
 
-type Row = Record<string, any>
+type Row = Record<string, unknown>
 
 function isMissingSchema(error: unknown) {
   const err = error as { code?: string; message?: string }

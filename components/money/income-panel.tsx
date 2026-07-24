@@ -387,7 +387,7 @@ export function IncomePanel({ preferredCurrency = "USD" }: { preferredCurrency?:
             {incomeSources.length > 0 && (
               <div className="flex items-center gap-2">
                 <Label className="text-sm">Sort by:</Label>
-                <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                <Select value={sortBy} onValueChange={(value: 'name' | 'amount' | 'frequency' | 'type') => setSortBy(value)}>
                   <SelectTrigger className="w-[130px]">
                     <SelectValue />
                   </SelectTrigger>

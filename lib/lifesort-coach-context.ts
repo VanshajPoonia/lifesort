@@ -36,7 +36,7 @@ export type CoachContextResult = {
   }
 }
 
-type Row = Record<string, any>
+type Row = Record<string, unknown>
 
 const MODE_LABELS = new Map(COACH_CONTEXT_MODES.map((mode) => [mode.id, mode.label]))
 

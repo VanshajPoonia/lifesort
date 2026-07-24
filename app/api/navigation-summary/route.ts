@@ -267,9 +267,9 @@ export async function GET() {
       if (!domainSummary[key]) domainSummary[key] = { tasksToday: 0, tasksOverdue: 0, habitsDue: 0 }
       return domainSummary[key]
     }
-    for (const row of domainTasksToday as any[]) ensure(row.life_area_id).tasksToday = Number(row.count) || 0
-    for (const row of domainTasksOverdue as any[]) ensure(row.life_area_id).tasksOverdue = Number(row.count) || 0
-    for (const row of domainHabitsDue as any[]) ensure(row.life_area_id).habitsDue = Number(row.count) || 0
+    for (const row of domainTasksToday as Record<string, unknown>[]) ensure(row.life_area_id).tasksToday = Number(row.count) || 0
+    for (const row of domainTasksOverdue as Record<string, unknown>[]) ensure(row.life_area_id).tasksOverdue = Number(row.count) || 0
+    for (const row of domainHabitsDue as Record<string, unknown>[]) ensure(row.life_area_id).habitsDue = Number(row.count) || 0
   } catch (error) {
     if (!isMissingSchema(error)) console.error("[navigation-summary] domainSummary failed:", error)
   }

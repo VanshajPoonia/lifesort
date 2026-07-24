@@ -280,7 +280,7 @@ export function WishlistPanel({ preferredCurrency = "USD" }: { preferredCurrency
     }
   }
 
-  const handleQuickUpdate = async (id: number, field: string, value: any) => {
+  const handleQuickUpdate = async (id: number, field: string, value: unknown) => {
     try {
       const response = await fetch("/api/wishlist", {
         method: "PUT",
@@ -514,7 +514,7 @@ export function WishlistPanel({ preferredCurrency = "USD" }: { preferredCurrency
                   </div>
                   <div>
                     <Label className="text-xs uppercase tracking-wider text-muted-foreground">Priority</Label>
-                    <Select value={newItem.priority} onValueChange={(value: any) => setNewItem({ ...newItem, priority: value })}>
+                    <Select value={newItem.priority} onValueChange={(value: "low" | "medium" | "high") => setNewItem({ ...newItem, priority: value })}>
                       <SelectTrigger className="mt-1">
                         <SelectValue />
                       </SelectTrigger>
@@ -760,7 +760,7 @@ export function WishlistPanel({ preferredCurrency = "USD" }: { preferredCurrency
                 </Select>
               </div>
               <div className="flex items-center gap-2">
-                <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
+                <Select value={sortBy} onValueChange={(v: "date" | "price" | "priority" | "name") => setSortBy(v)}>
                   <SelectTrigger className="w-[130px]">
                     <ArrowUpDown className="h-4 w-4 mr-2" />
                     <SelectValue />
@@ -1029,7 +1029,7 @@ export function WishlistPanel({ preferredCurrency = "USD" }: { preferredCurrency
                   </div>
                   <div>
                     <Label className="text-xs uppercase tracking-wider text-muted-foreground">Priority</Label>
-                    <Select value={editingItem.priority} onValueChange={(value: any) => setEditingItem({ ...editingItem, priority: value })}>
+                    <Select value={editingItem.priority} onValueChange={(value: "low" | "medium" | "high") => setEditingItem({ ...editingItem, priority: value })}>
                       <SelectTrigger className="mt-1">
                         <SelectValue />
                       </SelectTrigger>

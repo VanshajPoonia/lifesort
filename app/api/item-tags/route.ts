@@ -51,7 +51,7 @@ export async function GET(request: Request) {
         ORDER BY t.name ASC
       `
       const map: Record<string, { id: number; name: string; color: string }[]> = {}
-      for (const row of rows as any[]) {
+      for (const row of rows as Array<{ item_id: number; id: number; name: string; color: string }>) {
         const key = String(row.item_id)
         if (!map[key]) map[key] = []
         map[key].push({ id: row.id, name: row.name, color: row.color })

@@ -47,7 +47,7 @@ export type LifeScoreData = {
   unavailable: string[]
 }
 
-type Row = Record<string, any>
+type Row = Record<string, unknown>
 
 function isMissingSchema(error: unknown) {
   const err = error as { code?: string; message?: string }
@@ -468,7 +468,7 @@ export async function getLifeScoreData(userId: string): Promise<LifeScoreData> {
   const lifeAreaCount = lifeAreas.length
   const activeAreaIds = new Set(activityByArea
     .filter((row) => {
-      const date = row.last_activity ? new Date(row.last_activity) : null
+      const date = row.last_activity ? new Date(row.last_activity as string | number | Date) : null
       if (!date || Number.isNaN(date.getTime())) return false
       return Date.now() - date.getTime() <= 30 * 86_400_000
     })

@@ -1,13 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   images: {
     unoptimized: true,
   },
- 
+
   eslint: {
+    // Left on: 187 pre-existing findings (mostly React-Compiler-readiness
+    // hook rules) aren't cleared yet -- see AI_TASK_LOG.md / AI_CHECKLIST.md.
     ignoreDuringBuilds: true,
   },
   async redirects() {

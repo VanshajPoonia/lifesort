@@ -88,7 +88,7 @@ function normalizeRows(type: SearchType, rows: SearchRow[]): SearchResult[] {
   }))
 }
 
-async function safeRows(label: string, query: Promise<Record<string, any>[]>): Promise<SearchRow[]> {
+async function safeRows(label: string, query: Promise<Record<string, unknown>[]>): Promise<SearchRow[]> {
   try {
     return (await query) as SearchRow[]
   } catch (error) {

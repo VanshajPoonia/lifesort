@@ -5,10 +5,33 @@ import { encryptToken, decryptToken } from "@/lib/token-crypto"
 
 const sql = neon(process.env.DATABASE_URL!)
 
-async function refreshGoogleToken(integration: any) {
+type CalendarIntegrationRow = Record<string, unknown>
+
+type GoogleCalendarEventRaw = {
+  id: string
+  summary?: string
+  description?: string
+  start?: { dateTime?: string; date?: string }
+  end?: { dateTime?: string; date?: string }
+  location?: string
+}
+
+type CalendarEventItem = {
+  id: string
+  title: string
+  description: string
+  start: string | undefined
+  end: string | undefined
+  all_day: boolean
+  provider: string
+  color: string
+  location: string
+}
+
+async function refreshGoogleToken(integration: CalendarIntegrationRow) {
   // integration.refresh_token may be encrypted (v1:...) or plaintext (legacy
   // row pre-encryption). decryptToken passes through plaintext.
-  const refreshToken = decryptToken(integration.refresh_token)
+  const refreshToken = decryptToken(integration.refresh_token as string | null)
   if (!refreshToken) return null
 
   const response = await fetch("https://oauth2.googleapis.com/token", {
@@ -29,14 +52,14 @@ async function refreshGoogleToken(integration: any) {
     await sql`
       UPDATE calendar_integrations
       SET access_token = ${encryptedAccess}, expires_at = ${expiresAt.toISOString()}, updated_at = NOW()
-      WHERE id = ${integration.id}
+      WHERE id = ${integration.id as number}
     `
     return tokens.access_token
   }
   return null
 }
 
-async function fetchGoogleEvents(accessToken: string, timeMin: string, timeMax: string) {
+async function fetchGoogleEvents(accessToken: string, timeMin: string, timeMax: string): Promise<CalendarEventItem[]> {
   const response = await fetch(
     `https://www.googleapis.com/calendar/v3/calendars/primary/events?` +
     `timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`,
@@ -46,7 +69,7 @@ async function fetchGoogleEvents(accessToken: string, timeMin: string, timeMax: 
   if (!response.ok) return []
 
   const data = await response.json()
-  return (data.items || []).map((event: any) => ({
+  return (data.items || []).map((event: GoogleCalendarEventRaw) => ({
     id: `google_${event.id}`,
     title: event.summary || "No Title",
     description: event.description || "",
@@ -82,14 +105,14 @@ export async function GET(request: Request) {
     SELECT * FROM calendar_integrations WHERE user_id = ${userId}
   `
 
-  const allEvents: any[] = []
+  const allEvents: CalendarEventItem[] = []
 
   for (const integration of integrations) {
     // Decrypt the stored access_token. Pass-through for legacy plaintext rows.
-    let accessToken = decryptToken(integration.access_token)
+    let accessToken = decryptToken(integration.access_token as string | null)
 
     // Check if token is expired
-    if (new Date(integration.expires_at) < new Date()) {
+    if (new Date(integration.expires_at as string | number | Date) < new Date()) {
       if (integration.provider === "google") {
         accessToken = await refreshGoogleToken(integration)
       }
@@ -108,7 +131,7 @@ export async function GET(request: Request) {
   }
 
   // Sort by start time
-  allEvents.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
+  allEvents.sort((a, b) => new Date(a.start || "").getTime() - new Date(b.start || "").getTime())
 
   return NextResponse.json({ events: allEvents })
 }

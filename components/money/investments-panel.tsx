@@ -1064,7 +1064,7 @@ export function InvestmentsPanel({ preferredCurrency = "USD" }: { preferredCurre
                 </Select>
               </div>
               <div className="flex items-center gap-2">
-                <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
+                <Select value={sortBy} onValueChange={(v: "date" | "return" | "value" | "name") => setSortBy(v)}>
                   <SelectTrigger className="w-[140px]">
                     <ArrowUpDown className="h-4 w-4 mr-2" />
                     <SelectValue />

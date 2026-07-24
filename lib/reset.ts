@@ -43,7 +43,7 @@ export type ResetSection = {
   items: ResetItem[]
 }
 
-type Row = Record<string, any>
+type Row = Record<string, unknown>
 
 function isMissingSchema(error: unknown) {
   const err = error as { code?: string; message?: string }
