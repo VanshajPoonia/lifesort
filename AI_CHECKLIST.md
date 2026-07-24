@@ -10,6 +10,7 @@ Verification and safety checklist for AI agents working on LifeSort.
    - `AI_TASK_LOG.md`
    - `AI_DECISIONS.md`
    - `AI_CHECKLIST.md`
+   - `AI_BUILD_PLAN.md` — master full-product roadmap; read before feature work toward the full vision
 2. Check current worktree:
    - `git status --short`
 3. Install dependencies if needed:
@@ -29,6 +30,7 @@ Before starting, read these files in order:
 3. AI_TASK_LOG.md — read the most recent entry carefully
 4. AI_DECISIONS.md
 5. AI_CHECKLIST.md
+6. AI_BUILD_PLAN.md — if the task advances the full-product vision
 
 These are the project memory. Do not rely on chat history.
 If anything in the chat conflicts with these files, trust the files.
@@ -41,6 +43,36 @@ After completing the task:
 Task:
 [your task here]
 ```
+
+## Build Plan Continuation Prompt
+
+Paste this at the start of a new chat to continue the full-product build without re-explaining anything. Self-updating by design — it points at `AI_BUILD_PLAN.md`/`AI_TASK_LOG.md` for "what's next" rather than hardcoding a step, so it stays correct across many future sessions as phases progress.
+
+```
+Continue the LifeSort full-product build per AI_BUILD_PLAN.md.
+
+Before starting, read in this order:
+1. AGENTS.md
+2. AI_PROJECT.md
+3. AI_TASK_LOG.md — read the most recent entries carefully
+4. AI_DECISIONS.md
+5. AI_CHECKLIST.md
+6. AI_BUILD_PLAN.md — read Part B (confirmed decisions) and Part C (phased roadmap) in full
+
+These files are the project memory, not this chat — do not rely on chat history. Decisions recorded in AI_BUILD_PLAN.md Part B are already settled (e.g. Money/finance is preserved, autonomous agents/OpenClaw are descoped, the life_areas table keeps its name, and the A4/A9 consolidation + nav-restructure directions are user-confirmed) — do not re-litigate them.
+
+Task: work through AI_BUILD_PLAN.md Part C, Phase 0 (Foundation), taking the next item in that phase that AI_TASK_LOG.md shows isn't done yet. Implement it as its own coherent, focused change — not the whole phase at once. For UI/design changes, verify visually in a running dev server before calling it done.
+
+After finishing that one item:
+- Run npx tsc --noEmit and npm run build, record the results
+- Update AI_TASK_LOG.md with a new dated entry (files changed, why, commands run, bugs, remaining issues, next steps)
+- Update the status marker for that item in AI_BUILD_PLAN.md, and AI_PROJECT.md/AI_DECISIONS.md if applicable
+- Commit code and docs together
+
+Then continue to the next item in Phase 0 the same way, without stopping to ask approval for each one. Only stop if genuinely blocked by a decision only the user can make (e.g. before deleting or migrating data for an existing surface per AI_BUILD_PLAN.md §A4).
+```
+
+Once all of Phase 0 is done, the same prompt still works for Phase 1 onward — it always resolves "what's next" from the two files, not from this prompt's wording.
 
 ## Codex Handoff Prompt
 
