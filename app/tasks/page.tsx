@@ -19,6 +19,7 @@ import {
   ArrowUpDown,
   ListChecks,
   Plus,
+  Repeat,
   Tag,
   Timer,
   Trash2,
@@ -35,6 +36,7 @@ import { LifeAreaBadge, LifeAreaSelect } from "@/components/life-area-controls"
 import { SortableList } from "@/components/sortable-list"
 import { TagPicker, type Tag as ItemTag } from "@/components/tag-picker"
 import { TaskChecklist } from "@/components/task-checklist"
+import { TaskDependencies } from "@/components/task-dependencies"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -80,6 +82,9 @@ interface Project {
   status?: string | null
 }
 
+type RecurrenceFrequency = "" | "daily" | "weekdays" | "weekly" | "monthly" | "yearly" | "custom"
+type RecurrenceEndType = "never" | "on_date" | "after_count"
+
 interface ReminderForm {
   due_date: string
   due_time: string
@@ -88,6 +93,28 @@ interface ReminderForm {
   duration_minutes: string
   email_reminder: boolean
   reminder_days: number
+  recurrence_frequency: RecurrenceFrequency
+  recurrence_interval: string
+  recurrence_repeat_after_completion: boolean
+  recurrence_end_type: RecurrenceEndType
+  recurrence_ends_on: string
+  recurrence_ends_after_count: string
+}
+
+function recurrenceIntervalUnit(frequency: RecurrenceFrequency) {
+  switch (frequency) {
+    case "daily":
+    case "custom":
+      return "day(s)"
+    case "weekly":
+      return "week(s)"
+    case "monthly":
+      return "month(s)"
+    case "yearly":
+      return "year(s)"
+    default:
+      return ""
+  }
 }
 
 const taskViews: Array<{ value: TaskView; label: string }> = [
@@ -343,6 +370,12 @@ export default function TasksPage() {
     duration_minutes: "",
     email_reminder: false,
     reminder_days: 1,
+    recurrence_frequency: "",
+    recurrence_interval: "1",
+    recurrence_repeat_after_completion: false,
+    recurrence_end_type: "never",
+    recurrence_ends_on: "",
+    recurrence_ends_after_count: "",
   })
 
   useEffect(() => {
@@ -509,7 +542,7 @@ export default function TasksPage() {
     }
   }
 
-  const openReminderDialog = (task: Task) => {
+  const openReminderDialog = async (task: Task) => {
     setSelectedTask(task)
     setReminderForm({
       due_date: dateInputValue(task.due_date),
@@ -519,8 +552,32 @@ export default function TasksPage() {
       duration_minutes: task.duration_minutes ? String(task.duration_minutes) : "",
       email_reminder: Boolean(task.email_reminder),
       reminder_days: task.reminder_days ?? 1,
+      recurrence_frequency: "",
+      recurrence_interval: "1",
+      recurrence_repeat_after_completion: false,
+      recurrence_end_type: "never",
+      recurrence_ends_on: "",
+      recurrence_ends_after_count: "",
     })
     setReminderDialogOpen(true)
+
+    try {
+      const response = await fetch(`/api/tasks/${task.id}/recurrence`)
+      if (!response.ok) return
+      const rule = await response.json()
+      if (!rule) return
+      setReminderForm((current) => ({
+        ...current,
+        recurrence_frequency: rule.frequency,
+        recurrence_interval: String(rule.interval_count ?? 1),
+        recurrence_repeat_after_completion: Boolean(rule.repeat_after_completion),
+        recurrence_end_type: rule.ends_on ? "on_date" : rule.ends_after_count ? "after_count" : "never",
+        recurrence_ends_on: dateInputValue(rule.ends_on),
+        recurrence_ends_after_count: rule.ends_after_count ? String(rule.ends_after_count) : "",
+      }))
+    } catch (error) {
+      console.error("Failed to load recurrence rule:", error)
+    }
   }
 
   const handleSaveReminder = async () => {
@@ -534,6 +591,30 @@ export default function TasksPage() {
       email_reminder: Boolean(reminderForm.email_reminder && reminderForm.due_date),
       reminder_days: reminderForm.reminder_days,
     })
+
+    try {
+      if (reminderForm.recurrence_frequency) {
+        await fetch(`/api/tasks/${selectedTask.id}/recurrence`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            frequency: reminderForm.recurrence_frequency,
+            interval_count: reminderForm.recurrence_interval ? Number(reminderForm.recurrence_interval) : 1,
+            repeat_after_completion: reminderForm.recurrence_repeat_after_completion,
+            ends_on: reminderForm.recurrence_end_type === "on_date" ? reminderForm.recurrence_ends_on || null : null,
+            ends_after_count:
+              reminderForm.recurrence_end_type === "after_count" && reminderForm.recurrence_ends_after_count
+                ? Number(reminderForm.recurrence_ends_after_count)
+                : null,
+          }),
+        })
+      } else {
+        await fetch(`/api/tasks/${selectedTask.id}/recurrence`, { method: "DELETE" })
+      }
+    } catch (error) {
+      console.error("Failed to save recurrence rule:", error)
+    }
+
     setReminderDialogOpen(false)
     setSelectedTask(null)
   }
@@ -557,6 +638,7 @@ export default function TasksPage() {
 
   const areaById = useMemo(() => new Map(lifeAreas.map((area) => [String(area.id), area])), [lifeAreas])
   const selectedTaskSet = useMemo(() => new Set(selectedTaskIds), [selectedTaskIds])
+  const taskOptions = useMemo(() => tasks.map((task) => ({ id: task.id, title: task.title })), [tasks])
 
   const visibleTasks = useMemo(() => {
     const today = startOfToday()
@@ -1096,6 +1178,8 @@ export default function TasksPage() {
 
                           <TaskChecklist taskId={Number(task.id)} />
 
+                          <TaskDependencies taskId={Number(task.id)} allTasks={taskOptions} />
+
                           <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                             {task.due_date ? (
                               <div className="flex items-center gap-2">
@@ -1166,7 +1250,7 @@ export default function TasksPage() {
         <Dialog open={reminderDialogOpen} onOpenChange={setReminderDialogOpen}>
           <DialogContent className="sm:max-w-[440px]">
             <DialogHeader>
-              <DialogTitle>Dates, Duration & Reminder</DialogTitle>
+              <DialogTitle>Dates, Duration, Repeat & Reminder</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="grid gap-3 sm:grid-cols-2">
@@ -1234,6 +1318,111 @@ export default function TasksPage() {
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="recurrence-frequency" className="flex items-center gap-1.5">
+                  <Repeat className="h-3.5 w-3.5" />
+                  Repeat
+                </Label>
+                <Select
+                  value={reminderForm.recurrence_frequency || "none"}
+                  onValueChange={(value) =>
+                    setReminderForm((current) => ({
+                      ...current,
+                      recurrence_frequency: value === "none" ? "" : (value as RecurrenceFrequency),
+                    }))
+                  }
+                >
+                  <SelectTrigger id="recurrence-frequency">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Does not repeat</SelectItem>
+                    <SelectItem value="daily">Daily</SelectItem>
+                    <SelectItem value="weekdays">Every weekday (Mon-Fri)</SelectItem>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="yearly">Yearly</SelectItem>
+                    <SelectItem value="custom">Custom interval (days)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {reminderForm.recurrence_frequency && (
+                <div className="space-y-3 rounded-md border p-3">
+                  {reminderForm.recurrence_frequency !== "weekdays" && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-muted-foreground">Every</span>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={365}
+                        value={reminderForm.recurrence_interval}
+                        onChange={(event) =>
+                          setReminderForm((current) => ({ ...current, recurrence_interval: event.target.value }))
+                        }
+                        className="h-8 w-20"
+                      />
+                      <span className="text-muted-foreground">
+                        {recurrenceIntervalUnit(reminderForm.recurrence_frequency)}
+                      </span>
+                    </div>
+                  )}
+
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={reminderForm.recurrence_repeat_after_completion}
+                      onCheckedChange={(checked) =>
+                        setReminderForm((current) => ({
+                          ...current,
+                          recurrence_repeat_after_completion: Boolean(checked),
+                        }))
+                      }
+                    />
+                    Repeat from completion date, not the fixed schedule
+                  </label>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Ends</Label>
+                    <Select
+                      value={reminderForm.recurrence_end_type}
+                      onValueChange={(value) =>
+                        setReminderForm((current) => ({ ...current, recurrence_end_type: value as RecurrenceEndType }))
+                      }
+                    >
+                      <SelectTrigger className="h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="never">Never</SelectItem>
+                        <SelectItem value="on_date">On date</SelectItem>
+                        <SelectItem value="after_count">After a number of times</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {reminderForm.recurrence_end_type === "on_date" && (
+                    <Input
+                      type="date"
+                      value={reminderForm.recurrence_ends_on}
+                      onChange={(event) =>
+                        setReminderForm((current) => ({ ...current, recurrence_ends_on: event.target.value }))
+                      }
+                    />
+                  )}
+                  {reminderForm.recurrence_end_type === "after_count" && (
+                    <Input
+                      type="number"
+                      min={1}
+                      placeholder="e.g. 10"
+                      value={reminderForm.recurrence_ends_after_count}
+                      onChange={(event) =>
+                        setReminderForm((current) => ({ ...current, recurrence_ends_after_count: event.target.value }))
+                      }
+                    />
+                  )}
+                </div>
+              )}
+
               {reminderForm.due_date && (
                 <ReminderSettings
                   enabled={reminderForm.email_reminder}
@@ -1268,6 +1457,12 @@ export default function TasksPage() {
                     duration_minutes: "",
                     email_reminder: false,
                     reminder_days: 1,
+                    recurrence_frequency: "",
+                    recurrence_interval: "1",
+                    recurrence_repeat_after_completion: false,
+                    recurrence_end_type: "never",
+                    recurrence_ends_on: "",
+                    recurrence_ends_after_count: "",
                   })
                 }
               >

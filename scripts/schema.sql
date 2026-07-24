@@ -1287,6 +1287,29 @@ ALTER TABLE tasks ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT '
 ));
 UPDATE tasks SET status = 'completed' WHERE completed = TRUE AND status = 'next';
 
+-- ── Task recurrence (2026-07-25-task-recurrence.sql) ────────────────────────
+-- AI_BUILD_PLAN.md Phase 1 "Tasks depth", sub-step 3. One row per recurring
+-- task (task_id is UNIQUE) -- the task itself is the recurring instance, not
+-- a template. Task dependencies reuse item_relationships' 'depends_on'
+-- relation instead of a new task_dependencies table -- see AI_DECISIONS.md.
+CREATE TABLE IF NOT EXISTS task_recurrence (
+  id SERIAL PRIMARY KEY,
+  task_id INTEGER NOT NULL UNIQUE REFERENCES tasks(id) ON DELETE CASCADE,
+  user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  frequency VARCHAR(20) NOT NULL CHECK (frequency IN (
+    'daily', 'weekdays', 'weekly', 'monthly', 'yearly', 'custom'
+  )),
+  interval_count INTEGER NOT NULL DEFAULT 1,
+  repeat_after_completion BOOLEAN NOT NULL DEFAULT FALSE,
+  ends_on DATE,
+  ends_after_count INTEGER,
+  occurrence_count INTEGER NOT NULL DEFAULT 1,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_task_recurrence_task ON task_recurrence(user_id, task_id);
+
 -- ── Agent Action Events (2026-05-18-agent-action-events.sql) ───────────────
 -- See scripts/migrations/2026-05-18-agent-action-events.sql for the
 -- standalone migration file. Replicated here so a fresh-DB build using

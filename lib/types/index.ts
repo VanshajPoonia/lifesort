@@ -63,6 +63,22 @@ export type TaskChecklistItem = {
   updated_at: string
 }
 
+export type TaskRecurrenceFrequency = "daily" | "weekdays" | "weekly" | "monthly" | "yearly" | "custom"
+
+export type TaskRecurrence = {
+  id: number
+  task_id: number
+  user_id: string
+  frequency: TaskRecurrenceFrequency
+  interval_count: number
+  repeat_after_completion: boolean
+  ends_on: string | null
+  ends_after_count: number | null
+  occurrence_count: number
+  created_at: string
+  updated_at: string
+}
+
 export type Goal = {
   id: number
   user_id: string

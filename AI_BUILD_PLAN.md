@@ -97,7 +97,8 @@ The spec's §27 schema is generic and aspirational. Auditing each against the re
 | `user_preferences` | Columns on `users` + JSONB prefs tables | Consolidate into one table only if it reduces churn (optional) |
 | `focus_sessions`, `time_entries` | Partial (`pomodoro_sessions`, Today focus overlay) | 🟠 New — add in the Execution phase |
 | `item_relationships` | None | 🟠 New — see A6 |
-| `task_recurrence`, `task_dependencies` | None | 🟠 New — add in Tasks depth work |
+| `task_recurrence` | ✅ Added 2026-07-25, applied to the live database | Done — see `AI_DECISIONS.md` |
+| `task_dependencies` | None — reuses `item_relationships`' `depends_on` relation instead | Done, no new table — see `AI_DECISIONS.md` |
 | `task_checklist_items` | ✅ Added 2026-07-24, applied to the live database | Done — see `AI_DECISIONS.md` |
 | `favorites`, `recent_items` | None (favorites is a UI placeholder) | 🟠 New — Utilities phase |
 | `note_blocks` | N/A — HTML-in-column | **Do not** add (see A5) |
@@ -195,10 +196,10 @@ Follows the raw spec's build order (§29) but annotated with what already exists
 
 ### Phase 1 — Core organization
 - ✅ Life Domains (Phases 1–3 of `AI_LIFE_DOMAINS_SPEC.md`), Goals, Projects, Tasks (base), Tags (`tags`/`item_tags`), Attachments (R2).
-- 🟡 **Tasks depth** — the spec (§9) separates **due date vs scheduled date vs duration** and wants subtasks, checklist, recurrence, reminder, actual duration, the full status set (Inbox/Next/In Progress/Waiting/Someday/Completed/Cancelled). Sequenced into 3 sub-steps (`AI_TASK_LOG.md` 2026-07-24 16:20 entry):
+- ✅ **Tasks depth** — the spec (§9) separates **due date vs scheduled date vs duration** and wants subtasks, checklist, recurrence, reminder, actual duration, the full status set (Inbox/Next/In Progress/Waiting/Someday/Completed/Cancelled). Sequenced into 3 sub-steps (`AI_TASK_LOG.md` 2026-07-24 16:20 entry), all complete:
   - ✅ Sub-step 1 — `task_checklist_items` (subtasks/checklist), collapsible panel on `/tasks` (2026-07-24, see `AI_TASK_LOG.md` and `AI_DECISIONS.md`). Migration applied to the live database.
   - ✅ Sub-step 2 — `scheduled_date`/`scheduled_time`/`duration_minutes` + the full status set (`inbox`/`next`/`in_progress`/`waiting`/`someday`/`completed`/`cancelled`), schema + UI on `/tasks` (2026-07-24, see `AI_TASK_LOG.md` and `AI_DECISIONS.md`). Migration applied to the live database. `completed` stays a derived/synced convenience column so no other consumer (`/today`, `/calendar`, dashboard, coach context, cron reminders) needed changes. Today/Calendar's existing due-date-based drag-scheduling was deliberately left untouched — `scheduled_date` is Tasks-page-only for now, same as sub-step 1's checklist.
-  - 🟠 Sub-step 3 — `task_recurrence` + `task_dependencies`. Not started; recurrence is the meatiest piece.
+  - ✅ Sub-step 3 — `task_recurrence` (new table, single-row rolling model) + task dependencies (reuses `item_relationships`' `depends_on` relation, no new table) (2026-07-25, see `AI_TASK_LOG.md` and `AI_DECISIONS.md`). Both migrations applied to the live database, including `item_relationships` which had been written-but-unapplied since Phase 0. Recurrence UI folded into the existing Dates/Duration/Reminder dialog; dependencies as a new collapsible "Depends on" card row. A sharper severity finding on the pre-existing DATE-timezone bug surfaced during manual verification — see `AI_DECISIONS.md`.
 - ✅ **Wire Tags + Attachments** into Goals/Projects/Notes (2026-07-24, see `AI_TASK_LOG.md`). Tags (`TagPicker`/`item_tags`) wired into the Goal modal and Project detail page only — Notes deliberately excluded since it already has its own freeform `TEXT[]` tags (`AI_DECISIONS.md`). Attachments wired into Goals, Projects, and Notes (all three already allowed in the `attachments` CHECK constraint; no migration needed).
 - 🟠 **Relationships UI** — "related items" / backlinks surfaced on Task/Goal/Project/Note/Domain via `item_relationships`.
 - **Exit:** a task can carry due≠scheduled≠duration, subtasks, a recurrence rule, and related items, all persisted; Tags/Attachments usable beyond their first surface.

@@ -160,6 +160,79 @@ function computeReminderAt(dueDate: string | null, dueTime: string | null, enabl
   return reminder.toISOString().slice(0, 19).replace('T', ' ')
 }
 
+function addDaysToDate(dateStr: string, days: number) {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const dt = new Date(Date.UTC(y, m - 1, d))
+  dt.setUTCDate(dt.getUTCDate() + days)
+  return dt.toISOString().slice(0, 10)
+}
+
+// Clamps to the target month's last day instead of letting JS Date overflow
+// into the following month (e.g. Jan 31 + 1 month lands on Feb 28, not Mar 3).
+function addMonthsToDate(dateStr: string, months: number) {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const targetIndex = (m - 1) + months
+  const targetYear = y + Math.floor(targetIndex / 12)
+  const targetMonth = ((targetIndex % 12) + 12) % 12
+  const daysInTargetMonth = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate()
+  const dt = new Date(Date.UTC(targetYear, targetMonth, Math.min(d, daysInTargetMonth)))
+  return dt.toISOString().slice(0, 10)
+}
+
+function daysBetweenDates(a: string, b: string) {
+  const [ay, am, ad] = a.split('-').map(Number)
+  const [by, bm, bd] = b.split('-').map(Number)
+  return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 86400000)
+}
+
+// Skips to the next Mon-Fri date, for the 'weekdays' recurrence frequency.
+function nextWeekdayDate(dateStr: string) {
+  let next = addDaysToDate(dateStr, 1)
+  let dow = new Date(`${next}T00:00:00Z`).getUTCDay()
+  while (dow === 0 || dow === 6) {
+    next = addDaysToDate(next, 1)
+    dow = new Date(`${next}T00:00:00Z`).getUTCDay()
+  }
+  return next
+}
+
+// UTC calendar date for "now" -- an instant, not a DB DATE column, so this
+// doesn't hit the local-timezone DATE-serialization issue noted in
+// AI_DECISIONS.md. No per-user timezone support exists yet anywhere in the
+// app, so UTC "today" is consistent with the rest of the app's date handling.
+function todayIsoDate() {
+  return new Date().toISOString().slice(0, 10)
+}
+
+type RecurrenceRule = {
+  id: number
+  frequency: string
+  interval_count: number
+  repeat_after_completion: boolean
+  ends_on: string | null
+  ends_after_count: number | null
+  occurrence_count: number
+}
+
+function computeNextRecurrenceDate(anchorDate: string, rule: RecurrenceRule) {
+  const interval = Math.max(1, rule.interval_count || 1)
+  switch (rule.frequency) {
+    case 'daily':
+      return addDaysToDate(anchorDate, interval)
+    case 'weekdays':
+      return nextWeekdayDate(anchorDate)
+    case 'weekly':
+      return addDaysToDate(anchorDate, 7 * interval)
+    case 'monthly':
+      return addMonthsToDate(anchorDate, interval)
+    case 'yearly':
+      return addMonthsToDate(anchorDate, interval * 12)
+    case 'custom':
+    default:
+      return addDaysToDate(anchorDate, interval)
+  }
+}
+
 async function validateGoalId(goalId: number | null, userId: string) {
   if (!goalId) return null
 
@@ -403,13 +476,57 @@ export async function PUT(request: Request) {
     const nextTitle = hasField(body, 'title') ? cleanText(body.title, existing.title) : existing.title
     const nextDescription = hasField(body, 'description') ? cleanText(body.description) : existing.description
     const nextPriority = hasField(body, 'priority') ? cleanPriority(body.priority, existing.priority || 'medium') : existing.priority || 'medium'
-    const nextDueDate = hasField(body, 'due_date') ? cleanDate(body.due_date) : dateOnly(existing.due_date)
+    let nextDueDate = hasField(body, 'due_date') ? cleanDate(body.due_date) : dateOnly(existing.due_date)
     const nextDueTime = hasField(body, 'due_time') ? cleanTime(body.due_time) : timeOnly(existing.due_time)
-    const nextScheduledDate = hasField(body, 'scheduled_date') ? cleanDate(body.scheduled_date) : dateOnly(existing.scheduled_date)
+    let nextScheduledDate = hasField(body, 'scheduled_date') ? cleanDate(body.scheduled_date) : dateOnly(existing.scheduled_date)
     const nextScheduledTime = hasField(body, 'scheduled_time') ? cleanTime(body.scheduled_time) : timeOnly(existing.scheduled_time)
     const nextDurationMinutes = hasField(body, 'duration_minutes') ? cleanDuration(body.duration_minutes) : existing.duration_minutes
     const nextCategory = hasField(body, 'category') ? cleanText(body.category) : existing.category
-    const { status: nextStatus, completed: nextCompleted } = resolveStatusAndCompleted(body, existing)
+    let { status: nextStatus, completed: nextCompleted } = resolveStatusAndCompleted(body, existing)
+
+    // Recurrence advance: a fresh transition into 'completed' on a task that
+    // carries a task_recurrence rule doesn't stay completed -- it rolls
+    // forward to the next occurrence instead. See AI_DECISIONS.md.
+    let recurrenceAdvanced = false
+    if (existing.status !== 'completed' && nextStatus === 'completed') {
+      const recurrenceRows = await sql`
+        SELECT * FROM task_recurrence WHERE task_id = ${body.id} AND user_id = ${user.id} LIMIT 1
+      `
+      const rule = recurrenceRows[0] as RecurrenceRule | undefined
+      const anchor = nextDueDate || nextScheduledDate
+
+      if (rule && anchor) {
+        const reachedCount = rule.ends_after_count != null && rule.occurrence_count + 1 >= rule.ends_after_count
+        const baseDate = rule.repeat_after_completion ? todayIsoDate() : anchor
+        const nextAnchor = computeNextRecurrenceDate(baseDate, rule)
+        const reachedEnd = Boolean(rule.ends_on && nextAnchor > rule.ends_on)
+
+        if (!reachedCount && !reachedEnd) {
+          if (nextDueDate) {
+            const gap = nextScheduledDate ? daysBetweenDates(nextDueDate, nextScheduledDate) : null
+            nextDueDate = nextAnchor
+            if (gap !== null) nextScheduledDate = addDaysToDate(nextAnchor, gap)
+          } else {
+            nextScheduledDate = nextAnchor
+          }
+          nextStatus = 'next'
+          nextCompleted = false
+          recurrenceAdvanced = true
+
+          await sql`
+            UPDATE task_recurrence
+            SET occurrence_count = occurrence_count + 1, updated_at = NOW()
+            WHERE id = ${rule.id} AND user_id = ${user.id}
+          `
+          await sql`
+            UPDATE task_checklist_items
+            SET completed = FALSE, updated_at = NOW()
+            WHERE task_id = ${body.id} AND user_id = ${user.id}
+          `
+        }
+      }
+    }
+
     const nextGoalId = hasField(body, 'goal_id')
       ? await validateGoalId(cleanId(body.goal_id), user.id)
       : cleanId(existing.goal_id)
@@ -438,11 +555,13 @@ export async function PUT(request: Request) {
       hasField(body, 'email_reminder') ||
       hasField(body, 'reminder_days') ||
       hasField(body, 'reminder_at')
-    const nextReminderSent = hasField(body, 'reminder_sent')
-      ? Boolean(body.reminder_sent && nextReminderAt)
-      : reminderTouched
-        ? false
-        : Boolean(existing.reminder_sent)
+    const nextReminderSent = recurrenceAdvanced
+      ? false
+      : hasField(body, 'reminder_sent')
+        ? Boolean(body.reminder_sent && nextReminderAt)
+        : reminderTouched
+          ? false
+          : Boolean(existing.reminder_sent)
 
     const result = await sql`
       UPDATE tasks

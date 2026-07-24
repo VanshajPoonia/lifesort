@@ -219,11 +219,12 @@ describe("PUT /api/tasks (status/completed sync)", () => {
   it("legacy completed:true (no status) derives status 'completed'", async () => {
     getUserFromSession.mockResolvedValue({ id: "user-1" })
     sql.mockResolvedValueOnce([{ ...baseExistingTask, status: "waiting", completed: false }])
+    sql.mockResolvedValueOnce([]) // task_recurrence lookup: no rule for this task
     sql.mockResolvedValueOnce([{ id: 1 }])
 
     await PUT(jsonRequest({ id: 1, completed: true }, "PUT"))
 
-    const updated = namedCall(sql.mock.calls[1], UPDATE_FIELDS)
+    const updated = namedCall(sql.mock.calls[2], UPDATE_FIELDS)
     expect(updated.status).toBe("completed")
     expect(updated.completed).toBe(true)
   })
@@ -281,6 +282,148 @@ describe("PUT /api/tasks (status/completed sync)", () => {
     expect(updated.scheduled_time).toBe("09:00")
     expect(updated.duration_minutes).toBe(90)
     expect(updated.status).toBe("next")
+  })
+})
+
+describe("PUT /api/tasks (recurrence advance)", () => {
+  const baseRecurrenceRule = {
+    id: 9,
+    frequency: "daily",
+    interval_count: 1,
+    repeat_after_completion: false,
+    ends_on: null as string | null,
+    ends_after_count: null as number | null,
+    occurrence_count: 1,
+  }
+
+  it("advances due_date and reopens status instead of staying completed", async () => {
+    getUserFromSession.mockResolvedValue({ id: "user-1" })
+    sql.mockResolvedValueOnce([{ ...baseExistingTask, status: "next", completed: false, due_date: "2026-08-01" }])
+    sql.mockResolvedValueOnce([{ ...baseRecurrenceRule }]) // task_recurrence lookup
+    sql.mockResolvedValueOnce([]) // occurrence_count bump
+    sql.mockResolvedValueOnce([]) // checklist reset
+    sql.mockResolvedValueOnce([{ id: 1 }]) // final UPDATE ... RETURNING
+
+    await PUT(jsonRequest({ id: 1, status: "completed" }, "PUT"))
+
+    const updated = namedCall(sql.mock.calls[4], UPDATE_FIELDS)
+    expect(updated.due_date).toBe("2026-08-02")
+    expect(updated.status).toBe("next")
+    expect(updated.completed).toBe(false)
+  })
+
+  it("bumps occurrence_count and resets checklist items when advancing", async () => {
+    getUserFromSession.mockResolvedValue({ id: "user-1" })
+    sql.mockResolvedValueOnce([{ ...baseExistingTask, status: "next", completed: false, due_date: "2026-08-01" }])
+    sql.mockResolvedValueOnce([{ ...baseRecurrenceRule }])
+    sql.mockResolvedValueOnce([])
+    sql.mockResolvedValueOnce([])
+    sql.mockResolvedValueOnce([{ id: 1 }])
+
+    await PUT(jsonRequest({ id: 1, status: "completed" }, "PUT"))
+
+    expect(sql.mock.calls[2][0].join("")).toContain("UPDATE task_recurrence")
+    expect(sql.mock.calls[2][0].join("")).toContain("occurrence_count = occurrence_count + 1")
+    expect(sql.mock.calls[3][0].join("")).toContain("UPDATE task_checklist_items")
+  })
+
+  it("shifts scheduled_date to preserve its gap from due_date when advancing", async () => {
+    getUserFromSession.mockResolvedValue({ id: "user-1" })
+    sql.mockResolvedValueOnce([
+      { ...baseExistingTask, status: "next", completed: false, due_date: "2026-08-01", scheduled_date: "2026-07-31" },
+    ])
+    sql.mockResolvedValueOnce([{ ...baseRecurrenceRule }])
+    sql.mockResolvedValueOnce([])
+    sql.mockResolvedValueOnce([])
+    sql.mockResolvedValueOnce([{ id: 1 }])
+
+    await PUT(jsonRequest({ id: 1, status: "completed" }, "PUT"))
+
+    const updated = namedCall(sql.mock.calls[4], UPDATE_FIELDS)
+    expect(updated.due_date).toBe("2026-08-02")
+    expect(updated.scheduled_date).toBe("2026-08-01")
+  })
+
+  it("computes the next occurrence from today when repeat_after_completion is true", async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-08-10T12:00:00Z"))
+    try {
+      getUserFromSession.mockResolvedValue({ id: "user-1" })
+      sql.mockResolvedValueOnce([{ ...baseExistingTask, status: "next", completed: false, due_date: "2026-08-01" }])
+      sql.mockResolvedValueOnce([{ ...baseRecurrenceRule, repeat_after_completion: true, interval_count: 3 }])
+      sql.mockResolvedValueOnce([])
+      sql.mockResolvedValueOnce([])
+      sql.mockResolvedValueOnce([{ id: 1 }])
+
+      await PUT(jsonRequest({ id: 1, status: "completed" }, "PUT"))
+
+      const updated = namedCall(sql.mock.calls[4], UPDATE_FIELDS)
+      expect(updated.due_date).toBe("2026-08-13")
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("clamps a monthly recurrence to the target month's last day instead of overflowing", async () => {
+    getUserFromSession.mockResolvedValue({ id: "user-1" })
+    sql.mockResolvedValueOnce([{ ...baseExistingTask, status: "next", completed: false, due_date: "2026-01-31" }])
+    sql.mockResolvedValueOnce([{ ...baseRecurrenceRule, frequency: "monthly", interval_count: 1 }])
+    sql.mockResolvedValueOnce([])
+    sql.mockResolvedValueOnce([])
+    sql.mockResolvedValueOnce([{ id: 1 }])
+
+    await PUT(jsonRequest({ id: 1, status: "completed" }, "PUT"))
+
+    const updated = namedCall(sql.mock.calls[4], UPDATE_FIELDS)
+    expect(updated.due_date).toBe("2026-02-28") // 2026 is not a leap year
+  })
+
+  it("leaves the task completed once ends_after_count is reached", async () => {
+    getUserFromSession.mockResolvedValue({ id: "user-1" })
+    sql.mockResolvedValueOnce([{ ...baseExistingTask, status: "next", completed: false, due_date: "2026-08-01" }])
+    sql.mockResolvedValueOnce([{ ...baseRecurrenceRule, ends_after_count: 3, occurrence_count: 2 }])
+    sql.mockResolvedValueOnce([{ id: 1 }])
+
+    await PUT(jsonRequest({ id: 1, status: "completed" }, "PUT"))
+
+    const updated = namedCall(sql.mock.calls[2], UPDATE_FIELDS)
+    expect(updated.status).toBe("completed")
+    expect(updated.due_date).toBe("2026-08-01")
+  })
+
+  it("leaves the task completed once the next occurrence would be past ends_on", async () => {
+    getUserFromSession.mockResolvedValue({ id: "user-1" })
+    sql.mockResolvedValueOnce([{ ...baseExistingTask, status: "next", completed: false, due_date: "2026-08-01" }])
+    sql.mockResolvedValueOnce([{ ...baseRecurrenceRule, ends_on: "2026-08-01" }])
+    sql.mockResolvedValueOnce([{ id: 1 }])
+
+    await PUT(jsonRequest({ id: 1, status: "completed" }, "PUT"))
+
+    const updated = namedCall(sql.mock.calls[2], UPDATE_FIELDS)
+    expect(updated.status).toBe("completed")
+  })
+
+  it("does not advance when re-saving a task that is already completed", async () => {
+    getUserFromSession.mockResolvedValue({ id: "user-1" })
+    sql.mockResolvedValueOnce([{ ...baseExistingTask, status: "completed", completed: true, due_date: "2026-08-01" }])
+    sql.mockResolvedValueOnce([{ id: 1 }])
+
+    await PUT(jsonRequest({ id: 1, status: "completed" }, "PUT"))
+
+    // Only the existing-task lookup and the final UPDATE -- no task_recurrence lookup at all.
+    expect(sql).toHaveBeenCalledTimes(2)
+    const updated = namedCall(sql.mock.calls[1], UPDATE_FIELDS)
+    expect(updated.status).toBe("completed")
+  })
+
+  it("does not advance when completing via cancelled status", async () => {
+    getUserFromSession.mockResolvedValue({ id: "user-1" })
+    sql.mockResolvedValueOnce([{ ...baseExistingTask, status: "next", completed: false, due_date: "2026-08-01" }])
+    sql.mockResolvedValueOnce([{ id: 1 }])
+
+    await PUT(jsonRequest({ id: 1, status: "cancelled" }, "PUT"))
+
+    expect(sql).toHaveBeenCalledTimes(2)
   })
 })
 
