@@ -89,10 +89,10 @@ Current `package.json` scripts:
 
 Current command caveats:
 
-- No `test` script exists.
-- No `typecheck` script exists.
+- `npm test` runs Vitest (`vitest run`), added 2026-07-24. Coverage is intentionally minimal so far: `lib/auth.ts` + `app/api/tags/route.ts` (20 tests total). See `AI_TASK_LOG.md` for the pattern to copy when adding more.
+- No `typecheck` script exists (use `npx tsc --noEmit` directly).
 - No formatting script exists.
-- `npm run lint` currently fails because no `eslint.config.*` file exists for ESLint 10.
+- `npm run lint` now runs (fixed 2026-07-24 — `eslint.config.mjs` + ESLint 9.39.5 + `eslint-config-next@16.2.11`; ESLint 10 is not yet supported by `eslint-plugin-react`, see `AI_TASK_LOG.md`). It exits non-zero: 293 pre-existing findings surfaced by lint running for the first time against the real codebase. Not yet cleaned up — a separate follow-up task, not a blocker.
 - `npm run build` currently passes, but `next.config.mjs` skips TypeScript validation and linting during builds.
 
 ## Coding Conventions

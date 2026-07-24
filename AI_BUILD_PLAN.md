@@ -187,7 +187,7 @@ Follows the raw spec's build order (§29) but annotated with what already exists
 - 🟠 **Shared object types** — a `lib/types/` (or per-module) TS type layer for the core objects; today types are ad-hoc per page.
 - 🟠 **`item_relationships`** table + minimal read/write API (A6) — foundational for backlinks, mentions, connected objects.
 - 🟠 **Nav restructure** to the §4 grouping, keeping hub redirects (A9).
-- 🟠 **Test harness** — pick a runner (Vitest fits Next 15), wire `npm test`, seed the first tests on `lib/auth.ts` + one CRUD route. (Also fix ESLint flat config so `npm run lint` runs — long-standing debt.)
+- ✅ **Test harness** — Vitest wired as `npm test` with a first real suite on `lib/auth.ts` + one CRUD route (`app/api/tags/route.ts`, 20 tests). `npm run lint`'s ESLint flat config is also fixed and running (2026-07-24, see `AI_TASK_LOG.md` for the ESLint 9 vs. 10 / `eslint-config-next` v15 vs. v16 dead ends) — it now surfaces 293 pre-existing findings across the codebase, which is expected for a linter running for the first time and is tracked as separate follow-up cleanup, not blocking.
 - 🟠 **Auth/authorization review** (§29 Foundation) — a lightweight pass confirming every route added since `AI_AUDIT.md` (2026-05-17) still follows `getUserFromSession()` + `user_id` scoping. Defer the full security re-baseline (CRON secret, OAuth state, SSRF re-verification) to Phase 7 (A8) rather than duplicating that work here.
 - **Exit:** teal/warm theme live in both modes; `item_relationships` callable; nav regrouped without broken links; `npm test` runs with ≥1 real test; auth pattern spot-check clean; tsc clean; build green.
 

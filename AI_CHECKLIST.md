@@ -315,9 +315,13 @@ Dependency notes:
 - Collaborative Whiteboard uses `@liveblocks/client`, `@liveblocks/react`, and `@liveblocks/node`; do not add a large canvas/whiteboard dependency unless a future task explicitly justifies it.
 - Rich text writing surfaces use Tiptap through `@tiptap/react`, `@tiptap/pm`, `@tiptap/starter-kit`, `@tiptap/extension-underline`, `@tiptap/extension-link`, and `@tiptap/extension-placeholder`.
 
+Test/lint status (updated 2026-07-24 — see `AI_TASK_LOG.md` for the full setup story):
+
+- `npm test` runs Vitest (`vitest run`). Config: `vitest.config.ts` (Node environment, `@/` alias, dummy `DATABASE_URL` test env so `lib/auth.ts`/`lib/db.ts` import cleanly without a real database). First suite: `lib/auth.test.ts` (12 tests) + `app/api/tags/route.test.ts` (8 tests, mocking `@/lib/auth` and `@/lib/db`).
+- `npm run lint` runs via `eslint.config.mjs` (flat config, imports `eslint-config-next/core-web-vitals` + `eslint-config-next/typescript` directly — no `FlatCompat` needed since `eslint-config-next@16` ships native flat arrays). Requires `eslint@9.x` — **ESLint 10 is not yet supported by `eslint-plugin-react`** (confirmed via its published `peerDependencies`), so do not bump past ESLint 9 until that changes. Currently reports 293 pre-existing findings (186 errors, 107 warnings) — first-ever lint run against this codebase, not yet cleaned up.
+
 Unavailable scripts:
 
-- No `test` script is defined.
 - No `typecheck` script is defined.
 - No `format` script is defined.
 - No database migration runner script is defined.
@@ -352,12 +356,13 @@ Database scripts:
 
 ## Current Command Behavior
 
-Known as of 2026-05-17:
+Known as of 2026-07-24 (supersedes the 2026-05-17 lint/test lines below):
 
 - `npm run build` passes.
 - `npm run build` skips TypeScript validation and linting because of `next.config.mjs`.
 - `npm run build` emits warnings that `metadata.themeColor` and `metadata.viewport` should move to viewport exports.
-- `npm run lint` fails before source linting because ESLint cannot find `eslint.config.(js|mjs|cjs)`.
+- `npm run lint` now runs (see "Test/lint status" above) and exits non-zero due to 293 pre-existing findings, not a config failure.
+- `npm test` now runs Vitest and passes (20/20 tests).
 
 ## Pre-Change Checklist
 

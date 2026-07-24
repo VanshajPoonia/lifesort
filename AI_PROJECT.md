@@ -269,11 +269,11 @@ Never print or commit secret values.
 
 ## Current Priorities and Technical Debt
 
-- Add or repair ESLint flat config so `npm run lint` works.
+- ~~Add or repair ESLint flat config so `npm run lint` works.~~ Done 2026-07-24 (`eslint.config.mjs` + ESLint 9.39.5 + `eslint-config-next@16.2.11`; ESLint 10 isn't yet supported by `eslint-plugin-react`). Now surfaces 293 pre-existing findings — cleaning those up is the new, separate priority.
 - Add a `typecheck` script and consider re-enabling TypeScript validation in builds.
 - Consolidate schema drift around `scripts/website-current-schema.sql`.
 - Normalize auth/session handling in routes that do not use `lib/auth.ts`.
-- Add automated tests for auth, key CRUD routes, reminders, sharing, and finance integrations.
+- Expand automated test coverage beyond the 2026-07-24 starter suite (`lib/auth.ts` + `app/api/tags/route.ts`) to more CRUD routes, reminders, sharing, and finance integrations.
 - Harden external URL preview fetching against SSRF and internal network access.
 - Replace `resend.dev` sender defaults before production email use.
 - Move unsupported `metadata.themeColor` and `metadata.viewport` fields to the Next viewport export pattern.
@@ -282,15 +282,15 @@ Never print or commit secret values.
 
 - Worktree had no tracked modifications before the AI memory docs were created.
 - Build health: passing, but with type and lint gates disabled.
-- Lint health: blocked by missing ESLint flat config.
-- Test health: no configured automated test entrypoint.
+- Lint health: `npm run lint` runs (fixed 2026-07-24); 293 pre-existing findings not yet cleaned up.
+- Test health: `npm test` (Vitest) runs; 20 tests across 2 files as of 2026-07-24 — a starter harness, not full coverage.
 - Database health: schema source of truth needs confirmation against the live Neon database.
 
 ## Known Incomplete or Risky Areas
 
-- `npm run lint` fails because ESLint 10 cannot find `eslint.config.*`.
+- `npm run lint` runs but reports 293 pre-existing findings (186 errors, 107 warnings) never checked before 2026-07-24 — see `AI_TASK_LOG.md` for the rule breakdown.
 - Builds pass while skipping TypeScript and lint validation.
-- No test command exists.
+- Automated test coverage is minimal (2 files, 20 tests as of 2026-07-24).
 - Some route handlers use broad `any` types.
 - URL preview fetches arbitrary URLs.
 - Investment screenshot parsing uses a local JWT helper inconsistent with the main session cookie system.
