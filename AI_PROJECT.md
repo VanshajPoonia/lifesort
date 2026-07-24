@@ -264,7 +264,8 @@ Never print or commit secret values.
 
 ## Planned / Specified Work
 
-- **Life Domains** (`AI_LIFE_DOMAINS_SPEC.md`): full product spec for renaming/expanding Life Areas into Life Domains. **Phase 1 implemented 2026-07-23** — rename, lifecycle fields, dashboard tabs (see the Life Domains bullet above and `AI_TASK_LOG.md`). Phase 2/3 (per-domain reviews, templates, desired-attention nudges, health status surfacing, domain focus mode, privacy enforcement, journal/calendar association, subdomains) not started. Consult the spec before any further Life Domains work.
+- **Full LifeSort product build** (`AI_BUILD_PLAN.md`): the master reconciled roadmap for completing the entire product vision (Capture → Organize → Plan → Focus → Reflect → Find). It audits the 2026-07-23 full-product spec against this codebase and records the phased plan plus key reconciliation decisions — notably: the Money/finance surface is **preserved** (framed as Financial-domain tooling, not removed); the OpenClaw/autonomous-agents direction is **descoped** and the `agent_action_events` confirm-execute layer is repurposed as the AI action-safety substrate; a generic `item_relationships` table is added additively for backlinks/mentions; the `life_areas` table name is retained; and most of the spec's §27 tables already exist under other names. **Read `AI_BUILD_PLAN.md` before any feature work that advances the full-product vision.**
+- **Life Domains** (`AI_LIFE_DOMAINS_SPEC.md`): full spec for the Life Domains system. **Phases 1, 2, and 3 are implemented** (2026-07-23; see the Life Domains bullet above and `AI_TASK_LOG.md`) except the deliberately-deferred Phase 3 items (Life Balance deepening, domain AI summaries, proactive capture suggestions, cross-domain insights). Consult the spec before any further Life Domains work.
 
 ## Current Priorities and Technical Debt
 

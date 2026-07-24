@@ -18,6 +18,8 @@ Before starting any task, every AI agent must read all five memory files:
 - `AI_DECISIONS.md` — architecture decisions and patterns to preserve
 - `AI_CHECKLIST.md` — commands, env vars, and verification steps
 
+Three further files extend these when relevant: `AI_BUILD_PLAN.md` — the master reconciled roadmap for building the complete LifeSort product; **read it before any feature work that advances the full-product vision.** `AI_LIFE_DOMAINS_SPEC.md` — the Life Domains spec. `DESIGN.md` — the design system. `AI_AUDIT.md` is a historical 2026-05 snapshot; re-verify before acting on it.
+
 **Do not rely on chat history.** These files are the single source of truth. If the chat says one thing and a memory file says another, trust the memory file and flag the conflict.
 
 ## Memory Reference Guide
@@ -36,6 +38,8 @@ Use the right file for the right question. Consult these files during work, not 
 | What environment variables are required? | `AI_CHECKLIST.md` → Environment Setup |
 | Has a migration already been written for this table? | `AI_TASK_LOG.md` + `scripts/` directory |
 | What changed in the last session? | `AI_TASK_LOG.md` → most recent dated entry |
+| What is the full-product roadmap, or how does a spec item map to what already exists? | `AI_BUILD_PLAN.md` |
+| What are the design rules for a surface? | `DESIGN.md` |
 
 ### When to re-consult memory during a task
 
