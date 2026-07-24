@@ -3,28 +3,47 @@
 @tailwind utilities;
 
 :root {
-  --background: 0 0% 100%;
-  --foreground: 0 0% 9%;
+  /* LifeSort hybrid design system (DESIGN.md) — warm paper canvas, calm teal primary. */
+  --background: 40 27% 96%;
+  --foreground: 36 9% 11%;
   --card: 0 0% 100%;
-  --card-foreground: 0 0% 9%;
+  --card-foreground: 36 9% 11%;
   --popover: 0 0% 100%;
-  --popover-foreground: 0 0% 9%;
-  --primary: 262 83% 58%;
+  --popover-foreground: 36 9% 11%;
+  --primary: 172 75% 28%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 0 0% 96%;
-  --secondary-foreground: 0 0% 9%;
-  --muted: 0 0% 96%;
-  --muted-foreground: 0 0% 45%;
-  --accent: 262 83% 58%;
-  --accent-foreground: 0 0% 100%;
-  --destructive: 0 84% 60%;
+  --secondary: 38 28% 92%;
+  --secondary-foreground: 36 9% 11%;
+  --muted: 38 28% 92%;
+  --muted-foreground: 36 7% 40%;
+  --accent: 160 29% 92%;
+  --accent-foreground: 172 75% 28%;
+  --destructive: 8 55% 51%;
   --destructive-foreground: 0 0% 100%;
-  --border: 0 0% 90%;
-  --input: 0 0% 90%;
-  --ring: 262 83% 58%;
+  --border: 37 21% 88%;
+  --input: 37 17% 82%;
+  --ring: 172 75% 28%;
   --radius: 0.5rem;
-  --success: 142 72% 29%;
-  --warning: 35 92% 33%;
+  --success: 140 42% 43%;
+  --warning: 38 62% 48%;
+
+  /* Additive DESIGN.md tokens not covered by the shadcn set above. */
+  --canvas: 40 27% 96%;
+  --canvas-soft: 38 28% 92%;
+  --surface: 0 0% 100%;
+  --surface-raised: 0 0% 100%;
+  --ink: 36 9% 11%;
+  --ink-secondary: 36 8% 25%;
+  --ink-muted: 36 7% 40%;
+  --ink-faint: 38 7% 57%;
+  --hairline: 37 21% 88%;
+  --hairline-strong: 37 17% 82%;
+  --primary-hover: 174 75% 33%;
+  --primary-active: 172 75% 22%;
+  --primary-tint: 160 29% 92%;
+  --ember: 20 53% 54%;
+  --ember-tint: 26 56% 92%;
+
   --motion-quick: 150ms;
   --motion-base: 220ms;
   --motion-slow: 350ms;
@@ -33,27 +52,44 @@
 }
 
 .dark {
-  --background: 0 0% 3.9%;
-  --foreground: 0 0% 98%;
-  --card: 0 0% 7%;
-  --card-foreground: 0 0% 98%;
-  --popover: 0 0% 7%;
-  --popover-foreground: 0 0% 98%;
-  --primary: 262 83% 58%;
+  /* Softer, warmer than a near-black Linear dark mode — never #010102. */
+  --background: 255 7% 11%;
+  --foreground: 40 19% 91%;
+  --card: 252 7% 14%;
+  --card-foreground: 40 19% 91%;
+  --popover: 250 7% 17%;
+  --popover-foreground: 40 19% 91%;
+  --primary: 170 55% 41%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 0 0% 14%;
-  --secondary-foreground: 0 0% 98%;
-  --muted: 0 0% 14%;
-  --muted-foreground: 0 0% 63%;
-  --accent: 0 0% 14%;
-  --accent-foreground: 0 0% 98%;
-  --destructive: 0 62% 30%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 0 0% 24%;
-  --input: 0 0% 18%;
-  --ring: 262 83% 58%;
-  --success: 142 69% 58%;
-  --warning: 38 92% 62%;
+  --secondary: 252 7% 13%;
+  --secondary-foreground: 40 19% 91%;
+  --muted: 252 7% 13%;
+  --muted-foreground: 37 6% 55%;
+  --accent: 184 21% 15%;
+  --accent-foreground: 170 55% 41%;
+  --destructive: 11 60% 63%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 250 6% 20%;
+  --input: 249 6% 25%;
+  --ring: 170 55% 41%;
+  --success: 142 39% 54%;
+  --warning: 38 65% 58%;
+
+  --canvas: 255 7% 11%;
+  --canvas-soft: 252 7% 13%;
+  --surface: 252 7% 14%;
+  --surface-raised: 250 7% 17%;
+  --ink: 40 19% 91%;
+  --ink-secondary: 40 9% 75%;
+  --ink-muted: 37 6% 55%;
+  --ink-faint: 38 5% 40%;
+  --hairline: 250 6% 20%;
+  --hairline-strong: 249 6% 25%;
+  --primary-hover: 170 53% 46%;
+  --primary-active: 169 55% 32%;
+  --primary-tint: 184 21% 15%;
+  --ember: 21 62% 61%;
+  --ember-tint: 12 16% 18%;
 }
 
 [data-theme="ocean"] {
@@ -211,6 +247,21 @@
   .surface-card {
     border-color: hsl(var(--border) / 0.75);
     box-shadow: 0 1px 2px hsl(var(--foreground) / 0.04), 0 16px 40px hsl(var(--foreground) / 0.025);
+  }
+
+  .domain-spine {
+    position: relative;
+  }
+
+  .domain-spine::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    border-radius: 9999px;
+    background-color: var(--domain-spine-color, hsl(var(--primary)));
   }
 
   .interactive-card,

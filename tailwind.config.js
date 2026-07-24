@@ -27,6 +27,9 @@ module.exports = {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          hover: "hsl(var(--primary-hover))",
+          active: "hsl(var(--primary-active))",
+          tint: "hsl(var(--primary-tint))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -53,6 +56,28 @@ module.exports = {
         card: {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
+        },
+        canvas: {
+          DEFAULT: "hsl(var(--canvas))",
+          soft: "hsl(var(--canvas-soft))",
+        },
+        surface: {
+          DEFAULT: "hsl(var(--surface))",
+          raised: "hsl(var(--surface-raised))",
+        },
+        ink: {
+          DEFAULT: "hsl(var(--ink))",
+          secondary: "hsl(var(--ink-secondary))",
+          muted: "hsl(var(--ink-muted))",
+          faint: "hsl(var(--ink-faint))",
+        },
+        hairline: {
+          DEFAULT: "hsl(var(--hairline))",
+          strong: "hsl(var(--hairline-strong))",
+        },
+        ember: {
+          DEFAULT: "hsl(var(--ember))",
+          tint: "hsl(var(--ember-tint))",
         },
       },
       borderRadius: {

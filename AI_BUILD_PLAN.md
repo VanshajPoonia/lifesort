@@ -183,7 +183,7 @@ Follows the raw spec's build order (§29) but annotated with what already exists
 
 ### Phase 0 — Foundation
 - ✅ App shell, sidebar, command palette (`⌘K`), Quick Add/Capture, auth + authorization, raw-SQL data layer, theme tokens.
-- 🟡 **Design-system token migration** — migrate `app/globals.css` HSL variables onto the `DESIGN.md` values (replace templated violet `--primary` with calm teal, warm canvas, domain palette, domain spine). Per `DESIGN.md` "Themes."
+- ✅ **Design-system token migration** — migrated `app/globals.css` HSL variables (light + dark) onto the `DESIGN.md` values: calm teal primary, warm canvas/ink/hairline tokens, and a `.domain-spine` utility (2026-07-24, see `AI_TASK_LOG.md`). The 8-color domain palette swatch wiring (`lib/life-areas.ts`) and applying `.domain-spine` to actual domain pages are deliberately deferred to Phase 1 domain-dashboard depth work — see that task log entry for why.
 - 🟠 **Shared object types** — a `lib/types/` (or per-module) TS type layer for the core objects; today types are ad-hoc per page.
 - 🟠 **`item_relationships`** table + minimal read/write API (A6) — foundational for backlinks, mentions, connected objects.
 - 🟠 **Nav restructure** to the §4 grouping, keeping hub redirects (A9).
