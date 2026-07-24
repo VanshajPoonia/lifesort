@@ -1,5 +1,5 @@
 -- LifeSort fresh-install bundle
--- AUTO-GENERATED from scripts/schema.sql on 2026-05-18.
+-- AUTO-GENERATED from scripts/schema.sql on 2026-07-24.
 --
 -- ⚠️  DESTRUCTIVE: Drops ALL existing tables in the public schema.
 -- Only run this on an empty database or one whose data you are OK losing.
@@ -1242,6 +1242,38 @@ CREATE TABLE IF NOT EXISTS attachments (
 );
 
 CREATE INDEX IF NOT EXISTS idx_attachments_item ON attachments(user_id, item_type, item_id);
+
+-- ── Generic item relationships (2026-07-24-item-relationships.sql) ─────────
+-- AI_BUILD_PLAN.md Phase 0 / A6: the general backlink/mention/related/dependency
+-- graph across object types. Existing typed links (project_items, space_items,
+-- life_area_id, goal_id, converted_type/id, promoted_type/id) stay authoritative
+-- for their own domains -- this table never duplicates or overrides them.
+-- from_id/to_id are VARCHAR(255), not INTEGER, because linked types span both
+-- SERIAL-integer tables and VARCHAR/UUID tables (whiteboards, spaces).
+CREATE TABLE IF NOT EXISTS item_relationships (
+  id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  from_type VARCHAR(50) NOT NULL CHECK (from_type IN (
+    'task', 'goal', 'project', 'note', 'life_area', 'journal_entry', 'whiteboard',
+    'space', 'person', 'vault_item', 'wishlist_item', 'someday_item', 'inbox_item',
+    'waiting_item', 'commitment', 'maintenance_item', 'custom_section'
+  )),
+  from_id VARCHAR(255) NOT NULL,
+  to_type VARCHAR(50) NOT NULL CHECK (to_type IN (
+    'task', 'goal', 'project', 'note', 'life_area', 'journal_entry', 'whiteboard',
+    'space', 'person', 'vault_item', 'wishlist_item', 'someday_item', 'inbox_item',
+    'waiting_item', 'commitment', 'maintenance_item', 'custom_section'
+  )),
+  to_id VARCHAR(255) NOT NULL,
+  relation VARCHAR(30) NOT NULL CHECK (relation IN (
+    'backlink', 'mention', 'related', 'depends_on', 'source_of', 'converted_from'
+  )),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, from_type, from_id, to_type, to_id, relation)
+);
+
+CREATE INDEX IF NOT EXISTS idx_item_relationships_from ON item_relationships(user_id, from_type, from_id);
+CREATE INDEX IF NOT EXISTS idx_item_relationships_to ON item_relationships(user_id, to_type, to_id);
 
 -- ── Agent Action Events (2026-05-18-agent-action-events.sql) ───────────────
 -- See scripts/migrations/2026-05-18-agent-action-events.sql for the
