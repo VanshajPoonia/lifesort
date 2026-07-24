@@ -470,12 +470,17 @@ grep -E 'user_id (INTEGER|SERIAL|UUID)' scripts/*.sql
 
 ### API auth/scoping checks
 ```bash
-# 3. Every protected route should import getUserFromSession or check session somehow.
+# 3. Every protected route should import getUserFromSession/getUserFromRequest/getSessionFromCookie
+# or check session somehow. (2026-07-24: the original version of this check only recognized
+# getUserFromSession and produced false positives on nuke-goal, custom-sections, and
+# custom-sections/records, which correctly use getUserFromRequest instead — broadened here.)
 for f in $(find app/api -name route.ts); do
-  if ! grep -q 'getUserFromSession\|cron\|share\|stock-quote\|investments/popular' "$f"; then
+  if ! grep -q 'getUserFromSession\|getUserFromRequest\|getSessionFromCookie\|cron\|share\|stock-quote\|investments/popular\|url-preview\|liveblocks-auth' "$f"; then
     echo "Route may be unprotected: $f"
   fi
 done
+# As of 2026-07-24 this leaves only the five auth/* routes that are the auth boundary itself
+# (login, register, logout, forgot-password, reset-password) — expected, not a gap.
 
 # 4. SELECT/UPDATE/DELETE on user-owned tables must have user_id filter.
 # Inspect manually for any sql template that touches tasks/goals/notes/etc.
