@@ -195,7 +195,7 @@ Follows the raw spec's build order (§29) but annotated with what already exists
 ### Phase 1 — Core organization
 - ✅ Life Domains (Phases 1–3 of `AI_LIFE_DOMAINS_SPEC.md`), Goals, Projects, Tasks (base), Tags (`tags`/`item_tags`), Attachments (R2).
 - 🟡 **Tasks depth** — the spec (§9) separates **due date vs scheduled date vs duration** and wants subtasks, checklist, recurrence, reminder, actual duration, the full status set (Inbox/Next/In Progress/Waiting/Someday/Completed/Cancelled). Today's tasks have priority/due/reminder/order but not the rest. Add `task_checklist_items`, `task_recurrence`, `task_dependencies` (A7). Recurrence is the meatiest piece.
-- 🟡 **Wire Tags + Attachments** into Goals/Projects/Notes (API supports it; UI only on Tasks/Vault today).
+- ✅ **Wire Tags + Attachments** into Goals/Projects/Notes (2026-07-24, see `AI_TASK_LOG.md`). Tags (`TagPicker`/`item_tags`) wired into the Goal modal and Project detail page only — Notes deliberately excluded since it already has its own freeform `TEXT[]` tags (`AI_DECISIONS.md`). Attachments wired into Goals, Projects, and Notes (all three already allowed in the `attachments` CHECK constraint; no migration needed).
 - 🟠 **Relationships UI** — "related items" / backlinks surfaced on Task/Goal/Project/Note/Domain via `item_relationships`.
 - **Exit:** a task can carry due≠scheduled≠duration, subtasks, a recurrence rule, and related items, all persisted; Tags/Attachments usable beyond their first surface.
 

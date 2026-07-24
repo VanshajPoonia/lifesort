@@ -17,6 +17,29 @@ Current verification state:
 
 ## Completed Work
 
+### 2026-07-24 16:20 IST - Phase 1: Wire Tags + Attachments into Goals/Projects/Notes
+
+- **Agent/tool used:** Claude Code (Sonnet 5), primary coding agent (`CLAUDE.md` fallback mode), continuing into `AI_BUILD_PLAN.md` Phase 1 after the user confirmed moving to the next phase.
+- **Task completed:** Phase 1 bullet "Wire Tags + Attachments into Goals/Projects/Notes." Before implementing, discovered the bullet as literally written would have been wrong to execute: Notes already has its own freeform `TEXT[]` tags column (`notes.tags`, GIN-indexed), and `AI_DECISIONS.md`'s 2026-07-23 "Generic Tags Kept Separate" entry already, deliberately, excluded Notes from the generic `tags`/`item_tags` system. Wiring `TagPicker` into Notes would have created two parallel, conflicting tag systems on the same object. Scoped the actual work accordingly:
+  - **Tags** (`TagPicker` + `/api/item-tags`): wired into the Goal detail modal and the Project detail page only. No schema change needed — `item_tags`'s CHECK constraint already allows `goal`/`project`.
+  - **Attachments** (`AttachmentList` + `/api/attachments`): wired into Goals, Projects, **and** Notes. No schema change needed — `attachments`' CHECK constraint already allows `goal`/`project`/`note`.
+  - Zero new migrations required for this entire item.
+- **Files changed:**
+  - `components/goal-modal.tsx` — added `tags` state, fetch-on-open (`GET /api/item-tags?item_type=goal&item_id=...`), `saveTags` (`PUT`, optimistic update), rendered `<TagPicker>` + `<AttachmentList itemType="goal">` after the existing "Related Tasks" section.
+  - `app/projects/[id]/page.tsx` — same pattern: `tags` state, `fetchTags`/`saveTags` (item_type `project`), rendered `<TagPicker>` + `<AttachmentList itemType="project">` in a new 2-column row in the header card, below the progress/linked-items/next-actions stats.
+  - `app/notes/page.tsx` — added `<AttachmentList itemType="note" itemId={Number(selectedNote.id)} />` as a new full-width row directly below the existing folder/life-area/tags metadata grid (existing freeform tags UI untouched).
+  - `AI_BUILD_PLAN.md`, `AI_DECISIONS.md`, `AI_PROJECT.md`, `AI_TASK_LOG.md` (this entry) — documentation.
+- **Commands run:**
+  - `npx tsc --noEmit` — passed, no output.
+  - `npm run build` — passed, all pages generated.
+  - `npm test` — 30/30 passed, unchanged.
+  - `npm run lint` — 185 problems, unchanged (no new findings introduced).
+  - Visual + functional verification (dev server restarted clean first — see "Bugs found" below): Playwright registered disposable test accounts, created a goal/project/note, and screenshotted the Goal modal, Project detail page, and Notes editor to confirm Tags and Attachments render correctly in each (light mode, desktop). Additionally ran a full functional round trip on Goals: created a new tag via the picker, confirmed the `POST /api/tags` + `PUT /api/item-tags` calls fired, then re-fetched `/api/item-tags?item_type=goal&item_id=...` directly and confirmed the tag persisted server-side. All disposable `phase1test-*@example.com` accounts (11 total, created across iterative verification attempts) were deleted directly from the database afterward (same single-DB, `ON DELETE CASCADE` pattern as the earlier `navtest-*` cleanup this session) — no leftovers this time.
+- **Bugs found:** none in the new code. Hit one environmental issue while verifying: the long-running dev server (up since earlier this session) started 404ing on `_next/static/chunks/main-app.js`/`app-pages-internals.js`, silently breaking all client-side hydration (forms fell back to native HTML submission, e.g. registration silently no-op'd with a `?` appended to the URL). Not caused by this session's edits — fixed by killing the process, deleting `.next`, and restarting `npm run dev` clean. Worth remembering: if a long-lived dev server starts behaving strangely (forms not submitting, no console errors), suspect stale build chunks before suspecting the code.
+- **Remaining issues / known limitations:** Tags UI is not on Notes (by design, see above). "Tasks depth" (subtasks/checklist/recurrence/dependencies, due≠scheduled≠duration) is still the other unstarted Phase 1 bullet. Relationships UI (backlinks panel via `item_relationships`) also remains unstarted.
+- **Suggested next steps:** "Tasks depth" is the last major Phase 1 item and the biggest — the build plan itself calls recurrence "the meatiest piece." Recommend breaking it into its own sub-sequence rather than one giant change: (1) `task_checklist_items` (subtasks/checklist) first since it's the most self-contained and highest-value, (2) splitting due/scheduled/duration + the full status set (schema + UI), (3) `task_recurrence` last since it's explicitly the hardest part. Each deserves its own migration, its own verification pass, and its own commit per this repo's established pattern. Write the migration(s) but do not apply to the live database without explicit confirmation, consistent with `item_relationships` and every other migration this session.
+- **Handoff notes:** When wiring any future generic system (tags, attachments, item_relationships) into a new object-type surface, check that object's existing page/schema first for a pre-existing, narrower version of the same concept before assuming "not wired in yet" means "has nothing today" — `AI_BUILD_PLAN.md`'s roadmap bullets describe intent at a point in time and can be stale relative to `AI_DECISIONS.md`'s settled calls, which always win (per `AGENTS.md`).
+
 ### 2026-07-24 14:50 IST - Post-Phase-0 cleanup: leftover test account + partial lint cleanup
 
 - **Agent/tool used:** Claude Code (Sonnet 5), continuing as primary coding agent (`CLAUDE.md` fallback mode). Delegated the `no-unused-vars` portion to a `general-purpose` subagent (see below); reviewed and verified its output before committing.

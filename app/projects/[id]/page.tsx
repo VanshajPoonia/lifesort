@@ -16,8 +16,10 @@ import {
   Trash2,
 } from "lucide-react"
 
+import { AttachmentList } from "@/components/attachment-list"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { LifeAreaBadge, LifeAreaSelect } from "@/components/life-area-controls"
+import { TagPicker, type Tag as ItemTag } from "@/components/tag-picker"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -26,6 +28,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/components/auth-provider"
@@ -179,6 +182,7 @@ export default function ProjectDetailPage() {
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const [candidatesLoading, setCandidatesLoading] = useState(false)
   const [linkingId, setLinkingId] = useState<string | number | null>(null)
+  const [tags, setTags] = useState<ItemTag[]>([])
 
   useEffect(() => {
     if (!loading && !user) {
@@ -215,10 +219,37 @@ export default function ProjectDetailPage() {
       setItems(Array.isArray(itemsData.items) ? itemsData.items : [])
       setActivity(Array.isArray(activityData.activity) ? activityData.activity : [])
       setLifeAreas(Array.isArray(areaData) ? areaData.map((area) => normalizeLifeArea(area)) : [])
+      fetchTags(projectData?.id)
     } catch (fetchError) {
       setError(fetchError instanceof Error ? fetchError.message : "Project could not be loaded.")
     } finally {
       setLoadingProject(false)
+    }
+  }
+
+  const fetchTags = async (id: number | string | undefined) => {
+    if (!id) return
+    try {
+      const response = await fetch(`/api/item-tags?item_type=project&item_id=${id}`)
+      if (!response.ok) return
+      const data = await response.json()
+      setTags(Array.isArray(data) ? data : [])
+    } catch (fetchError) {
+      console.error("Failed to load project tags:", fetchError)
+    }
+  }
+
+  const saveTags = async (nextTags: ItemTag[]) => {
+    if (!project) return
+    setTags(nextTags)
+    try {
+      await fetch("/api/item-tags", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ item_type: "project", item_id: project.id, tag_ids: nextTags.map((tag) => tag.id) }),
+      })
+    } catch (fetchError) {
+      console.error("Failed to save project tags:", fetchError)
     }
   }
 
@@ -416,6 +447,16 @@ export default function ProjectDetailPage() {
                     <p className="text-sm text-muted-foreground">Next Actions</p>
                     <p className="text-2xl font-bold">{nextActions.length}</p>
                   </div>
+                </div>
+
+                <Separator className="my-4" />
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Tags</Label>
+                    <TagPicker selected={tags} onChange={saveTags} />
+                  </div>
+                  <AttachmentList itemType="project" itemId={Number(project.id)} />
                 </div>
               </CardContent>
             </Card>

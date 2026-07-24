@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useState } from "react"
 import { Calendar, Link2, Target, Trash2, Unlink, X } from "lucide-react"
 
+import { AttachmentList } from "@/components/attachment-list"
 import { ReminderSettings } from "@/components/reminder-settings"
 import { LifeAreaBadge, LifeAreaSelect } from "@/components/life-area-controls"
+import { TagPicker, type Tag as ItemTag } from "@/components/tag-picker"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
@@ -86,11 +88,32 @@ export function GoalModal({
   const [localGoal, setLocalGoal] = useState<Goal | null>(goal)
   const [selectedTaskId, setSelectedTaskId] = useState("")
   const [savingTaskLink, setSavingTaskLink] = useState(false)
+  const [tags, setTags] = useState<ItemTag[]>([])
 
   useEffect(() => {
     setLocalGoal(goal)
     setSelectedTaskId("")
+    setTags([])
+    if (!goal) return
+    fetch(`/api/item-tags?item_type=goal&item_id=${goal.id}`)
+      .then((response) => (response.ok ? response.json() : []))
+      .then((data) => setTags(Array.isArray(data) ? data : []))
+      .catch((error) => console.error("Failed to load goal tags:", error))
   }, [goal])
+
+  const saveTags = async (nextTags: ItemTag[]) => {
+    if (!localGoal) return
+    setTags(nextTags)
+    try {
+      await fetch("/api/item-tags", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ item_type: "goal", item_id: localGoal.id, tag_ids: nextTags.map((tag) => tag.id) }),
+      })
+    } catch (error) {
+      console.error("Failed to save goal tags:", error)
+    }
+  }
 
   const sortedAvailableTasks = useMemo(() => {
     return [...availableTasks].sort((a, b) => Number(a.completed) - Number(b.completed) || a.title.localeCompare(b.title))
@@ -375,6 +398,15 @@ export function GoalModal({
                     </div>
                   )}
                 </div>
+
+                <Separator />
+
+                <div className="space-y-3">
+                  <Label>Tags</Label>
+                  <TagPicker selected={tags} onChange={saveTags} />
+                </div>
+
+                <AttachmentList itemType="goal" itemId={localGoal.id} />
               </div>
 
               <aside className="space-y-4">

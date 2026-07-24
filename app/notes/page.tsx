@@ -21,6 +21,7 @@ import {
   X,
 } from "lucide-react"
 
+import { AttachmentList } from "@/components/attachment-list"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { useAuth } from "@/components/auth-provider"
 import { LifeAreaBadge, LifeAreaSelect } from "@/components/life-area-controls"
@@ -982,6 +983,8 @@ export default function NotesPage() {
                       </div>
                     </div>
                   </div>
+
+                  <AttachmentList itemType="note" itemId={Number(selectedNote.id)} />
                 </div>
 
                 <div className="flex-1 overflow-hidden p-4">
