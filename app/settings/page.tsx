@@ -42,6 +42,7 @@ import {
   Wallet,
   BookOpenText,
   Paintbrush,
+  Compass,
 } from "lucide-react"
 import {
   Accordion,
@@ -115,6 +116,7 @@ export default function SettingsPage() {
 
   const [sidebarPrefs, setSidebarPrefs] = useState({
     home: true,
+    domains: true,
     workspace: true,
     organize: true,
     reflect: true,
@@ -695,8 +697,9 @@ export default function SettingsPage() {
                 {[
                   { id: "home", label: "Home", icon: LayoutDashboard, description: "Dashboard, quick actions, LifeScore, and today snapshot" },
                   { id: "today", label: "Today", icon: CalendarCheck, description: "Today Plan, calendar today, habits due, and capacity planning" },
-                  { id: "journal", label: "Journal", icon: BookOpenText, description: "Daily reflection, gratitude, intentions, and tomorrow setup" },
+                  { id: "domains", label: "Domains", icon: Compass, description: "Life Domains: goals, projects, tasks, habits, and knowledge by life area" },
                   { id: "workspace", label: "Workspace", icon: Archive, description: "Plan, Capture, Visual, Systems, and Follow-ups" },
+                  { id: "journal", label: "Journal", icon: BookOpenText, description: "Daily reflection, gratitude, intentions, and tomorrow setup" },
                   { id: "whiteboard", label: "Whiteboard", icon: Paintbrush, description: "Collaborative visual planning and sketches" },
                   { id: "money", label: "Money", icon: Wallet, description: "Budget, income, investments, and wishlist" },
                   { id: "reflect", label: "Reflect", icon: Activity, description: "Life Balance, Weekly Review, Timeline, Reset, Coach, and LifeScore insights" },

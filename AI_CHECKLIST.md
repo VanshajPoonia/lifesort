@@ -169,7 +169,7 @@ Run after changes to `DashboardLayout`, command/search/capture UI, Home preferen
 ## Navigation / Information Architecture Checklist
 
 1. Preserve deep links when consolidating navigation; hide routes from the sidebar only, never delete feature pages.
-2. Keep the primary sidebar focused but discoverable: Home, Today, Journal, Workspace, Whiteboard, Money, Reflect, Coach, Settings, and admin-only Admin.
+2. Keep the primary sidebar focused but discoverable, grouped since 2026-07-24 into 5 labeled sections (see `AI_DECISIONS.md` "Sidebar Nav Restructure"): **Today** (Home, Today), **Life Domains** (Domains), **Workspace** (Workspace, Journal, Whiteboard, Money), **Reflect** (Reflect, Coach), **Utilities** (Settings, admin-only Admin). When adding or removing a hub item, update all three of `components/dashboard-layout.tsx` (`DEFAULT_SIDEBAR_PREFS` + `HUB_NAV_ITEMS`), `app/api/sidebar-preferences/route.ts` (`DEFAULT_SIDEBAR_SECTIONS`), and `app/settings/page.tsx` (sidebar toggle list) together — nothing keeps them in sync automatically.
 3. Keep Home short and attention-focused; do not re-add full module dashboards there when a hub or deep feature route already owns the workflow.
 4. Keep Today as the primary daily focus surface, with focus/due/suggested items unified into Must/Should/Could priority filters.
 5. Keep `/today` defaulting to the Today tab. The This Week planner is opt-in through `/today?tab=week` and should reschedule existing tasks through `/api/tasks`, not create a separate planning table.

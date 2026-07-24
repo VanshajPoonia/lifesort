@@ -28,6 +28,7 @@ import {
   Paintbrush,
   Sparkles,
   Target,
+  Compass,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -50,6 +51,7 @@ interface DashboardLayoutProps {
 
 const DEFAULT_SIDEBAR_PREFS = {
   home: true,
+  domains: true,
   workspace: true,
   organize: true,
   reflect: true,
@@ -98,25 +100,51 @@ const DEFAULT_SIDEBAR_PREFS = {
   notifications: true,
 }
 
+// Sidebar groups follow the spirit of the full-product spec's §4 grouped nav
+// (TODAY / PLAN / LIFE DOMAINS / WORKSPACE / UTILITIES), reconciled onto
+// LifeSort's actual hub set rather than copied literally -- our hubs already
+// consolidate many spec-level features (e.g. Workspace bundles Tasks/Goals/
+// Calendar/Inbox/...), so grouping applies one level up. See AI_BUILD_PLAN.md
+// Phase 0 "Nav restructure" and AI_TASK_LOG.md for the reasoning.
+type SidebarGroup = "today" | "domains" | "workspace" | "reflect" | "utilities"
+
+const GROUP_ORDER: SidebarGroup[] = ["today", "domains", "workspace", "reflect", "utilities"]
+const GROUP_LABELS: Record<SidebarGroup, string> = {
+  today: "Today",
+  domains: "Life Domains",
+  workspace: "Workspace",
+  reflect: "Reflect",
+  utilities: "Utilities",
+}
+
 type SidebarItem = {
   id: keyof typeof DEFAULT_SIDEBAR_PREFS
   label: string
   href: string
   icon: React.ElementType
+  group: SidebarGroup
   aliases?: string[]
   adminOnly?: boolean
   legacyFallback?: keyof typeof DEFAULT_SIDEBAR_PREFS
 }
 
 const HUB_NAV_ITEMS: SidebarItem[] = [
-  { id: "home", label: "Home", href: "/", icon: LayoutGrid, legacyFallback: "dashboard" },
-  { id: "today", label: "Today", href: "/today", icon: CalendarCheck },
-  { id: "journal", label: "Journal", href: "/journal", icon: BookOpenText },
+  { id: "home", label: "Home", href: "/", icon: LayoutGrid, group: "today", legacyFallback: "dashboard" },
+  { id: "today", label: "Today", href: "/today", icon: CalendarCheck, group: "today" },
+  {
+    id: "domains",
+    label: "Domains",
+    href: "/domains",
+    icon: Compass,
+    group: "domains",
+    aliases: ["/life-areas"],
+  },
   {
     id: "workspace",
     label: "Workspace",
     href: "/workspace",
     icon: Archive,
+    group: "workspace",
     aliases: [
       "/organize",
       "/plan",
@@ -146,12 +174,14 @@ const HUB_NAV_ITEMS: SidebarItem[] = [
     ],
     legacyFallback: "organize",
   },
-  { id: "whiteboard", label: "Whiteboard", href: "/whiteboard", icon: Paintbrush },
+  { id: "journal", label: "Journal", href: "/journal", icon: BookOpenText, group: "workspace" },
+  { id: "whiteboard", label: "Whiteboard", href: "/whiteboard", icon: Paintbrush, group: "workspace" },
   {
     id: "money",
     label: "Money",
     href: "/money",
     icon: Wallet,
+    group: "workspace",
     aliases: ["/budget", "/income", "/investments", "/wishlist"],
   },
   {
@@ -159,11 +189,12 @@ const HUB_NAV_ITEMS: SidebarItem[] = [
     label: "Reflect",
     href: "/reflect",
     icon: Activity,
-    aliases: ["/insights", "/review", "/timeline", "/reset", "/life-areas", "/domains"],
+    group: "reflect",
+    aliases: ["/insights", "/review", "/timeline", "/reset"],
   },
-  { id: "ai_assistant", label: "Coach", href: "/ai-chat", icon: Sparkles },
-  { id: "settings", label: "Settings", href: "/settings", icon: Settings, aliases: ["/rules"] },
-  { id: "admin", label: "Admin", href: "/admin", icon: Shield, adminOnly: true },
+  { id: "ai_assistant", label: "Coach", href: "/ai-chat", icon: Sparkles, group: "reflect" },
+  { id: "settings", label: "Settings", href: "/settings", icon: Settings, group: "utilities", aliases: ["/rules"] },
+  { id: "admin", label: "Admin", href: "/admin", icon: Shield, group: "utilities", adminOnly: true },
 ]
 
 const MOBILE_PRIMARY_ITEMS = HUB_NAV_ITEMS.filter((item) =>
@@ -387,28 +418,39 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
           </div>
 
           {/* Navigation */}
-          <nav className={cn("flex-1 space-y-1 overflow-y-auto overflow-x-hidden p-3", railMode && "px-2")}>
-            <div className="min-w-0 space-y-1">
-              {HUB_NAV_ITEMS.filter(isItemVisible).map((item) => {
-                const Icon = item.icon
-                const active = isActiveItem(item)
-                return (
-                  <Button
-                    key={item.id}
-                    asChild
-                    variant={active ? "secondary" : "ghost"}
-                    className={navButtonClass(item)}
-                    aria-label={item.label}
-                    title={item.label}
-                  >
-                    <Link href={item.href} onClick={() => setSidebarOpen(false)} title={item.label} aria-label={item.label}>
-                      <Icon className={navIconClass(item)} />
-                      <span className={cn("min-w-0 truncate", railMode && "hidden")}>{item.label}</span>
-                    </Link>
-                  </Button>
-                )
-              })}
-            </div>
+          <nav className={cn("flex-1 space-y-3 overflow-y-auto overflow-x-hidden p-3", railMode && "px-2")}>
+            {GROUP_ORDER.map((group) => {
+              const items = HUB_NAV_ITEMS.filter((item) => item.group === group).filter(isItemVisible)
+              if (items.length === 0) return null
+              return (
+                <div key={group} className="min-w-0 space-y-1">
+                  {!railMode && (
+                    <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70">
+                      {GROUP_LABELS[group]}
+                    </p>
+                  )}
+                  {items.map((item) => {
+                    const Icon = item.icon
+                    const active = isActiveItem(item)
+                    return (
+                      <Button
+                        key={item.id}
+                        asChild
+                        variant={active ? "secondary" : "ghost"}
+                        className={navButtonClass(item)}
+                        aria-label={item.label}
+                        title={item.label}
+                      >
+                        <Link href={item.href} onClick={() => setSidebarOpen(false)} title={item.label} aria-label={item.label}>
+                          <Icon className={navIconClass(item)} />
+                          <span className={cn("min-w-0 truncate", railMode && "hidden")}>{item.label}</span>
+                        </Link>
+                      </Button>
+                    )
+                  })}
+                </div>
+              )
+            })}
           </nav>
 
           {/* User Profile */}
@@ -551,6 +593,7 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
           </SheetHeader>
           <div className="mt-4 grid gap-2">
             {[
+              { href: "/domains", label: "Domains", icon: Compass },
               { href: "/journal", label: "Journal", icon: BookOpenText },
               { href: "/whiteboard", label: "Whiteboard", icon: Paintbrush },
               { href: "/ai-chat", label: "LifeSort Coach", icon: Sparkles },
