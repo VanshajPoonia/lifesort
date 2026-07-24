@@ -4,7 +4,6 @@ import React from "react"
 
 import { useState, useEffect, useRef } from "react"
 import NextLink from "next/link"
-import { useRouter } from "next/navigation"
 import { DashboardLayout, clearSidebarPrefsCache } from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -80,7 +79,6 @@ type HomeViewMode = "compact" | "detailed"
 
 export default function SettingsPage() {
   const { user } = useAuth()
-  const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
   
   const [profile, setProfile] = useState<UserProfile | null>(null)
@@ -928,9 +926,9 @@ export default function SettingsPage() {
                   <AccordionTrigger>How do I customize my sidebar?</AccordionTrigger>
                   <AccordionContent>
                     <p className="text-muted-foreground">
-                      Go to <strong>Settings &gt; Sidebar</strong> tab. You'll see a list of all available sections 
-                      (Dashboard, Calendar, Goals, Tasks, Budget, etc.). Check the boxes next to the features you want 
-                      to see in your sidebar, then click "Save Sidebar Settings". The changes will take effect after 
+                      Go to <strong>Settings &gt; Sidebar</strong> tab. You&apos;ll see a list of all available sections
+                      (Dashboard, Calendar, Goals, Tasks, Budget, etc.). Check the boxes next to the features you want
+                      to see in your sidebar, then click &quot;Save Sidebar Settings&quot;. The changes will take effect after
                       you refresh the page.
                     </p>
                   </AccordionContent>
@@ -942,7 +940,7 @@ export default function SettingsPage() {
                     <p className="text-muted-foreground">
                       The daily popup shows you a fun activity every 2 hours - this can be an inspirational quote, 
                       a joke, or a mini-game like Wordle or Snake. To disable it, go to <strong>Settings &gt; Content Preferences</strong> 
-                      and uncheck "Show Daily Quotes", "Show Daily Jokes", and "Show Daily Games". You can also 
+                      and uncheck &quot;Show Daily Quotes&quot;, &quot;Show Daily Jokes&quot;, and &quot;Show Daily Games&quot;. You can also
                       customize the types of quotes (motivational, religious, philosophical) and jokes (funny, dank, dad jokes) 
                       you receive.
                     </p>
@@ -953,9 +951,9 @@ export default function SettingsPage() {
                   <AccordionTrigger>How do I change the quote and joke themes?</AccordionTrigger>
                   <AccordionContent>
                     <p className="text-muted-foreground">
-                      Visit <strong>Settings &gt; Content Preferences</strong>. Under "Quote Categories" you can select 
-                      from Motivational, Religious/Spiritual, Philosophical, Stoic Wisdom, Funny, Love, or Success quotes. 
-                      Under "Joke Categories" choose from Clean & Funny, Dank/Meme Humor, Dad Jokes, Dark Humor, 
+                      Visit <strong>Settings &gt; Content Preferences</strong>. Under &quot;Quote Categories&quot; you can select
+                      from Motivational, Religious/Spiritual, Philosophical, Stoic Wisdom, Funny, Love, or Success quotes.
+                      Under &quot;Joke Categories&quot; choose from Clean & Funny, Dank/Meme Humor, Dad Jokes, Dark Humor,
                       Tech/Programmer jokes, Puns, or One-Liners.
                     </p>
                   </AccordionContent>
@@ -965,8 +963,8 @@ export default function SettingsPage() {
                   <AccordionTrigger>Where can I find my game history and play more games?</AccordionTrigger>
                   <AccordionContent>
                     <p className="text-muted-foreground">
-                      Go to <strong>Daily Quotes & Games</strong> in the sidebar. The "History" tab shows all your past 
-                      quotes, jokes, and game results. The "Play Games" tab lets you play Wordle and Snake anytime. 
+                      Go to <strong>Daily Quotes & Games</strong> in the sidebar. The &quot;History&quot; tab shows all your past
+                      quotes, jokes, and game results. The &quot;Play Games&quot; tab lets you play Wordle and Snake anytime.
                       Your scores are automatically saved to your history.
                     </p>
                   </AccordionContent>
@@ -988,9 +986,9 @@ export default function SettingsPage() {
                   <AccordionTrigger>How do I update my profile picture and information?</AccordionTrigger>
                   <AccordionContent>
                     <p className="text-muted-foreground">
-                      Go to <strong>Settings &gt; Profile</strong>. Click on your avatar to upload a new profile picture. 
-                      You can also update your name, bio, phone number, location, and date of birth. Don't forget to 
-                      click "Save Changes" when you're done.
+                      Go to <strong>Settings &gt; Profile</strong>. Click on your avatar to upload a new profile picture.
+                      You can also update your name, bio, phone number, location, and date of birth. Don&apos;t forget to
+                      click &quot;Save Changes&quot; when you&apos;re done.
                     </p>
                   </AccordionContent>
                 </AccordionItem>
@@ -999,7 +997,7 @@ export default function SettingsPage() {
                   <AccordionTrigger>How do I upgrade to Pro?</AccordionTrigger>
                   <AccordionContent>
                     <p className="text-muted-foreground">
-                      Use the trial banner or mobile More menu to open "Go Pro". This supports the development of the app
+                      Use the trial banner or mobile More menu to open &quot;Go Pro&quot;. This supports the development of the app
                       and gives you access to premium features. You can check your current subscription status in the
                       <strong> Settings &gt; Account</strong> tab.
                     </p>

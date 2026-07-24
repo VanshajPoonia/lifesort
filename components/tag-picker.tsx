@@ -115,7 +115,7 @@ export function TagPicker({
                 className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-primary hover:bg-muted"
               >
                 <Plus className="h-3.5 w-3.5" />
-                Create "{search.trim()}"
+                Create &quot;{search.trim()}&quot;
               </button>
             )}
             {filteredTags.length === 0 && !search.trim() && (

@@ -191,10 +191,6 @@ type JournalInsightsEntry = {
   gratitude: string[]
 }
 
-function toNumber(value: unknown) {
-  return typeof value === "number" && Number.isFinite(value) ? value : 0
-}
-
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -250,79 +246,6 @@ function normalizeReflectTab(value: string | null): ReflectTab {
   return value === "weekly-review" || value === "ignored-signals" || value === "journal" || value === "timeline" || value === "life-balance" || value === "lifescore"
     ? value
     : "lifescore"
-}
-
-function getReflectHubCards(currentHref: "/reflect" | "/insights") {
-  return [
-  {
-    title: "Life Balance",
-    description: "Area balance metrics and ignored-life signals.",
-    href: currentHref,
-    icon: Activity,
-    badge: "Current page",
-    priority: "primary" as const,
-  },
-  {
-    title: "Weekly Review",
-    description: "Reflect on the week and save next-week focus.",
-    href: "/review",
-    icon: CheckSquare,
-    statusKey: "weeklyReviewPending",
-    statusLabel: "pending",
-    zeroLabel: "0 pending",
-    priority: "primary" as const,
-  },
-  {
-    title: "Journal",
-    description: "Review daily reflections, gratitude, and star ratings.",
-    href: "/journal",
-    icon: BookOpenText,
-    badge: "Daily",
-    priority: "primary" as const,
-  },
-  {
-    title: "Life Timeline",
-    description: "Review milestones and meaningful activity over time.",
-    href: "/timeline",
-    icon: History,
-    priority: "primary" as const,
-  },
-  {
-    title: "Reset My Life",
-    description: "Recover from stale, overdue, and overwhelming items.",
-    href: "/reset",
-    icon: ShieldAlert,
-    statusKey: "overdueTasks",
-    statusLabel: "overdue",
-    zeroLabel: "0 overdue",
-  },
-  {
-    title: "LifeSort Coach",
-    description: "Ask app-aware questions with read-only LifeSort context.",
-    href: "/ai-chat",
-    icon: Sparkles,
-  },
-  {
-    title: "Life Domains",
-    description: "Manage the areas used for balance and organization.",
-    href: "/domains",
-    icon: Target,
-  },
-  {
-    title: "What Am I Ignoring?",
-    description: "Review non-AI risk signals and optional read-only AI context.",
-    href: currentHref,
-    icon: Search,
-    badge: "Current page",
-  },
-  {
-    title: "LifeScore",
-    description: "See the explainable organization signal on Home.",
-    href: "/",
-    icon: LayoutDashboard,
-    badge: "Open Home",
-  },
-  ]
 }
 
 function formatDateLabel(value: string | null) {

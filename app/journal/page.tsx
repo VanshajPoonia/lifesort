@@ -697,7 +697,7 @@ export default function JournalPage() {
               <Card className={cn("journal-paper-card surface-card", motionPresets.fadeInUp)}>
                 <CardHeader>
                   <CardTitle className="text-base">Life Domain</CardTitle>
-                  <CardDescription>Which part of life is today's entry about?</CardDescription>
+                  <CardDescription>Which part of life is today&apos;s entry about?</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <LifeAreaSelect

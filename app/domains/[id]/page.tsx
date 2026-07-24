@@ -909,7 +909,7 @@ export default function DomainDetailPage() {
                 <div className="flex items-center justify-between rounded-lg border p-3">
                   <div>
                     <p className="text-sm font-medium">Exclude from AI</p>
-                    <p className="text-xs text-muted-foreground">Coach, Capture, and Life Balance will never read this domain's data.</p>
+                    <p className="text-xs text-muted-foreground">Coach, Capture, and Life Balance will never read this domain&apos;s data.</p>
                   </div>
                   <Switch checked={settingsForm.is_ai_excluded} onCheckedChange={(checked) => setSettingsForm((prev) => prev && { ...prev, is_ai_excluded: checked })} />
                 </div>
@@ -933,7 +933,7 @@ export default function DomainDetailPage() {
           <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Start a Review</DialogTitle>
-              <DialogDescription>Every prompt is optional — skip anything that doesn't apply.</DialogDescription>
+              <DialogDescription>Every prompt is optional — skip anything that doesn&apos;t apply.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-2">
               <div className="space-y-2">

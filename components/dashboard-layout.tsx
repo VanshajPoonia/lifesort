@@ -216,7 +216,7 @@ export function clearSidebarPrefsCache() {
   _sidebarPrefsCache = null
 }
 
-export function DashboardLayout({ children, title, subtitle, showGreeting = false }: DashboardLayoutProps) {
+export function DashboardLayout({ children }: DashboardLayoutProps) {
   const getGreeting = () => {
     const hour = new Date().getHours()
     if (hour < 12) return "Good Morning"
@@ -237,7 +237,7 @@ export function DashboardLayout({ children, title, subtitle, showGreeting = fals
   const { focus: domainFocus, clearFocus: clearDomainFocus } = useDomainFocus()
   const { isTablet } = useBreakpoint()
   const [sidebarPrefs, setSidebarPrefs] = useState<Record<string, boolean> | null>(null)
-  const [prefsLoaded, setPrefsLoaded] = useState(false)
+  const [, setPrefsLoaded] = useState(false)
   const [quickAddOpen, setQuickAddOpen] = useState(false)
   const [quickAddInitialType, setQuickAddInitialType] = useState<QuickAddType | null>(null)
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)

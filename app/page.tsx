@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
-  Activity,
   AlertCircle,
   ArrowRight,
   Bell,
@@ -18,16 +17,12 @@ import {
   Clock,
   FileText,
   Gauge,
-  Heart,
   Inbox,
   Lightbulb,
   MoreHorizontal,
   Paintbrush,
-  PiggyBank,
   Plus,
   Sparkles,
-  Target,
-  TrendingUp,
   Wallet,
   Wrench,
   Zap,
@@ -52,7 +47,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 
@@ -286,21 +280,6 @@ interface DashboardNotification {
   created_at: string
 }
 
-interface WeeklyReviewPreview {
-  review?: {
-    id?: string | null
-    week_start?: string
-    week_end?: string
-    updated_at?: string | null
-  }
-  summary?: {
-    tasks?: { completed?: number; overdue?: number }
-    goals?: { progressed?: number }
-    habits?: { completed_checkins?: number }
-    projects?: { updated?: number }
-  }
-}
-
 interface LifeScoreComponent {
   key: string
   label: string
@@ -531,15 +510,6 @@ function parseDate(value?: string | null) {
   return date
 }
 
-function isDueWithinDays(task: Task, days: number) {
-  const date = parseDate(task.due_date)
-  if (!date) return false
-  const today = startOfToday()
-  const limit = new Date(today)
-  limit.setDate(limit.getDate() + days)
-  return date <= limit && (!task.completed || date >= today)
-}
-
 function waitingItemIsActive(item: WaitingItem) {
   return item.status === "waiting" || item.status === "follow_up_needed"
 }
@@ -585,18 +555,6 @@ function maintenanceOverdue(item: MaintenanceItem) {
   return maintenanceIsActive(item) && Boolean(date && date < startOfToday())
 }
 
-function sortByDueDate<T extends { date: string }>(items: T[]) {
-  return [...items].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-}
-
-function getGoalProgress(goal: Goal) {
-  const explicitProgress = toNumber(goal.progress)
-  const targetValue = toNumber(goal.target_value)
-  const currentValue = toNumber(goal.current_value)
-  if (targetValue > 0) return Math.min(100, Math.round((currentValue / targetValue) * 100))
-  return Math.min(100, Math.max(0, Math.round(explicitProgress)))
-}
-
 function monthlyIncomeForSource(source: IncomeSource) {
   if (source.active === false) return 0
   const amount = toNumber(source.amount)
@@ -634,20 +592,6 @@ async function fetchJson<T>(url: string): Promise<{ data: T | null; error: strin
     console.error(`Dashboard fetch failed for ${url}:`, error)
     return { data: null, error: `Could not load ${url.replace("/api/", "")}` }
   }
-}
-
-function LoadingCard() {
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <Skeleton className="h-4 w-32" />
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <Skeleton className="h-8 w-24" />
-        <Skeleton className="h-3 w-full" />
-      </CardContent>
-    </Card>
-  )
 }
 
 function SectionUnavailable({ label }: { label: string }) {
@@ -1028,45 +972,15 @@ export default function Home() {
   }
 
   const firstName = user.name?.split(" ")[0] || "there"
-  const activeGoals = sources.goals.filter((goal) => goal.status !== "completed")
-  const completedGoals = sources.goals.length - activeGoals.length
-  const dueSoonTasks = sources.tasks
-    .filter((task) => isDueWithinDays(task, 3))
-    .sort((a, b) => new Date(a.due_date || "").getTime() - new Date(b.due_date || "").getTime())
-  const openDueSoonTasks = dueSoonTasks.filter((task) => !task.completed)
-  const completedDueSoonTasks = dueSoonTasks.length - openDueSoonTasks.length
-  const taskProgress = dueSoonTasks.length ? Math.round((completedDueSoonTasks / dueSoonTasks.length) * 100) : 0
-
-  const goalProgress = sources.goals.length
-    ? Math.round(sources.goals.reduce((total, goal) => total + getGoalProgress(goal), 0) / sources.goals.length)
-    : 0
   const investmentTotal = sources.investments.reduce(
     (total, investment) => total + (toNumber(investment.current_value) || toNumber(investment.amount)),
     0,
   )
-  const investmentBasis = sources.investments.reduce((total, investment) => total + toNumber(investment.amount), 0)
-  const investmentGain = investmentTotal - investmentBasis
   const monthlyIncome = sources.income.reduce((total, source) => total + monthlyIncomeForSource(source), 0)
   const budgetSummary = sources.budget?.summary
   const budgetIncome = toNumber(budgetSummary?.income)
   const budgetExpenses = toNumber(budgetSummary?.expenses)
   const budgetBalance = toNumber(budgetSummary?.balance)
-  const wishlistPurchased = sources.wishlist.filter((item) => item.purchased).length
-  const wishlistOpen = sources.wishlist.filter((item) => !item.purchased)
-  const wishlistOpenValue = wishlistOpen.reduce((total, item) => total + toNumber(item.price), 0)
-  const wishlistTotalValue = sources.wishlist.reduce((total, item) => total + toNumber(item.price), 0)
-  const wishlistProgress = sources.wishlist.length ? Math.round((wishlistPurchased / sources.wishlist.length) * 100) : 0
-  const activeProjects = sources.projects.filter((project) => project.status === "active")
-  const overdueProjects = sources.projects.filter((project) => {
-    if (!project.due_date || project.status === "completed" || project.status === "archived") return false
-    const today = startOfToday()
-    const due = parseDate(project.due_date)
-    return Boolean(due && due < today)
-  })
-  const projectProgress = sources.projects.length
-    ? Math.round(sources.projects.reduce((total, project) => total + toNumber(project.progress), 0) / sources.projects.length)
-    : 0
-  const projectNextActions = sources.projects.reduce((total, project) => total + toNumber(project.next_action_count), 0)
 
   const recentActivityFull: ActivityItem[] = [
     ...sources.tasks.map((task) => ({

@@ -13,7 +13,6 @@ import {
   FileText,
   FolderPlus,
   Gauge,
-  HelpCircle,
   History,
   Home,
   Inbox,

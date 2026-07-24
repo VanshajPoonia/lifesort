@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import { Bell, Mail } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -19,7 +18,6 @@ export function ReminderSettings({
   onEnabledChange,
   reminderDays,
   onReminderDaysChange,
-  showCustomOption = true,
   className = "",
 }: ReminderSettingsProps) {
   return (

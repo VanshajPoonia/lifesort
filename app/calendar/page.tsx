@@ -22,20 +22,16 @@ import {
   Check,
   CheckSquare,
   Clock,
-  DollarSign,
   Edit,
   GripVertical,
-  Heart,
   Link2,
   Loader2,
   MapPin,
   Plus,
   RefreshCw,
-  Target,
   Trash2,
   Users,
   X,
-  Zap,
 } from "lucide-react"
 
 import { useAuth } from "@/components/auth-provider"
@@ -140,13 +136,6 @@ const categoryColors: Record<EventCategory, string> = {
   finance: "bg-warning/15 text-warning border-warning/30",
 }
 
-const categoryIcons: Record<EventCategory, typeof Heart> = {
-  personal: Heart,
-  work: Target,
-  health: Zap,
-  finance: DollarSign,
-}
-
 const priorityColors: Record<Task["priority"], string> = {
   high: "border-destructive/30 bg-destructive/10 text-destructive",
   medium: "border-warning/30 bg-warning/10 text-warning",
@@ -221,10 +210,6 @@ function formatHeaderDate(date: Date, view: CalendarView) {
     day: "numeric",
     year: "numeric",
   })}`
-}
-
-function isSameCalendarDay(date: Date, other: Date) {
-  return toDateKey(date) === toDateKey(other)
 }
 
 function normalizeTask(raw: Record<string, unknown>): Task {

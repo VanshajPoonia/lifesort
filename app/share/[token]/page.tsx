@@ -79,7 +79,7 @@ export default function SharePage() {
       }
 
       setError("This content is not available or has been made private.")
-    } catch (err) {
+    } catch {
       setError("Failed to load shared content")
     }
     setLoading(false)

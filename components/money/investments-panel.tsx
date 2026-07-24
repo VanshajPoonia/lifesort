@@ -10,7 +10,6 @@ import {
   Trash2,
   Edit2,
   TrendingUp,
-  TrendingDown,
   Loader2,
   Target,
   DollarSign,
@@ -25,7 +24,6 @@ import {
   Grid3X3,
   List,
   ArrowUpDown,
-  Link2,
   CheckCircle2,
   RefreshCw,
   Search,
@@ -595,7 +593,7 @@ export function InvestmentsPanel({ preferredCurrency = "USD" }: { preferredCurre
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 bg-clip-text text-transparent">
-              {firstName}'s Portfolio
+              {firstName}&apos;s Portfolio
             </h1>
             <p className="text-muted-foreground mt-1">Track your wealth and savings goals</p>
             <p className="text-xs text-muted-foreground/70 mt-1 flex items-center gap-1">
@@ -635,8 +633,8 @@ export function InvestmentsPanel({ preferredCurrency = "USD" }: { preferredCurre
                 </DialogHeader>
                 <div className="space-y-4 pt-4">
                   <p className="text-sm text-muted-foreground">
-                    Upload screenshots of your portfolio from any broker app (Zerodha, Groww, Robinhood, etc.) 
-                    and we'll automatically extract your investments.
+                    Upload screenshots of your portfolio from any broker app (Zerodha, Groww, Robinhood, etc.)
+                    and we&apos;ll automatically extract your investments.
                   </p>
                   <input
                     type="file"

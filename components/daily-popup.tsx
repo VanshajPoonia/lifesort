@@ -467,7 +467,7 @@ export function DailyPopup() {
       return (
         <div className="space-y-4">
           <blockquote className="text-lg italic text-foreground/90 leading-relaxed border-l-4 border-primary/30 pl-4">
-            "{content.content}"
+            &quot;{content.content}&quot;
           </blockquote>
           {content.extra_data?.author && (
             <p className="text-right text-muted-foreground">— {content.extra_data.author}</p>

@@ -1,8 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { useAuth } from "@/components/auth-provider"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import {
   Play,
@@ -20,7 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 type SessionType = "focus" | "shortBreak" | "longBreak"
 
@@ -32,8 +30,6 @@ interface Session {
 }
 
 export default function PomodoroPage() {
-  const router = useRouter()
-  const { user } = useAuth()
   const [sessionType, setSessionType] = useState<SessionType>("focus")
   const [isRunning, setIsRunning] = useState(false)
   const [sessionsCompleted, setSessionsCompleted] = useState(0)
@@ -152,7 +148,7 @@ export default function PomodoroPage() {
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Today's Sessions</CardTitle>
+              <CardTitle className="text-sm font-medium">Today&apos;s Sessions</CardTitle>
               <CheckCircle2 className="h-4 w-4 text-success" />
             </CardHeader>
             <CardContent>

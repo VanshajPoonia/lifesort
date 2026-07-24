@@ -17,7 +17,7 @@ import { AttachmentList } from "@/components/attachment-list"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -103,13 +103,6 @@ function daysUntil(dateStr: string | null): number | null {
   const target = new Date(dateStr + "T00:00:00")
   if (Number.isNaN(target.getTime())) return null
   return Math.ceil((target.getTime() - today().getTime()) / 86400000)
-}
-
-function formatDate(dateStr: string | null) {
-  if (!dateStr) return null
-  const d = new Date(dateStr + "T00:00:00")
-  if (Number.isNaN(d.getTime())) return null
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
 }
 
 type ExpiryStatus = "expired" | "critical" | "warning" | "upcoming" | "ok" | "none"

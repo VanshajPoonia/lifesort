@@ -36,12 +36,6 @@ async function refreshGoogleToken(integration: any) {
   return null
 }
 
-async function refreshOutlookToken(integration: any) {
-  // Placeholder for refreshOutlookToken function
-  // This should be implemented based on Outlook's OAuth token refresh process
-  return null;
-}
-
 async function fetchGoogleEvents(accessToken: string, timeMin: string, timeMax: string) {
   const response = await fetch(
     `https://www.googleapis.com/calendar/v3/calendars/primary/events?` +

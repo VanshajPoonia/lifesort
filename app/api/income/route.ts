@@ -42,7 +42,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { name, type, amount, frequency, description, active, life_area_id } = await request.json()
+    const { name, type, amount, frequency, active, life_area_id } = await request.json()
 
     if (!name || !type) {
       return NextResponse.json({ error: 'Name and type are required' }, { status: 400 })
@@ -74,7 +74,7 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json()
-    const { id, name, type, amount, frequency, description, active, life_area_id } = body
+    const { id, name, type, amount, frequency, active, life_area_id } = body
 
     if (!id) {
       return NextResponse.json({ error: 'Income source ID is required' }, { status: 400 })

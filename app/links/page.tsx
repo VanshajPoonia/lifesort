@@ -18,16 +18,11 @@ import {
   Folder, 
   FolderPlus,
   Edit2,
-  Check,
   X,
   Youtube,
   Globe,
-  ImageIcon,
-  ChevronRight,
-  ChevronDown,
   ArrowUpAZ,
   ArrowDownAZ,
-  FolderOpen,
   Upload,
   Share2,
   Copy,
@@ -80,19 +75,6 @@ interface LinkItem {
 const DEFAULT_FOLDERS: LinkFolder[] = [
   { id: 'all', name: 'All Links', color: 'bg-primary' },
 ]
-
-interface FolderItemProps {
-  folder: LinkFolder
-  level: number
-  selectedFolder: string
-  setSelectedFolder: (id: string) => void
-  expandedFolders: Set<string>
-  toggleFolderExpand: (id: string) => void
-  getSubfolders: (parentId: string) => LinkFolder[]
-  links: LinkItem[]
-  handleDeleteFolder: (id: string) => void
-  sortOrder: 'asc' | 'desc'
-}
 
 const FOLDER_COLORS = [
   'bg-red-500', 'bg-orange-500', 'bg-amber-500', 'bg-yellow-500',
@@ -171,15 +153,6 @@ export default function LinksPage() {
 
   const getRootFolders = () => {
     return folders.filter(f => f.id !== 'all' && !f.parent_id)
-  }
-
-  const sortedFolders = () => {
-    const sorted = [...folders].filter(f => f.id !== 'all')
-    sorted.sort((a, b) => {
-      const comparison = a.name.localeCompare(b.name)
-      return sortOrder === 'asc' ? comparison : -comparison
-    })
-    return sorted
   }
 
   const getAllChildFolderIds = (parentId: string): string[] => {

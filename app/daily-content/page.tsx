@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { DashboardLayout } from "@/components/dashboard-layout"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -35,7 +35,6 @@ import {
   Play,
   Trophy,
   Brain,
-  Dices,
   HelpCircle,
 } from "lucide-react"
 import { WordleGame } from "@/components/games/wordle-game"
@@ -316,7 +315,7 @@ export default function DailyContentPage() {
                       {item.content_type === "quote" && (
                         <div className="space-y-2">
                           <blockquote className="text-sm italic border-l-2 border-primary/30 pl-3">
-                            "{item.content}"
+                            &quot;{item.content}&quot;
                           </blockquote>
                           {item.extra_data?.author && (
                             <p className="text-xs text-muted-foreground text-right">

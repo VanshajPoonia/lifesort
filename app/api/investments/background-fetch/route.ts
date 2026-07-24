@@ -141,7 +141,7 @@ export async function GET() {
       limit: DAILY_LIMIT,
       remaining: Math.max(0, DAILY_LIMIT - usedToday)
     })
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Failed to get usage" }, { status: 500 })
   }
 }

@@ -512,7 +512,7 @@ export function BudgetPanel({ preferredCurrency = "USD" }: { preferredCurrency?:
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-destructive">{money(summary.expenses)}</div>
-            <p className="mt-1 text-xs text-muted-foreground">This month's tracked spending</p>
+            <p className="mt-1 text-xs text-muted-foreground">This month&apos;s tracked spending</p>
             {monthlyIncome > 0 && (
               <div className="mt-3">
                 <div className="mb-1 flex justify-between text-xs">

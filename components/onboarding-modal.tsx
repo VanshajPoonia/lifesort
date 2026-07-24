@@ -219,7 +219,7 @@ export function OnboardingModal({ isOpen, onComplete }: OnboardingModalProps) {
           <div className="space-y-6 p-6">
             <div className="space-y-2 text-center">
               <h2 className="text-2xl font-bold">Set up your Life Domains</h2>
-              <p className="text-muted-foreground">These become real spaces in LifeSort — uncheck any you don't want, or add your own.</p>
+              <p className="text-muted-foreground">These become real spaces in LifeSort — uncheck any you don&apos;t want, or add your own.</p>
             </div>
 
             <div className="grid gap-2 sm:grid-cols-2">

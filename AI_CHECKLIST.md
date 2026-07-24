@@ -318,7 +318,7 @@ Dependency notes:
 Test/lint status (updated 2026-07-24 — see `AI_TASK_LOG.md` for the full setup story):
 
 - `npm test` runs Vitest (`vitest run`). Config: `vitest.config.ts` (Node environment, `@/` alias, dummy `DATABASE_URL` test env so `lib/auth.ts`/`lib/db.ts` import cleanly without a real database). First suite: `lib/auth.test.ts` (12 tests) + `app/api/tags/route.test.ts` (8 tests, mocking `@/lib/auth` and `@/lib/db`).
-- `npm run lint` runs via `eslint.config.mjs` (flat config, imports `eslint-config-next/core-web-vitals` + `eslint-config-next/typescript` directly — no `FlatCompat` needed since `eslint-config-next@16` ships native flat arrays). Requires `eslint@9.x` — **ESLint 10 is not yet supported by `eslint-plugin-react`** (confirmed via its published `peerDependencies`), so do not bump past ESLint 9 until that changes. Currently reports 293 pre-existing findings (186 errors, 107 warnings) — first-ever lint run against this codebase, not yet cleaned up.
+- `npm run lint` runs via `eslint.config.mjs` (flat config, imports `eslint-config-next/core-web-vitals` + `eslint-config-next/typescript` directly — no `FlatCompat` needed since `eslint-config-next@16` ships native flat arrays). Requires `eslint@9.x` — **ESLint 10 is not yet supported by `eslint-plugin-react`** (confirmed via its published `peerDependencies`), so do not bump past ESLint 9 until that changes. Started at 293 pre-existing findings (first-ever lint run against this codebase); as of 2026-07-24 14:50 IST, `react/no-unescaped-entities` and `@typescript-eslint/no-unused-vars` are fully cleared, bringing it to **185 problems (148 errors, 37 warnings)**. Remaining categories (`react-hooks/set-state-in-effect`, `react-hooks/immutability`, `react-hooks/exhaustive-deps`, `@typescript-eslint/no-explicit-any`, `react-hooks/purity`, `@next/next/no-img-element`) need case-by-case behavioral review, not mechanical fixes — see `AI_TASK_LOG.md` for the breakdown.
 
 Unavailable scripts:
 
@@ -361,8 +361,8 @@ Known as of 2026-07-24 (supersedes the 2026-05-17 lint/test lines below):
 - `npm run build` passes.
 - `npm run build` skips TypeScript validation and linting because of `next.config.mjs`.
 - `npm run build` emits warnings that `metadata.themeColor` and `metadata.viewport` should move to viewport exports.
-- `npm run lint` now runs (see "Test/lint status" above) and exits non-zero due to 293 pre-existing findings, not a config failure.
-- `npm test` now runs Vitest and passes (20/20 tests).
+- `npm run lint` now runs (see "Test/lint status" above) and exits non-zero due to 185 pre-existing findings (down from 293 as of 2026-07-24 14:50 IST), not a config failure.
+- `npm test` now runs Vitest and passes (30/30 tests).
 
 ## Pre-Change Checklist
 

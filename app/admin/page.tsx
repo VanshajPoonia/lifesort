@@ -29,7 +29,6 @@ import {
   XCircle, 
   Clock, 
   ShieldAlert,
-  User,
   Mail,
   Phone,
   MapPin,

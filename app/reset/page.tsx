@@ -10,7 +10,6 @@ import {
   CalendarClock,
   CheckCircle2,
   ChevronRight,
-  Clock,
   Loader2,
   RefreshCcw,
   Sparkles,
