@@ -47,6 +47,8 @@ export function AttachmentList({ itemType, itemId }: { itemType: AttachmentItemT
   }
 
   useEffect(() => {
+    // Flagged by react-hooks/set-state-in-effect: fetchAttachments is shared
+    // with the upload/delete handlers below that need the reload afterward.
     fetchAttachments()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [itemType, itemId])

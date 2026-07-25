@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { Lock, Palette } from "lucide-react"
@@ -28,24 +28,31 @@ export default function WhiteboardSharePage() {
   const [accepting, setAccepting] = useState(false)
   const [error, setError] = useState("")
 
-  useEffect(() => {
-    loadShare()
-  }, [params.token])
-
-  const loadShare = async () => {
-    setLoading(true)
+  const loadShare = useCallback(async () => {
     try {
       const response = await fetch(`/api/whiteboards/share/${params.token}`)
       const data = await response.json()
       if (!response.ok) {
-        setError(data.error || "Share link is unavailable")
-        return
+        return { board: null, error: data.error || "Share link is unavailable" }
       }
-      setBoard(data.board)
-    } finally {
-      setLoading(false)
+      return { board: data.board as SharedBoard, error: "" }
+    } catch {
+      return { board: null, error: "Share link is unavailable" }
     }
-  }
+  }, [params.token])
+
+  useEffect(() => {
+    let cancelled = false
+    loadShare().then((result) => {
+      if (cancelled) return
+      if (result.board) setBoard(result.board)
+      else setError(result.error)
+      setLoading(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [loadShare])
 
   const accept = async () => {
     setAccepting(true)

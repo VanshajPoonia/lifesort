@@ -279,6 +279,8 @@ export default function WorkspacePage() {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("plan")
 
   useEffect(() => {
+    // Flagged by react-hooks/set-state-in-effect: supports deep-linking to a
+    // specific tab via ?tab=, overriding the default "plan".
     setActiveTab(readInitialTab())
   }, [])
 
