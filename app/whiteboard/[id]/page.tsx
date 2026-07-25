@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { AlertTriangle, ArrowLeft, Palette } from "lucide-react"
 
@@ -54,28 +54,42 @@ export default function WhiteboardDetailPage() {
     if (!authLoading && !user) router.push("/login")
   }, [authLoading, router, user])
 
-  useEffect(() => {
-    if (!user || !params.id) return
-    loadBoard()
-  }, [params.id, user])
-
-  const loadBoard = async () => {
-    setLoading(true)
-    setError("")
+  const loadBoard = useCallback(async () => {
     try {
       const response = await fetch(`/api/whiteboards/${params.id}`)
       const data = await response.json()
       if (!response.ok) {
-        setError(data.error || "Could not load whiteboard")
-        return
+        return { board: null, error: data.error || "Could not load whiteboard" }
       }
-      setBoard(data.board)
-      setCollaborators(Array.isArray(data.collaborators) ? data.collaborators : [])
-      setConfigured(data.liveblocks_configured !== false)
-    } finally {
-      setLoading(false)
+      return {
+        board: data.board as Board,
+        collaborators: Array.isArray(data.collaborators) ? data.collaborators : [],
+        configured: data.liveblocks_configured !== false,
+        error: "",
+      }
+    } catch {
+      return { board: null, error: "Could not load whiteboard" }
     }
-  }
+  }, [params.id])
+
+  useEffect(() => {
+    if (!user || !params.id) return
+    let cancelled = false
+    loadBoard().then((result) => {
+      if (cancelled) return
+      if (result.board) {
+        setBoard(result.board)
+        setCollaborators(result.collaborators ?? [])
+        setConfigured(result.configured ?? true)
+      } else {
+        setError(result.error)
+      }
+      setLoading(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [params.id, user, loadBoard])
 
   const rename = async (title: string) => {
     if (!board) return

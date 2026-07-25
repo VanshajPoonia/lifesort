@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Clock, Palette, Plus, Search, Share2, Trash2, Users } from "lucide-react"
 
@@ -36,13 +36,8 @@ export default function WhiteboardIndexPage() {
     if (!authLoading && !user) router.push("/login")
   }, [authLoading, router, user])
 
-  useEffect(() => {
-    if (!user) return
-    loadBoards()
-  }, [user])
-
-  const loadBoards = async () => {
-    setLoading(true)
+  const loadBoards = useCallback(async () => {
+    // loading already starts true; only called once, when user becomes available.
     try {
       const response = await fetch("/api/whiteboards")
       if (response.ok) {
@@ -52,7 +47,12 @@ export default function WhiteboardIndexPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (!user) return
+    loadBoards()
+  }, [user, loadBoards])
 
   const createBoard = async (template = "blank") => {
     setCreating(true)
