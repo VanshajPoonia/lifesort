@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState, useCallback } from "react"
 import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth-provider"
@@ -156,140 +156,79 @@ export function InvestmentsPanel({ preferredCurrency = "USD" }: { preferredCurre
   const [refreshesRemaining, setRefreshesRemaining] = useState(2)
   const [canRefresh, setCanRefresh] = useState(true)
 
-  useEffect(() => {
-  if (!authLoading && !user) {
-  router.push("/login")
-  } else if (user) {
-  fetchInvestments()
-  fetchWishlistItems()
-  fetchLifeAreas()
-  fetchPopularInvestments()
-  fetchRefreshLimit()
-  }
-  }, [user, authLoading, router])
-
-  useEffect(() => {
-    if (!user || loading) return
-    cardsRef.current.forEach((card, index) => {
-      if (card) {
-        gsap.fromTo(
-          card,
-          { opacity: 0, y: 20, scale: 0.98 },
-          { opacity: 1, y: 0, scale: 1, duration: 0.4, delay: index * 0.05, ease: "power2.out" }
-        )
-      }
-    })
-  }, [investments, viewMode])
-
-  // Fetch real-time quotes when investments load
-  useEffect(() => {
-    if (investments.length > 0) {
-      fetchStockQuotes(investments)
-    }
-  }, [investments])
-
-  const fetchInvestments = async () => {
+  const fetchInvestments = useCallback(async (): Promise<Investment[] | null> => {
     try {
       const response = await fetch("/api/investments")
       if (response.ok) {
         const data = await response.json()
-        setInvestments(Array.isArray(data) ? data : [])
+        return Array.isArray(data) ? data : []
       }
     } catch (error) {
       console.error("Error fetching investments:", error)
-    } finally {
-      setLoading(false)
     }
-  }
+    return null
+  }, [])
 
-  useEffect(() => {
-    if (!user) return
-
-    const handleQuickAdd = (event: Event) => {
-      if ((event as CustomEvent).detail?.type === "investment") {
-        fetchInvestments()
-      }
-    }
-
-    window.addEventListener("lifesort:quick-add-created", handleQuickAdd)
-    return () => window.removeEventListener("lifesort:quick-add-created", handleQuickAdd)
-  }, [user])
-
-  const fetchWishlistItems = async () => {
+  const fetchWishlistItems = useCallback(async (): Promise<WishlistItem[] | null> => {
     try {
       const response = await fetch("/api/wishlist")
       if (response.ok) {
         const data = await response.json()
-        setWishlistItems(Array.isArray(data) ? data : [])
+        return Array.isArray(data) ? data : []
       }
     } catch (error) {
       console.error("Error fetching wishlist:", error)
     }
-  }
+    return null
+  }, [])
 
-  const fetchLifeAreas = async () => {
+  const fetchLifeAreas = useCallback(async (): Promise<LifeArea[] | null> => {
     try {
       const response = await fetch("/api/life-areas")
       if (response.ok) {
         const data = await response.json()
-        setLifeAreas((Array.isArray(data) ? data : []).map(normalizeLifeArea))
+        return (Array.isArray(data) ? data : []).map(normalizeLifeArea)
       }
     } catch (error) {
       console.error("Error fetching life domains:", error)
     }
-  }
+    return null
+  }, [])
 
-  const fetchRefreshLimit = async () => {
+  const fetchPopularInvestments = useCallback(async (): Promise<PopularInvestment[] | null> => {
+    try {
+      const response = await fetch("/api/investments/popular")
+      if (response.ok) {
+        const data = await response.json()
+        return Array.isArray(data) ? data : []
+      }
+    } catch (error) {
+      console.error("Error fetching popular investments:", error)
+    }
+    return null
+  }, [])
+
+  const fetchRefreshLimit = useCallback(async (): Promise<{ remaining: number; canRefresh: boolean } | null> => {
     try {
       const response = await fetch("/api/investments/refresh-limit")
       if (response.ok) {
         const data = await response.json()
-        setRefreshesRemaining(data.remaining)
-        setCanRefresh(data.canRefresh)
+        return { remaining: data.remaining, canRefresh: data.canRefresh }
       }
     } catch (error) {
       console.error("Error fetching refresh limit:", error)
     }
-  }
+    return null
+  }, [])
 
-  const handleRefreshQuotes = async () => {
-    if (!canRefresh || refreshesRemaining <= 0) {
-      alert("You've reached your daily refresh limit (2 per day). Prices will update automatically tomorrow.")
-      return
-    }
-
-    // Use a refresh
-    try {
-      const response = await fetch("/api/investments/refresh-limit", {
-        method: "POST",
-      })
-      
-      if (!response.ok) {
-        const data = await response.json()
-        alert(data.error || "Cannot refresh at this time")
-        return
-      }
-
-      const data = await response.json()
-      setRefreshesRemaining(data.remaining)
-      setCanRefresh(data.canRefresh)
-      
-      // Now fetch the quotes
-      await fetchStockQuotes()
-    } catch (error) {
-      console.error("Error using refresh:", error)
-    }
-  }
-
-  const fetchStockQuotes = async (investmentsList?: Investment[]) => {
+  const fetchStockQuotes = useCallback(async (investmentsList?: Investment[]): Promise<Record<string, StockQuote> | null> => {
     const invs = investmentsList || investments
     const symbolsToFetch = invs
       .filter(inv => inv.symbol && (inv.type === "Stocks" || inv.type === "Crypto" || inv.type === "ETF"))
       .map(inv => ({ symbol: inv.symbol!, type: inv.type }))
 
-    if (symbolsToFetch.length === 0) return
+    if (symbolsToFetch.length === 0) return null
 
-    setFetchingQuotes(true)
     const quotes: Record<string, StockQuote> = {}
 
     for (const { symbol, type } of symbolsToFetch) {
@@ -305,8 +244,99 @@ export function InvestmentsPanel({ preferredCurrency = "USD" }: { preferredCurre
       }
     }
 
-    setStockQuotes(prev => ({ ...prev, ...quotes }))
-    setFetchingQuotes(false)
+    return quotes
+  }, [investments])
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push("/login")
+      return
+    }
+    if (!user) return
+    let cancelled = false
+    fetchInvestments().then((data) => {
+      if (cancelled) return
+      if (data) setInvestments(data)
+      setLoading(false)
+    })
+    fetchWishlistItems().then((data) => { if (!cancelled && data) setWishlistItems(data) })
+    fetchLifeAreas().then((data) => { if (!cancelled && data) setLifeAreas(data) })
+    fetchPopularInvestments().then((data) => { if (!cancelled && data) setPopularInvestments(data) })
+    fetchRefreshLimit().then((data) => { if (!cancelled && data) { setRefreshesRemaining(data.remaining); setCanRefresh(data.canRefresh) } })
+    return () => { cancelled = true }
+  }, [user, authLoading, router, fetchInvestments, fetchWishlistItems, fetchLifeAreas, fetchPopularInvestments, fetchRefreshLimit])
+
+  useEffect(() => {
+    if (!user || loading) return
+    cardsRef.current.forEach((card, index) => {
+      if (card) {
+        gsap.fromTo(
+          card,
+          { opacity: 0, y: 20, scale: 0.98 },
+          { opacity: 1, y: 0, scale: 1, duration: 0.4, delay: index * 0.05, ease: "power2.out" }
+        )
+      }
+    })
+  }, [investments, viewMode, user, loading])
+
+  // Fetch real-time quotes when investments load
+  useEffect(() => {
+    if (investments.length === 0) return
+    let cancelled = false
+    // Flagged by react-hooks/set-state-in-effect: re-runs whenever
+    // investments changes and needs the fetching indicator back on immediately.
+    setFetchingQuotes(true)
+    fetchStockQuotes(investments).then((quotes) => {
+      if (cancelled) return
+      if (quotes) setStockQuotes(prev => ({ ...prev, ...quotes }))
+      setFetchingQuotes(false)
+    })
+    return () => { cancelled = true }
+  }, [investments, fetchStockQuotes])
+
+  useEffect(() => {
+    if (!user) return
+
+    const handleQuickAdd = (event: Event) => {
+      if ((event as CustomEvent).detail?.type === "investment") {
+        fetchInvestments().then((data) => { if (data) setInvestments(data) })
+      }
+    }
+
+    window.addEventListener("lifesort:quick-add-created", handleQuickAdd)
+    return () => window.removeEventListener("lifesort:quick-add-created", handleQuickAdd)
+  }, [user, fetchInvestments])
+
+  const handleRefreshQuotes = async () => {
+    if (!canRefresh || refreshesRemaining <= 0) {
+      alert("You've reached your daily refresh limit (2 per day). Prices will update automatically tomorrow.")
+      return
+    }
+
+    // Use a refresh
+    try {
+      const response = await fetch("/api/investments/refresh-limit", {
+        method: "POST",
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        alert(data.error || "Cannot refresh at this time")
+        return
+      }
+
+      const data = await response.json()
+      setRefreshesRemaining(data.remaining)
+      setCanRefresh(data.canRefresh)
+
+      // Now fetch the quotes
+      setFetchingQuotes(true)
+      const quotes = await fetchStockQuotes()
+      if (quotes) setStockQuotes(prev => ({ ...prev, ...quotes }))
+      setFetchingQuotes(false)
+    } catch (error) {
+      console.error("Error using refresh:", error)
+    }
   }
 
   const searchSymbols = async (query: string) => {
@@ -330,18 +360,6 @@ export function InvestmentsPanel({ preferredCurrency = "USD" }: { preferredCurre
       console.error("Error searching symbols:", error)
     } finally {
       setSearching(false)
-    }
-  }
-
-  const fetchPopularInvestments = async () => {
-    try {
-      const response = await fetch("/api/investments/popular")
-      if (response.ok) {
-        const data = await response.json()
-        setPopularInvestments(Array.isArray(data) ? data : [])
-      }
-    } catch (error) {
-      console.error("Error fetching popular investments:", error)
     }
   }
 
@@ -397,7 +415,8 @@ export function InvestmentsPanel({ preferredCurrency = "USD" }: { preferredCurre
       }
     }
     
-    await fetchInvestments()
+    const nextInvestments = await fetchInvestments()
+            if (nextInvestments) setInvestments(nextInvestments)
     setParsedInvestments([])
     setIsUploadDialogOpen(false)
   }
@@ -434,7 +453,8 @@ export function InvestmentsPanel({ preferredCurrency = "USD" }: { preferredCurre
         })
 
         if (response.ok) {
-          await fetchInvestments()
+          const nextInvestments = await fetchInvestments()
+            if (nextInvestments) setInvestments(nextInvestments)
           setIsAddDialogOpen(false)
           setNewInvestment({
             name: "",
@@ -479,7 +499,8 @@ export function InvestmentsPanel({ preferredCurrency = "USD" }: { preferredCurre
       })
 
       if (response.ok) {
-        await fetchInvestments()
+        const nextInvestments = await fetchInvestments()
+            if (nextInvestments) setInvestments(nextInvestments)
         setEditingInvestment(null)
         setIsEditDialogOpen(false)
       }
@@ -499,7 +520,8 @@ export function InvestmentsPanel({ preferredCurrency = "USD" }: { preferredCurre
       })
 
       if (response.ok) {
-        await fetchInvestments()
+        const nextInvestments = await fetchInvestments()
+            if (nextInvestments) setInvestments(nextInvestments)
       }
     } catch (error) {
       console.error("Error deleting investment:", error)

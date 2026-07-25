@@ -1,8 +1,9 @@
 "use client"
 
 import React from "react"
+import Image from "next/image"
 
-import { useState, useEffect, useMemo, useRef } from "react"
+import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/components/auth-provider"
 import { gsap } from "gsap"
@@ -158,12 +159,38 @@ export function WishlistPanel({ preferredCurrency = "USD" }: { preferredCurrency
     }
   }, [user, loading, router])
 
-  useEffect(() => {
-    if (user) {
-      fetchItems()
-      fetchLifeAreas()
+  const fetchItems = useCallback(async () => {
+    try {
+      const response = await fetch(lifeAreaFilter ? `/api/wishlist?life_area_id=${encodeURIComponent(lifeAreaFilter)}` : "/api/wishlist")
+      if (response.ok) {
+        return await response.json()
+      }
+    } catch (error) {
+      console.error("Failed to fetch wishlist items:", error)
     }
-  }, [user, lifeAreaFilter])
+    return null
+  }, [lifeAreaFilter])
+
+  const fetchLifeAreas = useCallback(async () => {
+    try {
+      const response = await fetch("/api/life-areas")
+      if (response.ok) {
+        const data = await response.json()
+        return (Array.isArray(data) ? data : []).map(normalizeLifeArea)
+      }
+    } catch (error) {
+      console.error("Failed to fetch life domains:", error)
+    }
+    return null
+  }, [])
+
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+    fetchItems().then((data) => { if (!cancelled && data) setItems(data) })
+    fetchLifeAreas().then((data) => { if (!cancelled && data) setLifeAreas(data) })
+    return () => { cancelled = true }
+  }, [user, lifeAreaFilter, fetchItems, fetchLifeAreas])
 
   useEffect(() => {
     cardsRef.current.forEach((card, index) => {
@@ -177,42 +204,18 @@ export function WishlistPanel({ preferredCurrency = "USD" }: { preferredCurrency
     })
   }, [items, viewMode])
 
-  const fetchItems = async () => {
-    try {
-      const response = await fetch(lifeAreaFilter ? `/api/wishlist?life_area_id=${encodeURIComponent(lifeAreaFilter)}` : "/api/wishlist")
-      if (response.ok) {
-        const data = await response.json()
-        setItems(data)
-      }
-    } catch (error) {
-      console.error("Failed to fetch wishlist items:", error)
-    }
-  }
-
-  const fetchLifeAreas = async () => {
-    try {
-      const response = await fetch("/api/life-areas")
-      if (response.ok) {
-        const data = await response.json()
-        setLifeAreas((Array.isArray(data) ? data : []).map(normalizeLifeArea))
-      }
-    } catch (error) {
-      console.error("Failed to fetch life domains:", error)
-    }
-  }
-
   useEffect(() => {
     if (!user) return
 
     const handleQuickAdd = (event: Event) => {
       if ((event as CustomEvent).detail?.type === "wishlist") {
-        fetchItems()
+        fetchItems().then((data) => { if (data) setItems(data) })
       }
     }
 
     window.addEventListener("lifesort:quick-add-created", handleQuickAdd)
     return () => window.removeEventListener("lifesort:quick-add-created", handleQuickAdd)
-  }, [user])
+  }, [user, fetchItems])
 
   const handleAddItem = async () => {
     if (newItem.title) {
@@ -232,7 +235,8 @@ export function WishlistPanel({ preferredCurrency = "USD" }: { preferredCurrency
           }),
         })
         if (response.ok) {
-          fetchItems()
+          const data = await fetchItems()
+          if (data) setItems(data)
           setNewItem({
             title: "",
             description: "",
@@ -271,7 +275,8 @@ export function WishlistPanel({ preferredCurrency = "USD" }: { preferredCurrency
         }),
       })
       if (response.ok) {
-        fetchItems()
+        const data = await fetchItems()
+        if (data) setItems(data)
         setEditingItem(null)
         setIsEditDialogOpen(false)
       }
@@ -288,7 +293,8 @@ export function WishlistPanel({ preferredCurrency = "USD" }: { preferredCurrency
         body: JSON.stringify({ id, [field]: value }),
       })
       if (response.ok) {
-        fetchItems()
+        const data = await fetchItems()
+        if (data) setItems(data)
       }
     } catch (error) {
       console.error("Failed to update item:", error)
@@ -326,7 +332,8 @@ export function WishlistPanel({ preferredCurrency = "USD" }: { preferredCurrency
         body: JSON.stringify({ id }),
       })
       if (response.ok) {
-        fetchItems()
+        const data = await fetchItems()
+        if (data) setItems(data)
       }
     } catch (error) {
       console.error("Failed to delete item:", error)
@@ -631,10 +638,12 @@ export function WishlistPanel({ preferredCurrency = "USD" }: { preferredCurrency
                     {/* Image preview */}
                     {newItem.image_url && (
                       <div className="relative rounded-lg overflow-hidden border border-border bg-muted aspect-video">
-                        <img 
-                          src={newItem.image_url || "/placeholder.svg"} 
-                          alt="Preview" 
-                          className="w-full h-full object-cover"
+                        <Image
+                          src={newItem.image_url || "/placeholder.svg"}
+                          alt="Preview"
+                          fill
+                          sizes="(max-width: 640px) 100vw, 480px"
+                          className="object-cover"
                           onError={(e) => {
                             e.currentTarget.style.display = 'none'
                           }}
@@ -821,8 +830,8 @@ export function WishlistPanel({ preferredCurrency = "USD" }: { preferredCurrency
                 className={`group overflow-hidden transition-all hover:shadow-lg ${item.purchased ? "opacity-75" : ""}`}
               >
                 {item.image_url && (
-                  <div className="h-40 overflow-hidden bg-muted">
-                    <img src={item.image_url || "/placeholder.svg"} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                  <div className="relative h-40 overflow-hidden bg-muted">
+                    <Image src={item.image_url || "/placeholder.svg"} alt={item.title} fill sizes="(max-width: 768px) 100vw, 33vw" className="object-cover group-hover:scale-105 transition-transform" />
                   </div>
                 )}
                 <CardContent className={item.image_url ? "pt-4" : "pt-6"}>
@@ -929,7 +938,7 @@ export function WishlistPanel({ preferredCurrency = "USD" }: { preferredCurrency
                 <CardContent className="py-4">
                   <div className="flex items-center gap-4">
                     {item.image_url && (
-                      <img src={item.image_url || "/placeholder.svg"} alt={item.title} className="w-16 h-16 rounded-lg object-cover" />
+                      <Image src={item.image_url || "/placeholder.svg"} alt={item.title} width={64} height={64} className="w-16 h-16 rounded-lg object-cover" />
                     )}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">

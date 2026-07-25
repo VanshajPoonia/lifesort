@@ -549,6 +549,8 @@ export function QuickAddModal({ open, onOpenChange, initialType, initialValues }
 
   useEffect(() => {
     if (!open || !initialType) return
+    // Flagged by react-hooks/set-state-in-effect: this modal instance is
+    // reused across opens and needs to reset its form each time it opens.
     setActiveType(initialType)
     setValues({ ...(defaultValues[initialType] || {}), ...(initialValues || {}) })
     setError("")
