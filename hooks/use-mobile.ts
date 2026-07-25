@@ -11,6 +11,9 @@ export function useIsMobile() {
       setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
     }
     mql.addEventListener('change', onChange)
+    // Flagged by react-hooks/set-state-in-effect: isMobile starts undefined
+    // (to stay SSR/hydration-safe) and needs the real value on mount, since
+    // the media query listener only fires on subsequent changes.
     setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
     return () => mql.removeEventListener('change', onChange)
   }, [])

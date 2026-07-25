@@ -46,6 +46,8 @@ export function WhiteboardShareDialog({
   const isOwner = board.role === "owner"
 
   useEffect(() => {
+    // Flagged by react-hooks/set-state-in-effect: re-runs when the board's
+    // share token changes and needs to recompute the derived URL.
     if (typeof window !== "undefined" && board.share_token) {
       setShareUrl(`${window.location.origin}/whiteboard/share/${board.share_token}`)
     }
