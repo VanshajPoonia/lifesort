@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import {
@@ -113,13 +113,7 @@ export default function SpaceDetailPage() {
     if (!authLoading && !user) router.push("/login")
   }, [authLoading, router, user])
 
-  useEffect(() => {
-    if (!user || !params.id) return
-    rememberSpace(params.id)
-    loadSpace()
-  }, [params.id, user])
-
-  const loadSpace = async () => {
+  const loadSpace = useCallback(async () => {
     setLoading(true)
     setError("")
     try {
@@ -140,7 +134,15 @@ export default function SpaceDetailPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [params.id])
+
+  useEffect(() => {
+    if (!user || !params.id) return
+    rememberSpace(params.id)
+    // Flagged by react-hooks/set-state-in-effect: loadSpace is shared with
+    // the archive/unarchive handler below, which needs the reload after.
+    loadSpace()
+  }, [params.id, user, loadSpace])
 
   const saveSpace = async () => {
     if (!space || !titleDraft.trim()) return
@@ -348,11 +350,15 @@ function AddExistingDialog({
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
+    // Flagged by react-hooks/set-state-in-effect: this dialog instance is
+    // reused across opens and needs to reset the type each time it opens.
     if (open) setType(defaultType)
   }, [defaultType, open])
 
   useEffect(() => {
     if (!open) return
+    // Flagged by react-hooks/set-state-in-effect: re-runs when the dialog
+    // opens or the source type changes and needs the loading indicator on.
     setItemId("")
     setLoading(true)
     fetchSourceItems(type)
@@ -444,6 +450,8 @@ function CreateInsideDialog({
 
   useEffect(() => {
     if (!open) return
+    // Flagged by react-hooks/set-state-in-effect: this dialog instance is
+    // reused across opens and needs to reset its form each time it opens.
     setType(defaultType)
     setTitle("")
     setDescription("")

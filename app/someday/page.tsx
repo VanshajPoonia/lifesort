@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import {
   AlertCircle,
   Archive,
@@ -205,7 +205,7 @@ export default function SomedayPage() {
   const activeCount = useMemo(() => items.filter((item) => item.status === "someday").length, [items])
   const promotedCount = useMemo(() => items.filter((item) => item.status === "promoted").length, [items])
 
-  const loadItems = async () => {
+  const loadItems = useCallback(async () => {
     setLoading(true)
     setError("")
     try {
@@ -221,30 +221,39 @@ export default function SomedayPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [view, category, search])
 
-  const loadLifeAreas = async () => {
+  const loadLifeAreas = useCallback(async () => {
     try {
       const response = await fetch("/api/life-areas")
-      if (!response.ok) return
+      if (!response.ok) return []
       const data = await response.json()
-      setLifeAreas(Array.isArray(data) ? data.map((item) => normalizeLifeArea(item)) : [])
+      return Array.isArray(data) ? data.map((item) => normalizeLifeArea(item)) : []
     } catch {
-      setLifeAreas([])
+      return []
     }
-  }
-
-  useEffect(() => {
-    loadLifeAreas()
   }, [])
 
   useEffect(() => {
+    let cancelled = false
+    loadLifeAreas().then((areas) => {
+      if (!cancelled) setLifeAreas(areas)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [loadLifeAreas])
+
+  useEffect(() => {
+    // Flagged by react-hooks/set-state-in-effect: re-runs when view/category/
+    // search change and needs the loading indicator back on immediately.
+    // loadItems is also shared with several mutation handlers below.
     const timeout = window.setTimeout(() => {
       loadItems()
     }, search.trim() ? 250 : 0)
 
     return () => window.clearTimeout(timeout)
-  }, [view, category, search])
+  }, [loadItems, search])
 
   const openCreate = () => {
     setEditingItem(null)

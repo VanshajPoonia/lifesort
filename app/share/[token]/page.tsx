@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useParams } from "next/navigation"
+import Image from "next/image"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -50,12 +51,7 @@ export default function SharePage() {
   const [singleLink, setSingleLink] = useState<SharedLink | null>(null)
   const [permission, setPermission] = useState<string>("view")
 
-  useEffect(() => {
-    fetchSharedContent()
-  }, [token])
-
-  const fetchSharedContent = async () => {
-    setLoading(true)
+  const fetchSharedContent = useCallback(async () => {
     try {
       // Try folder first
       let response = await fetch(`/api/share?token=${token}&type=folder`)
@@ -83,7 +79,15 @@ export default function SharePage() {
       setError("Failed to load shared content")
     }
     setLoading(false)
-  }
+  }, [token])
+
+  useEffect(() => {
+    // Flagged by react-hooks/set-state-in-effect: re-runs when token changes
+    // (navigating between share links) and needs the loading indicator back
+    // on immediately.
+    setLoading(true)
+    fetchSharedContent()
+  }, [token, fetchSharedContent])
 
   const handleDownload = (link: SharedLink) => {
     if (permission !== "download" && permission !== "edit") {
@@ -159,9 +163,12 @@ export default function SharePage() {
               {singleLink.link_type === "image" || singleLink.file_data ? (
                 <div className="space-y-4">
                   <div className="rounded-lg overflow-hidden border border-border">
-                    <img 
-                      src={singleLink.file_data || singleLink.image_url || singleLink.url} 
+                    <Image
+                      src={singleLink.file_data || singleLink.image_url || singleLink.url}
                       alt={singleLink.title}
+                      width={1200}
+                      height={800}
+                      sizes="(max-width: 768px) 100vw, 768px"
                       className="w-full h-auto max-h-[70vh] object-contain bg-muted"
                     />
                   </div>
@@ -175,11 +182,15 @@ export default function SharePage() {
               ) : (
                 <div className="space-y-4">
                   {singleLink.image_url && (
-                    <img 
-                      src={singleLink.image_url || "/placeholder.svg"} 
-                      alt={singleLink.title}
-                      className="w-full h-48 object-cover rounded-lg"
-                    />
+                    <div className="relative h-48 rounded-lg overflow-hidden">
+                      <Image
+                        src={singleLink.image_url || "/placeholder.svg"}
+                        alt={singleLink.title}
+                        fill
+                        sizes="(max-width: 768px) 100vw, 768px"
+                        className="object-cover"
+                      />
+                    </div>
                   )}
                   {singleLink.description && (
                     <p className="text-muted-foreground">{singleLink.description}</p>
@@ -240,10 +251,12 @@ export default function SharePage() {
                 <Card key={link.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                   {(link.link_type === "image" || link.file_data) ? (
                     <div className="aspect-video bg-muted relative group">
-                      <img 
-                        src={link.file_data || link.image_url || link.url} 
+                      <Image
+                        src={link.file_data || link.image_url || link.url}
                         alt={link.title}
-                        className="w-full h-full object-cover"
+                        fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                        className="object-cover"
                       />
                       {(permission === "download" || permission === "edit") && (
                         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -259,11 +272,13 @@ export default function SharePage() {
                       )}
                     </div>
                   ) : link.image_url ? (
-                    <div className="aspect-video bg-muted">
-                      <img 
-                        src={link.image_url || "/placeholder.svg"} 
+                    <div className="relative aspect-video bg-muted">
+                      <Image
+                        src={link.image_url || "/placeholder.svg"}
                         alt={link.title}
-                        className="w-full h-full object-cover"
+                        fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                        className="object-cover"
                       />
                     </div>
                   ) : (
