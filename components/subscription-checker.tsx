@@ -13,6 +13,8 @@ export function SubscriptionChecker() {
   const bannerRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
+    // Flagged by react-hooks/set-state-in-effect: re-runs when user changes
+    // (e.g. re-login) and needs to reset any prior dismissal.
     setDismissed(false)
 
     if (!user) {

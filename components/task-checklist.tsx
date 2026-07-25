@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { ChevronDown, ChevronRight, ListChecks, Loader2, Plus, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -22,23 +22,29 @@ export function TaskChecklist({ taskId }: { taskId: number }) {
   const [adding, setAdding] = useState(false)
   const [busyId, setBusyId] = useState<number | null>(null)
 
-  const fetchItems = async () => {
+  const fetchItems = useCallback(async () => {
     try {
       const response = await fetch(`/api/tasks/${taskId}/checklist-items`)
-      if (!response.ok) return
+      if (!response.ok) return null
       const data = await response.json()
-      setItems(Array.isArray(data) ? data : [])
+      return Array.isArray(data) ? data : []
     } catch (error) {
       console.error("Failed to load checklist items:", error)
-    } finally {
-      setLoading(false)
+      return null
     }
-  }
+  }, [taskId])
 
   useEffect(() => {
-    fetchItems()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [taskId])
+    let cancelled = false
+    fetchItems().then((data) => {
+      if (cancelled) return
+      if (data) setItems(data)
+      setLoading(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [fetchItems])
 
   const handleAdd = async () => {
     const title = newTitle.trim()

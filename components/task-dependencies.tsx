@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { ChevronDown, ChevronRight, Link2, Loader2, Plus, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -25,23 +25,29 @@ export function TaskDependencies({ taskId, allTasks }: { taskId: number; allTask
   const [adding, setAdding] = useState(false)
   const [busyId, setBusyId] = useState<string | null>(null)
 
-  const fetchRelationships = async () => {
+  const fetchRelationships = useCallback(async () => {
     try {
       const response = await fetch(`/api/item-relationships?item_type=task&item_id=${taskId}`)
-      if (!response.ok) return
+      if (!response.ok) return null
       const data = await response.json()
-      setRelationships(Array.isArray(data.relationships) ? data.relationships : [])
+      return Array.isArray(data.relationships) ? data.relationships : []
     } catch (error) {
       console.error("Failed to load task dependencies:", error)
-    } finally {
-      setLoading(false)
+      return null
     }
-  }
+  }, [taskId])
 
   useEffect(() => {
-    fetchRelationships()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [taskId])
+    let cancelled = false
+    fetchRelationships().then((data) => {
+      if (cancelled) return
+      if (data) setRelationships(data)
+      setLoading(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [fetchRelationships])
 
   const dependsOn = relationships.filter((r) => r.relation === "depends_on" && r.direction === "outgoing")
   const blocks = relationships.filter((r) => r.relation === "depends_on" && r.direction === "incoming")
