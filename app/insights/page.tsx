@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
 import dynamic from "next/dynamic"
 import { usePathname, useRouter } from "next/navigation"
 import {
@@ -348,22 +348,12 @@ function ReflectExperience() {
 
   useEffect(() => {
     if (typeof window === "undefined") return
+    // Flagged by react-hooks/set-state-in-effect: re-runs on route
+    // navigation and needs to re-sync the active tab from the URL.
     setActiveReflectTab(normalizeReflectTab(new URL(window.location.href).searchParams.get("tab")))
   }, [pathname])
 
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push("/login")
-      return
-    }
-    if (user) {
-      fetchMetrics()
-      fetchIgnoringSignals()
-      fetchJournalDigest()
-    }
-  }, [loading, router, user])
-
-  const fetchMetrics = async () => {
+  const fetchMetrics = useCallback(async () => {
     setLoadingMetrics(true)
     setError("")
     try {
@@ -380,9 +370,9 @@ function ReflectExperience() {
     } finally {
       setLoadingMetrics(false)
     }
-  }
+  }, [router])
 
-  const fetchIgnoringSignals = async () => {
+  const fetchIgnoringSignals = useCallback(async () => {
     setLoadingIgnoring(true)
     setIgnoringError("")
     try {
@@ -399,9 +389,9 @@ function ReflectExperience() {
     } finally {
       setLoadingIgnoring(false)
     }
-  }
+  }, [router])
 
-  const fetchJournalDigest = async () => {
+  const fetchJournalDigest = useCallback(async () => {
     setLoadingJournal(true)
     setJournalError("")
     try {
@@ -424,7 +414,22 @@ function ReflectExperience() {
     } finally {
       setLoadingJournal(false)
     }
-  }
+  }, [router])
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login")
+      return
+    }
+    if (user) {
+      // Flagged by react-hooks/set-state-in-effect: fetchMetrics is also
+      // shared with analyzeBalance, and fetchIgnoringSignals is shared with
+      // the ignoring-action handler, which need the reload afterward too.
+      fetchMetrics()
+      fetchIgnoringSignals()
+      fetchJournalDigest()
+    }
+  }, [fetchIgnoringSignals, fetchJournalDigest, fetchMetrics, loading, router, user])
 
   const analyzeBalance = async () => {
     setAnalyzing(true)

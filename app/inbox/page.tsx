@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import type { ElementType } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -168,18 +168,7 @@ export default function InboxPage() {
   const [payload, setPayload] = useState<Record<string, string | null>>({})
   const [convertError, setConvertError] = useState("")
 
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.push("/login")
-      return
-    }
-
-    if (user) {
-      void fetchData()
-    }
-  }, [authLoading, user, router])
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true)
     setError("")
     try {
@@ -202,7 +191,20 @@ export default function InboxPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push("/login")
+      return
+    }
+
+    if (user) {
+      // Flagged by react-hooks/set-state-in-effect: fetchData is shared with
+      // several mutation handlers below that need the reload afterward too.
+      void fetchData()
+    }
+  }, [authLoading, user, router, fetchData])
 
   const filteredItems = useMemo(() => {
     const q = search.trim().toLowerCase()

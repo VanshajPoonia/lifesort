@@ -325,12 +325,16 @@ export default function JournalPage() {
 
   useEffect(() => {
     if (typeof window === "undefined") return
+    // Flagged by react-hooks/set-state-in-effect: supports deep-linking to a
+    // specific date via ?date=, overriding the default of today.
     const queryDate = new URL(window.location.href).searchParams.get("date")
     if (queryDate && /^\d{4}-\d{2}-\d{2}$/.test(queryDate)) setSelectedDate(queryDate)
   }, [])
 
   useEffect(() => {
     if (typeof window === "undefined") return
+    // Flagged by react-hooks/set-state-in-effect: re-runs when selectedDate
+    // changes and needs to re-sync mode/tomorrow-setup for the new date.
     const stored = window.sessionStorage.getItem(journalModeStorageKey(selectedDate))
     setJournalMode(stored === "morning" || stored === "evening" ? stored : defaultJournalMode())
     setTomorrowOpen(shouldOpenTomorrowSetup())
@@ -389,6 +393,9 @@ export default function JournalPage() {
 
   useEffect(() => {
     if (!user) return
+    // Flagged by react-hooks/set-state-in-effect: re-runs when selectedDate
+    // changes, and loadRecent is also shared with the save handler, which
+    // needs the reload afterward too.
     loadEntry()
     loadRecent()
     loadIntentionLabels()
@@ -403,6 +410,8 @@ export default function JournalPage() {
   }, [user])
 
   useEffect(() => {
+    // Flagged by react-hooks/set-state-in-effect: re-runs when the search
+    // query/open state changes and needs to clear stale results immediately.
     const query = searchQuery.trim()
     if (!searchOpen || query.length < 2) {
       setSearchResults([])
