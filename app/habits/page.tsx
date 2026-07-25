@@ -519,7 +519,7 @@ function HabitCard({
       ),
     [habit.id, recentCheckins],
   )
-  const gridDays = useMemo(lastTwelveWeekDays, [])
+  const gridDays = useMemo(() => lastTwelveWeekDays(), [])
 
   return (
     <Card className={`relative overflow-hidden transition-all ${!habit.is_active ? "opacity-60" : ""}`}>
@@ -774,6 +774,9 @@ export default function HabitsPage() {
   }, [lifeAreaFilter, today])
 
   useEffect(() => {
+    // Flagged by react-hooks/set-state-in-effect: re-runs when lifeAreaFilter
+    // changes, and fetchAll is also shared with checkin/mutation handlers
+    // that need the reload afterward too.
     fetchAll()
   }, [fetchAll])
 

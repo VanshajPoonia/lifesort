@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowDown, ArrowUp, Edit, Plus, Trash2 } from "lucide-react"
 
@@ -83,15 +83,7 @@ export default function DomainsPage() {
   const [form, setForm] = useState<DomainForm>(emptyForm)
   const [statusFilter, setStatusFilter] = useState<DomainStatus | "all">("active")
 
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push("/login")
-      return
-    }
-    if (user) fetchDomains()
-  }, [loading, user, router])
-
-  const fetchDomains = async () => {
+  const fetchDomains = useCallback(async () => {
     setLoadingDomains(true)
     try {
       const response = await fetch("/api/life-areas")
@@ -104,7 +96,17 @@ export default function DomainsPage() {
     } finally {
       setLoadingDomains(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login")
+      return
+    }
+    // Flagged by react-hooks/set-state-in-effect: fetchDomains is shared
+    // with save/delete handlers below that need the reload afterward too.
+    if (user) fetchDomains()
+  }, [loading, user, router, fetchDomains])
 
   const sortedDomains = useMemo(
     () => [...domains].sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name)),

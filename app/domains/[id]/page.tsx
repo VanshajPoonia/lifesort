@@ -340,6 +340,9 @@ export default function DomainDetailPage() {
       return
     }
     if (user) {
+      // Flagged by react-hooks/set-state-in-effect: fetchData/fetchReviews
+      // are shared with other call sites (retry, save review) that need the
+      // loading indicators reset too, so the reset can't be dropped.
       fetchData()
       fetchReviews()
     }
@@ -347,6 +350,8 @@ export default function DomainDetailPage() {
 
   useEffect(() => {
     if (!id) return
+    // Flagged by react-hooks/set-state-in-effect: re-syncs the unlock flag
+    // from sessionStorage whenever the route's domain id changes.
     setUnlocked(sessionStorage.getItem(`domain-unlock-${id}`) === "1")
   }, [id])
 
@@ -444,6 +449,8 @@ export default function DomainDetailPage() {
   const visibleTabs = useMemo(() => tabSections.filter((section) => section.items.length > 0), [tabSections])
 
   useEffect(() => {
+    // Flagged by react-hooks/set-state-in-effect: re-runs when visibleTabs
+    // changes and the current tab may no longer be valid.
     if (activeTab !== "overview" && activeTab !== "review" && !visibleTabs.some((section) => section.tab === activeTab)) {
       setActiveTab("overview")
     }
