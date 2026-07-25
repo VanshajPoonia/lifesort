@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useMemo } from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import dynamic from "next/dynamic"
@@ -210,69 +210,80 @@ export function BudgetPanel({ preferredCurrency = "USD" }: { preferredCurrency?:
 
   // ── Fetchers ─────────────────────────────────────────────────────────────────
 
-  useEffect(() => {
-    fetchBudgetData()
-    fetchIncomeData()
-    fetchWishlistData()
-    fetchInvestmentsData()
-    fetchLifeAreas()
-  }, [lifeAreaFilter])
-
-  const fetchBudgetData = async () => {
+  const fetchBudgetData = useCallback(async () => {
     try {
       const res = await fetch(lifeAreaFilter ? `/api/budget?life_area_id=${encodeURIComponent(lifeAreaFilter)}` : "/api/budget")
       if (res.ok) {
-        const data = await res.json()
-        setCategories(data.categories || [])
-        setTransactions(data.transactions || [])
-        setGoals(data.goals || [])
-        setSummary(data.summary || { income: 0, expenses: 0, balance: 0 })
+        return await res.json()
       }
     } catch (err) {
       console.error("Error fetching budget data:", err)
-    } finally {
-      setLoading(false)
     }
-  }
+    return null
+  }, [lifeAreaFilter])
 
-  const fetchIncomeData = async () => {
+  const applyBudgetData = useCallback((data: { categories?: Category[]; transactions?: Transaction[]; goals?: BudgetGoal[]; summary?: Summary } | null) => {
+    if (data) {
+      setCategories(data.categories || [])
+      setTransactions(data.transactions || [])
+      setGoals(data.goals || [])
+      setSummary(data.summary || { income: 0, expenses: 0, balance: 0 })
+    }
+    setLoading(false)
+  }, [])
+
+  const fetchIncomeData = useCallback(async () => {
     try {
       const res = await fetch("/api/income")
-      if (res.ok) setIncomeSources(await res.json() || [])
+      if (res.ok) return (await res.json()) || []
     } catch (err) {
       console.error("Error fetching income:", err)
     }
-  }
+    return null
+  }, [])
 
-  const fetchWishlistData = async () => {
+  const fetchWishlistData = useCallback(async () => {
     try {
       const res = await fetch("/api/wishlist")
-      if (res.ok) setWishlistItems(await res.json() || [])
+      if (res.ok) return (await res.json()) || []
     } catch (err) {
       console.error("Error fetching wishlist:", err)
     }
-  }
+    return null
+  }, [])
 
-  const fetchInvestmentsData = async () => {
+  const fetchInvestmentsData = useCallback(async () => {
     try {
       const res = await fetch("/api/investments")
-      if (res.ok) setInvestments(await res.json() || [])
+      if (res.ok) return (await res.json()) || []
     } catch (err) {
       console.error("Error fetching investments:", err)
     }
-  }
+    return null
+  }, [])
 
-  const fetchLifeAreas = async () => {
+  const fetchLifeAreas = useCallback(async () => {
     try {
       const res = await fetch("/api/life-areas")
       if (res.ok) {
         const data = await res.json()
-        setLifeAreas((Array.isArray(data) ? data : []).map(normalizeLifeArea))
+        return (Array.isArray(data) ? data : []).map(normalizeLifeArea)
       }
     } catch (err) {
       console.error("Error fetching life domains:", err)
     }
-  }
+    return null
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    fetchBudgetData().then((data) => { if (!cancelled) applyBudgetData(data) })
+    fetchIncomeData().then((data) => { if (!cancelled && data) setIncomeSources(data) })
+    fetchWishlistData().then((data) => { if (!cancelled && data) setWishlistItems(data) })
+    fetchInvestmentsData().then((data) => { if (!cancelled && data) setInvestments(data) })
+    fetchLifeAreas().then((data) => { if (!cancelled && data) setLifeAreas(data) })
+    return () => { cancelled = true }
+  }, [lifeAreaFilter, fetchBudgetData, applyBudgetData, fetchIncomeData, fetchWishlistData, fetchInvestmentsData, fetchLifeAreas])
 
   // ── Derived values ────────────────────────────────────────────────────────────
 
@@ -362,7 +373,7 @@ export function BudgetPanel({ preferredCurrency = "USD" }: { preferredCurrency?:
       if (res.ok) {
         setShowTransactionDialog(false)
         setTransactionForm({ transaction_type: "expense", amount: "", description: "", category_id: "", date: new Date().toISOString().split("T")[0] })
-        fetchBudgetData()
+        fetchBudgetData().then(applyBudgetData)
       }
     } catch (err) {
       console.error("Error adding transaction:", err)
@@ -383,7 +394,7 @@ export function BudgetPanel({ preferredCurrency = "USD" }: { preferredCurrency?:
       if (res.ok) {
         setShowCategoryDialog(false)
         setCategoryForm({ name: "", color: "#3B82F6", icon: "other", budget_limit: "", life_area_id: null })
-        fetchBudgetData()
+        fetchBudgetData().then(applyBudgetData)
       }
     } catch (err) {
       console.error("Error adding category:", err)
@@ -405,7 +416,7 @@ export function BudgetPanel({ preferredCurrency = "USD" }: { preferredCurrency?:
       if (res.ok) {
         setShowGoalDialog(false)
         setGoalForm({ name: "", target_amount: "", current_amount: "", deadline: "" })
-        fetchBudgetData()
+        fetchBudgetData().then(applyBudgetData)
       }
     } catch (err) {
       console.error("Error adding goal:", err)
@@ -415,7 +426,7 @@ export function BudgetPanel({ preferredCurrency = "USD" }: { preferredCurrency?:
   const handleDeleteTransaction = async (id: number) => {
     try {
       await fetch(`/api/budget?type=transaction&id=${id}`, { method: "DELETE" })
-      fetchBudgetData()
+      fetchBudgetData().then(applyBudgetData)
     } catch (err) {
       console.error("Error deleting transaction:", err)
     }
@@ -424,7 +435,7 @@ export function BudgetPanel({ preferredCurrency = "USD" }: { preferredCurrency?:
   const handleDeleteGoal = async (id: number) => {
     try {
       await fetch(`/api/budget?type=goal&id=${id}`, { method: "DELETE" })
-      fetchBudgetData()
+      fetchBudgetData().then(applyBudgetData)
     } catch (err) {
       console.error("Error deleting goal:", err)
     }
@@ -441,7 +452,7 @@ export function BudgetPanel({ preferredCurrency = "USD" }: { preferredCurrency?:
           life_area_id: lifeAreaId,
         }),
       })
-      if (res.ok) fetchBudgetData()
+      if (res.ok) fetchBudgetData().then(applyBudgetData)
     } catch (err) {
       console.error("Error updating category life domain:", err)
     }

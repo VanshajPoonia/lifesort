@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth-provider"
 import {
@@ -63,14 +63,7 @@ export function IncomePanel({ preferredCurrency = "USD" }: { preferredCurrency?:
     }
   }, [user, authLoading, router])
 
-  useEffect(() => {
-    if (user) {
-      fetchIncomeSources()
-      fetchLifeAreas()
-    }
-  }, [user])
-
-  const fetchIncomeSources = async () => {
+  const fetchIncomeSources = useCallback(async () => {
     try {
       setLoading(true)
       const response = await fetch('/api/income')
@@ -83,9 +76,9 @@ export function IncomePanel({ preferredCurrency = "USD" }: { preferredCurrency?:
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  const fetchLifeAreas = async () => {
+  const fetchLifeAreas = useCallback(async () => {
     try {
       const response = await fetch('/api/life-areas')
       if (response.ok) {
@@ -95,7 +88,16 @@ export function IncomePanel({ preferredCurrency = "USD" }: { preferredCurrency?:
     } catch (error) {
       console.error('[v0] Failed to fetch life domains:', error)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (user) {
+      // Flagged by react-hooks/set-state-in-effect: fetchIncomeSources is
+      // shared with several mutation handlers below that need the reload.
+      fetchIncomeSources()
+      fetchLifeAreas()
+    }
+  }, [user, fetchIncomeSources, fetchLifeAreas])
 
   useEffect(() => {
     if (!user) return
@@ -108,7 +110,7 @@ export function IncomePanel({ preferredCurrency = "USD" }: { preferredCurrency?:
 
     window.addEventListener("lifesort:quick-add-created", handleQuickAdd)
     return () => window.removeEventListener("lifesort:quick-add-created", handleQuickAdd)
-  }, [user])
+  }, [user, fetchIncomeSources])
 
   const handleAddIncome = async () => {
     if (newIncome.name && newIncome.type && newIncome.amount && newIncome.frequency) {

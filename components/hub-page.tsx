@@ -84,6 +84,8 @@ function useNavigationSummary(cards: HubCard[]) {
     if (!cards.some((card) => card.statusKey)) return
 
     let cancelled = false
+    // Flagged by react-hooks/set-state-in-effect: re-runs when cards change
+    // and needs the loading indicator back on immediately.
     setLoading(true)
     fetch("/api/navigation-summary")
       .then(async (response) => {
