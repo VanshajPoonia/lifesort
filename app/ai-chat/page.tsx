@@ -164,6 +164,8 @@ export default function AIChatPage() {
     if (!user) return
 
     let cancelled = false
+    // Flagged by react-hooks/set-state-in-effect: re-runs when the user
+    // becomes available and needs the loading indicator on immediately.
     setModelsLoading(true)
     setModelError("")
 
@@ -211,6 +213,8 @@ export default function AIChatPage() {
     if (!user) return
 
     let cancelled = false
+    // Flagged by react-hooks/set-state-in-effect: re-runs when contextMode
+    // changes and needs the loading indicator back on immediately.
     setContextLoading(true)
     setContextError("")
 

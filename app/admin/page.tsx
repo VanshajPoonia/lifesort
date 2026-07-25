@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth-provider"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -74,11 +74,7 @@ export default function AdminPage() {
     }
   }, [user, authLoading, router])
 
-  useEffect(() => {
-    fetchUsers()
-  }, [])
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       const response = await fetch('/api/admin/update-subscription')
       const data = await response.json()
@@ -88,7 +84,13 @@ export default function AdminPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    // Flagged by react-hooks/set-state-in-effect: fetchUsers is shared with
+    // updateSubscription, which needs the reload after a mutation too.
+    fetchUsers()
+  }, [fetchUsers])
 
   const updateSubscription = async (userId: string, isSubscribed: boolean, endDate?: string | null, tier?: string) => {
     setUpdating(userId)

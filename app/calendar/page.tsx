@@ -356,6 +356,9 @@ export default function CalendarPage() {
 
   useEffect(() => {
     if (!user) return
+    // Flagged by react-hooks/set-state-in-effect: fetchEvents/fetchTasks are
+    // shared with manual refresh call sites (buttons, custom events) that
+    // need the loading indicators reset too, so the reset can't be dropped.
     fetchEvents()
     fetchTasks()
     fetchIntegrations()
