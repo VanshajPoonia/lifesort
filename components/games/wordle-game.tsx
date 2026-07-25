@@ -25,7 +25,8 @@ export function WordleGame({ onComplete }: WordleGameProps) {
   const [won, setWon] = useState(false)
 
   useEffect(() => {
-    // Pick a random word
+    // Flagged by react-hooks/set-state-in-effect: picks the word to guess on
+    // mount; targetWord starts empty so the game can't function without it.
     const randomWord = WORDS[Math.floor(Math.random() * WORDS.length)]
     setTargetWord(randomWord)
   }, [])

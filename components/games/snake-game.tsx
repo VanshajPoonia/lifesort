@@ -45,6 +45,9 @@ export function SnakeGame({ onComplete }: SnakeGameProps) {
 
   // Load high score
   useEffect(() => {
+    // Flagged by react-hooks/set-state-in-effect: hydrates the high score
+    // from localStorage on mount; the value read depends on what's actually
+    // stored, so it can't be dropped.
     const saved = localStorage.getItem("snake_high_score")
     if (saved) setHighScore(parseInt(saved))
   }, [])

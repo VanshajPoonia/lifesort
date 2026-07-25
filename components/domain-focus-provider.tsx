@@ -56,6 +56,9 @@ export function DomainFocusProvider({ children }: { children: React.ReactNode })
   const [hydrated, setHydrated] = useState(false)
 
   useEffect(() => {
+    // Flagged by react-hooks/set-state-in-effect: hydrates the focus state
+    // from sessionStorage on mount; the value read depends on what's
+    // actually stored, so it can't be dropped.
     try {
       const raw = window.sessionStorage.getItem(STORAGE_KEY)
       if (raw) setFocusState(JSON.parse(raw))
