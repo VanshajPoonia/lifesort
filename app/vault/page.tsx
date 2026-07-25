@@ -393,7 +393,11 @@ export default function VaultPage() {
     }
   }, [])
 
-  useEffect(() => { fetchAll() }, [fetchAll])
+  useEffect(() => {
+    // Flagged by react-hooks/set-state-in-effect: fetchAll is shared with
+    // handleSave below, which needs the reload afterward too.
+    fetchAll()
+  }, [fetchAll])
 
   async function handleSave(data: VaultFormData) {
     setSaving(true)

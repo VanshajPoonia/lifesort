@@ -204,6 +204,8 @@ export default function TimelinePage() {
   }, [search, typeFilter, lifeAreaFilter, startDate, endDate])
 
   useEffect(() => {
+    // Flagged by react-hooks/set-state-in-effect: re-runs when any filter
+    // changes and needs the loading indicator back on immediately.
     fetchTimeline()
   }, [fetchTimeline])
 

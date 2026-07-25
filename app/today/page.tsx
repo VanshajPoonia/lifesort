@@ -325,7 +325,9 @@ export default function TodayPage() {
   const { toast } = useToast()
   const { focus: domainFocus } = useDomainFocus()
   const [planDate] = useState(localDateString)
-  const [activeTab, setActiveTab] = useState<TodayTab>(() => normalizeTodayTab(searchParams.get("tab")))
+  // Derived directly from the URL rather than mirrored into its own state --
+  // switchTab only needs to update the URL, and this stays in sync automatically.
+  const activeTab: TodayTab = normalizeTodayTab(searchParams.get("tab"))
   const [focusSession, setFocusSession] = useState<TodayItem | null>(null)
   const [plan, setPlan] = useState<TodayPlan | null>(null)
   const [candidates, setCandidates] = useState<TodayResponse["candidates"]>(emptyCandidates)
@@ -362,116 +364,127 @@ export default function TodayPage() {
     if (!authLoading && !user) router.push("/login")
   }, [authLoading, router, user])
 
-  useEffect(() => {
-    setActiveTab(normalizeTodayTab(searchParams.get("tab")))
-  }, [searchParams])
-
   const switchTab = (tab: TodayTab) => {
-    setActiveTab(tab)
     router.replace(tab === "week" ? "/today?tab=week" : "/today", { scroll: false })
   }
 
-  const fetchToday = useCallback(async () => {
-    setLoading(true)
-    setLoadError("")
-    try {
-      const response = await fetch(`/api/today-plan?date=${planDate}`)
-      if (!response.ok) throw new Error("Failed to load today plan")
-      const data = (await response.json()) as TodayResponse
-      setPlan(data.plan)
-      setCandidates(data.candidates || emptyCandidates)
-      setTodaySummary(data.summary || {
-        focusItems: data.plan.focus_items?.length || 0,
-        dueOrOverdueTasks: 0,
-        dueOrOverdueItems: 0,
-        highPriorityDueTasks: 0,
-        calendarToday: 0,
-      })
-      setCapacity({
-        energy_level: data.plan.energy_level || "medium",
-        available_focus_minutes: data.plan.available_focus_minutes === null || data.plan.available_focus_minutes === undefined
-          ? ""
-          : String(data.plan.available_focus_minutes),
-        mood: data.plan.mood || "",
-        day_type: data.plan.day_type || "normal",
-      })
-      setReflection({
-        reflection_went_well: data.plan.reflection_went_well || "",
-        reflection_did_not_go_well: data.plan.reflection_did_not_go_well || "",
-        reflection_improve_tomorrow: data.plan.reflection_improve_tomorrow || "",
-      })
-    } catch (error) {
-      console.error("Failed to load today plan:", error)
-      setLoadError("Today Plan could not be loaded.")
-    } finally {
-      setLoading(false)
-    }
+  const applyTodayData = useCallback((data: TodayResponse) => {
+    setPlan(data.plan)
+    setCandidates(data.candidates || emptyCandidates)
+    setTodaySummary(data.summary || {
+      focusItems: data.plan.focus_items?.length || 0,
+      dueOrOverdueTasks: 0,
+      dueOrOverdueItems: 0,
+      highPriorityDueTasks: 0,
+      calendarToday: 0,
+    })
+    setCapacity({
+      energy_level: data.plan.energy_level || "medium",
+      available_focus_minutes: data.plan.available_focus_minutes === null || data.plan.available_focus_minutes === undefined
+        ? ""
+        : String(data.plan.available_focus_minutes),
+      mood: data.plan.mood || "",
+      day_type: data.plan.day_type || "normal",
+    })
+    setReflection({
+      reflection_went_well: data.plan.reflection_went_well || "",
+      reflection_did_not_go_well: data.plan.reflection_did_not_go_well || "",
+      reflection_improve_tomorrow: data.plan.reflection_improve_tomorrow || "",
+    })
+  }, [])
+
+  // Pure fetch, no setState -- callers own loading/error/data state so an
+  // effect-triggered call can guard against a stale response (see the mount
+  // effect below) without tripping react-hooks/set-state-in-effect.
+  const fetchToday = useCallback(async (): Promise<TodayResponse> => {
+    const response = await fetch(`/api/today-plan?date=${planDate}`)
+    if (!response.ok) throw new Error("Failed to load today plan")
+    return (await response.json()) as TodayResponse
   }, [planDate])
 
   useEffect(() => {
-    if (user) fetchToday()
-  }, [fetchToday, user])
+    if (!user) return
+    let cancelled = false
+    // loading already starts true (useState(true) above); this effect only
+    // ever runs once in practice since planDate is set once and never changes.
+    fetchToday()
+      .then((data) => { if (!cancelled) { applyTodayData(data); setLoadError("") } })
+      .catch((error) => {
+        if (cancelled) return
+        console.error("Failed to load today plan:", error)
+        setLoadError("Today Plan could not be loaded.")
+      })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [fetchToday, user, applyTodayData])
 
-  const fetchJournalPreview = useCallback(async () => {
+  const fetchJournalPreview = useCallback(async (): Promise<JournalPreview | null> => {
     try {
       const response = await fetch(`/api/journal/${planDate}`)
-      if (!response.ok) return
+      if (!response.ok) return null
       const data = await response.json().catch(() => null)
-      setJournalPreview(data?.entry || null)
+      return data?.entry || null
     } catch {
-      // non-fatal
-    } finally {
-      setJournalLoaded(true)
+      return null
     }
   }, [planDate])
 
   useEffect(() => {
-    if (user) fetchJournalPreview()
+    if (!user) return
+    let cancelled = false
+    fetchJournalPreview().then((entry) => {
+      if (cancelled) return
+      setJournalPreview(entry)
+      setJournalLoaded(true)
+    })
+    return () => { cancelled = true }
   }, [fetchJournalPreview, user])
 
-  const fetchHabitsToday = useCallback(async () => {
-    try {
-      const [habitsRes, checkinsRes] = await Promise.all([
-        fetch("/api/habits"),
-        fetch(`/api/habits/checkins?date=${planDate}`),
-      ])
-      if (!habitsRes.ok || !checkinsRes.ok) return
-      type RawHabit = { id: number; name: string; color: string; is_active: boolean; frequency: string; custom_days: number[]; target_count: number; life_area_id?: number | string | null }
-      type RawCheckin = { habit_id: number; count: number }
-      type RawCheckinData = { checkins: RawCheckin[] }
-      const habitsData: RawHabit[] = await habitsRes.json()
-      const checkinsData: RawCheckinData = await checkinsRes.json()
-      const todayDay = new Date().getDay()
-      const active = habitsData.filter((h) => {
-        if (!h.is_active) return false
-        if (h.frequency === "daily") return true
-        if (h.frequency === "weekly") return true
-        if (h.frequency === "custom") return (h.custom_days || []).includes(todayDay)
-        return false
-      })
-      const checkinMap = new Map((checkinsData.checkins || []).map((c) => [c.habit_id, c.count]))
-      setHabitsToday(active.map((h) => {
-        const count = checkinMap.get(h.id) ?? 0
-        return {
-          id: h.id,
-          name: h.name,
-          color: h.color || "#2563EB",
-          target_count: h.target_count,
-          done: count >= h.target_count,
-          count,
-          life_area_id: h.life_area_id != null ? String(h.life_area_id) : null,
-        }
-      }))
-    } catch {
-      // non-fatal
-    } finally {
-      setHabitsLoaded(true)
-    }
-  }, [planDate])
-
   useEffect(() => {
-    if (user) fetchHabitsToday()
-  }, [fetchHabitsToday, user])
+    if (!user) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const [habitsRes, checkinsRes] = await Promise.all([
+          fetch("/api/habits"),
+          fetch(`/api/habits/checkins?date=${planDate}`),
+        ])
+        if (!habitsRes.ok || !checkinsRes.ok) return
+        type RawHabit = { id: number; name: string; color: string; is_active: boolean; frequency: string; custom_days: number[]; target_count: number; life_area_id?: number | string | null }
+        type RawCheckin = { habit_id: number; count: number }
+        type RawCheckinData = { checkins: RawCheckin[] }
+        const habitsData: RawHabit[] = await habitsRes.json()
+        const checkinsData: RawCheckinData = await checkinsRes.json()
+        const todayDay = new Date().getDay()
+        const active = habitsData.filter((h) => {
+          if (!h.is_active) return false
+          if (h.frequency === "daily") return true
+          if (h.frequency === "weekly") return true
+          if (h.frequency === "custom") return (h.custom_days || []).includes(todayDay)
+          return false
+        })
+        const checkinMap = new Map((checkinsData.checkins || []).map((c) => [c.habit_id, c.count]))
+        const nextHabitsToday = active.map((h) => {
+          const count = checkinMap.get(h.id) ?? 0
+          return {
+            id: h.id,
+            name: h.name,
+            color: h.color || "#2563EB",
+            target_count: h.target_count,
+            done: count >= h.target_count,
+            count,
+            life_area_id: h.life_area_id != null ? String(h.life_area_id) : null,
+          }
+        })
+        if (!cancelled) setHabitsToday(nextHabitsToday)
+      } catch {
+        // non-fatal
+      } finally {
+        if (!cancelled) setHabitsLoaded(true)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [planDate, user])
 
   const toggleHabit = async (habit: HabitToday) => {
     const newCount = habit.done ? 0 : habit.target_count
@@ -542,7 +555,7 @@ export default function TodayPage() {
     [capacity, planDate, reflection]
   )
 
-  const focusItems = plan?.focus_items || []
+  const focusItems = useMemo(() => plan?.focus_items || [], [plan?.focus_items])
   const focusIds = useMemo(() => new Set(focusItems.map((item) => item.id)), [focusItems])
   const todayLabel = new Date(`${planDate}T00:00:00`).toLocaleDateString("en-US", {
     weekday: "long",
@@ -689,7 +702,7 @@ export default function TodayPage() {
     })
     if (!update.ok) throw new Error("Could not append journal notes")
     toast({ title: "Notes appended", description: "Session notes were added to today's Journal." })
-    fetchJournalPreview()
+    setJournalPreview(await fetchJournalPreview())
   }
 
   const completeFocusSession = async (item: TodayItem) => {
@@ -701,7 +714,11 @@ export default function TodayPage() {
       })
       if (!response.ok) throw new Error("Could not complete task")
       await removeFocus(item.id)
-      fetchToday()
+      try {
+        applyTodayData(await fetchToday())
+      } catch (error) {
+        console.error("Failed to refresh today plan:", error)
+      }
       toast({ title: "Task completed", description: item.title })
     }
     setFocusSession(null)
@@ -1811,30 +1828,36 @@ function WeekPlanner() {
   const end = week[6].key
 
   const fetchWeek = useCallback(async () => {
-    setLoading(true)
-    try {
-      const overdueEnd = dateString(addDays(week[0].date, -1))
-      const [weekTasksRes, overdueRes, planResults] = await Promise.all([
-        fetch(`/api/tasks?date_from=${start}&date_to=${end}&completed=false`),
-        fetch(`/api/tasks?date_to=${overdueEnd}&completed=false`),
-        Promise.all(week.map((day) => fetch(`/api/today-plan?date=${day.key}`).then((res) => (res.ok ? res.json() : null)).catch(() => null))),
-      ])
-      const weekTasks = weekTasksRes.ok ? await weekTasksRes.json() : []
-      const overdueTasks = overdueRes.ok ? await overdueRes.json() : []
-      setTasks([...(Array.isArray(overdueTasks) ? overdueTasks : []), ...(Array.isArray(weekTasks) ? weekTasks : [])])
-      setFocusByDate(
-        Object.fromEntries(
-          week.map((day, index) => [day.key, Array.isArray(planResults[index]?.plan?.focus_items) ? planResults[index].plan.focus_items : []]),
-        ),
-      )
-    } finally {
-      setLoading(false)
+    const overdueEnd = dateString(addDays(week[0].date, -1))
+    const [weekTasksRes, overdueRes, planResults] = await Promise.all([
+      fetch(`/api/tasks?date_from=${start}&date_to=${end}&completed=false`),
+      fetch(`/api/tasks?date_to=${overdueEnd}&completed=false`),
+      Promise.all(week.map((day) => fetch(`/api/today-plan?date=${day.key}`).then((res) => (res.ok ? res.json() : null)).catch(() => null))),
+    ])
+    const weekTasks = weekTasksRes.ok ? await weekTasksRes.json() : []
+    const overdueTasks = overdueRes.ok ? await overdueRes.json() : []
+    return {
+      tasks: [...(Array.isArray(overdueTasks) ? overdueTasks : []), ...(Array.isArray(weekTasks) ? weekTasks : [])],
+      focusByDate: Object.fromEntries(
+        week.map((day, index) => [day.key, Array.isArray(planResults[index]?.plan?.focus_items) ? planResults[index].plan.focus_items : []]),
+      ) as Record<string, TodayItem[]>,
     }
   }, [end, start, week])
 
+  const applyWeekData = useCallback((data: { tasks: WeekTask[]; focusByDate: Record<string, TodayItem[]> }) => {
+    setTasks(data.tasks)
+    setFocusByDate(data.focusByDate)
+  }, [])
+
   useEffect(() => {
+    // loading already starts true; week/start/end are stable so this only
+    // ever runs once in practice.
+    let cancelled = false
     fetchWeek()
-  }, [fetchWeek])
+      .then((data) => { if (!cancelled) applyWeekData(data) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [fetchWeek, applyWeekData])
 
   const tasksByDate = useMemo(() => {
     const grouped: Record<string, WeekTask[]> = {}
@@ -1882,7 +1905,7 @@ function WeekPlanner() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title, due_date: date, priority: "medium" }),
     })
-    if (response.ok) fetchWeek()
+    if (response.ok) applyWeekData(await fetchWeek())
   }
 
   if (loading) {
