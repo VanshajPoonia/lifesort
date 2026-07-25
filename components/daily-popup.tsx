@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo, useRef } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import Link from "next/link"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -167,67 +167,44 @@ export function DailyPopup() {
   const [attempts, setAttempts] = useState(0)
   const wyrTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Generate current hint based on hint level
-  const currentHint = useMemo(() => {
-    if (hintLevel === 0 || !content?.extra_data?.answer) return null
-    return generateHint(content.extra_data.answer, hintLevel)
-  }, [hintLevel, content?.extra_data?.answer])
+  // Generate current hint based on hint level. Cheap synchronous string work,
+  // so computed directly rather than memoized.
+  const currentHint = hintLevel === 0 || !content?.extra_data?.answer
+    ? null
+    : generateHint(content.extra_data.answer, hintLevel)
 
-  useEffect(() => {
-    checkDailyContent()
-    return () => {
-      if (wyrTimeoutRef.current) {
-        clearTimeout(wyrTimeoutRef.current)
-        wyrTimeoutRef.current = null
-      }
+  const resetState = useCallback(() => {
+    setShowPunchline(false)
+    setShowAnswer(false)
+    setUserAnswer("")
+    setIsCorrect(null)
+    setIsClose(false)
+    setWyrChoice(null)
+    setActiveGame(null)
+    setHintLevel(0)
+    setAttempts(0)
+  }, [])
+
+  const saveContentToHistory = useCallback(async (contentItem: DailyContent) => {
+    const safeContent = contentItem.content || contentItem.extra_data?.fact || ""
+    if (!contentItem.content_type || !safeContent) return
+
+    try {
+      await fetch("/api/daily-content", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content_type: contentItem.content_type,
+          content: safeContent,
+          extra_data: contentItem.extra_data
+        })
+      })
+    } catch (error) {
+      console.error("[v0] Error saving content to history:", error)
     }
   }, [])
 
-  const checkDailyContent = async () => {
-    try {
-      // Check if popup was shown within the last 2 hours
-      const lastShownTime = localStorage.getItem("daily_popup_last_shown")
-      const TWO_HOURS_MS = 2 * 60 * 60 * 1000 // 2 hours in milliseconds
-      
-      if (lastShownTime) {
-        const timeSinceLastShown = Date.now() - parseInt(lastShownTime)
-        if (timeSinceLastShown < TWO_HOURS_MS) {
-          setLoading(false)
-          return
-        }
-      }
-
-      // Random pick between quote, joke, or game each session
-      const mainTypes = ["quote", "joke", "game"]
-      const randomType = mainTypes[Math.floor(Math.random() * mainTypes.length)]
-      
-      // Map "game" to a specific game type
-      let contentType = randomType
-      if (randomType === "game") {
-        const gameTypes = ["riddle", "trivia", "would_you_rather", "fun_fact", "wordle", "snake"]
-        contentType = gameTypes[Math.floor(Math.random() * gameTypes.length)]
-      }
-
-      // Generate fresh AI content
-      await fetchAIContent(contentType)
-      localStorage.setItem("daily_popup_last_shown", Date.now().toString())
-      setIsOpen(true)
-    } catch (error) {
-      console.error("[v0] Error fetching daily content:", error)
-      // Fallback to static content
-      setContent({
-        content_type: "quote",
-        content: "The only way to do great work is to love what you do.",
-        extra_data: { author: "Steve Jobs" }
-      })
-      localStorage.setItem("daily_popup_last_shown", Date.now().toString())
-      setIsOpen(true)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const fetchAIContent = async (specificType?: string) => {
+  const fetchAIContent = useCallback(async (specificType?: string) => {
     setLoading(true)
     resetState()
 
@@ -326,26 +303,67 @@ export function DailyPopup() {
     }
 
     setLoading(false)
-  }
+  }, [resetState, saveContentToHistory])
 
-  const saveContentToHistory = async (contentItem: DailyContent) => {
-    const safeContent = contentItem.content || contentItem.extra_data?.fact || ""
-    if (!contentItem.content_type || !safeContent) return
-
+  const checkDailyContent = useCallback(async () => {
     try {
-      await fetch("/api/daily-content", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          content_type: contentItem.content_type,
-          content: safeContent,
-          extra_data: contentItem.extra_data
-        })
-      })
+      // Check if popup was shown within the last 2 hours
+      const lastShownTime = localStorage.getItem("daily_popup_last_shown")
+      const TWO_HOURS_MS = 2 * 60 * 60 * 1000 // 2 hours in milliseconds
+
+      if (lastShownTime) {
+        const timeSinceLastShown = Date.now() - parseInt(lastShownTime)
+        if (timeSinceLastShown < TWO_HOURS_MS) {
+          setLoading(false)
+          return
+        }
+      }
+
+      // Random pick between quote, joke, or game each session
+      const mainTypes = ["quote", "joke", "game"]
+      const randomType = mainTypes[Math.floor(Math.random() * mainTypes.length)]
+
+      // Map "game" to a specific game type
+      let contentType = randomType
+      if (randomType === "game") {
+        const gameTypes = ["riddle", "trivia", "would_you_rather", "fun_fact", "wordle", "snake"]
+        contentType = gameTypes[Math.floor(Math.random() * gameTypes.length)]
+      }
+
+      // Generate fresh AI content
+      await fetchAIContent(contentType)
+      localStorage.setItem("daily_popup_last_shown", Date.now().toString())
+      setIsOpen(true)
     } catch (error) {
-      console.error("[v0] Error saving content to history:", error)
+      console.error("[v0] Error fetching daily content:", error)
+      // Fallback to static content
+      setContent({
+        content_type: "quote",
+        content: "The only way to do great work is to love what you do.",
+        extra_data: { author: "Steve Jobs" }
+      })
+      localStorage.setItem("daily_popup_last_shown", Date.now().toString())
+      setIsOpen(true)
+    } finally {
+      setLoading(false)
     }
-  }
+  }, [fetchAIContent])
+
+  useEffect(() => {
+    // Flagged by react-hooks/set-state-in-effect: checkDailyContent can
+    // synchronously setLoading(false) when the "shown recently" localStorage
+    // check bails out. That check can't move to render (localStorage doesn't
+    // exist during SSR), so this effect-gated setState is the correct
+    // pattern, not a bug -- left as-is rather than adding a no-op defer just
+    // to silence the rule.
+    checkDailyContent()
+    return () => {
+      if (wyrTimeoutRef.current) {
+        clearTimeout(wyrTimeoutRef.current)
+        wyrTimeoutRef.current = null
+      }
+    }
+  }, [checkDailyContent])
 
   const saveGameToHistory = async (gameType: string, content: string, extraData: Record<string, unknown>) => {
     try {
@@ -361,18 +379,6 @@ export function DailyPopup() {
     } catch (error) {
       console.error("[v0] Error saving game to history:", error)
     }
-  }
-
-  const resetState = () => {
-    setShowPunchline(false)
-    setShowAnswer(false)
-    setUserAnswer("")
-    setIsCorrect(null)
-    setIsClose(false)
-    setWyrChoice(null)
-    setActiveGame(null)
-    setHintLevel(0)
-    setAttempts(0)
   }
 
   const handleClose = () => {

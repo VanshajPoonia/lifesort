@@ -2,7 +2,7 @@
 
 import React from "react"
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 interface User {
@@ -32,23 +32,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
-  useEffect(() => {
-    checkAuth()
-  }, [])
-
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
     try {
       const res = await fetch('/api/auth/me')
       if (res.ok) {
         const data = await res.json()
-        setUser(data.user)
+        return data.user as User
       }
     } catch (error) {
       console.error('[v0] Auth check error:', error)
-    } finally {
-      setLoading(false)
     }
-  }
+    return null
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    checkAuth().then((nextUser) => {
+      if (cancelled) return
+      setUser(nextUser)
+      setLoading(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [checkAuth])
 
   const login = async (email: string, password: string) => {
     const res = await fetch('/api/auth/login', {

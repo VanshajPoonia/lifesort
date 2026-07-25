@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -246,6 +246,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   useEffect(() => {
+    // Flagged by react-hooks/set-state-in-effect: hydrates the collapsed
+    // state from localStorage on mount; the value read depends on what's
+    // actually stored, so it can't be dropped.
     try {
       setSidebarCollapsed(localStorage.getItem("sidebar-collapsed") === "true")
     } catch {
@@ -253,17 +256,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   }, [])
 
-  useEffect(() => {
-    fetchSidebarPrefs()
-  }, [])
-  
-  const fetchSidebarPrefs = async () => {
+  const fetchSidebarPrefs = useCallback(async () => {
     // 1. Module-level cache hit — instant, no network, no await.
     //    This is the common case after the first page load.
     if (_sidebarPrefsCache) {
-      setSidebarPrefs(_sidebarPrefsCache)
-      setPrefsLoaded(true)
-      return
+      return _sidebarPrefsCache
     }
 
     // 2. sessionStorage hit — instant on first page load after a hard refresh.
@@ -273,9 +270,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         const parsed = JSON.parse(stored)
         const prefs = { ...DEFAULT_SIDEBAR_PREFS, ...applyWorkspacePreferenceFallback(parsed) }
         _sidebarPrefsCache = prefs
-        setSidebarPrefs(prefs)
-        setPrefsLoaded(true)
-        return
+        return prefs
       }
     } catch {
       // Corrupt cache — fall through to network.
@@ -290,22 +285,31 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           const prefs = { ...DEFAULT_SIDEBAR_PREFS, ...applyWorkspacePreferenceFallback(data.preferences) }
           _sidebarPrefsCache = prefs
           sessionStorage.setItem("sidebar_prefs", JSON.stringify(data.preferences))
-          setSidebarPrefs(prefs)
-        } else {
-          _sidebarPrefsCache = DEFAULT_SIDEBAR_PREFS
-          setSidebarPrefs(DEFAULT_SIDEBAR_PREFS)
+          return prefs
         }
-      } else {
-        setSidebarPrefs(DEFAULT_SIDEBAR_PREFS)
+        _sidebarPrefsCache = DEFAULT_SIDEBAR_PREFS
+        return DEFAULT_SIDEBAR_PREFS
       }
+      return DEFAULT_SIDEBAR_PREFS
     } catch (error) {
       console.error("Error fetching sidebar preferences:", error)
-      setSidebarPrefs(DEFAULT_SIDEBAR_PREFS)
-    } finally {
-      setPrefsLoaded(true)
+      return DEFAULT_SIDEBAR_PREFS
     }
-  }
-  
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    fetchSidebarPrefs().then((prefs) => {
+      if (cancelled) return
+      setSidebarPrefs(prefs)
+      setPrefsLoaded(true)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [fetchSidebarPrefs])
+
+
   // Use defaults while loading, then use actual prefs
   const prefs = sidebarPrefs || DEFAULT_SIDEBAR_PREFS
   const matchesPath = (href: string) => href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`)
