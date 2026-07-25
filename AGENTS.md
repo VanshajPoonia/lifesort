@@ -92,7 +92,7 @@ Current command caveats:
 - `npm test` runs Vitest (`vitest run`), added 2026-07-24. Coverage is intentionally minimal so far: `lib/auth.ts` + `app/api/tags/route.ts` (20 tests total). See `AI_TASK_LOG.md` for the pattern to copy when adding more.
 - No `typecheck` script exists (use `npx tsc --noEmit` directly).
 - No formatting script exists.
-- `npm run lint` now runs (fixed 2026-07-24 — `eslint.config.mjs` + ESLint 9.39.5 + `eslint-config-next@16.2.11`; ESLint 10 is not yet supported by `eslint-plugin-react`, see `AI_TASK_LOG.md`). It exits non-zero: 293 pre-existing findings surfaced by lint running for the first time against the real codebase. Not yet cleaned up — a separate follow-up task, not a blocker.
+- `npm run lint` now runs (fixed 2026-07-24 — `eslint.config.mjs` + ESLint 9.39.5 + `eslint-config-next@16.2.11`; ESLint 10 is not yet supported by `eslint-plugin-react`, see `AI_TASK_LOG.md`). Of the original 293 pre-existing findings, 66 remain (2026-07-25 cleanup pass) — every remaining one is `react-hooks/set-state-in-effect`, individually reviewed and left in place with a one-line comment explaining why (either the setState is a real, non-redundant transition — e.g. syncing from a URL param, localStorage/sessionStorage, or a reused dialog/modal instance — or the flagged function is intentionally shared with non-effect call sites that also need its reset behavior). It still exits non-zero; that is expected and not a blocker. See `AI_TASK_LOG.md` for the fix patterns used.
 - `npm run build` currently passes, but `next.config.mjs` skips TypeScript validation and linting during builds.
 
 ## Coding Conventions

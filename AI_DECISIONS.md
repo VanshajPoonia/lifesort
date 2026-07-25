@@ -194,6 +194,12 @@ Architecture and product decision memory for LifeSort.
 - Keep Tailwind theme tokens and CSS variable approach in `app/globals.css`.
 - Keep feature changes close to the relevant page/API route unless shared logic already exists.
 - Keep schema changes represented as explicit SQL files or documented migration steps.
+- `react-hooks/set-state-in-effect` (React Compiler ESLint rule): flags both a literal `setState` in an effect body and, less obviously, any effect-body call to a function that calls `setState` anywhere in its body (sync or async, before or after an `await`). Fix by category, established/validated across a full-codebase cleanup pass 2026-07-25 (see `AI_TASK_LOG.md`):
+  - Function called only from that one effect, and it can cleanly return data instead of setting state internally → rewrite it to return data, have the effect apply the result via a `let cancelled = false` guard in a `.then()`/cleanup pair. This is a real fix (zero residual finding), not a suppression.
+  - Function also called from a button/handler/other effect that needs the same reset behavior → leave as-is, add a one-line comment above the flagged call naming the other call site. Do not split it into an effect-only variant just to chase the lint count down further — that's a larger refactor for a cosmetic win.
+  - Literal `setState` that's a real (non-redundant) transition driven by a changing dependency (filter, search query, route param, a dialog resetting on open) → leave as-is with a comment. This matches React's own docs on patterns that don't have a clean effect-free alternative.
+  - Literal `setState` hydrating from `localStorage`/`sessionStorage`/a URL query param on mount → leave as-is with a comment; the value isn't statically knowable, so there's nothing to make pure.
+  - Only delete the `setState` outright when the state already starts at the value being set AND the effect/function only meaningfully runs once — verify this before assuming it, it's the exception, not the default.
 
 ## Anti-Patterns to Avoid
 
