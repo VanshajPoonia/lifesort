@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth-provider"
 import { DashboardLayout } from "@/components/dashboard-layout"
@@ -52,34 +52,34 @@ export default function NukeGoalPage() {
     }
   }, [user, authLoading, router])
 
-  useEffect(() => {
-    if (user) {
-      fetchNukeGoal()
-    }
-  }, [user])
-
-  const fetchNukeGoal = async () => {
+  const fetchNukeGoal = useCallback(async () => {
     try {
       const response = await fetch("/api/nuke-goal")
       if (response.ok) {
         const data = await response.json()
         if (data) {
-          const parsedMilestones = typeof data.milestones === 'string' 
-            ? JSON.parse(data.milestones) 
+          const parsedMilestones = typeof data.milestones === 'string'
+            ? JSON.parse(data.milestones)
             : data.milestones || []
-          
-          setNukeGoal({
-            ...data,
-            milestones: parsedMilestones,
-          })
+          return { ...data, milestones: parsedMilestones }
         }
       }
     } catch (error) {
       console.error("[v0] Error fetching nuke goal:", error)
-    } finally {
-      setLoading(false)
     }
-  }
+    return null
+  }, [])
+
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+    fetchNukeGoal().then((data) => {
+      if (cancelled) return
+      if (data) setNukeGoal(data)
+      setLoading(false)
+    })
+    return () => { cancelled = true }
+  }, [user, fetchNukeGoal])
 
   const handleSaveGoal = async () => {
     if (!nukeGoal.title.trim()) {

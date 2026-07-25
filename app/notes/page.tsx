@@ -153,6 +153,7 @@ export default function NotesPage() {
   const [creatingNote, setCreatingNote] = useState(false)
   const [saveState, setSaveState] = useState<SaveState>("idle")
   const [searchQuery, setSearchQuery] = useState("")
+  const [now, setNow] = useState(() => Date.now())
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>({ type: "all" })
   const [showSidebar, setShowSidebar] = useState(true)
   const [folderDraft, setFolderDraft] = useState("")
@@ -242,6 +243,9 @@ export default function NotesPage() {
 
   useEffect(() => {
     if (user) {
+      // Flagged by react-hooks/set-state-in-effect: fetchNotesAndFolders is
+      // shared with the quick-add listener below, which needs the reload
+      // afterward too.
       fetchNotesAndFolders()
     }
   }, [fetchNotesAndFolders, user])
@@ -258,6 +262,11 @@ export default function NotesPage() {
     window.addEventListener("lifesort:quick-add-created", handleQuickAdd)
     return () => window.removeEventListener("lifesort:quick-add-created", handleQuickAdd)
   }, [fetchNotesAndFolders, user])
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 60_000)
+    return () => clearInterval(interval)
+  }, [])
 
   useEffect(() => {
     return () => {
@@ -328,8 +337,6 @@ export default function NotesPage() {
   }, [lifeAreas])
 
   const filteredNotes = useMemo(() => {
-    const now = Date.now()
-
     return notes.filter((note) => {
       const matchesFilter =
         activeFilter.type === "all" ||
@@ -341,7 +348,7 @@ export default function NotesPage() {
       const areaName = note.life_area_id ? areaById.get(String(note.life_area_id))?.name : ""
       return matchesFilter && noteMatchesSearch(note, searchQuery, areaName)
     })
-  }, [activeFilter, areaById, notes, searchQuery])
+  }, [activeFilter, areaById, notes, now, searchQuery])
 
   const folderCounts = useMemo(() => {
     return notes.reduce<Record<string, number>>((counts, note) => {

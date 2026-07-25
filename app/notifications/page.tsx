@@ -155,23 +155,29 @@ export default function NotificationsPage() {
   const [readFilter, setReadFilter] = useState("all")
 
   const fetchNotifications = useCallback(() => {
-    setLoading(true)
-    setError(false)
-    fetch("/api/notifications")
+    return fetch("/api/notifications")
       .then((r) => {
         if (!r.ok) throw new Error("Failed")
         return r.json()
       })
-      .then((d) => {
-        setNotifications(d.notifications ?? [])
-        setUnreadCount(d.unread_count ?? 0)
-      })
-      .catch(() => setError(true))
-      .finally(() => setLoading(false))
+      .then((d) => ({ notifications: d.notifications ?? [], unreadCount: d.unread_count ?? 0, error: false }))
+      .catch(() => ({ notifications: null as Notification[] | null, unreadCount: 0, error: true }))
   }, [])
 
   useEffect(() => {
-    fetchNotifications()
+    let cancelled = false
+    fetchNotifications().then((result) => {
+      if (cancelled) return
+      if (result.notifications) {
+        setNotifications(result.notifications)
+        setUnreadCount(result.unreadCount)
+      }
+      setError(result.error)
+      setLoading(false)
+    })
+    return () => {
+      cancelled = true
+    }
   }, [fetchNotifications])
 
   const markRead = async (id: number) => {
