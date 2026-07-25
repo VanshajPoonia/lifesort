@@ -156,6 +156,8 @@ export default function ResetPage() {
   }, [user])
 
   useEffect(() => {
+    // Flagged by react-hooks/set-state-in-effect: loadReset is shared with
+    // several mutation handlers below that need the reload afterward too.
     loadReset()
   }, [loadReset])
 

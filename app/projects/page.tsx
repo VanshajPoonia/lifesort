@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, useCallback } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
@@ -200,28 +200,7 @@ export default function ProjectsPage() {
   const [saving, setSaving] = useState(false)
   const [deleteId, setDeleteId] = useState<string | number | null>(null)
 
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push("/login")
-      return
-    }
-    if (user) {
-      fetchData()
-    }
-  }, [user, loading, router, lifeAreaFilter])
-
-  useEffect(() => {
-    const handler = (event: Event) => {
-      const detail = (event as CustomEvent).detail
-      if (detail?.type === "project") fetchData()
-    }
-    window.addEventListener("lifesort:quick-add-created", handler)
-    return () => window.removeEventListener("lifesort:quick-add-created", handler)
-  }, [])
-
-  const fetchData = async () => {
-    setLoadingProjects(true)
-    setError("")
+  const fetchData = useCallback(async (): Promise<{ projects: Project[]; lifeAreas: LifeArea[] } | { error: string }> => {
     try {
       const [projectsRes, areasRes] = await Promise.all([
         fetch(lifeAreaFilter ? `/api/projects?life_area_id=${encodeURIComponent(lifeAreaFilter)}` : "/api/projects"),
@@ -230,14 +209,56 @@ export default function ProjectsPage() {
       if (!projectsRes.ok) throw new Error("Projects could not be loaded.")
       const projectData = await projectsRes.json()
       const areaData = areasRes.ok ? await areasRes.json() : []
-      setProjects(Array.isArray(projectData) ? projectData : [])
-      setLifeAreas(Array.isArray(areaData) ? areaData.map((area) => normalizeLifeArea(area)) : [])
+      return {
+        projects: Array.isArray(projectData) ? projectData : [],
+        lifeAreas: Array.isArray(areaData) ? areaData.map((area) => normalizeLifeArea(area)) : [],
+      }
     } catch (fetchError) {
-      setError(fetchError instanceof Error ? fetchError.message : "Projects could not be loaded.")
-    } finally {
-      setLoadingProjects(false)
+      return { error: fetchError instanceof Error ? fetchError.message : "Projects could not be loaded." }
     }
-  }
+  }, [lifeAreaFilter])
+
+  const applyFetchedData = useCallback((result: Awaited<ReturnType<typeof fetchData>>) => {
+    if ("error" in result) {
+      setError(result.error)
+    } else {
+      setProjects(result.projects)
+      setLifeAreas(result.lifeAreas)
+    }
+    setLoadingProjects(false)
+  }, [])
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login")
+      return
+    }
+    if (!user) return
+    let cancelled = false
+    // Flagged by react-hooks/set-state-in-effect: re-runs when lifeAreaFilter
+    // changes and needs the loading indicator back on immediately.
+    setLoadingProjects(true)
+    setError("")
+    fetchData().then((result) => { if (!cancelled) applyFetchedData(result) })
+    return () => { cancelled = true }
+  }, [user, loading, router, lifeAreaFilter, fetchData, applyFetchedData])
+
+  useEffect(() => {
+    let cancelled = false
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent).detail
+      if (detail?.type === "project") {
+        setLoadingProjects(true)
+        setError("")
+        fetchData().then((result) => { if (!cancelled) applyFetchedData(result) })
+      }
+    }
+    window.addEventListener("lifesort:quick-add-created", handler)
+    return () => {
+      cancelled = true
+      window.removeEventListener("lifesort:quick-add-created", handler)
+    }
+  }, [fetchData, applyFetchedData])
 
   const openCreate = (nextForm: ProjectForm = emptyForm) => {
     setEditingProject(null)
@@ -292,7 +313,7 @@ export default function ProjectsPage() {
       })
       const data = await response.json().catch(() => null)
       if (!response.ok) throw new Error(data?.error || "Project could not be saved.")
-      await fetchData()
+      applyFetchedData(await fetchData())
       setDialogOpen(false)
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Project could not be saved.")

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import {
@@ -184,23 +184,19 @@ export default function ProjectDetailPage() {
   const [linkingId, setLinkingId] = useState<string | number | null>(null)
   const [tags, setTags] = useState<ItemTag[]>([])
 
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push("/login")
-      return
+  const fetchTags = useCallback(async (id: number | string | undefined) => {
+    if (!id) return
+    try {
+      const response = await fetch(`/api/item-tags?item_type=project&item_id=${id}`)
+      if (!response.ok) return
+      const data = await response.json()
+      setTags(Array.isArray(data) ? data : [])
+    } catch (fetchError) {
+      console.error("Failed to load project tags:", fetchError)
     }
-    if (user && projectId) {
-      fetchProject()
-    }
-  }, [user, loading, projectId, router])
+  }, [])
 
-  useEffect(() => {
-    if (linkOpen && projectId) {
-      fetchCandidates()
-    }
-  }, [linkOpen, candidateType, candidateQuery, projectId])
-
-  const fetchProject = async () => {
+  const fetchProject = useCallback(async () => {
     setLoadingProject(true)
     setError("")
     try {
@@ -225,19 +221,40 @@ export default function ProjectDetailPage() {
     } finally {
       setLoadingProject(false)
     }
-  }
+  }, [projectId, fetchTags])
 
-  const fetchTags = async (id: number | string | undefined) => {
-    if (!id) return
+  const fetchCandidates = useCallback(async () => {
+    setCandidatesLoading(true)
     try {
-      const response = await fetch(`/api/item-tags?item_type=project&item_id=${id}`)
-      if (!response.ok) return
-      const data = await response.json()
-      setTags(Array.isArray(data) ? data : [])
-    } catch (fetchError) {
-      console.error("Failed to load project tags:", fetchError)
+      const response = await fetch(
+        `/api/projects/items?project_id=${projectId}&type=${candidateType}&q=${encodeURIComponent(candidateQuery)}`,
+      )
+      const data = await response.json().catch(() => null)
+      setCandidates(response.ok && Array.isArray(data?.candidates) ? data.candidates : [])
+    } finally {
+      setCandidatesLoading(false)
     }
-  }
+  }, [projectId, candidateType, candidateQuery])
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login")
+      return
+    }
+    if (user && projectId) {
+      // Flagged by react-hooks/set-state-in-effect: fetchProject is shared
+      // with several mutation handlers below that need the reload afterward.
+      fetchProject()
+    }
+  }, [user, loading, projectId, router, fetchProject])
+
+  useEffect(() => {
+    if (linkOpen && projectId) {
+      // Flagged by react-hooks/set-state-in-effect: re-runs when the link
+      // search filters change and needs the loading indicator back on.
+      fetchCandidates()
+    }
+  }, [linkOpen, candidateType, candidateQuery, projectId, fetchCandidates])
 
   const saveTags = async (nextTags: ItemTag[]) => {
     if (!project) return
@@ -253,18 +270,6 @@ export default function ProjectDetailPage() {
     }
   }
 
-  const fetchCandidates = async () => {
-    setCandidatesLoading(true)
-    try {
-      const response = await fetch(
-        `/api/projects/items?project_id=${projectId}&type=${candidateType}&q=${encodeURIComponent(candidateQuery)}`,
-      )
-      const data = await response.json().catch(() => null)
-      setCandidates(response.ok && Array.isArray(data?.candidates) ? data.candidates : [])
-    } finally {
-      setCandidatesLoading(false)
-    }
-  }
 
   const openEdit = () => {
     if (!project) return
