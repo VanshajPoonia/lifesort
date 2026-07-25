@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Brain, Check, Clock, Edit, Loader2, Plus, Save, Settings2, Trash2 } from "lucide-react"
 
 import { DashboardLayout } from "@/components/dashboard-layout"
@@ -109,17 +109,13 @@ export default function RulesPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [form, setForm] = useState<RuleForm>(EMPTY_FORM)
 
-  useEffect(() => {
-    void loadRules()
-  }, [])
-
-  const applyPayload = (payload: RulesPayload) => {
+  const applyPayload = useCallback((payload: RulesPayload) => {
     setRules(payload.rules ?? [])
     setPreferences(payload.preferences ?? DEFAULT_PREFERENCES)
     setPreview(payload.preview ?? "")
-  }
+  }, [])
 
-  const loadRules = async () => {
+  const loadRules = useCallback(async () => {
     setLoading(true)
     setError("")
     try {
@@ -132,7 +128,13 @@ export default function RulesPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [applyPayload])
+
+  useEffect(() => {
+    // Flagged by react-hooks/set-state-in-effect: loadRules is shared with
+    // save/delete handlers below that need the reload afterward too.
+    void loadRules()
+  }, [loadRules])
 
   const openCreateDialog = () => {
     setForm(EMPTY_FORM)

@@ -2,7 +2,7 @@
 
 import React from "react"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import NextLink from "next/link"
 import { DashboardLayout, clearSidebarPrefsCache } from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -161,17 +161,7 @@ export default function SettingsPage() {
     notifications: true,
   })
 
-  useEffect(() => {
-    const tab = new URL(window.location.href).searchParams.get("tab")
-    if (tab && ["profile", "journal", "sidebar", "content", "faqs", "account"].includes(tab)) {
-      setActiveTab(tab)
-    }
-    fetchProfile()
-    fetchSidebarPrefs()
-    fetchAppPreferences()
-  }, [])
-
-  const fetchAppPreferences = async () => {
+  const fetchAppPreferences = useCallback(async () => {
     try {
       const response = await fetch("/api/app-preferences")
       if (!response.ok) return
@@ -180,7 +170,7 @@ export default function SettingsPage() {
     } catch (error) {
       console.error("[v0] Error fetching app preferences:", error)
     }
-  }
+  }, [])
 
   const saveHomeViewMode = async (mode: HomeViewMode) => {
     setHomeViewMode(mode)
@@ -208,7 +198,7 @@ export default function SettingsPage() {
     window.history.replaceState(null, "", `${url.pathname}?${url.searchParams.toString()}`)
   }
 
-  const fetchSidebarPrefs = async () => {
+  const fetchSidebarPrefs = useCallback(async () => {
     try {
       const response = await fetch("/api/sidebar-preferences")
       const data = await response.json()
@@ -218,9 +208,9 @@ export default function SettingsPage() {
     } catch (error) {
       console.error("[v0] Error fetching sidebar preferences:", error)
     }
-  }
+  }, [])
 
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
       const response = await fetch("/api/profile")
       console.log("[v0] Profile response status:", response.status)
@@ -253,7 +243,21 @@ export default function SettingsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    const tab = new URL(window.location.href).searchParams.get("tab")
+    if (tab && ["profile", "journal", "sidebar", "content", "faqs", "account"].includes(tab)) {
+      // Flagged by react-hooks/set-state-in-effect: supports deep-linking to
+      // a specific tab via ?tab=, overriding the default "profile".
+      setActiveTab(tab)
+    }
+    // Flagged by react-hooks/set-state-in-effect: fetchProfile is shared
+    // with save handlers below that need the reload afterward too.
+    fetchProfile()
+    fetchSidebarPrefs()
+    fetchAppPreferences()
+  }, [fetchProfile, fetchSidebarPrefs, fetchAppPreferences])
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]

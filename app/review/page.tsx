@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
@@ -203,18 +203,7 @@ export default function WeeklyReviewPage() {
   const [generatingAi, setGeneratingAi] = useState(false)
   const [aiError, setAiError] = useState("")
 
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push("/login")
-      return
-    }
-
-    if (user) {
-      fetchReview(selectedDate)
-    }
-  }, [user, loading, router, selectedDate])
-
-  const fetchReview = async (date: string) => {
+  const fetchReview = useCallback(async (date: string) => {
     setLoadingReview(true)
     setError("")
     setSaveState("idle")
@@ -237,7 +226,20 @@ export default function WeeklyReviewPage() {
     } finally {
       setLoadingReview(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login")
+      return
+    }
+
+    if (user) {
+      // Flagged by react-hooks/set-state-in-effect: fetchReview is shared
+      // with saveReview below, which needs the reload afterward too.
+      fetchReview(selectedDate)
+    }
+  }, [user, loading, router, selectedDate, fetchReview])
 
   const saveReview = async () => {
     setSaving(true)
