@@ -91,6 +91,8 @@ export function GoalModal({
   const [tags, setTags] = useState<ItemTag[]>([])
 
   useEffect(() => {
+    // Flagged by react-hooks/set-state-in-effect: this modal instance is
+    // reused across opens and needs to re-sync from `goal` each time.
     setLocalGoal(goal)
     setSelectedTaskId("")
     setTags([])

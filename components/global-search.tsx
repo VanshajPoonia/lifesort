@@ -132,6 +132,8 @@ export function GlobalSearch() {
   useEffect(() => {
     if (!open) return
 
+    // Flagged by react-hooks/set-state-in-effect: re-runs when the debounced
+    // query changes and needs to clear stale results immediately.
     if (debouncedQuery.length < 2) {
       setGroups([])
       setError("")

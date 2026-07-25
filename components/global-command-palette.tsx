@@ -189,6 +189,8 @@ export function GlobalCommandPalette({
   }, [onOpenChange])
 
   useEffect(() => {
+    // Flagged by react-hooks/set-state-in-effect: clears the query each time
+    // the palette opens or switches mode, since it's a reused instance.
     if (open) setQuery("")
   }, [mode, open])
 
@@ -203,6 +205,8 @@ export function GlobalCommandPalette({
   useEffect(() => {
     if (!open) return
 
+    // Flagged by react-hooks/set-state-in-effect: re-runs when the debounced
+    // query changes and needs to clear stale results immediately.
     if (debouncedQuery.length < 2) {
       setGroups([])
       setError("")
