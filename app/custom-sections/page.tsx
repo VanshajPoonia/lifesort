@@ -249,6 +249,9 @@ function SectionDialog({
   const [error, setError] = useState("")
 
   useEffect(() => {
+    // Flagged by react-hooks/set-state-in-effect: this dialog instance is
+    // reused across opens (create vs. edit), so it must re-sync form state
+    // to `initial` every time it opens with new data.
     if (open) {
       setForm(initial)
       setError("")
@@ -510,6 +513,9 @@ function RecordDialog({
   const [error, setError] = useState("")
 
   useEffect(() => {
+    // Flagged by react-hooks/set-state-in-effect: this dialog instance is
+    // reused across opens (create vs. edit), so it must re-sync form state
+    // to `initial` every time it opens with new data.
     if (open) {
       setData(initial)
       setError("")
@@ -689,40 +695,48 @@ export default function CustomSectionsPage() {
   }, [user, authLoading, router])
 
   const fetchSections = useCallback(async () => {
-    setSectionsLoading(true)
-    setSectionsError("")
     try {
       const res = await fetch("/api/custom-sections")
       if (!res.ok) throw new Error("Failed")
       const data = await res.json()
       const normalized = Array.isArray(data) ? data.map((r: Record<string, unknown>) => normalizeSection(r)) : []
-      setSections(normalized)
-      setSelectedSection((prev) => {
-        if (!prev) return normalized[0] ?? null
-        return normalized.find((s) => s.id === prev.id) ?? normalized[0] ?? null
-      })
+      return { sections: normalized, error: "" }
     } catch {
-      setSectionsError("Could not load sections.")
-    } finally {
-      setSectionsLoading(false)
+      return { sections: null, error: "Could not load sections." }
     }
   }, [])
 
   const fetchLifeAreas = useCallback(async () => {
     try {
       const res = await fetch("/api/life-areas")
-      if (!res.ok) return
+      if (!res.ok) return []
       const data = await res.json()
-      setLifeAreas((Array.isArray(data) ? data : []).map(normalizeLifeArea))
+      return (Array.isArray(data) ? data : []).map(normalizeLifeArea)
     } catch {
-      setLifeAreas([])
+      return []
     }
   }, [])
 
   useEffect(() => {
-    if (user) {
-      fetchSections()
-      fetchLifeAreas()
+    if (!user) return
+    let cancelled = false
+    Promise.all([fetchSections(), fetchLifeAreas()]).then(([sectionsResult, areas]) => {
+      if (cancelled) return
+      if (sectionsResult.sections) {
+        const normalized = sectionsResult.sections
+        setSections(normalized)
+        setSelectedSection((prev) => {
+          if (!prev) return normalized[0] ?? null
+          return normalized.find((s) => s.id === prev.id) ?? normalized[0] ?? null
+        })
+      } else {
+        setSectionsError(sectionsResult.error)
+      }
+      setLifeAreas(areas)
+      setSectionsLoading(false)
+    })
+    return () => {
+      cancelled = true
     }
   }, [fetchLifeAreas, fetchSections, user])
 
@@ -745,6 +759,9 @@ export default function CustomSectionsPage() {
   }, [])
 
   useEffect(() => {
+    // Flagged by react-hooks/set-state-in-effect: re-runs whenever
+    // selectedSection changes and needs the loading indicator back on
+    // immediately for the newly selected section's records.
     if (selectedSection) fetchRecords(selectedSection.id)
     else setRecords([])
   }, [selectedSection, fetchRecords])

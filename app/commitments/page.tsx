@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
@@ -279,18 +279,7 @@ export default function CommitmentsPage() {
   }))
   const [convertError, setConvertError] = useState("")
 
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.push("/login")
-      return
-    }
-
-    if (user) {
-      void fetchData()
-    }
-  }, [authLoading, router, user])
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true)
     setError("")
     setLinkedDataWarning("")
@@ -344,7 +333,20 @@ export default function CommitmentsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push("/login")
+      return
+    }
+
+    if (user) {
+      // Flagged by react-hooks/set-state-in-effect: fetchData is shared with
+      // several mutation handlers below that need the reload afterward too.
+      void fetchData()
+    }
+  }, [authLoading, router, user, fetchData])
 
   const stats = useMemo(() => {
     return items.reduce(

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -81,24 +81,12 @@ export default function DailyContentPage() {
     show_games: true,
   })
 
-  useEffect(() => {
-    fetchHistory()
-    fetchPreferences()
-  }, [])
-
-  useEffect(() => {
-    const debounce = setTimeout(() => {
-      fetchHistory()
-    }, 300)
-    return () => clearTimeout(debounce)
-  }, [searchQuery, filterType])
-
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
     try {
       const params = new URLSearchParams()
       if (searchQuery) params.set("search", searchQuery)
       if (filterType && filterType !== "all") params.set("type", filterType)
-      
+
       const response = await fetch(`/api/daily-content/history?${params}`)
       if (response.ok) {
         const data = await response.json()
@@ -109,21 +97,37 @@ export default function DailyContentPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [searchQuery, filterType])
 
-  const fetchPreferences = async () => {
+  const fetchPreferences = useCallback(async () => {
     try {
       const response = await fetch("/api/profile")
       if (response.ok) {
         const data = await response.json()
-        if (data.content_preferences) {
-          setPreferences(data.content_preferences)
-        }
+        return data.content_preferences ?? null
       }
     } catch (error) {
       console.error("[v0] Error fetching preferences:", error)
     }
-  }
+    return null
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    fetchPreferences().then((prefs) => {
+      if (!cancelled && prefs) setPreferences(prefs)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [fetchPreferences])
+
+  useEffect(() => {
+    const debounce = setTimeout(() => {
+      fetchHistory()
+    }, 300)
+    return () => clearTimeout(debounce)
+  }, [fetchHistory])
 
   const savePreferences = async () => {
     try {
