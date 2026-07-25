@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import type { ComponentType } from "react"
 import {
   AlertCircle,
@@ -318,7 +318,7 @@ export default function TemplatesPage() {
   const [done, setDone] = useState(false)
   const [results, setResults] = useState<ItemResult[]>([])
   const [myTemplates, setMyTemplates] = useState<UserTemplate[]>([])
-  const [loadingMyTemplates, setLoadingMyTemplates] = useState(false)
+  const [loadingMyTemplates, setLoadingMyTemplates] = useState(true)
   const [myTemplatesError, setMyTemplatesError] = useState("")
   const [migrationRequired, setMigrationRequired] = useState(false)
   const [builderOpen, setBuilderOpen] = useState(false)
@@ -341,6 +341,9 @@ export default function TemplatesPage() {
   const [domainContext, setDomainContext] = useState<{ id: string; name: string } | null>(null)
 
   useEffect(() => {
+    // Flagged by react-hooks/set-state-in-effect: hydrates persisted AI
+    // history and URL-provided mode/domain context on mount; the values
+    // read depend on what's actually stored/in the URL.
     setHistory(safeHistory())
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search)
@@ -352,27 +355,43 @@ export default function TemplatesPage() {
     }
   }, [])
 
-  useEffect(() => {
-    loadMyTemplates()
-  }, [])
-
-  const previewItems = useMemo(() => (generated ? generatedItems(generated) : []), [generated])
-
-  async function loadMyTemplates() {
-    setLoadingMyTemplates(true)
-    setMyTemplatesError("")
+  const loadMyTemplates = useCallback(async () => {
     try {
       const res = await fetch("/api/user-templates")
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || "Could not load My Templates")
-      setMyTemplates(Array.isArray(data.templates) ? data.templates.map(normalizeUserTemplate) : [])
-      setMigrationRequired(Boolean(data.migration_required))
+      return {
+        templates: Array.isArray(data.templates) ? data.templates.map(normalizeUserTemplate) : [],
+        migrationRequired: Boolean(data.migration_required),
+        error: "",
+      }
     } catch (error) {
-      setMyTemplatesError(error instanceof Error ? error.message : "Could not load My Templates")
-    } finally {
-      setLoadingMyTemplates(false)
+      return {
+        templates: null,
+        migrationRequired: false,
+        error: error instanceof Error ? error.message : "Could not load My Templates",
+      }
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    loadMyTemplates().then((result) => {
+      if (cancelled) return
+      if (result.templates) {
+        setMyTemplates(result.templates)
+        setMigrationRequired(result.migrationRequired)
+      } else {
+        setMyTemplatesError(result.error)
+      }
+      setLoadingMyTemplates(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [loadMyTemplates])
+
+  const previewItems = useMemo(() => (generated ? generatedItems(generated) : []), [generated])
 
   function rememberTemplate(template: GeneratedTemplate, sourcePrompt: string, applied = false) {
     const nextItem: AiHistoryItem = {

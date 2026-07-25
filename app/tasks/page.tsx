@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/components/auth-provider"
 import { DashboardLayout } from "@/components/dashboard-layout"
@@ -384,61 +384,43 @@ export default function TasksPage() {
     }
   }, [user, authLoading, router])
 
-  useEffect(() => {
-    if (user) {
-      fetchTasks()
-      fetchLifeAreas()
-      fetchProjects()
-    }
-  }, [user, lifeAreaFilter])
-
-  const fetchLifeAreas = async () => {
+  const fetchLifeAreas = useCallback(async (): Promise<LifeArea[] | null> => {
     try {
       const response = await fetch("/api/life-areas")
-      if (!response.ok) return
+      if (!response.ok) return null
       const data = await response.json()
-      setLifeAreas(Array.isArray(data) ? data.map(normalizeLifeArea) : [])
+      return Array.isArray(data) ? data.map(normalizeLifeArea) : []
     } catch (error) {
       console.error("Failed to fetch life domains:", error)
+      return null
     }
-  }
+  }, [])
 
-  const fetchTasks = async () => {
-    setLoading(true)
-    setLoadError("")
-    try {
-      const response = await fetch(lifeAreaFilter ? `/api/tasks?life_area_id=${encodeURIComponent(lifeAreaFilter)}` : "/api/tasks")
-      if (!response.ok) {
-        setLoadError("Tasks could not be loaded.")
-        setTasks([])
-        return
-      }
-
-      const data = await response.json()
-      const nextTasks = Array.isArray(data) ? data : []
-      setTasks(nextTasks)
-      fetchTaskTags(nextTasks)
-    } catch (error) {
-      console.error("Failed to fetch tasks:", error)
-      setLoadError("Tasks could not be loaded.")
-      setTasks([])
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const fetchTaskTags = async (forTasks: Task[]) => {
-    if (forTasks.length === 0) return
+  const fetchTaskTags = useCallback(async (forTasks: Task[]): Promise<Record<string, ItemTag[]> | null> => {
+    if (forTasks.length === 0) return null
     try {
       const ids = forTasks.map((task) => task.id).join(",")
       const response = await fetch(`/api/item-tags?item_type=task&item_ids=${encodeURIComponent(ids)}`)
-      if (!response.ok) return
+      if (!response.ok) return null
       const map = await response.json()
-      setTaskTagsById(map && typeof map === "object" ? map : {})
+      return map && typeof map === "object" ? map : {}
     } catch (error) {
       console.error("Failed to fetch task tags:", error)
+      return null
     }
-  }
+  }, [])
+
+  const fetchTasks = useCallback(async (): Promise<{ tasks: Task[]; error: string }> => {
+    try {
+      const response = await fetch(lifeAreaFilter ? `/api/tasks?life_area_id=${encodeURIComponent(lifeAreaFilter)}` : "/api/tasks")
+      if (!response.ok) return { tasks: [], error: "Tasks could not be loaded." }
+      const data = await response.json()
+      return { tasks: Array.isArray(data) ? data : [], error: "" }
+    } catch (error) {
+      console.error("Failed to fetch tasks:", error)
+      return { tasks: [], error: "Tasks could not be loaded." }
+    }
+  }, [lifeAreaFilter])
 
   const saveTaskTags = async (taskId: Task["id"], tags: ItemTag[]) => {
     setTaskTagsById((prev) => ({ ...prev, [String(taskId)]: tags }))
@@ -453,29 +435,54 @@ export default function TasksPage() {
     }
   }
 
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
     try {
       const response = await fetch("/api/projects")
-      if (!response.ok) return
+      if (!response.ok) return null
       const data = await response.json()
-      setProjects(Array.isArray(data) ? data : [])
+      return Array.isArray(data) ? data : []
     } catch (error) {
       console.error("Failed to fetch projects:", error)
+      return null
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+    // Flagged by react-hooks/set-state-in-effect: this re-runs when
+    // lifeAreaFilter changes, and needs to flip loading back on immediately
+    // for UX -- there's no render-time equivalent since it's genuinely
+    // reacting to a filter change, not deriving from existing state.
+    setLoading(true)
+    fetchTasks().then(({ tasks: nextTasks, error }) => {
+      if (cancelled) return
+      setTasks(nextTasks)
+      setLoadError(error)
+      setLoading(false)
+      if (nextTasks.length) fetchTaskTags(nextTasks).then((tags) => { if (!cancelled && tags) setTaskTagsById(tags) })
+    })
+    fetchLifeAreas().then((data) => { if (!cancelled && data) setLifeAreas(data) })
+    fetchProjects().then((data) => { if (!cancelled && data) setProjects(data) })
+    return () => { cancelled = true }
+  }, [user, lifeAreaFilter, fetchTasks, fetchLifeAreas, fetchProjects, fetchTaskTags])
 
   useEffect(() => {
     if (!user) return
 
     const handleQuickAdd = (event: Event) => {
       if ((event as CustomEvent).detail?.type === "task") {
-        fetchTasks()
+        fetchTasks().then(({ tasks: nextTasks, error }) => {
+          setTasks(nextTasks)
+          setLoadError(error)
+          if (nextTasks.length) fetchTaskTags(nextTasks).then((tags) => { if (tags) setTaskTagsById(tags) })
+        })
       }
     }
 
     window.addEventListener("lifesort:quick-add-created", handleQuickAdd)
     return () => window.removeEventListener("lifesort:quick-add-created", handleQuickAdd)
-  }, [user])
+  }, [user, fetchTasks, fetchTaskTags])
 
   const handleAddTask = async (title = newTaskTitle.trim() || "New Task") => {
     setCreating(true)

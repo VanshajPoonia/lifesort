@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Archive, FolderKanban, Grid2X2, List, Plus, Search, Star, StarOff } from "lucide-react"
@@ -78,16 +78,13 @@ export default function SpacesPage() {
   const [recents, setRecents] = useState<string[]>([])
 
   useEffect(() => {
+    // Flagged by react-hooks/set-state-in-effect: hydrates the recently
+    // visited list from localStorage on mount; the value read depends on
+    // what's actually stored, so it can't be dropped.
     setRecents(readRecentIds())
   }, [])
 
-  useEffect(() => {
-    if (!authLoading && !user) router.push("/login")
-    if (!authLoading && user) loadSpaces()
-    if (!authLoading && !user) setLoading(false)
-  }, [authLoading, router, user, showArchived])
-
-  const loadSpaces = async () => {
+  const loadSpaces = useCallback(async () => {
     setLoading(true)
     try {
       const response = await fetch(`/api/spaces${showArchived ? "?archived=true" : ""}`)
@@ -96,7 +93,16 @@ export default function SpacesPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [showArchived])
+
+  useEffect(() => {
+    if (!authLoading && !user) router.push("/login")
+    // Flagged by react-hooks/set-state-in-effect: re-runs when showArchived
+    // changes, and loadSpaces is also shared with create/archive handlers
+    // below that need the reload afterward too.
+    if (!authLoading && user) loadSpaces()
+    if (!authLoading && !user) setLoading(false)
+  }, [authLoading, router, user, showArchived, loadSpaces])
 
   const filtered = useMemo(() => {
     const text = query.trim().toLowerCase()
