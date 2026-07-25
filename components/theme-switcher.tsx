@@ -1,7 +1,7 @@
 "use client"
 
 import { Moon, Sun, Palette } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -16,7 +16,28 @@ export function ThemeSwitcher() {
   const [theme, setTheme] = useState<Theme>("light")
   const [mounted, setMounted] = useState(false)
 
+  const applyTheme = useCallback((newTheme: Theme) => {
+    const root = document.documentElement
+
+    // Remove all theme classes
+    root.classList.remove("dark")
+    root.removeAttribute("data-theme")
+
+    // Apply new theme
+    if (newTheme === "dark") {
+      root.classList.add("dark")
+    } else if (newTheme === "midnight") {
+      root.classList.add("dark")
+      root.setAttribute("data-theme", "midnight")
+    } else if (newTheme !== "light") {
+      root.setAttribute("data-theme", newTheme)
+    }
+  }, [])
+
   useEffect(() => {
+    // Flagged by react-hooks/set-state-in-effect: mounted starts false so
+    // theme-dependent UI stays hidden until the client hydrates; applyTheme
+    // is also shared with changeTheme below.
     setMounted(true)
     const savedTheme = localStorage.getItem("theme") as Theme | null
     if (savedTheme) {
@@ -29,25 +50,7 @@ export function ThemeSwitcher() {
       localStorage.setItem("theme", initialTheme)
       applyTheme(initialTheme)
     }
-  }, [])
-
-  const applyTheme = (newTheme: Theme) => {
-    const root = document.documentElement
-    
-    // Remove all theme classes
-    root.classList.remove("dark")
-    root.removeAttribute("data-theme")
-    
-    // Apply new theme
-    if (newTheme === "dark") {
-      root.classList.add("dark")
-    } else if (newTheme === "midnight") {
-      root.classList.add("dark")
-      root.setAttribute("data-theme", "midnight")
-    } else if (newTheme !== "light") {
-      root.setAttribute("data-theme", newTheme)
-    }
-  }
+  }, [applyTheme])
 
   const changeTheme = (newTheme: Theme) => {
     setTheme(newTheme)

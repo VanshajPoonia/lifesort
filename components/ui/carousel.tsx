@@ -111,6 +111,8 @@ const Carousel = React.forwardRef<
         return
       }
 
+      // Flagged by react-hooks/set-state-in-effect: syncs initial
+      // prev/next-button state from the Embla API once it's available.
       onSelect(api)
       api.on('reInit', onSelect)
       api.on('select', onSelect)
