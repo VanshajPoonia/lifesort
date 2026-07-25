@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import {
   AlertCircle,
   Briefcase,
@@ -311,13 +311,7 @@ export default function MaintenancePage() {
   const [editing, setEditing] = useState<MaintenanceItem | null>(null)
   const [form, setForm] = useState<MaintenanceForm>(emptyForm)
 
-  useEffect(() => {
-    fetchData()
-  }, [])
-
-  const fetchData = async () => {
-    setLoading(true)
-    setError("")
+  const fetchData = useCallback(async () => {
     try {
       const [itemsRes, areasRes, vaultRes] = await Promise.all([
         fetch("/api/maintenance?view=all&limit=200"),
@@ -327,27 +321,50 @@ export default function MaintenancePage() {
 
       if (!itemsRes.ok) throw new Error("Failed to fetch maintenance items")
       const itemsData = (await itemsRes.json()) as MaintenanceItem[]
-      setItems(itemsData)
 
+      let lifeAreas: LifeArea[] = []
       if (areasRes.ok) {
         const areasData = await areasRes.json()
-        setLifeAreas(Array.isArray(areasData) ? areasData.map((area) => normalizeLifeArea(area as Record<string, unknown>)) : [])
+        lifeAreas = Array.isArray(areasData) ? areasData.map((area) => normalizeLifeArea(area as Record<string, unknown>)) : []
       }
 
+      let vaultItems: VaultOption[] = []
+      let vaultUnavailable = false
       if (vaultRes.ok) {
         const vaultData = (await vaultRes.json()) as VaultOption[]
-        setVaultItems(Array.isArray(vaultData) ? vaultData : [])
-        setVaultUnavailable(false)
+        vaultItems = Array.isArray(vaultData) ? vaultData : []
       } else {
-        setVaultUnavailable(true)
+        vaultUnavailable = true
       }
+
+      return { items: itemsData, lifeAreas, vaultItems, vaultUnavailable, error: "" }
     } catch (err) {
       console.error("[maintenance] load failed:", err)
-      setError("Failed to load maintenance items. Apply the migration if this is the first time using Life Maintenance.")
-    } finally {
-      setLoading(false)
+      return {
+        items: null,
+        lifeAreas: [] as LifeArea[],
+        vaultItems: [] as VaultOption[],
+        vaultUnavailable: false,
+        error: "Failed to load maintenance items. Apply the migration if this is the first time using Life Maintenance.",
+      }
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    fetchData().then((result) => {
+      if (cancelled) return
+      if (result.items) setItems(result.items)
+      setLifeAreas(result.lifeAreas)
+      setVaultItems(result.vaultItems)
+      setVaultUnavailable(result.vaultUnavailable)
+      setError(result.error)
+      setLoading(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [fetchData])
 
   const stats = useMemo(() => {
     const active = items.filter(isActive)

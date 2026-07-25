@@ -254,6 +254,8 @@ export default function MoneyHubPage() {
   const [savingLiability, setSavingLiability] = useState(false)
 
   useEffect(() => {
+    // Flagged by react-hooks/set-state-in-effect: supports deep-linking to a
+    // specific tab via ?tab=, overriding the default "overview".
     setActiveTab(readInitialTab())
   }, [])
 
@@ -282,6 +284,8 @@ export default function MoneyHubPage() {
   }
 
   useEffect(() => {
+    // Flagged by react-hooks/set-state-in-effect: loadSummary is shared with
+    // mutation handlers below that need the reload afterward too.
     loadSummary()
   }, [])
 

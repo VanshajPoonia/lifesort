@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import { useAuth } from "@/components/auth-provider"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -105,16 +106,7 @@ export default function LinksPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [newImage, setNewImage] = useState({ title: '', description: '', folder_id: '', file_data: '' })
 
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push('/login')
-    } else if (user) {
-      fetchLinks()
-      loadFolders()
-    }
-  }, [user, loading, router])
-
-  const loadFolders = async () => {
+  const loadFolders = useCallback(async () => {
     try {
       const response = await fetch('/api/link-folders')
       if (response.ok) {
@@ -128,12 +120,36 @@ export default function LinksPage() {
           is_public: f.is_public || false,
           share_token: f.share_token,
         }))
-        setFolders([...DEFAULT_FOLDERS, ...dbFolders])
+        return [...DEFAULT_FOLDERS, ...dbFolders]
       }
     } catch (error) {
       console.error('[v0] Error loading folders:', error)
     }
-  }
+    return null
+  }, [])
+
+  const fetchLinks = useCallback(async (): Promise<LinkItem[] | null> => {
+    try {
+      const response = await fetch('/api/links')
+      if (response.ok) {
+        return await response.json()
+      }
+    } catch (error) {
+      console.error('[v0] Error fetching links:', error)
+    }
+    return null
+  }, [])
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login')
+    } else if (user) {
+      let cancelled = false
+      fetchLinks().then((data) => { if (!cancelled && data) setLinks(data) })
+      loadFolders().then((data) => { if (!cancelled && data) setFolders(data) })
+      return () => { cancelled = true }
+    }
+  }, [user, loading, router, fetchLinks, loadFolders])
 
   const toggleFolderExpand = (folderId: string) => {
     setExpandedFolders(prev => {
@@ -164,30 +180,18 @@ export default function LinksPage() {
     return ids
   }
 
-  const fetchLinks = async () => {
-    try {
-      const response = await fetch('/api/links')
-      if (response.ok) {
-        const data = await response.json()
-        setLinks(data)
-      }
-    } catch (error) {
-      console.error('[v0] Error fetching links:', error)
-    }
-  }
-
   useEffect(() => {
     if (!user) return
 
     const handleQuickAdd = (event: Event) => {
       if ((event as CustomEvent).detail?.type === "link") {
-        fetchLinks()
+        fetchLinks().then((data) => { if (data) setLinks(data) })
       }
     }
 
     window.addEventListener("lifesort:quick-add-created", handleQuickAdd)
     return () => window.removeEventListener("lifesort:quick-add-created", handleQuickAdd)
-  }, [user])
+  }, [user, fetchLinks])
 
   const getYouTubeId = (url: string) => {
     const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/
@@ -286,7 +290,8 @@ export default function LinksPage() {
       })
 
       if (response.ok) {
-        await fetchLinks()
+        const linksData = await fetchLinks()
+        if (linksData) setLinks(linksData)
         setNewLink({ title: '', url: '', description: '', folder_id: '', thumbnail: '' })
         setIsDialogOpen(false)
       }
@@ -315,7 +320,8 @@ export default function LinksPage() {
       })
 
       if (response.ok) {
-        await fetchLinks()
+        const linksData = await fetchLinks()
+        if (linksData) setLinks(linksData)
         setEditingLink(null)
         setIsEditDialogOpen(false)
       }
@@ -357,7 +363,8 @@ export default function LinksPage() {
       })
 
       if (response.ok) {
-        await loadFolders()
+        const foldersData = await loadFolders()
+        if (foldersData) setFolders(foldersData)
         // Expand the parent folder if creating a subfolder
         if (newFolder.parent_id) {
           setExpandedFolders(prev => new Set([...prev, newFolder.parent_id]))
@@ -381,7 +388,8 @@ export default function LinksPage() {
       })
 
       if (response.ok) {
-        await loadFolders()
+        const foldersData = await loadFolders()
+        if (foldersData) setFolders(foldersData)
         if (selectedFolder === folderId) {
           setSelectedFolder('all')
         }
@@ -429,7 +437,8 @@ export default function LinksPage() {
       })
 
       if (response.ok) {
-        await fetchLinks()
+        const linksData = await fetchLinks()
+        if (linksData) setLinks(linksData)
         setNewImage({ title: '', description: '', folder_id: '', file_data: '' })
         setIsUploadDialogOpen(false)
       }
@@ -454,9 +463,11 @@ export default function LinksPage() {
       if (response.ok) {
         const result = await response.json()
         if (type === 'link') {
-          await fetchLinks()
+          const linksData = await fetchLinks()
+          if (linksData) setLinks(linksData)
         } else {
-          await loadFolders()
+          const foldersData = await loadFolders()
+          if (foldersData) setFolders(foldersData)
         }
         
         if (makePublic && result.share_token) {
@@ -613,10 +624,12 @@ export default function LinksPage() {
                   {/* Thumbnail/Preview */}
                   {isYoutube && youtubeId ? (
                     <div className="relative aspect-video bg-muted">
-                      <img
+                      <Image
                         src={`https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg`}
                         alt={link.title}
-                        className="w-full h-full object-cover"
+                        fill
+                        sizes="(max-width: 768px) 100vw, 33vw"
+                        className="object-cover"
                       />
                       <div className="absolute inset-0 flex items-center justify-center bg-black/30">
                         <Youtube className="h-12 w-12 text-red-500" />
@@ -624,10 +637,12 @@ export default function LinksPage() {
                     </div>
                   ) : link.thumbnail ? (
                     <div className="relative aspect-video bg-muted">
-                      <img
+                      <Image
                         src={link.thumbnail || "/placeholder.svg"}
                         alt={link.title}
-                        className="w-full h-full object-cover"
+                        fill
+                        sizes="(max-width: 768px) 100vw, 33vw"
+                        className="object-cover"
                         onError={(e) => {
                           e.currentTarget.style.display = 'none'
                           e.currentTarget.parentElement?.classList.add('flex', 'items-center', 'justify-center')
@@ -771,8 +786,8 @@ export default function LinksPage() {
                 )}
               </div>
               {newLink.thumbnail && (
-                <div className="mt-2 rounded-lg overflow-hidden border border-border">
-                  <img src={newLink.thumbnail || "/placeholder.svg"} alt="Preview" className="w-full h-32 object-cover" />
+                <div className="relative mt-2 h-32 rounded-lg overflow-hidden border border-border">
+                  <Image src={newLink.thumbnail || "/placeholder.svg"} alt="Preview" fill sizes="480px" className="object-cover" />
                 </div>
               )}
             </div>
@@ -859,8 +874,8 @@ export default function LinksPage() {
                   )}
                 </div>
                 {editingLink.thumbnail && (
-                  <div className="mt-2 rounded-lg overflow-hidden border border-border">
-                    <img src={editingLink.thumbnail || "/placeholder.svg"} alt="Preview" className="w-full h-32 object-cover" />
+                  <div className="relative mt-2 h-32 rounded-lg overflow-hidden border border-border">
+                    <Image src={editingLink.thumbnail || "/placeholder.svg"} alt="Preview" fill sizes="480px" className="object-cover" />
                   </div>
                 )}
               </div>
@@ -998,11 +1013,13 @@ export default function LinksPage() {
             />
             
             {newImage.file_data ? (
-              <div className="relative rounded-lg overflow-hidden border border-border">
-                <img 
-                  src={newImage.file_data} 
-                  alt="Preview" 
-                  className="w-full h-48 object-cover"
+              <div className="relative h-48 rounded-lg overflow-hidden border border-border">
+                <Image
+                  src={newImage.file_data}
+                  alt="Preview"
+                  fill
+                  sizes="480px"
+                  className="object-cover"
                 />
                 <Button
                   type="button"
