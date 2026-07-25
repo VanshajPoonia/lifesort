@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
@@ -736,19 +736,9 @@ export default function Home() {
   const [recentQuickAccessIds, setRecentQuickAccessIds] = useState<string[]>([])
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push("/login")
-      return
-    }
-
-    if (user) {
-      checkOnboarding()
-      fetchDashboard()
-      fetchLifeScore()
-    }
-  }, [user, loading, router])
-
-  useEffect(() => {
+    // Flagged by react-hooks/set-state-in-effect: reads a cached list of
+    // recent quick actions on mount; the value read depends on what's
+    // actually in localStorage, so it can't be dropped.
     try {
       const stored = window.localStorage.getItem(QUICK_ACCESS_RECENTS_KEY)
       if (!stored) return
@@ -781,7 +771,7 @@ export default function Home() {
     [recentQuickAccessIds],
   )
 
-  const checkOnboarding = async () => {
+  const checkOnboarding = useCallback(async () => {
     try {
       if (sessionStorage.getItem("onboarding_completed") === "true") return
 
@@ -797,9 +787,9 @@ export default function Home() {
     } catch (error) {
       console.error("Error checking onboarding:", error)
     }
-  }
+  }, [])
 
-  const fetchLifeScore = async () => {
+  const fetchLifeScore = useCallback(async () => {
     setLifeScoreLoading(true)
     setLifeScoreError(null)
     try {
@@ -815,7 +805,7 @@ export default function Home() {
     } finally {
       setLifeScoreLoading(false)
     }
-  }
+  }, [])
 
   const explainLifeScore = async () => {
     setLifeScoreAiLoading(true)
@@ -835,7 +825,7 @@ export default function Home() {
     }
   }
 
-  const fetchDashboard = async () => {
+  const fetchDashboard = useCallback(async () => {
     setDashboardLoading(true)
     const planDate = localDateString()
     const [tasks, goals, notes, budget, investments, wishlist, income, projects, todayPlan, journal, navSummary] = await Promise.all([
@@ -958,7 +948,23 @@ export default function Home() {
       ...(journal.error ? { journal: journal.error } : {}),
     })
     setDashboardLoading(false)
-  }
+  }, [])
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login")
+      return
+    }
+
+    if (user) {
+      // Flagged by react-hooks/set-state-in-effect: fetchDashboard is also
+      // shared with a manual refresh handler below that needs the reload
+      // afterward too.
+      checkOnboarding()
+      fetchDashboard()
+      fetchLifeScore()
+    }
+  }, [checkOnboarding, fetchDashboard, fetchLifeScore, user, loading, router])
 
   if (loading || !user) {
     return (

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import {
   Play,
@@ -43,33 +43,27 @@ export default function PomodoroPage() {
     longBreak: 15,
   })
   
-  const durations: Record<SessionType, number> = {
-    focus: customDurations.focus * 60,
-    shortBreak: customDurations.shortBreak * 60,
-    longBreak: customDurations.longBreak * 60,
-  }
-  
+  const durations: Record<SessionType, number> = useMemo(
+    () => ({
+      focus: customDurations.focus * 60,
+      shortBreak: customDurations.shortBreak * 60,
+      longBreak: customDurations.longBreak * 60,
+    }),
+    [customDurations],
+  )
+
   const [timeLeft, setTimeLeft] = useState(durations.focus)
 
-  useEffect(() => {
-    let interval: NodeJS.Timeout
+  const handleSessionTypeChange = useCallback(
+    (type: SessionType) => {
+      setSessionType(type)
+      setTimeLeft(durations[type])
+      setIsRunning(false)
+    },
+    [durations],
+  )
 
-    if (isRunning && timeLeft > 0) {
-      interval = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            handleSessionComplete()
-            return 0
-          }
-          return prev - 1
-        })
-      }, 1000)
-    }
-
-    return () => clearInterval(interval)
-  }, [isRunning, timeLeft])
-
-  const handleSessionComplete = () => {
+  const handleSessionComplete = useCallback(() => {
     setIsRunning(false)
     const newSession: Session = {
       id: Date.now().toString(),
@@ -88,13 +82,25 @@ export default function PomodoroPage() {
       const nextType = sessionsCompleted % 4 === 3 ? "longBreak" : "shortBreak"
       handleSessionTypeChange(nextType)
     }
-  }
+  }, [sessionType, durations, history, sessionsCompleted, handleSessionTypeChange])
 
-  const handleSessionTypeChange = (type: SessionType) => {
-    setSessionType(type)
-    setTimeLeft(durations[type])
-    setIsRunning(false)
-  }
+  useEffect(() => {
+    let interval: NodeJS.Timeout
+
+    if (isRunning && timeLeft > 0) {
+      interval = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            handleSessionComplete()
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+    }
+
+    return () => clearInterval(interval)
+  }, [isRunning, timeLeft, handleSessionComplete])
 
   const handleReset = () => {
     setIsRunning(false)
