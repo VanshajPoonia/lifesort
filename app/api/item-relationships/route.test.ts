@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const { getUserFromSession } = vi.hoisted(() => ({ getUserFromSession: vi.fn() }))
-const { sql } = vi.hoisted(() => ({ sql: vi.fn() }))
+const { sql } = vi.hoisted(() => {
+  const fn = vi.fn() as ReturnType<typeof vi.fn> & { unsafe: (value: string) => string }
+  fn.unsafe = (value: string) => value
+  return { sql: fn }
+})
 const { validateItemOwnership } = vi.hoisted(() => ({ validateItemOwnership: vi.fn() }))
 
 vi.mock("@/lib/auth", () => ({ getUserFromSession }))
@@ -52,6 +56,39 @@ describe("GET /api/item-relationships", () => {
     expect(response.status).toBe(200)
     expect(body.relationships).toHaveLength(1)
     expect(sql.mock.calls[0].slice(1)).toEqual(["task", "1", "user-1", "task", "1", "task", "1"])
+  })
+
+  it("resolves a display label for the other side of each relationship", async () => {
+    getUserFromSession.mockResolvedValue({ id: "user-1" })
+    sql
+      .mockResolvedValueOnce([
+        { id: "rel-1", from_type: "task", from_id: "1", to_type: "note", to_id: "2", relation: "related", direction: "outgoing" },
+        { id: "rel-2", from_type: "goal", from_id: "5", to_type: "task", to_id: "1", relation: "related", direction: "incoming" },
+      ])
+      .mockResolvedValueOnce([{ label: "Meeting notes" }])
+      .mockResolvedValueOnce([{ label: "Ship v2" }])
+
+    const response = await GET(new Request("http://localhost/api/item-relationships?item_type=task&item_id=1"))
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.relationships[0].label).toBe("Meeting notes")
+    expect(body.relationships[1].label).toBe("Ship v2")
+    expect(sql).toHaveBeenCalledTimes(3)
+  })
+
+  it("falls back to a null label when the linked item no longer exists", async () => {
+    getUserFromSession.mockResolvedValue({ id: "user-1" })
+    sql
+      .mockResolvedValueOnce([
+        { id: "rel-1", from_type: "task", from_id: "1", to_type: "note", to_id: "2", relation: "related", direction: "outgoing" },
+      ])
+      .mockResolvedValueOnce([])
+
+    const response = await GET(new Request("http://localhost/api/item-relationships?item_type=task&item_id=1"))
+    const body = await response.json()
+
+    expect(body.relationships[0].label).toBeNull()
   })
 })
 

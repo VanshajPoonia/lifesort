@@ -2,7 +2,13 @@ import { NextResponse } from "next/server"
 
 import { getUserFromSession } from "@/lib/auth"
 import { sql } from "@/lib/db"
-import { itemRelationshipCreateSchema, itemRelationshipTypes, validateItemOwnership } from "@/lib/item-relationships"
+import {
+  attachRelationshipLabels,
+  itemRelationshipCreateSchema,
+  itemRelationshipTypes,
+  validateItemOwnership,
+  type ItemRelationship,
+} from "@/lib/item-relationships"
 
 export async function GET(request: Request) {
   try {
@@ -25,7 +31,12 @@ export async function GET(request: Request) {
       ORDER BY created_at DESC
     `
 
-    return NextResponse.json({ relationships: rows })
+    const relationships = await attachRelationshipLabels(
+      user,
+      rows as unknown as (ItemRelationship & { direction: "incoming" | "outgoing" })[],
+    )
+
+    return NextResponse.json({ relationships })
   } catch (error) {
     console.error("[item-relationships] GET failed:", error)
     return NextResponse.json({ error: "Could not load item relationships" }, { status: 500 })

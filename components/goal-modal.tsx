@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { Calendar, Link2, Target, Trash2, Unlink, X } from "lucide-react"
 
 import { AttachmentList } from "@/components/attachment-list"
+import { RelatedItems } from "@/components/related-items"
 import { ReminderSettings } from "@/components/reminder-settings"
 import { LifeAreaBadge, LifeAreaSelect } from "@/components/life-area-controls"
 import { TagPicker, type Tag as ItemTag } from "@/components/tag-picker"
@@ -409,6 +410,8 @@ export function GoalModal({
                 </div>
 
                 <AttachmentList itemType="goal" itemId={localGoal.id} />
+
+                <RelatedItems itemType="goal" itemId={localGoal.id} />
               </div>
 
               <aside className="space-y-4">

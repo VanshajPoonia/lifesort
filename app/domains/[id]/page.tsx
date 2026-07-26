@@ -3,12 +3,13 @@
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { ArrowLeft, CheckCircle2, ExternalLink, Loader2, Lock, Plus, Settings2, Sparkles, Target, Trash2 } from "lucide-react"
+import { ArrowLeft, CheckCircle2, ExternalLink, Link2, Loader2, Lock, Plus, Settings2, Sparkles, Target, Trash2 } from "lucide-react"
 
 import { useAuth } from "@/components/auth-provider"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { useDomainFocus } from "@/components/domain-focus-provider"
 import { LifeAreaIcon } from "@/components/life-area-controls"
+import { RelatedItems } from "@/components/related-items"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -707,6 +708,18 @@ export default function DomainDetailPage() {
                     </CardContent>
                   </Card>
                 )}
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Link2 className="h-4 w-4 text-primary" />
+                      Related Items
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <RelatedItems itemType="life_area" itemId={domain.id} />
+                  </CardContent>
+                </Card>
 
                 {tabSections.every((section) => section.items.length === 0) && data.categories.length === 0 && data.wishlist.length === 0 && (
                   <Card>

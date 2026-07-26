@@ -37,6 +37,7 @@ import { SortableList } from "@/components/sortable-list"
 import { TagPicker, type Tag as ItemTag } from "@/components/tag-picker"
 import { TaskChecklist } from "@/components/task-checklist"
 import { TaskDependencies } from "@/components/task-dependencies"
+import { RelatedItems } from "@/components/related-items"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -1186,6 +1187,8 @@ export default function TasksPage() {
                           <TaskChecklist taskId={Number(task.id)} />
 
                           <TaskDependencies taskId={Number(task.id)} allTasks={taskOptions} />
+
+                          <RelatedItems itemType="task" itemId={Number(task.id)} />
 
                           <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                             {task.due_date ? (

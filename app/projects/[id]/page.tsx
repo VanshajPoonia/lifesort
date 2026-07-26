@@ -19,6 +19,7 @@ import {
 import { AttachmentList } from "@/components/attachment-list"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { LifeAreaBadge, LifeAreaSelect } from "@/components/life-area-controls"
+import { RelatedItems } from "@/components/related-items"
 import { TagPicker, type Tag as ItemTag } from "@/components/tag-picker"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -578,6 +579,18 @@ export default function ProjectDetailPage() {
                         ))}
                       </div>
                     )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Link2 className="h-5 w-5 text-primary" />
+                      Related Items
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <RelatedItems itemType="project" itemId={project.id} />
                   </CardContent>
                 </Card>
               </div>

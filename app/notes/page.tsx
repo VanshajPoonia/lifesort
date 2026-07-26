@@ -23,6 +23,7 @@ import {
 
 import { AttachmentList } from "@/components/attachment-list"
 import { DashboardLayout } from "@/components/dashboard-layout"
+import { RelatedItems } from "@/components/related-items"
 import { useAuth } from "@/components/auth-provider"
 import { LifeAreaBadge, LifeAreaSelect } from "@/components/life-area-controls"
 import { Badge } from "@/components/ui/badge"
@@ -992,6 +993,8 @@ export default function NotesPage() {
                   </div>
 
                   <AttachmentList itemType="note" itemId={Number(selectedNote.id)} />
+
+                  <RelatedItems itemType="note" itemId={selectedNote.id} />
                 </div>
 
                 <div className="flex-1 overflow-hidden p-4">
