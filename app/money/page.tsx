@@ -428,11 +428,7 @@ export default function MoneyHubPage() {
   return (
     <DashboardLayout title="Money" subtitle="Budget, income, investments, and wishlist">
       <div className="mx-auto max-w-6xl space-y-5 md:space-y-6">
-        <HubHero
-          eyebrow="Money"
-          title={tabCopy[activeTab].title}
-          description={tabCopy[activeTab].description}
-        />
+        <HubHero title="Money" description={tabCopy[activeTab].description} />
 
         <Tabs value={activeTab} onValueChange={changeTab} className="space-y-4">
           <TabsList className="flex w-full justify-start overflow-x-auto rounded-lg bg-muted/70 p-1 sm:inline-flex sm:w-auto">

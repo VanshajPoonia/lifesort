@@ -456,6 +456,7 @@ Domain colors (muted, calm): health `#5B9A6F` · mind `#6E86D6` · work `#4C6EA8
 Reuse the app's existing tokens: `--motion-quick 150ms` · `--motion-base 220ms` · `--motion-slow 350ms` · `--motion-journal 650ms` · ease `cubic-bezier(0.16, 1, 0.3, 1)`.
 
 - **Structured shell:** quick/base — snappy nav, instant ⌘K, crisp list interactions. Linear speed.
+- **The shell's one authored moment:** the sidebar's active highlight glides from the previous page's item to the new one (`--motion-slow`). Persistent chrome (sidebar, top bar, mobile bar) never plays an entrance animation, because every page remounts the shell.
 - **Flexible + reflective:** slow/journal — gentle entry, save, and reveal on journal and reflection surfaces. This is where "calm" is felt.
 - Always honor `prefers-reduced-motion`; the calm timings degrade to instant, not janky.
 
@@ -481,6 +482,8 @@ Words are design material. Name things by what the person controls — *notes*, 
 - Don't ship a clinical pure-white page or a Linear-cold near-black dark mode — LifeSort stays warm in both themes.
 - Don't turn hybrid or structured pages into blank canvases; only the Overview is customizable.
 - Don't drop heavy shadows; elevation is soft layered stops.
+- Don't put an eyebrow or kicker label above a page heading; the heading carries itself. Uppercase `label` stays for column headers and tabs only.
+- Don't build hub or launcher pages as a grid of same-size icon cards; use dense `list-row` launchers, and omit zero counts instead of printing "0 overdue".
 
 ## Iteration guide
 

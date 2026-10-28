@@ -29,12 +29,14 @@ export const metadata: Metadata = {
   generator: "v0.app",
 }
 
+// Pinch-zoom stays enabled (WCAG 1.4.4); inputs are 16px on mobile so iOS doesn't auto-zoom on focus.
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-  themeColor: "#8b5cf6",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#F7F5F1" },
+    { media: "(prefers-color-scheme: dark)", color: "#1B1A1E" },
+  ],
 }
 
 export default function RootLayout({

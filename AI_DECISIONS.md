@@ -195,6 +195,17 @@ Architecture and product decision memory for LifeSort.
   - Mobile bottom nav (Home/Today/Workspace/Money/More) was **not** restructured — it's a deliberately different, already-documented pattern (`AI_CHECKLIST.md` Navigation checklist item 8) using a different UI paradigm than "grouped sidebar sections." Domains was added to the mobile "More" sheet list instead, at the top.
   - No hub route was removed, renamed, or had its redirect behavior changed. Every existing alias array is preserved (minus the `/domains`/`/life-areas` move off `reflect` and onto the new `domains` item).
 
+## Shell, Home and Hub Declutter Pass (2026-10-28)
+
+- **The top bar carries no page title or greeting.** Each page owns exactly one `h1`. Home shows the greeting; hub pages show their name via `HubHero`. Settings lives only in the sidebar/More sheet, not also in the top bar.
+- **No eyebrow/kicker label above page headings** (impeccable craft floor). `HubHero` no longer takes `eyebrow`; sidebar group labels are small sentence-case text, not uppercase.
+- **Hub destinations render as a list launcher (`HubGrid`), not a grid of equal cards.** Zero counts are omitted rather than shown as "0 overdue".
+- **Home is two decision rows plus one disclosure.** Focus + At a glance, then Needs attention + Life domains, then a single "LifeScore, journal, money and recent activity" disclosure. Navigation shortcuts that duplicate the sidebar, command palette, Quick Add or the notification bell do not belong on Home.
+- **Persistent chrome does not animate in.** Every page mounts its own `DashboardLayout`, so entrance animations on the shell replay on each navigation. Shell continuity comes from module-level caches (`_sidebarPrefsCache`, `_sidebarCollapsedCache`, `_lastNavIndicator`) instead.
+- **The shell's one authored motion is the sidebar highlight gliding between items** (350ms, `--motion-ease`), implemented with direct DOM writes in a layout effect. Reduced motion makes it jump. Other motion is feedback-level: collapsible height, filter crossfade, chevrons, data bars.
+- **`app/globals.css` must keep the `* { border-color: hsl(var(--border)) }` base rule**, or dark mode borders fall back to Tailwind gray-200.
+- **Reduced motion keeps fades, removes travel.** The global block zeroes tailwindcss-animate translate/scale/rotate variables instead of disabling all animation.
+
 ## Patterns Agents Should Preserve
 
 - Keep App Router page and route-handler structure.

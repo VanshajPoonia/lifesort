@@ -6,7 +6,10 @@ import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
@@ -35,9 +38,10 @@ export function ThemeSwitcher() {
   }, [])
 
   useEffect(() => {
-    // Flagged by react-hooks/set-state-in-effect: mounted starts false so
-    // theme-dependent UI stays hidden until the client hydrates; applyTheme
-    // is also shared with changeTheme below.
+    // Flagged by react-hooks/set-state-in-effect: mounted starts false so the
+    // trigger shows a neutral icon until the client hydrates (rendering it
+    // always keeps the header from shifting); applyTheme is also shared with
+    // changeTheme below.
     setMounted(true)
     const savedTheme = localStorage.getItem("theme") as Theme | null
     if (savedTheme) {
@@ -58,52 +62,44 @@ export function ThemeSwitcher() {
     applyTheme(newTheme)
   }
 
-  if (!mounted) {
-    return null
-  }
+  const lightThemes: { value: Theme; label: string; swatch: string }[] = [
+    { value: "light", label: "Light", swatch: "bg-[#F7F5F1] ring-1 ring-inset ring-black/10" },
+    { value: "ocean", label: "Ocean", swatch: "bg-gradient-to-br from-blue-400 to-cyan-500" },
+    { value: "forest", label: "Forest", swatch: "bg-gradient-to-br from-green-400 to-emerald-500" },
+    { value: "sunset", label: "Sunset", swatch: "bg-gradient-to-br from-orange-400 to-rose-500" },
+    { value: "rose", label: "Rose", swatch: "bg-gradient-to-br from-rose-400 to-pink-500" },
+  ]
+  const darkThemes: { value: Theme; label: string; swatch: string }[] = [
+    { value: "dark", label: "Dark", swatch: "bg-[#1B1A1E] ring-1 ring-inset ring-white/15" },
+    { value: "midnight", label: "Midnight", swatch: "bg-gradient-to-br from-blue-600 to-indigo-700" },
+  ]
+  const TriggerIcon = !mounted || theme === "light" ? Sun : theme === "dark" ? Moon : Palette
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="icon" className="relative bg-transparent">
-          {theme === "light" && <Sun className="h-5 w-5" />}
-          {theme === "dark" && <Moon className="h-5 w-5" />}
-          {theme !== "light" && theme !== "dark" && <Palette className="h-5 w-5" />}
-          <span className="sr-only">Toggle theme</span>
+        <Button variant="ghost" size="icon" className="relative" aria-label="Change theme" title="Theme">
+          <TriggerIcon className="h-5 w-5" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
-        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Light Themes</div>
-        <DropdownMenuItem onClick={() => changeTheme("light")}>
-          <Sun className="mr-2 h-4 w-4 text-yellow-500" />
-          Light
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => changeTheme("ocean")}>
-          <div className="mr-2 h-4 w-4 rounded-full bg-gradient-to-br from-blue-400 to-cyan-500" />
-          Ocean
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => changeTheme("forest")}>
-          <div className="mr-2 h-4 w-4 rounded-full bg-gradient-to-br from-green-400 to-emerald-500" />
-          Forest
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => changeTheme("sunset")}>
-          <div className="mr-2 h-4 w-4 rounded-full bg-gradient-to-br from-orange-400 to-rose-500" />
-          Sunset
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => changeTheme("rose")}>
-          <div className="mr-2 h-4 w-4 rounded-full bg-gradient-to-br from-rose-400 to-pink-500" />
-          Rose
-        </DropdownMenuItem>
-        <div className="my-1 h-px bg-border" />
-        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Dark Themes</div>
-        <DropdownMenuItem onClick={() => changeTheme("dark")}>
-          <Moon className="mr-2 h-4 w-4 text-purple-400" />
-          Dark
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => changeTheme("midnight")}>
-          <div className="mr-2 h-4 w-4 rounded-full bg-gradient-to-br from-blue-600 to-indigo-700" />
-          Midnight
-        </DropdownMenuItem>
+        <DropdownMenuRadioGroup value={theme} onValueChange={(value) => changeTheme(value as Theme)}>
+          <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">Light</DropdownMenuLabel>
+          {lightThemes.map((option) => (
+            <DropdownMenuRadioItem key={option.value} value={option.value} className="gap-2">
+              <span aria-hidden="true" className={`h-3.5 w-3.5 rounded-full ${option.swatch}`} />
+              {option.label}
+            </DropdownMenuRadioItem>
+          ))}
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">Dark</DropdownMenuLabel>
+          {darkThemes.map((option) => (
+            <DropdownMenuRadioItem key={option.value} value={option.value} className="gap-2">
+              <span aria-hidden="true" className={`h-3.5 w-3.5 rounded-full ${option.swatch}`} />
+              {option.label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   )

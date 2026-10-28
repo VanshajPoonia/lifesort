@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useLayoutEffect, useRef, useSyncExternalStore } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -204,6 +204,26 @@ const MOBILE_PRIMARY_ITEMS = HUB_NAV_ITEMS.filter((item) =>
 // Module-level cache — persists across client-side navigations so the
 // sidebar never re-fetches after the first successful load.
 let _sidebarPrefsCache: Record<string, boolean> | null = null
+// Every page mounts its own DashboardLayout, so these survive the remount:
+// the collapsed rail doesn't flash open, and the nav highlight can glide
+// from where the previous page left it.
+let _sidebarCollapsedCache: boolean | null = null
+let _lastNavIndicator: { top: number; height: number } | null = null
+
+// useLayoutEffect warns during SSR; this page shell only measures in the browser.
+const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect
+
+function subscribeToNothing() {
+  return () => {}
+}
+
+function useShortcutLabel() {
+  return useSyncExternalStore(
+    subscribeToNothing,
+    () => (/Mac|iPhone|iPad/.test(navigator.platform) ? "⌘K" : "Ctrl K"),
+    () => "⌘K",
+  )
+}
 
 function applyWorkspacePreferenceFallback(preferences: Record<string, boolean>) {
   if (preferences.workspace === undefined && preferences.organize !== undefined) {
@@ -217,20 +237,6 @@ export function clearSidebarPrefsCache() {
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
-  const getGreeting = () => {
-    const hour = new Date().getHours()
-    if (hour < 12) return "Good Morning"
-    if (hour < 17) return "Good Afternoon"
-    return "Good Evening"
-  }
-  
-  const formatDate = () => {
-    return new Date().toLocaleDateString("en-US", { 
-      weekday: "long", 
-      day: "numeric", 
-      month: "long" 
-    })
-  }
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const pathname = usePathname()
   const { user, logout } = useAuth()
@@ -243,17 +249,22 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [commandPaletteMode, setCommandPaletteMode] = useState<"all" | "capture">("all")
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => _sidebarCollapsedCache ?? false)
+  const shortcutLabel = useShortcutLabel()
+  const navListRef = useRef<HTMLDivElement>(null)
+  const navIndicatorRef = useRef<HTMLSpanElement>(null)
 
   useEffect(() => {
+    if (_sidebarCollapsedCache !== null) return
     // Flagged by react-hooks/set-state-in-effect: hydrates the collapsed
-    // state from localStorage on mount; the value read depends on what's
-    // actually stored, so it can't be dropped.
+    // state from localStorage on first mount only; later page mounts read
+    // the module cache synchronously so the rail never flashes open.
     try {
-      setSidebarCollapsed(localStorage.getItem("sidebar-collapsed") === "true")
+      _sidebarCollapsedCache = localStorage.getItem("sidebar-collapsed") === "true"
     } catch {
-      setSidebarCollapsed(false)
+      _sidebarCollapsedCache = false
     }
+    setSidebarCollapsed(_sidebarCollapsedCache)
   }, [])
 
   const fetchSidebarPrefs = useCallback(async () => {
@@ -321,18 +332,20 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     return true
   }
   const railMode = isTablet || sidebarCollapsed
-  const navButtonClass = (item: SidebarItem) =>
-    `h-10 w-full max-w-full min-w-0 overflow-hidden rounded-lg border border-transparent text-sm transition-all duration-150 ease-out active:scale-[0.99] motion-reduce:transition-none motion-reduce:transform-none ${
-      railMode ? "justify-center gap-0 px-2" : "justify-start gap-3 px-3"
-    } ${
-      isActiveItem(item)
-        ? "border-primary/20 bg-primary/10 text-primary shadow-sm"
-        : "text-muted-foreground hover:border-border hover:bg-muted/70 hover:text-foreground"
-    }`
+  const visibleNavItems = HUB_NAV_ITEMS.filter(isItemVisible)
+  const activeNavId = visibleNavItems.find(isActiveItem)?.id ?? null
+  const visibleNavKey = visibleNavItems.map((item) => item.id).join(",")
+  const navLinkClass = (item: SidebarItem) =>
+    cn(
+      "relative flex h-9 w-full min-w-0 items-center overflow-hidden rounded-lg text-sm transition-colors duration-150 ease-out active:scale-[0.99] motion-reduce:transform-none",
+      railMode ? "justify-center px-2" : "justify-start gap-3 px-3",
+      isActiveItem(item) ? "font-medium text-primary" : "text-muted-foreground hover:bg-muted/70 hover:text-foreground",
+    )
   const navIconClass = (item: SidebarItem) => `h-4 w-4 shrink-0 ${isActiveItem(item) ? "text-primary" : "text-muted-foreground"}`
   const toggleSidebarCollapsed = () => {
     setSidebarCollapsed((current) => {
       const next = !current
+      _sidebarCollapsedCache = next
       try {
         localStorage.setItem("sidebar-collapsed", String(next))
       } catch {
@@ -341,6 +354,58 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       return next
     })
   }
+
+  // Glide the shared highlight onto the active row. Written straight to the
+  // DOM (no state) so it never triggers a second render of the shell.
+  useIsomorphicLayoutEffect(() => {
+    const list = navListRef.current
+    const indicator = navIndicatorRef.current
+    if (!list || !indicator) return
+
+    const place = (animate: boolean) => {
+      const activeRow = list.querySelector<HTMLElement>('[data-active="true"]')
+      if (!activeRow) {
+        indicator.style.opacity = "0"
+        return
+      }
+      const next = { top: activeRow.offsetTop, height: activeRow.offsetHeight }
+      if (!animate) indicator.style.transition = "none"
+      indicator.style.transform = `translateY(${next.top}px)`
+      indicator.style.height = `${next.height}px`
+      indicator.style.opacity = "1"
+      if (!animate) {
+        void indicator.offsetHeight
+        indicator.style.transition = ""
+      }
+      _lastNavIndicator = next
+    }
+
+    if (indicator.dataset.seeded !== "1") {
+      // First run for this mount: start where the previous page left off.
+      // Re-runs (StrictMode, rail toggle, prefs loading) skip this and glide
+      // from wherever the highlight currently is.
+      indicator.dataset.seeded = "1"
+      const previous = _lastNavIndicator
+      if (previous) {
+        indicator.style.transition = "none"
+        indicator.style.transform = `translateY(${previous.top}px)`
+        indicator.style.height = `${previous.height}px`
+        indicator.style.opacity = "1"
+        void indicator.offsetHeight
+        indicator.style.transition = ""
+        place(true)
+      } else {
+        place(false)
+      }
+    } else {
+      place(true)
+    }
+    list.dataset.indicator = "on"
+
+    const onResize = () => place(false)
+    window.addEventListener("resize", onResize)
+    return () => window.removeEventListener("resize", onResize)
+  }, [activeNavId, railMode, visibleNavKey])
 
   const openCommandPalette = (mode: "all" | "capture" = "all") => {
     setCommandPaletteMode(mode)
@@ -360,6 +425,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         marginTop: "var(--subscription-banner-offset, 0px)",
       }}
     >
+      <a
+        href="#main-content"
+        className="sr-only z-[60] rounded-lg bg-primary text-sm font-medium text-primary-foreground shadow-lg focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:px-4 focus:py-2"
+      >
+        Skip to content
+      </a>
       <QuickAddModal open={quickAddOpen} onOpenChange={setQuickAddOpen} initialType={quickAddInitialType} />
       <GlobalCommandPalette
         open={commandPaletteOpen}
@@ -378,28 +449,29 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
       {/* Sidebar */}
       <aside
+        aria-label="Sidebar"
         className={cn(
-          "fixed bottom-0 left-0 top-[var(--subscription-banner-offset,0px)] z-50 hidden shrink-0 overflow-hidden border-r border-border bg-card/95 shadow-sm backdrop-blur transition-[transform,width] duration-200 ease-out supports-[backdrop-filter]:bg-card/90 motion-reduce:transition-none sm:relative sm:bottom-auto sm:top-auto sm:flex sm:translate-x-0",
+          "fixed bottom-0 left-0 top-[var(--subscription-banner-offset,0px)] z-50 hidden shrink-0 overflow-hidden border-r border-border bg-canvas-soft transition-[transform,width] duration-200 ease-out motion-reduce:transition-none sm:relative sm:bottom-auto sm:top-auto sm:flex sm:translate-x-0",
           sidebarOpen ? "translate-x-0" : "-translate-x-full",
-          railMode ? "w-20" : "w-64",
+          railMode ? "w-[4.5rem]" : "w-64",
         )}
       >
         <div className="flex h-full w-full min-w-0 flex-col overflow-hidden">
           {/* Logo */}
-          <div className={cn("flex items-center justify-between border-b border-border/70 px-4 py-3", railMode && "px-3")}>
-            <div className={cn("flex min-w-0 items-center gap-3", railMode && "justify-center")}>
+          <div className={cn("flex h-14 shrink-0 items-center justify-between px-4", railMode && "justify-center px-2")}>
+            <Link href="/" className={cn("flex min-w-0 items-center gap-2.5 rounded-lg", railMode && "justify-center")}>
               <Image
                 src="/lifesort-logo.png"
-                alt="LifeSort"
-                width={40}
-                height={40}
-                className={cn("rounded-lg object-contain", railMode ? "h-9 w-9" : "h-10 w-10")}
+                alt=""
+                width={32}
+                height={32}
+                className="h-8 w-8 rounded-lg object-contain"
                 priority
               />
-              <span className={cn("truncate bg-gradient-to-r from-primary to-accent bg-clip-text text-xl font-bold text-transparent", railMode && "hidden")}>
+              <span className={cn("truncate text-[17px] font-semibold tracking-tight text-foreground", railMode && "sr-only")}>
                 LifeSort
               </span>
-            </div>
+            </Link>
             <Button 
               variant="ghost" 
               size="icon" 
@@ -409,73 +481,98 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             >
               <X className="h-5 w-5" />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="hidden lg:inline-flex"
-              onClick={toggleSidebarCollapsed}
-              aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-              title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              {sidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-            </Button>
+            {!railMode && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="hidden h-8 w-8 text-muted-foreground lg:inline-flex"
+                onClick={toggleSidebarCollapsed}
+                aria-label="Collapse sidebar"
+                title="Collapse sidebar"
+              >
+                <PanelLeftClose className="h-4 w-4" />
+              </Button>
+            )}
           </div>
 
           {/* Navigation */}
-          <nav className={cn("flex-1 space-y-3 overflow-y-auto overflow-x-hidden p-3", railMode && "px-2")}>
-            {GROUP_ORDER.map((group) => {
-              const items = HUB_NAV_ITEMS.filter((item) => item.group === group).filter(isItemVisible)
-              if (items.length === 0) return null
-              return (
-                <div key={group} className="min-w-0 space-y-1">
-                  {!railMode && (
-                    <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70">
+          <nav aria-label="Main" className={cn("flex-1 overflow-y-auto overflow-x-hidden px-3 pb-3 pt-1", railMode && "px-2")}>
+            <div ref={navListRef} className="nav-list relative space-y-4">
+              <span
+                ref={navIndicatorRef}
+                aria-hidden="true"
+                className="nav-indicator pointer-events-none absolute inset-x-0 top-0 rounded-lg bg-primary-tint opacity-0"
+              >
+                <span className="absolute bottom-2 left-0 top-2 w-[3px] rounded-full bg-primary" />
+              </span>
+              {GROUP_ORDER.map((group) => {
+                const items = visibleNavItems.filter((item) => item.group === group)
+                if (items.length === 0) return null
+                return (
+                  <div key={group} className="min-w-0 space-y-0.5">
+                    <p className={cn("px-3 pb-1 text-[11px] font-medium text-muted-foreground", railMode && "sr-only")}>
                       {GROUP_LABELS[group]}
                     </p>
-                  )}
-                  {items.map((item) => {
-                    const Icon = item.icon
-                    const active = isActiveItem(item)
-                    return (
-                      <Button
-                        key={item.id}
-                        asChild
-                        variant={active ? "secondary" : "ghost"}
-                        className={navButtonClass(item)}
-                        aria-label={item.label}
-                        title={item.label}
-                      >
-                        <Link href={item.href} onClick={() => setSidebarOpen(false)} title={item.label} aria-label={item.label}>
-                          <Icon className={navIconClass(item)} />
-                          <span className={cn("min-w-0 truncate", railMode && "hidden")}>{item.label}</span>
+                    {items.map((item) => {
+                      const Icon = item.icon
+                      const active = isActiveItem(item)
+                      return (
+                        <Link
+                          key={item.id}
+                          href={item.href}
+                          onClick={() => setSidebarOpen(false)}
+                          className={navLinkClass(item)}
+                          aria-current={active ? "page" : undefined}
+                          data-active={active ? "true" : undefined}
+                          title={railMode ? item.label : undefined}
+                        >
+                          <Icon className={navIconClass(item)} aria-hidden="true" />
+                          <span className={cn("min-w-0 truncate", railMode && "sr-only")}>{item.label}</span>
                         </Link>
-                      </Button>
-                    )
-                  })}
-                </div>
-              )
-            })}
+                      )
+                    })}
+                  </div>
+                )
+              })}
+            </div>
           </nav>
 
+          {railMode && !isTablet && (
+            <div className="flex justify-center pb-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground"
+                onClick={toggleSidebarCollapsed}
+                aria-label="Expand sidebar"
+                title="Expand sidebar"
+              >
+                <PanelLeftOpen className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+
           {/* User Profile */}
-          <div className={cn("min-w-0 overflow-hidden border-t border-border/70 p-4", railMode && "p-3")}>
-            <div className={cn("flex min-w-0 items-center gap-3", railMode && "flex-col justify-center gap-2")}>
-              <Avatar>
-                <AvatarFallback className="bg-primary text-primary-foreground">
+          <div className={cn("min-w-0 overflow-hidden border-t border-border/70 p-3", railMode && "px-2")}>
+            <div className={cn("flex min-w-0 items-center gap-2.5", railMode && "flex-col gap-1.5")}>
+              <Avatar className="h-8 w-8" aria-hidden="true">
+                <AvatarFallback className="bg-primary-tint text-sm font-semibold text-primary">
                   {user?.name?.charAt(0).toUpperCase() || 'U'}
                 </AvatarFallback>
               </Avatar>
-              <div className={cn("min-w-0 flex-1", railMode && "hidden")}>
-                <p className="text-sm font-medium text-foreground truncate">{user?.name}</p>
-                <p className="text-xs text-muted-foreground truncate">ID: {user?.id}</p>
+              <div className={cn("min-w-0 flex-1", railMode && "sr-only")}>
+                <p className="truncate text-sm font-medium text-foreground">{user?.name}</p>
+                <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
               </div>
-              <Link href="/settings">
-                <Button variant="ghost" size="icon" title="Settings">
-                  <Settings className="h-4 w-4 text-foreground" />
-                </Button>
-              </Link>
-              <Button variant="ghost" size="icon" onClick={logout} title="Sign Out">
-                <LogOut className="h-4 w-4 text-foreground" />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
+                onClick={logout}
+                aria-label="Sign out"
+                title="Sign out"
+              >
+                <LogOut className="h-4 w-4" />
               </Button>
             </div>
           </div>
@@ -485,60 +582,52 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Main Content */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
       {domainFocus && (
-        <div className="flex items-center justify-between gap-2 border-b border-border/70 bg-accent/15 px-3 py-1.5 text-sm md:px-6">
-          <span className="flex items-center gap-2 font-medium text-foreground">
-            <Target className="h-3.5 w-3.5 text-accent" />
-            Focused on <span className="text-accent">{domainFocus.name}</span> — Today, Search, and suggestions are filtered
+        <div role="status" className="flex items-center justify-between gap-2 border-b border-border/70 bg-primary-tint px-3 py-1.5 text-sm md:px-6">
+          <span className="flex min-w-0 items-center gap-2 text-foreground">
+            <Target className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
+            <span className="truncate">
+              Focused on <span className="font-medium text-primary">{domainFocus.name}</span>
+              <span className="hidden text-muted-foreground sm:inline">. Today, Search and suggestions are filtered.</span>
+            </span>
           </span>
-          <Button type="button" variant="ghost" size="sm" className="h-7 gap-1 px-2 text-muted-foreground" onClick={clearDomainFocus}>
-            <X className="h-3.5 w-3.5" />
+          <Button type="button" variant="ghost" size="sm" className="h-7 shrink-0 gap-1 px-2 text-muted-foreground" onClick={clearDomainFocus}>
+            <X className="h-3.5 w-3.5" aria-hidden="true" />
             Exit focus
           </Button>
         </div>
       )}
       {/* Header */}
-      <header className={cn("flex items-center justify-between border-b border-border/70 bg-card/85 px-3 py-3 backdrop-blur supports-[backdrop-filter]:bg-card/75 md:px-6", motionPresets.fadeIn)}>
-        <div className="flex items-center gap-3">
-          <div className="font-semibold text-foreground sm:hidden">LifeSort</div>
-          {/* Greeting Section */}
-          <div className="hidden sm:block">
-            <p className="text-xs text-muted-foreground">{formatDate()}</p>
-            <h1 className="text-lg font-semibold text-foreground">
-              {getGreeting()}{user?.name ? `, ${user.name.split(" ")[0]}` : ""}!
-            </h1>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 md:gap-4">
-          <Button
-            type="button"
-            variant="outline"
-            className="hidden w-48 justify-start gap-2 px-3 text-muted-foreground lg:flex lg:w-64"
-            onClick={() => openCommandPalette("all")}
-          >
-            <Search className="h-4 w-4" />
-            <span className="flex-1 text-left">Search or add...</span>
-            <kbd className="rounded border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">⌘K</kbd>
-          </Button>
-          <Button type="button" variant="ghost" size="icon" className="lg:hidden" onClick={() => openCommandPalette("all")} aria-label="Search or open command palette">
+      <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border/70 bg-background px-3 md:px-6">
+        <Link href="/" className="flex min-w-0 items-center gap-2 rounded-lg sm:hidden">
+          <Image src="/lifesort-logo.png" alt="" width={28} height={28} className="h-7 w-7 rounded-md object-contain" />
+          <span className="font-semibold tracking-tight text-foreground">LifeSort</span>
+        </Link>
+        <Button
+          type="button"
+          variant="outline"
+          className="hidden h-9 w-full max-w-sm justify-start gap-2 border-border bg-card px-3 font-normal text-muted-foreground shadow-none hover:bg-card hover:text-foreground sm:flex"
+          onClick={() => openCommandPalette("all")}
+          aria-keyshortcuts="Meta+K Control+K"
+        >
+          <Search className="h-4 w-4" aria-hidden="true" />
+          <span className="flex-1 text-left">Search or jump to...</span>
+          <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">{shortcutLabel}</kbd>
+        </Button>
+        <div className="flex items-center gap-1 sm:gap-2">
+          <Button type="button" variant="ghost" size="icon" className="sm:hidden" onClick={() => openCommandPalette("all")} aria-label="Search">
             <Search className="h-5 w-5 text-foreground" />
           </Button>
-          <Button className="hidden gap-2 sm:inline-flex" onClick={() => openCommandPalette("capture")}>
-            <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">Quick Add</span>
-            <span className="sm:hidden">Add</span>
+          <Button className="hidden h-9 gap-2 sm:inline-flex" onClick={() => openCommandPalette("capture")}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Quick Add
           </Button>
           <ThemeSwitcher />
           <NotificationBell />
-          <Link href="/settings">
-            <Button variant="ghost" size="icon" className="hidden sm:flex">
-              <Settings className="h-5 w-5 text-foreground" />
-            </Button>
-          </Link>
         </div>
       </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-auto p-3 pb-24 sm:p-4 md:p-6">
+        <main id="main-content" tabIndex={-1} className="flex-1 overflow-auto p-4 pb-28 outline-none sm:pb-6 md:p-6 lg:p-8">
           <div className="mx-auto w-full max-w-[1400px] min-w-0 space-y-5 md:space-y-6">
             {children}
           </div>
@@ -546,44 +635,48 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
 
       <Button
-        className={cn("fixed bottom-20 right-4 z-40 h-12 w-12 rounded-full shadow-lg sm:hidden", motionPresets.scaleIn, motionPresets.pressable)}
+        className={cn("fixed bottom-[5.25rem] right-4 z-40 h-12 w-12 rounded-full shadow-[0_6px_20px_hsl(var(--primary)/0.35)] sm:hidden", motionPresets.pressable)}
         size="icon"
         onClick={() => openCommandPalette("capture")}
         aria-label="Quick Add"
-        title="Quick Add"
       >
         <Plus className="h-5 w-5" />
       </Button>
 
-      <nav className={cn("fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-card/95 px-2 py-2 shadow-[0_-8px_24px_hsl(var(--foreground)_/_0.06)] backdrop-blur sm:hidden", motionPresets.fadeInUp)}>
+      <nav aria-label="Primary" className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-card/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur sm:hidden">
         <div className="grid grid-cols-5 gap-1">
           {MOBILE_PRIMARY_ITEMS.map((item) => {
             const Icon = item.icon
             const active = isActiveItem(item)
             return (
-              <Link key={item.id} href={item.href} className="min-w-0" onClick={() => setSidebarOpen(false)}>
-                <span
-                  className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[11px] font-medium transition-all duration-150 ease-out active:scale-[0.98] motion-reduce:transition-none motion-reduce:transform-none ${
-                    active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/70"
-                  }`}
-                >
-                  <Icon className="h-4 w-4" />
-                  <span className="truncate">{item.label}</span>
-                </span>
+              <Link
+                key={item.id}
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                onClick={() => setSidebarOpen(false)}
+                className={cn(
+                  "flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[11px] font-medium transition-colors duration-150 ease-out active:scale-[0.97] motion-reduce:transform-none",
+                  active ? "bg-primary-tint text-primary" : "text-muted-foreground hover:bg-muted/70",
+                )}
+              >
+                <Icon className="h-5 w-5" aria-hidden="true" />
+                <span className="truncate">{item.label}</span>
               </Link>
             )
           })}
           <button
             type="button"
-            className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[11px] font-medium transition-all duration-150 ease-out active:scale-[0.98] motion-reduce:transition-none motion-reduce:transform-none ${
+            className={cn(
+              "flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[11px] font-medium transition-colors duration-150 ease-out active:scale-[0.97] motion-reduce:transform-none",
               ["/journal", "/whiteboard", "/reflect", "/insights", "/review", "/timeline", "/reset", "/ai-chat", "/life-areas", "/domains", "/settings", "/rules", "/admin"].some(matchesPath)
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-muted/70"
-            }`}
+                ? "bg-primary-tint text-primary"
+                : "text-muted-foreground hover:bg-muted/70",
+            )}
             onClick={() => setMobileMoreOpen(true)}
-            aria-label="More navigation"
+            aria-haspopup="dialog"
+            aria-expanded={mobileMoreOpen}
           >
-            <MoreHorizontal className="h-4 w-4" />
+            <MoreHorizontal className="h-5 w-5" aria-hidden="true" />
             <span>More</span>
           </button>
         </div>
@@ -593,9 +686,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <SheetContent side="bottom" className="max-h-[80vh] rounded-t-lg p-4 sm:hidden">
           <SheetHeader className="text-left">
             <SheetTitle>More</SheetTitle>
-            <SheetDescription>Review, settings, profile, and support links.</SheetDescription>
+            <SheetDescription>Everything else in LifeSort.</SheetDescription>
           </SheetHeader>
-          <div className="mt-4 grid gap-2">
+          <div className={cn("mt-3 grid divide-y divide-border/70", motionPresets.staggerContainer)}>
             {[
               { href: "/domains", label: "Domains", icon: Compass },
               { href: "/journal", label: "Journal", icon: BookOpenText },
@@ -605,16 +698,22 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               { href: "/settings", label: "Settings", icon: Settings },
               { href: "/settings?tab=profile", label: "Profile", icon: User },
               { href: "/settings?tab=faqs", label: "Support / Upgrade", icon: HelpCircle },
+              ...(user?.is_admin ? [{ href: "/admin", label: "Admin", icon: Shield }] : []),
             ].map((item) => {
               const Icon = item.icon
+              const active = matchesPath(item.href.split("?")[0]) && !item.href.includes("?")
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   onClick={() => setMobileMoreOpen(false)}
-                  className={cn("flex min-h-12 items-center gap-3 rounded-lg border border-border/70 px-3 text-sm font-medium transition-colors hover:bg-muted", motionPresets.listItem)}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "flex min-h-12 items-center gap-3 rounded-lg px-2 text-sm font-medium transition-colors hover:bg-muted",
+                    active && "text-primary",
+                  )}
                 >
-                  <Icon className="h-4 w-4 text-primary" />
+                  <Icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                   {item.label}
                 </Link>
               )
@@ -623,22 +722,24 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               href="https://buymeacoffee.com/lifesort"
               target="_blank"
               rel="noopener noreferrer"
-              className={cn("flex min-h-12 items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-3 text-sm font-medium text-primary transition-colors hover:bg-primary/10", motionPresets.listItem)}
+              className="flex min-h-12 items-center gap-3 rounded-lg px-2 text-sm font-medium text-primary transition-colors hover:bg-primary-tint"
               onClick={() => setMobileMoreOpen(false)}
             >
-              <Coffee className="h-4 w-4" />
+              <Coffee className="h-4 w-4" aria-hidden="true" />
               Go Pro
+              <span className="sr-only">(opens in a new tab)</span>
             </a>
-            {user?.is_admin && (
-              <Link
-                href="/admin"
-                onClick={() => setMobileMoreOpen(false)}
-                className={cn("flex min-h-12 items-center gap-3 rounded-lg border border-border/70 px-3 text-sm font-medium transition-colors hover:bg-muted", motionPresets.listItem)}
-              >
-                <Shield className="h-4 w-4 text-primary" />
-                Admin
-              </Link>
-            )}
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMoreOpen(false)
+                logout()
+              }}
+              className="flex min-h-12 items-center gap-3 rounded-lg px-2 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <LogOut className="h-4 w-4" aria-hidden="true" />
+              Sign out
+            </button>
           </div>
         </SheetContent>
       </Sheet>

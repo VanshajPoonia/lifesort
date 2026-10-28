@@ -3,10 +3,8 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import type { LucideIcon } from "lucide-react"
-import { ArrowRight, Pin } from "lucide-react"
+import { ChevronRight } from "lucide-react"
 
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { motionPresets } from "@/lib/motion"
 import { cn } from "@/lib/utils"
 
@@ -29,37 +27,33 @@ export type HubCard = {
 }
 
 export function HubHero({
-  eyebrow,
   title,
   description,
   children,
 }: {
-  eyebrow: string
   title: string
   description: string
   children?: React.ReactNode
 }) {
   return (
-    <section className={cn("surface-card rounded-lg border bg-card/95 p-4 sm:p-5", motionPresets.fadeInUp)}>
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{eyebrow}</p>
-          <h1 className="mt-1 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">{title}</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{description}</p>
-        </div>
-        {children}
+    <header className={cn("flex flex-col gap-4 md:flex-row md:items-end md:justify-between", motionPresets.fadeIn)}>
+      <div className="min-w-0">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-[28px]">{title}</h1>
+        {/* Keyed so the line crossfades when a tab swaps the description. */}
+        <p key={description} className={cn("mt-1 max-w-2xl text-sm leading-6 text-muted-foreground", motionPresets.fadeIn)}>
+          {description}
+        </p>
       </div>
-    </section>
+      {children}
+    </header>
   )
 }
 
 export function SectionHeader({
-  eyebrow,
   title,
   description,
   action,
 }: {
-  eyebrow?: string
   title: string
   description?: string
   action?: React.ReactNode
@@ -67,7 +61,6 @@ export function SectionHeader({
   return (
     <div className={cn("flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between", motionPresets.fadeIn)}>
       <div>
-        {eyebrow && <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{eyebrow}</p>}
         <h2 className="text-lg font-semibold tracking-tight text-foreground">{title}</h2>
         {description && <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">{description}</p>}
       </div>
@@ -119,118 +112,78 @@ function StatusBadge({
   summary: NavigationSummary | null
   loading: boolean
 }) {
+  const pill = "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium tabular-nums"
   if (card.badge) {
-    return (
-      <Badge variant="secondary" className="shrink-0 bg-secondary/80 text-secondary-foreground">
-        {card.badge}
-      </Badge>
-    )
+    return <span className={cn(pill, "bg-muted text-muted-foreground")}>{card.badge}</span>
   }
-  if (!card.statusKey) {
-    return <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:transition-none" />
-  }
-
-  if (loading) return <Badge variant="outline" className="shrink-0 bg-background/70">Checking...</Badge>
-  if (summary?.unavailable?.includes(card.statusKey)) {
-    return <Badge variant="outline" className="shrink-0 bg-background/70">No data yet</Badge>
-  }
+  if (!card.statusKey) return null
+  if (loading) return <span className={cn(pill, "w-12 animate-pulse bg-muted")} aria-hidden="true">&nbsp;</span>
+  if (summary?.unavailable?.includes(card.statusKey)) return null
 
   const count = Number(summary?.counts?.[card.statusKey] || 0)
-  if (count <= 0) {
-    return card.zeroLabel ? (
-      <Badge variant="outline" className="shrink-0 bg-background/70 text-muted-foreground">{card.zeroLabel}</Badge>
-    ) : (
-      <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:transition-none" />
-    )
-  }
+  if (count <= 0) return null
 
   return (
-    <Badge variant="secondary" className="shrink-0 bg-primary/10 text-primary">
+    <span className={cn(pill, "bg-primary-tint text-primary animate-in fade-in-0 duration-200")}>
       {count} {card.statusLabel || "open"}
-    </Badge>
+    </span>
   )
 }
 
+// Hub destinations as one dense, scannable launcher (DESIGN.md list-row),
+// not a wall of equal cards. Order in the array is the priority order.
 export function HubGrid({ cards }: { cards: HubCard[] }) {
   const { summary, loading } = useNavigationSummary(cards)
 
   return (
-    <div className={cn("grid grid-cols-1 gap-3 sm:grid-cols-2 lg:gap-4 xl:grid-cols-4", motionPresets.staggerContainer)}>
+    <ul className={cn("grid gap-x-2 rounded-xl border bg-card p-1.5 sm:grid-cols-2", motionPresets.staggerContainer)}>
       {cards.map((card) => {
         const { title, description, href, icon: Icon } = card
-        const isPrimary = card.priority === "primary"
-        const isSecondary = card.priority === "secondary"
-        const cardContent = (
-          <Card
-            className={cn(
-              "surface-card interactive-card h-full min-h-[150px] overflow-hidden",
-              isPrimary && "min-h-[178px] border-primary/25 bg-primary/5",
-              isSecondary && "min-h-[132px] bg-muted/20 shadow-none",
-              card.disabled && "border-dashed bg-muted/20 opacity-80 shadow-none hover:translate-y-0 hover:shadow-sm",
-            )}
-          >
-            <CardHeader className={cn("space-y-3 p-4", isPrimary && "sm:p-5", isSecondary && "space-y-2")}>
-              <div className="flex items-start justify-between gap-3">
-                <div
-                  className={cn(
-                    "rounded-lg p-2 text-primary transition-colors duration-150 group-hover:bg-primary/15",
-                    isPrimary ? "bg-primary/15" : "bg-muted",
-                    card.disabled && "text-muted-foreground",
-                  )}
-                >
-                  <Icon className={cn("h-5 w-5", isSecondary && "h-4 w-4")} />
-                </div>
-                <StatusBadge card={card} summary={summary} loading={loading} />
-              </div>
-              <div>
-                <CardTitle className={cn("text-base leading-snug", isPrimary && "text-lg", isSecondary && "text-sm")}>{title}</CardTitle>
-                <CardDescription className={cn("mt-1 leading-6", isSecondary && "text-xs leading-5")}>{description}</CardDescription>
-              </div>
-            </CardHeader>
-          </Card>
-        )
-
-        if (card.disabled) {
-          return (
-            <div
-              key={`${href}-${title}`}
-              className={cn("group block min-w-0 cursor-not-allowed", motionPresets.pressable, isPrimary && "sm:col-span-1", isSecondary && "xl:col-span-1")}
-              aria-disabled="true"
+        const content = (
+          <>
+            <span
+              aria-hidden="true"
+              className={cn(
+                "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors duration-150",
+                card.disabled ? "bg-muted text-muted-foreground" : "bg-primary-tint text-primary",
+              )}
             >
-              {cardContent}
-            </div>
-          )
-        }
+              <Icon className="h-[18px] w-[18px]" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center gap-2">
+                <span className="truncate text-sm font-medium text-foreground">{title}</span>
+                <StatusBadge card={card} summary={summary} loading={loading} />
+              </span>
+              <span className="mt-0.5 line-clamp-2 text-[13px] leading-5 text-muted-foreground sm:line-clamp-1">{description}</span>
+            </span>
+            {!card.disabled && (
+              <ChevronRight
+                aria-hidden="true"
+                className="h-4 w-4 shrink-0 -translate-x-1 text-muted-foreground opacity-0 transition duration-150 group-hover:translate-x-0 group-hover:opacity-100 group-focus-visible:translate-x-0 group-focus-visible:opacity-100 motion-reduce:transform-none"
+              />
+            )}
+          </>
+        )
+        const rowClass = "group flex min-h-[64px] items-center gap-3 rounded-lg px-3 py-2.5"
 
         return (
-        <Link
-          key={`${href}-${title}`}
-          href={href}
-          className={cn("group block min-w-0", motionPresets.pressable, isPrimary && "sm:col-span-1", isSecondary && "xl:col-span-1")}
-        >
-          {cardContent}
-        </Link>
-      )})}
-    </div>
-  )
-}
-
-export function FavoritesTodo() {
-  return (
-    <Card className="surface-card border-dashed bg-muted/20">
-      <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-3">
-          <div className="rounded-lg bg-muted p-2 text-muted-foreground">
-            <Pin className="h-4 w-4" />
-          </div>
-          <div>
-            <p className="font-medium">Pinned favorites</p>
-            <p className="text-sm text-muted-foreground">
-              Reserved for the shortcuts you use most often once the hub navigation settles.
-            </p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+          <li key={`${href}-${title}`} className="min-w-0">
+            {card.disabled ? (
+              <div className={cn(rowClass, "cursor-not-allowed opacity-70")} aria-disabled="true">
+                {content}
+              </div>
+            ) : (
+              <Link
+                href={href}
+                className={cn(rowClass, "transition-colors duration-150 hover:bg-muted/60 focus-visible:bg-muted/60 active:bg-muted")}
+              >
+                {content}
+              </Link>
+            )}
+          </li>
+        )
+      })}
+    </ul>
   )
 }

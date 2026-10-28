@@ -28,7 +28,7 @@ import {
 } from "lucide-react"
 
 import { DashboardLayout } from "@/components/dashboard-layout"
-import { FavoritesTodo, HubGrid, HubHero, type HubCard } from "@/components/hub-page"
+import { HubGrid, HubHero, type HubCard } from "@/components/hub-page"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 type WorkspaceTab = "plan" | "capture" | "visual" | "systems" | "follow-ups"
@@ -293,11 +293,7 @@ export default function WorkspacePage() {
   return (
     <DashboardLayout title="Workspace" subtitle="Plan, capture, visual tools, systems, and follow-ups">
       <div className="mx-auto max-w-6xl space-y-5 md:space-y-6">
-        <HubHero
-          eyebrow="Workspace"
-          title={tabCopy[activeTab].title}
-          description={tabCopy[activeTab].description}
-        />
+        <HubHero title="Workspace" description={tabCopy[activeTab].description} />
 
         <Tabs value={activeTab} onValueChange={changeTab} className="space-y-4">
           <TabsList className="flex w-full justify-start overflow-x-auto rounded-lg bg-muted/70 p-1 sm:inline-flex sm:w-auto">
@@ -311,7 +307,6 @@ export default function WorkspacePage() {
           {(["plan", "capture", "visual", "systems", "follow-ups"] as WorkspaceTab[]).map((tab) => (
             <TabsContent key={tab} value={tab} className="section-enter space-y-5 md:space-y-6">
               <HubGrid cards={tabCopy[tab].cards} />
-              <FavoritesTodo />
             </TabsContent>
           ))}
         </Tabs>

@@ -1,53 +1,35 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
   AlertCircle,
   ArrowRight,
-  Bell,
-  Bot,
-  CalendarDays,
   BookOpenText,
-  CalendarCheck,
-  ChevronDown,
+  CalendarDays,
   CheckSquare,
+  ChevronDown,
+  ChevronRight,
   ClipboardCheck,
   Clock,
-  FileText,
-  Gauge,
+  Flame,
   Inbox,
   Lightbulb,
-  MoreHorizontal,
-  Paintbrush,
-  Plus,
   Sparkles,
   Wallet,
   Wrench,
-  Zap,
   type LucideIcon,
 } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { DomainTodayOverview } from "@/components/domain-today-overview"
-import { AppEmptyState } from "@/components/empty-state"
-import { FavoritesTodo } from "@/components/hub-page"
 import { OnboardingModal } from "@/components/onboarding-modal"
-import { QuickAddModal, type QuickAddType } from "@/components/quick-add-modal"
 import { useAuth } from "@/components/auth-provider"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Skeleton } from "@/components/ui/skeleton"
+import { motionPresets } from "@/lib/motion"
 import { cn } from "@/lib/utils"
 
 type DashboardApiKey = "tasks" | "goals" | "notes" | "budget" | "investments" | "wishlist" | "income" | "projects"
@@ -272,14 +254,6 @@ interface NavigationSummary {
   }
 }
 
-interface DashboardNotification {
-  id: number
-  title: string
-  message: string
-  is_read: boolean
-  created_at: string
-}
-
 interface LifeScoreComponent {
   key: string
   label: string
@@ -353,96 +327,8 @@ const apiEndpoints: Record<DashboardApiKey, string> = {
   projects: "/api/projects",
 }
 
-const QUICK_ACCESS_RECENTS_KEY = "lifesort:home-quick-access-recents"
-
-type QuickAccessAction = {
-  id: string
-  title: string
-  description: string
-  href: string
-  icon: LucideIcon
-  accent: string
-}
-
-const primaryQuickActions: QuickAccessAction[] = [
-  {
-    id: "capture",
-    title: "Capture something",
-    description: "Drop a thought into Universal Capture.",
-    href: "/capture",
-    icon: Sparkles,
-    accent: "border-primary/25 bg-primary/10 text-primary",
-  },
-  {
-    id: "task",
-    title: "Add task",
-    description: "Open tasks and add the next action.",
-    href: "/tasks",
-    icon: CheckSquare,
-    accent: "border-sky-500/25 bg-sky-500/10 text-sky-700 dark:text-sky-300",
-  },
-  {
-    id: "today",
-    title: "Open Today",
-    description: "Focus items, schedule, and reflection.",
-    href: "/today",
-    icon: CalendarCheck,
-    accent: "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  },
-  {
-    id: "calendar",
-    title: "Open Calendar",
-    description: "See events and planned time blocks.",
-    href: "/calendar",
-    icon: CalendarDays,
-    accent: "border-cyan-500/25 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
-  },
-  {
-    id: "note",
-    title: "Write note",
-    description: "Save a useful detail or draft.",
-    href: "/notes",
-    icon: FileText,
-    accent: "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300",
-  },
-  {
-    id: "whiteboard",
-    title: "Open Whiteboard",
-    description: "Sketch plans and maps with others.",
-    href: "/whiteboard",
-    icon: Paintbrush,
-    accent: "border-fuchsia-500/25 bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300",
-  },
-]
-
-const moreQuickActions: QuickAccessAction[] = [
-  {
-    id: "journal",
-    title: "Open Journal",
-    description: "Reflect on the day.",
-    href: "/journal",
-    icon: BookOpenText,
-    accent: "border-orange-500/25 bg-orange-500/10 text-orange-700 dark:text-orange-300",
-  },
-  {
-    id: "money",
-    title: "Open Money",
-    description: "Review budget, income, and investing.",
-    href: "/money",
-    icon: Wallet,
-    accent: "border-teal-500/25 bg-teal-500/10 text-teal-700 dark:text-teal-300",
-  },
-  {
-    id: "coach",
-    title: "Ask LifeSort Coach",
-    description: "Ask app-aware questions safely.",
-    href: "/ai-chat",
-    icon: Bot,
-    accent: "border-violet-500/25 bg-violet-500/10 text-violet-700 dark:text-violet-300",
-  },
-]
-
-const allQuickActions = [...primaryQuickActions, ...moreQuickActions]
+// Survives the remount when you navigate away and back within a session.
+let _homeMoreOpen = false
 
 type PendingFilter = "all" | "inbox" | "someday" | "waiting" | "commitments" | "maintenance"
 
@@ -605,96 +491,6 @@ function SectionUnavailable({ label }: { label: string }) {
   )
 }
 
-function QuickAccessSection({
-  recentActions,
-  onActionClick,
-}: {
-  recentActions: QuickAccessAction[]
-  onActionClick: (action: QuickAccessAction) => void
-}) {
-  return (
-    <Card className="surface-card section-enter overflow-hidden border-primary/15">
-      <CardHeader className="space-y-3 pb-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Zap className="h-5 w-5 text-primary" />
-              Quick Access
-            </CardTitle>
-            <CardDescription>Start, capture, or jump back into the places you use most.</CardDescription>
-          </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="w-fit gap-2 bg-background/80">
-                <MoreHorizontal className="h-4 w-4" />
-                More actions
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64">
-              <DropdownMenuLabel>More actions</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {moreQuickActions.map((action) => (
-                <DropdownMenuItem asChild key={action.id}>
-                  <Link href={action.href} className="gap-3" onClick={() => onActionClick(action)}>
-                    <span className={cn("rounded-md border p-1.5", action.accent)}>
-                      <action.icon className="h-4 w-4" />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-sm font-medium">{action.title}</span>
-                      <span className="block truncate text-xs text-muted-foreground">{action.description}</span>
-                    </span>
-                  </Link>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-2 sm:px-0 lg:grid-cols-3 xl:grid-cols-6">
-          {primaryQuickActions.map((action) => (
-            <Link
-              key={action.id}
-              href={action.href}
-              onClick={() => onActionClick(action)}
-              className="interactive-card group min-w-[10.75rem] rounded-lg border bg-background/80 p-3 shadow-sm transition-colors hover:bg-secondary/60 sm:min-w-0"
-            >
-              <div className={cn("mb-3 inline-flex rounded-lg border p-2", action.accent)}>
-                <action.icon className="h-4 w-4" />
-              </div>
-              <p className="text-sm font-semibold leading-tight text-foreground">{action.title}</p>
-              <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{action.description}</p>
-            </Link>
-          ))}
-        </div>
-
-        <div className="flex flex-col gap-3 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Recently used</p>
-            {recentActions.length > 0 ? (
-              <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
-                {recentActions.map((action) => (
-                  <Button asChild key={action.id} size="sm" variant="outline" className="shrink-0 gap-2 bg-background/80">
-                    <Link href={action.href} onClick={() => onActionClick(action)}>
-                      <action.icon className="h-3.5 w-3.5" />
-                      {action.title}
-                    </Link>
-                  </Button>
-                ))}
-              </div>
-            ) : (
-              <p className="mt-1 text-sm text-muted-foreground">Your most used shortcuts will appear here after a few clicks.</p>
-            )}
-          </div>
-          <div className="rounded-lg border border-dashed bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">Pinned favorites</span> are reserved for your saved shortcuts.
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
 function lifeScoreStatusClass(status: LifeScoreComponent["status"]) {
   if (status === "supportive") return "bg-emerald-500"
   if (status === "steady") return "bg-primary"
@@ -715,7 +511,6 @@ export default function Home() {
   const [sources, setSources] = useState<DashboardSources>(emptySources)
   const [todayPreview, setTodayPreview] = useState<TodayPlanPreview | null>(null)
   const [navigationSummary, setNavigationSummary] = useState<NavigationSummary | null>(null)
-  const [notifications, setNotifications] = useState<DashboardNotification[]>([])
   const [journalPreview, setJournalPreview] = useState<JournalPreviewResponse["entry"]>(null)
   const [inboxWidget, setInboxWidget] = useState<{ total: number; recent: InboxItem[] } | null>(null)
   const [somedayWidget, setSomedayWidget] = useState<{ due: number; recent: SomedayItem[] } | null>(null)
@@ -729,47 +524,14 @@ export default function Home() {
   const [lifeScoreAiLoading, setLifeScoreAiLoading] = useState(false)
   const [lifeScoreAiError, setLifeScoreAiError] = useState<string | null>(null)
   const [activePendingFilter, setActivePendingFilter] = useState<PendingFilter>("all")
-  const [secondaryOpen, setSecondaryOpen] = useState(false)
-  const [quickAddType, setQuickAddType] = useState<QuickAddType | null>(null)
+  const [secondaryOpen, setSecondaryOpenState] = useState(() => _homeMoreOpen)
   const [dashboardLoading, setDashboardLoading] = useState(true)
   const [errors, setErrors] = useState<Partial<Record<DashboardErrorKey, string>>>({})
-  const [recentQuickAccessIds, setRecentQuickAccessIds] = useState<string[]>([])
 
-  useEffect(() => {
-    // Flagged by react-hooks/set-state-in-effect: reads a cached list of
-    // recent quick actions on mount; the value read depends on what's
-    // actually in localStorage, so it can't be dropped.
-    try {
-      const stored = window.localStorage.getItem(QUICK_ACCESS_RECENTS_KEY)
-      if (!stored) return
-      const parsed = JSON.parse(stored)
-      if (Array.isArray(parsed)) {
-        setRecentQuickAccessIds(parsed.filter((id): id is string => typeof id === "string").slice(0, 3))
-      }
-    } catch {
-      setRecentQuickAccessIds([])
-    }
-  }, [])
-
-  const recordQuickAccess = (action: QuickAccessAction) => {
-    setRecentQuickAccessIds((current) => {
-      const next = [action.id, ...current.filter((id) => id !== action.id)].slice(0, 3)
-      try {
-        window.localStorage.setItem(QUICK_ACCESS_RECENTS_KEY, JSON.stringify(next))
-      } catch {
-        // localStorage is a convenience cache; navigation should never depend on it.
-      }
-      return next
-    })
+  const setSecondaryOpen = (open: boolean) => {
+    _homeMoreOpen = open
+    setSecondaryOpenState(open)
   }
-
-  const recentQuickActions = useMemo(
-    () =>
-      recentQuickAccessIds
-        .map((id) => allQuickActions.find((action) => action.id === id))
-        .filter((action): action is QuickAccessAction => Boolean(action)),
-    [recentQuickAccessIds],
-  )
 
   const checkOnboarding = useCallback(async () => {
     try {
@@ -910,16 +672,6 @@ export default function Home() {
       }
     } catch {
       // Maintenance widget failure is non-fatal
-    }
-
-    try {
-      const notificationsRes = await fetch("/api/notifications")
-      if (notificationsRes.ok) {
-        const notificationsData = await notificationsRes.json()
-        setNotifications(Array.isArray(notificationsData.notifications) ? notificationsData.notifications.slice(0, 5) : [])
-      }
-    } catch {
-      setNotifications([])
     }
 
     setSources({
@@ -1166,14 +918,42 @@ export default function Home() {
         }).length
   const habitsDueToday = navigationSummary?.counts?.habitsDueToday ?? 0
   const budgetUsedPercent = budgetIncome > 0 ? Math.round((budgetExpenses / budgetIncome) * 100) : null
-  const secondaryCount = [
-    lifeScore?.ready ? 1 : 0,
-    recentActivity.length,
-    notifications.length,
-    pendingAllCount ?? 0,
-  ].reduce((total, count) => total + count, 0)
+  const greeting = (() => {
+    const hour = new Date().getHours()
+    if (hour < 12) return "Good morning"
+    if (hour < 17) return "Good afternoon"
+    return "Good evening"
+  })()
+  const longDate = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })
+  const glanceRows: Array<{ label: string; value: string; detail?: string | null; href: string; icon: LucideIcon; attention?: boolean }> = [
+    {
+      label: "Overdue tasks",
+      value: String(overdueTaskCount),
+      href: "/tasks",
+      icon: CheckSquare,
+      attention: overdueTaskCount > 0,
+    },
+    { label: "Habits due today", value: String(habitsDueToday), href: "/habits", icon: Flame },
+    {
+      label: "Budget used",
+      value: budgetUsedPercent === null ? "No budget yet" : `${budgetUsedPercent}%`,
+      href: "/money?tab=budget",
+      icon: Wallet,
+      attention: budgetUsedPercent !== null && budgetUsedPercent > 100,
+    },
+    {
+      label: "Next event",
+      value: nextCalendarEvent?.title || "Nothing today",
+      detail: nextCalendarEvent?.subtitle,
+      href: "/calendar",
+      icon: CalendarDays,
+    },
+  ]
 
   const hasAnyErrors = Object.keys(errors).length > 0
+  const sectionTitle = "text-base font-semibold tracking-tight text-foreground"
+  const sectionLink =
+    "inline-flex items-center gap-1 rounded-md text-sm font-medium text-primary transition-colors hover:text-primary-hover"
 
   return (
     <DashboardLayout>
@@ -1187,544 +967,425 @@ export default function Home() {
         }}
       />
 
-      <div className="space-y-5 md:space-y-6">
-        <section className="surface-card section-enter rounded-lg border border-primary/20 bg-primary/5 p-4 md:p-5">
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
-            <div>
-              <p className="text-sm text-muted-foreground">Today at a glance</p>
-              <h1 className="mt-1 text-2xl font-bold text-foreground sm:text-3xl">Welcome back, {firstName}</h1>
-              <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-                Start with the few things that matter today. Everything else can stay below the fold until you need it.
-              </p>
-            </div>
-            <Button asChild className="w-fit gap-2">
+      <div className="section-enter mx-auto w-full max-w-6xl space-y-8" aria-busy={dashboardLoading}>
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-[28px]">
+              {greeting}, {firstName}
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">{longDate}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline" className="gap-2 bg-card">
+              <Link href={`/journal?date=${localDateString()}`}>
+                <BookOpenText className="h-4 w-4" aria-hidden="true" />
+                Journal
+              </Link>
+            </Button>
+            <Button asChild className="gap-2">
               <Link href="/today">
-                <Sparkles className="h-4 w-4" />
-                Plan my day with AI
+                <Sparkles className="h-4 w-4" aria-hidden="true" />
+                Plan my day
               </Link>
             </Button>
           </div>
-
-          <div className="mt-5 grid gap-3 lg:grid-cols-3">
-            {dashboardLoading ? (
-              <>
-                <Skeleton className="h-20 w-full" />
-                <Skeleton className="h-20 w-full" />
-                <Skeleton className="h-20 w-full" />
-              </>
-            ) : errors.today ? (
-              <div className="lg:col-span-3">
-                <SectionUnavailable label="Today focus" />
-              </div>
-            ) : focusItems.length > 0 ? (
-              focusItems.slice(0, 3).map((item, index) => (
-                <Link key={item.id || index} href={item.href || "/today"} className="interactive-card rounded-md border bg-background/85 p-3 hover:bg-secondary">
-                  <div className="flex items-start gap-3">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
-                      {index + 1}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-semibold text-foreground">{item.title}</span>
-                      <span className="mt-1 block truncate text-xs text-muted-foreground">
-                        {item.subtitle || item.source_type || "Focus item"}
-                      </span>
-                    </span>
-                  </div>
-                </Link>
-              ))
-            ) : (
-              <div className="rounded-md border border-dashed bg-background/70 p-4 lg:col-span-3">
-                <p className="text-sm font-medium text-foreground">No focus items selected yet.</p>
-                <p className="mt-1 text-sm text-muted-foreground">Open Today to choose up to three priorities for this day.</p>
-              </div>
-            )}
-          </div>
-        </section>
-
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Card className="surface-card">
-            <CardContent className="p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Overdue tasks</p>
-              <p className="mt-2 text-2xl font-bold text-foreground">{dashboardLoading ? "—" : overdueTaskCount}</p>
-            </CardContent>
-          </Card>
-          <Card className="surface-card">
-            <CardContent className="p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Habits due today</p>
-              <p className="mt-2 text-2xl font-bold text-foreground">{dashboardLoading ? "—" : habitsDueToday}</p>
-            </CardContent>
-          </Card>
-          <Card className="surface-card">
-            <CardContent className="p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Budget used</p>
-              <p className="mt-2 text-2xl font-bold text-foreground">
-                {dashboardLoading ? "—" : budgetUsedPercent === null ? "No data" : `${budgetUsedPercent}%`}
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="surface-card">
-            <CardContent className="p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Next event</p>
-              <p className="mt-2 truncate text-lg font-semibold text-foreground">
-                {dashboardLoading ? "—" : nextCalendarEvent?.title || "No event today"}
-              </p>
-              {nextCalendarEvent?.subtitle && <p className="mt-1 truncate text-xs text-muted-foreground">{nextCalendarEvent.subtitle}</p>}
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Button type="button" size="lg" className="gap-2" onClick={() => setQuickAddType("task")}>
-            <Plus className="h-4 w-4" />
-            Add Task
-          </Button>
-          <Button type="button" size="lg" variant="outline" className="gap-2 bg-background/80" onClick={() => setQuickAddType("inbox")}>
-            <Inbox className="h-4 w-4" />
-            Capture Thought
-          </Button>
-          <Button asChild size="lg" variant="outline" className="gap-2 bg-background/80">
-            <Link href={`/journal?date=${localDateString()}`}>
-              <BookOpenText className="h-4 w-4" />
-              Open Journal
-            </Link>
-          </Button>
-        </div>
-
-        <DomainTodayOverview />
-
-        <Collapsible open={secondaryOpen} onOpenChange={setSecondaryOpen} className="space-y-5">
-          <CollapsibleTrigger asChild>
-            <Button type="button" variant="ghost" className="w-full justify-between rounded-lg border border-dashed bg-muted/20 px-4">
-              <span>Secondary dashboard cards{secondaryCount ? ` · ${secondaryCount} signals` : ""}</span>
-              <ChevronDown className={cn("h-4 w-4 transition-transform", secondaryOpen && "rotate-180")} />
-            </Button>
-          </CollapsibleTrigger>
-
-          <CollapsibleContent className="space-y-5">
-            <QuickAccessSection recentActions={recentQuickActions} onActionClick={recordQuickAccess} />
+        </header>
 
         {hasAnyErrors && (
-          <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="h-4 w-4" />
-              <span>Some dashboard sections could not load. No fallback numbers are being shown for failed data.</span>
-            </div>
-          </div>
+          <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
+            <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+            Some sections couldn&apos;t load, so they&apos;re left blank rather than showing guesses. Refresh to try again.
+          </p>
         )}
 
-        <Card className="surface-card section-enter border-primary/20">
-          <CardHeader>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Gauge className="h-5 w-5 text-primary" />
-                  LifeScore
-                </CardTitle>
-                <CardDescription>A calm daily signal for how organized your LifeSort system is.</CardDescription>
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="gap-2"
-                onClick={explainLifeScore}
-                disabled={lifeScoreAiLoading || lifeScoreLoading || Boolean(lifeScoreError) || Boolean(lifeScore && !lifeScore.ready)}
-              >
-                <Sparkles className="h-4 w-4" />
-                {lifeScoreAiLoading ? "Explaining..." : "Explain with AI"}
-              </Button>
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] lg:gap-6">
+          <section aria-labelledby="home-focus" className="min-w-0">
+            <div className="mb-3 flex items-baseline justify-between gap-3">
+              <h2 id="home-focus" className={sectionTitle}>Today&apos;s focus</h2>
+              <Link href="/today" className={sectionLink}>
+                Open Today
+                <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </Link>
             </div>
-          </CardHeader>
-          <CardContent>
-            {lifeScoreLoading ? (
-              <div className="grid gap-4 lg:grid-cols-[180px_minmax(0,1fr)]">
-                <Skeleton className="h-24 w-full" />
-                <div className="space-y-3">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-5/6" />
-                </div>
+            {dashboardLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-[60px] w-full" />
+                <Skeleton className="h-[60px] w-full" />
+                <Skeleton className="h-[60px] w-full" />
               </div>
-            ) : lifeScoreError ? (
-              <SectionUnavailable label="LifeScore" />
-            ) : lifeScore && lifeScore.ready ? (
-              <div className="grid gap-4 lg:grid-cols-[180px_minmax(0,1fr)]">
-                <div className="surface-card rounded-md border bg-muted/30 p-4">
-                  <div className="flex items-end gap-2">
-                    <p className="text-4xl font-bold leading-none">{lifeScore.score}</p>
-                    <p className="pb-1 text-sm text-muted-foreground">/100</p>
-                  </div>
-                  <Badge variant="secondary" className="mt-3">{lifeScore.label}</Badge>
-                  <p className="mt-2 text-sm text-muted-foreground">{lifeScoreChangeText(lifeScore.change)}</p>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="grid gap-2 sm:grid-cols-3">
-                    {compactLifeScoreComponents.map((item) => (
-                      <Link key={item.key} href={item.href} className="interactive-card rounded-md border bg-background/70 p-3 hover:bg-secondary">
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="truncate text-sm font-medium">{item.label}</p>
-                          <span className="text-sm font-semibold">{item.score}</span>
-                        </div>
-                        <div className="mt-2 h-1.5 rounded-full bg-muted">
-                          <div
-                            className={`h-1.5 rounded-full ${lifeScoreStatusClass(item.status)}`}
-                            style={{ width: `${item.score}%` }}
-                          />
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                  <div className="rounded-md border bg-background/70 p-3">
-                    <p className="text-sm font-medium">Attention signal</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {lifeScore.reasons[0] || lifeScore.top_improvements[0]?.description || "Your current LifeSort signal is ready."}
-                    </p>
-                  </div>
-                  {(lifeScoreAi || lifeScoreAiError) && (
-                    <div className="rounded-md border bg-primary/5 p-3">
-                      <div className="flex items-center gap-2 text-sm font-medium">
-                        <Sparkles className="h-4 w-4 text-primary" />
-                        AI explanation
-                      </div>
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        {lifeScoreAiError || lifeScoreAi?.summary}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <AppEmptyState
-                icon={Gauge}
-                title="LifeScore is waiting for real data"
-                hint="Add a task, focus item, habit, goal, review, commitment, maintenance item, or Life Domain activity and your score will appear here."
-                primaryAction={{ label: "Start Today", href: "/today" }}
-                className="border-dashed bg-background/70"
-              />
-            )}
-          </CardContent>
-        </Card>
-
-        <div className="section-enter grid gap-4 lg:grid-cols-3">
-          <Card className="surface-card border-primary/20 bg-primary/5">
-            <CardHeader>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <CalendarCheck className="h-5 w-5 text-primary" />
-                    Open Today
-                  </CardTitle>
-                  <CardDescription>Your daily focus, due items, schedule, and reflection.</CardDescription>
-                </div>
-                <Button asChild size="sm" className="gap-2">
-                  <Link href="/today">
-                    Open Today
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {dashboardLoading ? (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <Skeleton className="h-16 w-full" />
-                  <Skeleton className="h-16 w-full" />
-                  <Skeleton className="h-16 w-full" />
-                </div>
-              ) : errors.today ? (
-                <SectionUnavailable label="Today" />
-              ) : (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <div className="rounded-md border bg-background/70 p-3">
-                    <p className="text-2xl font-bold">{todayPreview?.summary?.focusItems || 0}/3</p>
-                    <p className="text-xs text-muted-foreground">focus selected</p>
-                  </div>
-                  <div className="rounded-md border bg-background/70 p-3">
-                    <p className="text-2xl font-bold">{todayPreview?.summary?.dueOrOverdueItems ?? todayPreview?.summary?.dueOrOverdueTasks ?? 0}</p>
-                    <p className="text-xs text-muted-foreground">due items</p>
-                  </div>
-                  <div className="rounded-md border bg-background/70 p-3">
-                    <p className="text-2xl font-bold">{todayPreview?.summary?.calendarToday || 0}</p>
-                    <p className="text-xs text-muted-foreground">calendar today</p>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="surface-card border-amber-500/20 bg-amber-500/5">
-            <CardHeader>
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <BookOpenText className="h-5 w-5 text-amber-600 dark:text-amber-300" />
-                    Journal
-                  </CardTitle>
-                  <CardDescription>Gratitude, reflection, and tomorrow setup.</CardDescription>
-                </div>
-                <Badge variant={journalPreview ? "secondary" : "outline"}>
-                  {errors.journal ? "Unavailable" : journalPreview ? "Started" : "Not started"}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {dashboardLoading ? (
-                <div className="space-y-3">
-                  <Skeleton className="h-4 w-4/5" />
-                  <Skeleton className="h-4 w-2/3" />
-                </div>
-              ) : errors.journal ? (
-                <SectionUnavailable label="Journal" />
-              ) : (
-                <>
-                  <p className="line-clamp-3 text-sm text-muted-foreground">{journalPreviewText}</p>
-                  <Button asChild size="sm" variant="outline" className="w-full gap-2 bg-background/80">
-                    <Link href={`/journal?date=${localDateString()}`}>
-                      Open Journal
-                      <ArrowRight className="h-4 w-4" />
+            ) : errors.today ? (
+              <SectionUnavailable label="Today focus" />
+            ) : focusItems.length > 0 ? (
+              <ol className={cn("divide-y divide-border/70 overflow-hidden rounded-xl border bg-card", motionPresets.staggerContainer)}>
+                {focusItems.slice(0, 3).map((item, index) => (
+                  <li key={item.id || index}>
+                    <Link
+                      href={item.href || "/today"}
+                      className="group flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-muted/50 focus-visible:bg-muted/50"
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-tint text-xs font-semibold tabular-nums text-primary"
+                      >
+                        {index + 1}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium text-foreground">{item.title}</span>
+                        <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                          {item.subtitle || item.source_type || "Focus item"}
+                        </span>
+                      </span>
+                      <ChevronRight
+                        aria-hidden="true"
+                        className="h-4 w-4 shrink-0 -translate-x-1 text-muted-foreground opacity-0 transition duration-150 group-hover:translate-x-0 group-hover:opacity-100 group-focus-visible:translate-x-0 group-focus-visible:opacity-100 motion-reduce:transform-none"
+                      />
                     </Link>
-                  </Button>
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="surface-card">
-            <CardHeader>
-              <div className="flex items-start justify-between gap-3">
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed bg-card/60 p-5 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Wallet className="h-5 w-5 text-primary" />
-                    Money
-                  </CardTitle>
-                  <CardDescription>Compact finance snapshot from your tracked data.</CardDescription>
+                  <p className="text-sm font-medium text-foreground">No focus picked yet</p>
+                  <p className="mt-0.5 text-sm text-muted-foreground">Choose up to three things that matter today.</p>
                 </div>
-                <Button asChild size="sm" variant="outline" className="gap-2">
-                  <Link href="/money">
-                    Open Money
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
+                <Button asChild size="sm" variant="outline" className="shrink-0">
+                  <Link href="/today">Pick focus</Link>
                 </Button>
               </div>
-            </CardHeader>
-            <CardContent>
-              {dashboardLoading ? (
-                <div className="space-y-3">
-                  <Skeleton className="h-8 w-32" />
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-4/5" />
-                </div>
-              ) : errors.budget && errors.income && errors.investments ? (
-                <SectionUnavailable label="Money" />
-              ) : (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
-                  <div className="rounded-md border bg-muted/40 p-3">
-                    <p className="text-lg font-semibold">{errors.income ? "—" : formatCurrency(monthlyIncome)}</p>
-                    <p className="text-xs text-muted-foreground">monthly income</p>
-                  </div>
-                  <div className="rounded-md border bg-muted/40 p-3">
-                    <p className="text-lg font-semibold">{errors.budget ? "—" : formatCurrency(budgetBalance)}</p>
-                    <p className="text-xs text-muted-foreground">budget balance</p>
-                  </div>
-                  <div className="rounded-md border bg-muted/40 p-3">
-                    <p className="text-lg font-semibold">{errors.investments ? "—" : formatCurrency(investmentTotal)}</p>
-                    <p className="text-xs text-muted-foreground">portfolio</p>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+            )}
+          </section>
+
+          <section aria-labelledby="home-glance" className="min-w-0">
+            <h2 id="home-glance" className={cn(sectionTitle, "mb-3")}>At a glance</h2>
+            <ul className="divide-y divide-border/70 overflow-hidden rounded-xl border bg-card">
+              {glanceRows.map((row) => (
+                <li key={row.label}>
+                  <Link
+                    href={row.href}
+                    className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/50 focus-visible:bg-muted/50"
+                  >
+                    <row.icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    <span className="shrink-0 text-sm text-muted-foreground">{row.label}</span>
+                    <span className="ml-auto min-w-0 text-right">
+                      {dashboardLoading ? (
+                        <Skeleton className="ml-auto h-4 w-10" />
+                      ) : (
+                        <>
+                          <span
+                            className={cn(
+                              "block truncate text-sm font-semibold tabular-nums text-foreground",
+                              row.attention && "text-destructive",
+                            )}
+                          >
+                            {row.value}
+                          </span>
+                          {row.detail && <span className="block truncate text-xs text-muted-foreground">{row.detail}</span>}
+                        </>
+                      )}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
         </div>
 
-        <Card className="surface-card section-enter">
-          <CardHeader>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Inbox className="h-5 w-5 text-primary" />
-                  Pending
-                </CardTitle>
-                <CardDescription>Inbox, someday reviews, follow-ups, commitments, and maintenance in one place.</CardDescription>
-              </div>
-              {pendingAllCount !== null && (
-                <Badge variant="secondary">{pendingAllCount} pending</Badge>
-              )}
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] lg:gap-6">
+          <section aria-labelledby="home-pending" className="min-w-0">
+            <div className="mb-3 flex items-baseline justify-between gap-3">
+              <h2 id="home-pending" className={sectionTitle}>
+                Needs attention
+                {pendingAllCount !== null && pendingAllCount > 0 && (
+                  <span className="ml-2 text-sm font-normal tabular-nums text-muted-foreground">{pendingAllCount}</span>
+                )}
+              </h2>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              <Button
-                type="button"
-                size="sm"
-                variant={activePendingFilter === "all" ? "default" : "outline"}
-                className="shrink-0"
-                onClick={() => setActivePendingFilter("all")}
-              >
-                All{pendingAllCount !== null ? ` ${pendingAllCount}` : ""}
-              </Button>
-              {pendingSources.map((source) => (
-                <Button
-                  key={source.key}
-                  type="button"
-                  size="sm"
-                  variant={activePendingFilter === source.key ? "default" : "outline"}
-                  className="shrink-0 gap-1.5"
-                  onClick={() => setActivePendingFilter(source.key)}
-                >
-                  <source.icon className="h-3.5 w-3.5" />
-                  {source.label}
-                  {typeof source.count === "number" ? ` ${source.count}` : ""}
-                </Button>
-              ))}
+            <div
+              role="group"
+              aria-label="Filter what needs attention"
+              className="-mx-4 mb-3 flex gap-1 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0"
+            >
+              {[{ key: "all" as const, label: "All", count: pendingAllCount, icon: null }, ...pendingSources].map((source) => {
+                const selected = activePendingFilter === source.key
+                const Icon = source.icon
+                return (
+                  <button
+                    key={source.key}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => setActivePendingFilter(source.key)}
+                    className={cn(
+                      "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors duration-150",
+                      selected
+                        ? "border-primary/30 bg-primary-tint text-primary"
+                        : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground",
+                    )}
+                  >
+                    {Icon && <Icon className="h-3.5 w-3.5" aria-hidden="true" />}
+                    {source.label}
+                    {typeof source.count === "number" && source.count > 0 && (
+                      <span className="tabular-nums opacity-80">{source.count}</span>
+                    )}
+                  </button>
+                )
+              })}
             </div>
 
             {dashboardLoading ? (
               <div className="space-y-2">
-                <Skeleton className="h-14 w-full" />
                 <Skeleton className="h-14 w-full" />
                 <Skeleton className="h-14 w-full" />
               </div>
             ) : pendingItems.length === 0 ? (
-              <AppEmptyState
-                icon={Inbox}
-                title={activePendingFilter === "all" ? "Nothing pending right now" : `${activePendingSource?.label || "This area"} is clear`}
-                hint={
-                  activePendingFilter === "all"
-                    ? "You are clear for now. Capture anything new from the command palette."
-                    : "No pending items are asking for attention here."
-                }
-                primaryAction={{
-                  label: activePendingSource ? `Open ${activePendingSource.label}` : "Open Workspace",
-                  href: activePendingSource?.href || "/workspace",
-                }}
-                allClear
-                className="border-dashed bg-background/70"
-              />
-            ) : (
-              <div className="space-y-2">
-                {pendingItems.map((item) => (
-                  <Link key={item.id} href={item.href} className="flex items-center justify-between gap-3 rounded-md border p-3 text-sm hover:bg-secondary">
-                    <span className="min-w-0">
-                      <span className="block truncate font-medium">{item.title}</span>
-                      <span className="block truncate text-xs text-muted-foreground">{item.subtitle}</span>
-                    </span>
-                    <span className="shrink-0 text-xs text-muted-foreground">{item.date}</span>
+              <div key={activePendingFilter} className="tab-enter flex flex-col items-start gap-3 rounded-xl border border-dashed bg-card/60 p-5 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    {activePendingFilter === "all" ? "Nothing needs you right now" : `${activePendingSource?.label || "This area"} is clear`}
+                  </p>
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    {activePendingFilter === "all" ? "New captures will show up here." : "No items are asking for attention here."}
+                  </p>
+                </div>
+                <Button asChild size="sm" variant="outline" className="shrink-0">
+                  <Link href={activePendingSource?.href || "/workspace"}>
+                    {activePendingSource ? `Open ${activePendingSource.label}` : "Open Workspace"}
                   </Link>
-                ))}
+                </Button>
               </div>
+            ) : (
+              <ul key={activePendingFilter} className="tab-enter divide-y divide-border/70 overflow-hidden rounded-xl border bg-card">
+                {pendingItems.map((item) => {
+                  const SourceIcon = pendingSources.find((source) => source.key === item.source)?.icon ?? Inbox
+                  return (
+                    <li key={item.id}>
+                      <Link
+                        href={item.href}
+                        className="flex items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-muted/50 focus-visible:bg-muted/50"
+                      >
+                        <SourceIcon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-medium text-foreground">{item.title}</span>
+                          <span className="block truncate text-xs text-muted-foreground">{item.subtitle}</span>
+                        </span>
+                        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{item.date}</span>
+                      </Link>
+                    </li>
+                  )
+                })}
+              </ul>
             )}
 
             {pendingUnavailable.length > 0 && (
-              <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-                Pending counts unavailable for {pendingUnavailable.join(", ")}.
-              </div>
+              <p className="mt-2 text-xs text-muted-foreground">Couldn&apos;t load {pendingUnavailable.join(", ")}.</p>
             )}
-          </CardContent>
-        </Card>
+          </section>
 
-        <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-          <Card className="surface-card section-enter">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Zap className="h-5 w-5 text-primary" />
-                Recent Activity
-              </CardTitle>
-              <CardDescription>Real updates from your LifeSort modules.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {dashboardLoading ? (
-                <>
-                  <Skeleton className="h-14 w-full" />
-                  <Skeleton className="h-14 w-full" />
-                  <Skeleton className="h-14 w-full" />
-                </>
-              ) : errors.tasks && errors.goals && errors.notes && errors.wishlist && errors.investments && errors.income ? (
-                <SectionUnavailable label="Activity" />
-              ) : recentActivity.length === 0 ? (
-                <AppEmptyState
-                  icon={Zap}
-                  title="No recent activity yet"
-                  hint="Updates will appear here after you add or change tasks, goals, notes, money items, or projects."
-                  primaryAction={{ label: "Open Workspace", href: "/workspace" }}
-                  className="border-dashed bg-background/70"
-                />
-              ) : (
-                recentActivity.map((activity) => (
-                  <Link key={activity.id} href={activity.href} className="block rounded-md border p-3 hover:bg-secondary">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="truncate text-sm font-medium">{activity.title}</p>
-                      <Badge variant="outline">{activity.type}</Badge>
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {activity.label} · {timeAgo(activity.at)}
-                    </p>
-                  </Link>
-                ))
-              )}
-            </CardContent>
-          </Card>
-
-          <div className="space-y-4">
-            <Card className="surface-card section-enter">
-              <CardHeader>
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Bell className="h-5 w-5 text-primary" />
-                      Notifications
-                    </CardTitle>
-                    <CardDescription>Recent nudges and wins from LifeSort.</CardDescription>
-                  </div>
-                  <Button asChild size="sm" variant="outline" className="gap-2">
-                    <Link href="/notifications">
-                      Open
-                      <ArrowRight className="h-4 w-4" />
-                    </Link>
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {dashboardLoading ? (
-                  <>
-                    <Skeleton className="h-12 w-full" />
-                    <Skeleton className="h-12 w-full" />
-                  </>
-                ) : notifications.length === 0 ? (
-                  <AppEmptyState
-                    icon={Bell}
-                    title="No notifications right now"
-                    hint="Warnings and encouragement will appear here when something needs attention."
-                    allClear
-                    className="border-dashed bg-background/70"
-                  />
-                ) : (
-                  notifications.map((notification) => (
-                    <Link key={notification.id} href="/notifications" className="block rounded-md border p-3 hover:bg-secondary">
-                      <div className="flex items-start justify-between gap-3">
-                        <p className="line-clamp-1 text-sm font-medium">{notification.title}</p>
-                        {!notification.is_read && <Badge variant="secondary">New</Badge>}
-                      </div>
-                      <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{notification.message}</p>
-                    </Link>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-
-            <FavoritesTodo />
+          <div className="min-w-0">
+            <DomainTodayOverview />
           </div>
         </div>
+
+        <Collapsible open={secondaryOpen} onOpenChange={setSecondaryOpen}>
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              className="group flex w-full items-center gap-3 rounded-lg py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <span aria-hidden="true" className="h-px flex-1 bg-border" />
+              <span>{secondaryOpen ? "Show less" : "LifeScore, journal, money and recent activity"}</span>
+              <ChevronDown
+                aria-hidden="true"
+                className={cn("h-4 w-4 transition-transform duration-200 motion-reduce:transition-none", secondaryOpen && "rotate-180")}
+              />
+              <span aria-hidden="true" className="h-px flex-1 bg-border" />
+            </button>
+          </CollapsibleTrigger>
+
+          <CollapsibleContent className="collapsible-content">
+            <div className="space-y-8 pt-6">
+              <section aria-labelledby="home-lifescore" className="rounded-xl border bg-card p-4 sm:p-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <h2 id="home-lifescore" className={sectionTitle}>LifeScore</h2>
+                    <p className="mt-0.5 text-sm text-muted-foreground">A calm daily signal for how organized your system is.</p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="w-fit gap-2"
+                    onClick={explainLifeScore}
+                    disabled={lifeScoreAiLoading || lifeScoreLoading || Boolean(lifeScoreError) || Boolean(lifeScore && !lifeScore.ready)}
+                  >
+                    <Sparkles className="h-4 w-4" aria-hidden="true" />
+                    {lifeScoreAiLoading ? "Explaining..." : "Explain with AI"}
+                  </Button>
+                </div>
+
+                <div className="mt-5">
+                  {lifeScoreLoading ? (
+                    <div className="grid gap-4 md:grid-cols-[160px_minmax(0,1fr)]">
+                      <Skeleton className="h-16 w-full" />
+                      <Skeleton className="h-16 w-full" />
+                    </div>
+                  ) : lifeScoreError ? (
+                    <SectionUnavailable label="LifeScore" />
+                  ) : lifeScore && lifeScore.ready ? (
+                    <>
+                      <div className="grid gap-5 md:grid-cols-[160px_minmax(0,1fr)] md:items-center">
+                        <div>
+                          <p className="flex items-baseline gap-1.5">
+                            <span className="text-4xl font-semibold leading-none tracking-tight tabular-nums text-foreground">{lifeScore.score}</span>
+                            <span className="text-sm text-muted-foreground">/ 100</span>
+                          </p>
+                          <p className="mt-2 text-sm">
+                            <span className="font-medium text-foreground">{lifeScore.label}</span>
+                            <span className="text-muted-foreground"> · {lifeScoreChangeText(lifeScore.change)}</span>
+                          </p>
+                        </div>
+                        <ul className="grid gap-x-5 gap-y-3 sm:grid-cols-3">
+                          {compactLifeScoreComponents.map((item) => (
+                            <li key={item.key}>
+                              <Link href={item.href} className="group block rounded-md">
+                                <span className="flex items-center justify-between gap-3 text-sm">
+                                  <span className="truncate text-muted-foreground transition-colors group-hover:text-foreground">{item.label}</span>
+                                  <span className="font-medium tabular-nums text-foreground">{item.score}</span>
+                                </span>
+                                <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-muted">
+                                  <span
+                                    className={cn("bar-grow block h-full rounded-full", lifeScoreStatusClass(item.status))}
+                                    style={{ width: `${item.score}%` }}
+                                  />
+                                </span>
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <p className="mt-5 border-t border-border/70 pt-4 text-sm text-muted-foreground">
+                        {lifeScore.reasons[0] || lifeScore.top_improvements[0]?.description || "Your current LifeSort signal is ready."}
+                      </p>
+                      {(lifeScoreAi || lifeScoreAiError) && (
+                        <div aria-live="polite" className="mt-4 border-t border-border/70 pt-4 animate-in fade-in-0 slide-in-from-top-1 duration-300">
+                          <p className="flex items-center gap-2 text-sm font-medium text-foreground">
+                            <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
+                            {lifeScoreAiError ? "Couldn't explain right now" : "What's behind it"}
+                          </p>
+                          <p className="mt-1.5 text-sm text-muted-foreground">{lifeScoreAiError || lifeScoreAi?.summary}</p>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-sm text-muted-foreground">
+                        Your score appears once there&apos;s something to measure: a task, focus item, habit, goal or review.
+                      </p>
+                      <Button asChild size="sm" variant="outline" className="shrink-0">
+                        <Link href="/today">Start Today</Link>
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              <div className="grid gap-8 lg:grid-cols-2 lg:gap-6">
+                <section aria-labelledby="home-journal" className="rounded-xl border bg-card p-4 sm:p-5">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <h2 id="home-journal" className={sectionTitle}>Journal</h2>
+                    <span className="text-xs text-muted-foreground">
+                      {errors.journal ? "Unavailable" : journalPreview ? "Started today" : "Not started today"}
+                    </span>
+                  </div>
+                  {dashboardLoading ? (
+                    <div className="mt-3 space-y-2">
+                      <Skeleton className="h-4 w-4/5" />
+                      <Skeleton className="h-4 w-2/3" />
+                    </div>
+                  ) : errors.journal ? (
+                    <div className="mt-3"><SectionUnavailable label="Journal" /></div>
+                  ) : (
+                    <>
+                      <p className="mt-3 line-clamp-3 text-sm text-muted-foreground">{journalPreviewText}</p>
+                      <Link href={`/journal?date=${localDateString()}`} className={cn(sectionLink, "mt-4")}>
+                        {journalPreview ? "Continue writing" : "Write today's entry"}
+                        <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                      </Link>
+                    </>
+                  )}
+                </section>
+
+                <section aria-labelledby="home-money" className="rounded-xl border bg-card p-4 sm:p-5">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <h2 id="home-money" className={sectionTitle}>Money</h2>
+                    <Link href="/money" className={sectionLink}>
+                      Open Money
+                      <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                    </Link>
+                  </div>
+                  {dashboardLoading ? (
+                    <div className="mt-3 grid grid-cols-3 gap-3">
+                      <Skeleton className="h-10 w-full" />
+                      <Skeleton className="h-10 w-full" />
+                      <Skeleton className="h-10 w-full" />
+                    </div>
+                  ) : errors.budget && errors.income && errors.investments ? (
+                    <div className="mt-3"><SectionUnavailable label="Money" /></div>
+                  ) : (
+                    <dl className="mt-3 grid grid-cols-3 gap-3">
+                      {[
+                        { label: "Monthly income", value: errors.income ? "—" : formatCurrency(monthlyIncome) },
+                        { label: "Budget balance", value: errors.budget ? "—" : formatCurrency(budgetBalance) },
+                        { label: "Portfolio", value: errors.investments ? "—" : formatCurrency(investmentTotal) },
+                      ].map((figure) => (
+                        <div key={figure.label} className="min-w-0">
+                          <dt className="truncate text-xs text-muted-foreground">{figure.label}</dt>
+                          <dd className="mt-1 truncate text-base font-semibold tabular-nums text-foreground sm:text-lg">{figure.value}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  )}
+                </section>
+              </div>
+
+              <section aria-labelledby="home-activity">
+                <h2 id="home-activity" className={cn(sectionTitle, "mb-3")}>Recent activity</h2>
+                {dashboardLoading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                  </div>
+                ) : errors.tasks && errors.goals && errors.notes && errors.wishlist && errors.investments && errors.income ? (
+                  <SectionUnavailable label="Activity" />
+                ) : recentActivity.length === 0 ? (
+                  <p className="rounded-xl border border-dashed bg-card/60 p-5 text-sm text-muted-foreground">
+                    Changes to tasks, goals, notes, money and projects will show up here.
+                  </p>
+                ) : (
+                  <ul className="divide-y divide-border/70 overflow-hidden rounded-xl border bg-card">
+                    {recentActivity.map((activity) => (
+                      <li key={activity.id}>
+                        <Link
+                          href={activity.href}
+                          className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/50 focus-visible:bg-muted/50"
+                        >
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-medium text-foreground">{activity.title}</span>
+                            <span className="block truncate text-xs text-muted-foreground">
+                              {activity.label} · {timeAgo(activity.at)}
+                            </span>
+                          </span>
+                          <Badge variant="outline" className="shrink-0 font-normal text-muted-foreground">{activity.type}</Badge>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            </div>
           </CollapsibleContent>
         </Collapsible>
-
       </div>
-      <QuickAddModal
-        open={Boolean(quickAddType)}
-        onOpenChange={(open) => {
-          if (!open) setQuickAddType(null)
-        }}
-        initialType={quickAddType}
-      />
     </DashboardLayout>
   )
 }

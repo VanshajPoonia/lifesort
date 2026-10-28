@@ -84,10 +84,16 @@ export function NotificationBell() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative flex" aria-label="Open notification center" title="Notifications">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative flex"
+          aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
+          title="Notifications"
+        >
           <Bell className="h-5 w-5 text-foreground" />
           {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-red-500 text-[10px] text-white flex items-center justify-center font-bold leading-none pointer-events-none">
+            <span aria-hidden="true" className="pointer-events-none absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold leading-none text-destructive-foreground tabular-nums ring-2 ring-background animate-in zoom-in-50 duration-200">
               {unreadCount > 9 ? "9+" : unreadCount}
             </span>
           )}
@@ -132,35 +138,37 @@ export function NotificationBell() {
             </div>
           ) : (
             notifications.map((n) => (
-              <div
+              <button
+                type="button"
                 key={n.id}
                 onClick={() => { if (!n.is_read) markRead(n.id) }}
-                className={`flex gap-3 px-4 py-3 hover:bg-muted/50 transition-colors ${
-                  !n.is_read ? "cursor-pointer" : "opacity-60"
-                }`}
+                className="flex w-full gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50 focus-visible:bg-muted/50"
               >
-                <div className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${n.is_read ? "bg-transparent" : "bg-blue-500"}`} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium leading-tight line-clamp-1">{n.title}</p>
+                <span aria-hidden="true" className={`mt-1.5 h-2 w-2 shrink-0 rounded-full transition-colors duration-200 ${n.is_read ? "bg-transparent" : "bg-primary"}`} />
+                <span className="block min-w-0 flex-1">
+                  <span className={`line-clamp-1 text-xs leading-tight ${n.is_read ? "text-muted-foreground" : "font-medium text-foreground"}`}>
+                    {!n.is_read && <span className="sr-only">Unread: </span>}
+                    {n.title}
+                  </span>
                   {n.message && (
-                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{n.message}</p>
+                    <span className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{n.message}</span>
                   )}
-                  <p className="text-[10px] text-muted-foreground mt-1">
+                  <span className="mt-1 block text-[11px] text-muted-foreground">
                     {TYPE_LABELS[n.type] ?? n.type} · {timeAgo(n.created_at)}
-                  </p>
-                </div>
-              </div>
+                  </span>
+                </span>
+              </button>
             ))
           )}
         </div>
 
         {/* Footer */}
         <div className="border-t border-border px-4 py-2">
-          <Link href="/notifications" onClick={() => setOpen(false)}>
-            <Button variant="ghost" size="sm" className="w-full text-xs text-muted-foreground hover:text-foreground">
+          <Button asChild variant="ghost" size="sm" className="w-full text-xs text-muted-foreground hover:text-foreground">
+            <Link href="/notifications" onClick={() => setOpen(false)}>
               View all notifications
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         </div>
       </PopoverContent>
     </Popover>
