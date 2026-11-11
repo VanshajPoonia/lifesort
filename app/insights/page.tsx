@@ -105,9 +105,7 @@ type IgnoringSignalSource =
   | "goal"
   | "project"
   | "waiting"
-  | "commitment"
   | "habit"
-  | "maintenance"
   | "vault"
   | "finance"
 
@@ -223,10 +221,8 @@ const IGNORING_SOURCE_LABELS: Record<IgnoringSignalSource, string> = {
   life_area: "Quiet Life Domains",
   goal: "Stale Goals",
   project: "Stale Projects",
-  waiting: "Waiting For",
-  commitment: "Commitments",
+  waiting: "Waiting",
   habit: "Missed Habits",
-  maintenance: "Maintenance",
   vault: "Vault Renewals",
   finance: "Finance Review",
 }

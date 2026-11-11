@@ -139,13 +139,14 @@ function formatMoney(value: unknown) {
 }
 
 async function getTodayContext(userId: string, unavailable: string[], citations: CoachCitation[]) {
-  const [tasks, events, habits, waiting, commitments, notes] = await Promise.all([
+  const [tasks, events, habits, waiting, notes] = await Promise.all([
     safeRows("tasks", sql`
       SELECT t.id, t.title, t.priority, t.due_date, t.completed, la.name AS life_area_name
       FROM tasks t
       LEFT JOIN life_areas la ON la.id = t.life_area_id AND la.user_id = ${userId}
       WHERE t.user_id = ${userId}
         AND t.completed = FALSE
+        AND COALESCE(t.status, 'next') <> 'someday'
         AND t.due_date IS NOT NULL
         AND t.due_date <= CURRENT_DATE
         AND la.is_ai_excluded IS NOT TRUE
@@ -175,27 +176,16 @@ async function getTodayContext(userId: string, unavailable: string[], citations:
       ORDER BY h.sort_order ASC, h.name ASC
       LIMIT 10
     `, unavailable),
-    safeRows("waiting_items", sql`
-      SELECT wi.id, wi.title, wi.waiting_on_name, wi.status, wi.expected_date, wi.follow_up_date, la.name AS life_area_name
-      FROM waiting_items wi
-      LEFT JOIN life_areas la ON la.id = wi.life_area_id AND la.user_id = ${userId}
-      WHERE wi.user_id = ${userId}
-        AND wi.status IN ('waiting', 'follow_up_needed')
-        AND ((wi.follow_up_date IS NOT NULL AND wi.follow_up_date <= CURRENT_DATE) OR (wi.expected_date IS NOT NULL AND wi.expected_date < CURRENT_DATE))
+    // Waiting is a task status since Stage 1 step 3 (2026-11-11).
+    safeRows("waiting_tasks", sql`
+      SELECT t.id, t.title, t.description, t.due_date, la.name AS life_area_name
+      FROM tasks t
+      LEFT JOIN life_areas la ON la.id = t.life_area_id AND la.user_id = ${userId}
+      WHERE t.user_id = ${userId}
+        AND t.completed = FALSE
+        AND t.status = 'waiting'
         AND la.is_ai_excluded IS NOT TRUE
-      ORDER BY wi.follow_up_date ASC NULLS LAST, wi.expected_date ASC NULLS LAST, wi.updated_at DESC
-      LIMIT 8
-    `, unavailable),
-    safeRows("commitments", sql`
-      SELECT c.id, c.title, c.committed_to, c.status, c.due_date, la.name AS life_area_name
-      FROM commitments c
-      LEFT JOIN life_areas la ON la.id = c.life_area_id AND la.user_id = ${userId}
-      WHERE c.user_id = ${userId}
-        AND c.status IN ('open', 'at_risk')
-        AND c.due_date IS NOT NULL
-        AND c.due_date <= CURRENT_DATE + INTERVAL '7 days'
-        AND la.is_ai_excluded IS NOT TRUE
-      ORDER BY c.due_date ASC, c.updated_at DESC
+      ORDER BY t.due_date ASC NULLS LAST, t.updated_at DESC
       LIMIT 8
     `, unavailable),
     safeRows("notes", sql`
@@ -261,30 +251,15 @@ async function getTodayContext(userId: string, unavailable: string[], citations:
       type: "waiting",
       id: row.id,
       title: row.title,
-      href: "/waiting",
-      subtitle: `waiting on ${text(row.waiting_on_name, "someone")}; status ${text(row.status)}`,
-      date: row.follow_up_date ?? row.expected_date,
-      life_area_name: row.life_area_name,
-    })
-    addCitation(citations, item)
-    return lineFor(item)
-  })
-  sections.push(`Waiting items needing attention:\n${waitingLines.length ? waitingLines.join("\n") : "- None"}`)
-
-  const commitmentLines = commitments.map((row) => {
-    const item = citation({
-      type: "commitment",
-      id: row.id,
-      title: row.title,
-      href: "/commitments",
-      subtitle: `to ${text(row.committed_to, "someone")}; status ${text(row.status)}`,
+      href: "/tasks?status=waiting",
+      subtitle: text(row.description, "waiting on someone else"),
       date: row.due_date,
       life_area_name: row.life_area_name,
     })
     addCitation(citations, item)
     return lineFor(item)
   })
-  sections.push(`Commitments due soon:\n${commitmentLines.length ? commitmentLines.join("\n") : "- None"}`)
+  sections.push(`Tasks waiting on someone else:\n${waitingLines.length ? waitingLines.join("\n") : "- None"}`)
 
   const noteLines = notes.map((row) => {
     const tags = Array.isArray(row.tags) && row.tags.length ? `tags ${row.tags.slice(0, 4).join(", ")}` : "no tags"
@@ -649,8 +624,7 @@ async function getFullContext(userId: string, unavailable: string[], citations: 
         (SELECT COUNT(*) FROM tasks WHERE user_id = ${userId} AND completed = FALSE AND due_date < CURRENT_DATE)::int AS overdue_tasks,
         (SELECT COUNT(*) FROM goals WHERE user_id = ${userId} AND COALESCE(status, 'active') <> 'completed')::int AS active_goals,
         (SELECT COUNT(*) FROM projects WHERE user_id = ${userId} AND status IN ('active', 'paused'))::int AS active_projects,
-        (SELECT COUNT(*) FROM waiting_items WHERE user_id = ${userId} AND status IN ('waiting', 'follow_up_needed'))::int AS active_waiting,
-        (SELECT COUNT(*) FROM commitments WHERE user_id = ${userId} AND status IN ('open', 'at_risk'))::int AS active_commitments,
+        (SELECT COUNT(*) FROM tasks WHERE user_id = ${userId} AND completed = FALSE AND status = 'waiting')::int AS active_waiting,
         (SELECT COUNT(*) FROM calendar_events WHERE user_id = ${userId} AND event_date >= CURRENT_DATE AND event_date <= CURRENT_DATE + INTERVAL '14 days')::int AS upcoming_events
     `, unavailable),
     safeRows("notes", sql`
@@ -673,7 +647,7 @@ async function getFullContext(userId: string, unavailable: string[], citations: 
 
   const summary = counts[0]
   const sections: string[] = [
-    `Compact app summary: open tasks ${numberValue(summary?.open_tasks)}, overdue tasks ${numberValue(summary?.overdue_tasks)}, active goals ${numberValue(summary?.active_goals)}, active projects ${numberValue(summary?.active_projects)}, active waiting items ${numberValue(summary?.active_waiting)}, active commitments ${numberValue(summary?.active_commitments)}, upcoming calendar events ${numberValue(summary?.upcoming_events)}.`,
+    `Compact app summary: open tasks ${numberValue(summary?.open_tasks)}, overdue tasks ${numberValue(summary?.overdue_tasks)}, active goals ${numberValue(summary?.active_goals)}, active projects ${numberValue(summary?.active_projects)}, tasks waiting on someone ${numberValue(summary?.active_waiting)}, upcoming calendar events ${numberValue(summary?.upcoming_events)}.`,
   ]
 
   const areaLines = lifeAreas.map((row) => {

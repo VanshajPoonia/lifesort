@@ -5,9 +5,7 @@ export type IgnoringSignalSource =
   | "goal"
   | "project"
   | "waiting"
-  | "commitment"
   | "habit"
-  | "maintenance"
   | "vault"
   | "finance"
 
@@ -146,9 +144,7 @@ export async function getIgnoringInsightsData(userId: string): Promise<IgnoringI
     staleGoals,
     staleProjects,
     overdueWaiting,
-    overdueCommitments,
     missedHabits,
-    overdueMaintenance,
     vaultRenewals,
     financeTransactions,
     financeCategories,
@@ -227,25 +223,15 @@ export async function getIgnoringInsightsData(userId: string): Promise<IgnoringI
       ORDER BY COALESCE(updated_at, created_at) ASC
       LIMIT 12
     `, unavailable),
+    // Waiting is a task status since Stage 1 step 3 (2026-11-11). Its due date is the check-back date.
     safeRows("overdue_waiting", sql`
-      SELECT id, title, waiting_on_name, status, expected_date, follow_up_date, life_area_id
-      FROM waiting_items
+      SELECT id, title, description, due_date, life_area_id
+      FROM tasks
       WHERE user_id = ${userId}
-        AND status IN ('waiting', 'follow_up_needed')
-        AND (
-          (expected_date IS NOT NULL AND expected_date < CURRENT_DATE)
-          OR (follow_up_date IS NOT NULL AND follow_up_date <= CURRENT_DATE)
-        )
-      ORDER BY follow_up_date ASC NULLS LAST, expected_date ASC NULLS LAST
-      LIMIT 12
-    `, unavailable),
-    safeRows("overdue_commitments", sql`
-      SELECT id, title, committed_to, status, due_date, life_area_id
-      FROM commitments
-      WHERE user_id = ${userId}
-        AND status IN ('open', 'at_risk')
+        AND completed = FALSE
+        AND status = 'waiting'
         AND due_date IS NOT NULL
-        AND due_date < CURRENT_DATE
+        AND due_date <= CURRENT_DATE
       ORDER BY due_date ASC
       LIMIT 12
     `, unavailable),
@@ -266,16 +252,6 @@ export async function getIgnoringInsightsData(userId: string): Promise<IgnoringI
         )
         AND hc.id IS NULL
       ORDER BY h.sort_order ASC, h.created_at DESC
-      LIMIT 12
-    `, unavailable),
-    safeRows("overdue_maintenance", sql`
-      SELECT id, title, category, next_due_date, life_area_id
-      FROM maintenance_items
-      WHERE user_id = ${userId}
-        AND status = 'active'
-        AND next_due_date IS NOT NULL
-        AND next_due_date < CURRENT_DATE
-      ORDER BY next_due_date ASC
       LIMIT 12
     `, unavailable),
     safeRows("vault_items", sql`
@@ -397,34 +373,17 @@ export async function getIgnoringInsightsData(userId: string): Promise<IgnoringI
   for (const row of overdueWaiting) {
     const area = areaMeta(row, lifeAreaById)
     if (isExcludedAreaId(area.life_area_id)) continue
-    const dueDate = dateOnly(row.follow_up_date || row.expected_date)
+    const dueDate = dateOnly(row.due_date)
     signals.push(makeSignal({
       id: `waiting:${row.id}`,
       source: "waiting",
-      title: text(row.title, "Waiting item"),
-      description: row.waiting_on_name ? `Waiting on ${row.waiting_on_name}.` : "This waiting item needs attention.",
-      evidence: row.follow_up_date ? "Follow-up date is due or overdue" : "Expected date has passed",
-      href: "/waiting",
+      title: text(row.title, "Waiting task"),
+      description: text(row.description, "This task is waiting on someone else."),
+      evidence: "Check-back date has come",
+      href: "/tasks?status=waiting",
       date: dueDate,
       days_inactive: dueDate ? daysSince(dueDate, now) : null,
-      severity: "high",
-      ...area,
-    }))
-  }
-
-  for (const row of overdueCommitments) {
-    const area = areaMeta(row, lifeAreaById)
-    if (isExcludedAreaId(area.life_area_id)) continue
-    signals.push(makeSignal({
-      id: `commitment:${row.id}`,
-      source: "commitment",
-      title: text(row.title, "Commitment"),
-      description: row.committed_to ? `Committed to ${row.committed_to}.` : "This commitment is overdue.",
-      evidence: "Due date has passed",
-      href: "/commitments",
-      date: dateOnly(row.due_date),
-      days_inactive: row.due_date ? daysSince(row.due_date, now) : null,
-      severity: "high",
+      severity: "medium",
       ...area,
     }))
   }
@@ -442,23 +401,6 @@ export async function getIgnoringInsightsData(userId: string): Promise<IgnoringI
       date: new Date().toISOString().slice(0, 10),
       days_inactive: 0,
       severity: "medium",
-      ...area,
-    }))
-  }
-
-  for (const row of overdueMaintenance) {
-    const area = areaMeta(row, lifeAreaById)
-    if (isExcludedAreaId(area.life_area_id)) continue
-    signals.push(makeSignal({
-      id: `maintenance:${row.id}`,
-      source: "maintenance",
-      title: text(row.title, "Maintenance item"),
-      description: row.category ? `${row.category} maintenance is overdue.` : "This maintenance item is overdue.",
-      evidence: "Next due date has passed",
-      href: "/maintenance",
-      date: dateOnly(row.next_due_date),
-      days_inactive: row.next_due_date ? daysSince(row.next_due_date, now) : null,
-      severity: "high",
       ...area,
     }))
   }
