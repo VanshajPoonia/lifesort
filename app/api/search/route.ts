@@ -6,10 +6,6 @@ import { getTimelineData } from "@/lib/timeline"
 
 type SearchType =
   | "inbox"
-  | "someday"
-  | "waiting"
-  | "commitments"
-  | "maintenance"
   | "timeline"
   | "tasks"
   | "goals"
@@ -45,10 +41,6 @@ type SearchResult = {
 
 const groupLabels: Record<SearchType, string> = {
   inbox: "Inbox",
-  someday: "Someday / Maybe",
-  waiting: "Waiting For",
-  commitments: "Commitments",
-  maintenance: "Maintenance",
   timeline: "Timeline",
   tasks: "Tasks",
   goals: "Goals",
@@ -114,10 +106,6 @@ export async function GET(request: Request) {
 
   const [
     inbox,
-    someday,
-    waiting,
-    commitments,
-    maintenance,
     timeline,
     tasks,
     goals,
@@ -156,130 +144,6 @@ export async function GET(request: Request) {
         OR COALESCE(life_areas.name, '') ILIKE ${pattern}
       )
       ORDER BY inbox_items.updated_at DESC, inbox_items.created_at DESC
-      LIMIT 5
-    `),
-    safeRows("someday", sql`
-      SELECT
-        si.id,
-        si.title,
-        COALESCE(la.name, si.category, si.status) as subtitle,
-        '/someday' as href,
-        si.updated_at,
-        si.created_at,
-        si.life_area_id
-      FROM someday_items si
-      LEFT JOIN life_areas la
-        ON si.life_area_id = la.id
-        AND la.user_id = ${user.id}
-      WHERE si.user_id = ${user.id}
-      AND (
-        si.title ILIKE ${pattern}
-        OR COALESCE(si.description, '') ILIKE ${pattern}
-        OR si.category ILIKE ${pattern}
-        OR si.status ILIKE ${pattern}
-        OR COALESCE(la.name, '') ILIKE ${pattern}
-      )
-      ORDER BY si.updated_at DESC, si.created_at DESC
-      LIMIT 5
-    `),
-    safeRows("waiting", sql`
-      SELECT
-        wi.id,
-        wi.title,
-        COALESCE(la.name, p.title, pe.name, wi.waiting_on_name, wi.status) as subtitle,
-        '/waiting' as href,
-        wi.updated_at,
-        wi.created_at,
-        wi.life_area_id
-      FROM waiting_items wi
-      LEFT JOIN life_areas la
-        ON wi.life_area_id = la.id
-        AND la.user_id = ${user.id}
-      LEFT JOIN projects p
-        ON wi.project_id = p.id
-        AND p.user_id = ${user.id}
-      LEFT JOIN people pe
-        ON wi.person_id = pe.id
-        AND pe.user_id = ${user.id}
-      WHERE wi.user_id = ${user.id}
-      AND (
-        wi.title ILIKE ${pattern}
-        OR COALESCE(wi.description, '') ILIKE ${pattern}
-        OR wi.waiting_on_name ILIKE ${pattern}
-        OR wi.waiting_on_type ILIKE ${pattern}
-        OR wi.status ILIKE ${pattern}
-        OR COALESCE(wi.notes, '') ILIKE ${pattern}
-        OR COALESCE(la.name, '') ILIKE ${pattern}
-        OR COALESCE(p.title, '') ILIKE ${pattern}
-        OR COALESCE(pe.name, '') ILIKE ${pattern}
-      )
-      ORDER BY wi.updated_at DESC, wi.created_at DESC
-      LIMIT 5
-    `),
-    safeRows("commitments", sql`
-      SELECT
-        c.id,
-        c.title,
-        COALESCE(la.name, p.title, pe.name, t.title, c.committed_to, c.status) as subtitle,
-        '/commitments' as href,
-        c.updated_at,
-        c.created_at,
-        c.life_area_id
-      FROM commitments c
-      LEFT JOIN life_areas la
-        ON c.life_area_id = la.id
-        AND la.user_id = ${user.id}
-      LEFT JOIN projects p
-        ON c.project_id = p.id
-        AND p.user_id = ${user.id}
-      LEFT JOIN people pe
-        ON c.person_id = pe.id
-        AND pe.user_id = ${user.id}
-      LEFT JOIN tasks t
-        ON c.related_task_id = t.id
-        AND t.user_id = ${user.id}
-      WHERE c.user_id = ${user.id}
-      AND (
-        c.title ILIKE ${pattern}
-        OR COALESCE(c.description, '') ILIKE ${pattern}
-        OR c.committed_to ILIKE ${pattern}
-        OR c.commitment_type ILIKE ${pattern}
-        OR c.status ILIKE ${pattern}
-        OR COALESCE(la.name, '') ILIKE ${pattern}
-        OR COALESCE(p.title, '') ILIKE ${pattern}
-        OR COALESCE(pe.name, '') ILIKE ${pattern}
-        OR COALESCE(t.title, '') ILIKE ${pattern}
-      )
-      ORDER BY c.updated_at DESC, c.created_at DESC
-      LIMIT 5
-    `),
-    safeRows("maintenance", sql`
-      SELECT
-        mi.id,
-        mi.title,
-        COALESCE(la.name, vi.title, mi.category, mi.recurrence, mi.status) as subtitle,
-        '/maintenance' as href,
-        mi.updated_at,
-        mi.created_at,
-        mi.life_area_id
-      FROM maintenance_items mi
-      LEFT JOIN life_areas la
-        ON mi.life_area_id = la.id
-        AND la.user_id = ${user.id}
-      LEFT JOIN vault_items vi
-        ON mi.vault_item_id = vi.id
-        AND vi.user_id = ${user.id}
-      WHERE mi.user_id = ${user.id}
-      AND (
-        mi.title ILIKE ${pattern}
-        OR mi.category ILIKE ${pattern}
-        OR mi.recurrence ILIKE ${pattern}
-        OR mi.status ILIKE ${pattern}
-        OR COALESCE(mi.notes, '') ILIKE ${pattern}
-        OR COALESCE(la.name, '') ILIKE ${pattern}
-        OR COALESCE(vi.title, '') ILIKE ${pattern}
-      )
-      ORDER BY mi.updated_at DESC, mi.created_at DESC
       LIMIT 5
     `),
     getTimelineData(user.id, { search: query, limit: 5 })
@@ -454,11 +318,7 @@ export async function GET(request: Request) {
   const groups = emptyGroups().map((group) => {
     const rowsByType: Record<SearchType, SearchRow[]> = {
       inbox,
-      someday,
-      waiting,
-      commitments,
-      maintenance,
-      timeline,
+              timeline,
       tasks,
       goals,
       notes,

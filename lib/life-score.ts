@@ -6,7 +6,6 @@ export type LifeScoreComponentKey =
   | "habit_consistency"
   | "goals_updated"
   | "weekly_review_status"
-  | "commitments_kept"
   | "maintenance_vault"
   | "life_area_balance"
 
@@ -145,16 +144,10 @@ function improvementFor(componentKey: LifeScoreComponentKey, score: number): Lif
       href: "/review",
       component_key: "weekly_review_status",
     },
-    commitments_kept: {
-      title: "Review one open commitment",
-      description: "Check whether it is still realistic, at risk, or ready to become a task.",
-      href: "/commitments",
-      component_key: "commitments_kept",
-    },
     maintenance_vault: {
-      title: "Handle one overdue maintenance item",
-      description: "Complete, reschedule, or pause one recurring maintenance or vault-related item.",
-      href: "/maintenance",
+      title: "Check one vault date",
+      description: "Renew, update, or clear one document or subscription date that has passed.",
+      href: "/vault",
       component_key: "maintenance_vault",
     },
     life_area_balance: {
@@ -283,8 +276,6 @@ export async function getLifeScoreData(userId: string): Promise<LifeScoreData> {
     goalSummary,
     habitSummary,
     weeklyReview,
-    commitmentSummary,
-    maintenanceSummary,
     vaultSummary,
     lifeAreas,
     activityByArea,
@@ -343,29 +334,6 @@ export async function getLifeScoreData(userId: string): Promise<LifeScoreData> {
         COUNT(*)::int AS total_reviews,
         COUNT(*) FILTER (WHERE week_start = DATE_TRUNC('week', CURRENT_DATE)::date)::int AS current_week_reviews
       FROM weekly_reviews
-      WHERE user_id = ${userId}
-    `, unavailable),
-    safeRows("commitments", sql`
-      SELECT
-        COUNT(*)::int AS total_commitments,
-        COUNT(*) FILTER (WHERE status IN ('open', 'at_risk'))::int AS active_commitments,
-        COUNT(*) FILTER (
-          WHERE status IN ('open', 'at_risk') AND due_date IS NOT NULL AND due_date < CURRENT_DATE
-        )::int AS overdue_commitments,
-        COUNT(*) FILTER (WHERE status = 'missed')::int AS missed_commitments,
-        COUNT(*) FILTER (
-          WHERE status = 'completed' AND COALESCE(updated_at, created_at) >= NOW() - INTERVAL '30 days'
-        )::int AS completed_recent
-      FROM commitments
-      WHERE user_id = ${userId}
-    `, unavailable),
-    safeRows("maintenance_items", sql`
-      SELECT
-        COUNT(*) FILTER (WHERE status = 'active')::int AS active_maintenance,
-        COUNT(*) FILTER (
-          WHERE status = 'active' AND next_due_date IS NOT NULL AND next_due_date < CURRENT_DATE
-        )::int AS overdue_maintenance
-      FROM maintenance_items
       WHERE user_id = ${userId}
     `, unavailable),
     safeRows("vault_items", sql`
@@ -448,22 +416,11 @@ export async function getLifeScoreData(userId: string): Promise<LifeScoreData> {
   const totalReviews = n(reviews.total_reviews)
   const weeklyScore = n(reviews.current_week_reviews) > 0 ? 100 : 65
 
-  const commitments = commitmentSummary[0] ?? {}
-  const totalCommitments = n(commitments.total_commitments)
-  const activeCommitments = n(commitments.active_commitments)
-  const overdueCommitments = n(commitments.overdue_commitments)
-  const missedCommitments = n(commitments.missed_commitments)
-  const completedRecentCommitments = n(commitments.completed_recent)
-  const commitmentBase = activeCommitments + completedRecentCommitments === 0 ? 86 : 100
-  const commitmentScore = commitmentBase - overdueCommitments * 18 - missedCommitments * 10
-
-  const maintenance = maintenanceSummary[0] ?? {}
+  // Maintenance items folded into repeating tasks (2026-11-11), so this part only looks at vault dates.
+  // It keeps the maintenance_vault key so older score history still lines up.
   const vault = vaultSummary[0] ?? {}
-  const overdueMaintenance = n(maintenance.overdue_maintenance)
   const overdueVault = n(vault.overdue_vault)
-  const maintenanceScore = (n(maintenance.active_maintenance) + n(vault.vault_items)) === 0
-    ? 86
-    : 100 - overdueMaintenance * 18 - overdueVault * 12
+  const vaultScore = n(vault.vault_items) === 0 ? 86 : 100 - overdueVault * 12
 
   const lifeAreaCount = lifeAreas.length
   const activeAreaIds = new Set(activityByArea
@@ -483,8 +440,7 @@ export async function getLifeScoreData(userId: string): Promise<LifeScoreData> {
     habit_consistency: ["habits"],
     goals_updated: ["goals"],
     weekly_review_status: ["weekly_reviews"],
-    commitments_kept: ["commitments"],
-    maintenance_vault: ["maintenance_items", "vault_items"],
+    maintenance_vault: ["vault_items"],
     life_area_balance: ["life_areas", "life_area_activity"],
   }
   const isComponentAvailable = (key: LifeScoreComponentKey) =>
@@ -556,29 +512,16 @@ export async function getLifeScoreData(userId: string): Promise<LifeScoreData> {
     }))
   }
 
-  if (totalCommitments > 0 && isComponentAvailable("commitments_kept")) {
-    components.push(component({
-      key: "commitments_kept",
-      label: "Commitments kept",
-      score: commitmentScore,
-      weight: 10,
-      explanation: overdueCommitments === 0 && missedCommitments === 0
-        ? "No open commitments are overdue or marked missed."
-        : `${overdueCommitments} open commitment${overdueCommitments === 1 ? "" : "s"} are overdue and ${missedCommitments} are marked missed.`,
-      href: "/commitments",
-    }))
-  }
-
-  if ((n(maintenance.active_maintenance) + n(vault.vault_items)) > 0 && isComponentAvailable("maintenance_vault")) {
+  if (n(vault.vault_items) > 0 && isComponentAvailable("maintenance_vault")) {
     components.push(component({
       key: "maintenance_vault",
-      label: "Maintenance and vault",
-      score: maintenanceScore,
+      label: "Vault dates",
+      score: vaultScore,
       weight: 10,
-      explanation: overdueMaintenance === 0 && overdueVault === 0
-        ? "Maintenance and vault dates look current."
-        : `${overdueMaintenance + overdueVault} maintenance or vault date${overdueMaintenance + overdueVault === 1 ? "" : "s"} need attention.`,
-      href: "/maintenance",
+      explanation: overdueVault === 0
+        ? "Vault dates look current."
+        : `${overdueVault} vault date${overdueVault === 1 ? "" : "s"} need attention.`,
+      href: "/vault",
     }))
   }
 

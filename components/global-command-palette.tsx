@@ -7,7 +7,6 @@ import {
   BookOpenText,
   CalendarCheck,
   CheckSquare,
-  ClipboardCheck,
   Command,
   DollarSign,
   FileText,
@@ -43,10 +42,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 
 type SearchType =
   | "inbox"
-  | "someday"
-  | "waiting"
-  | "commitments"
-  | "maintenance"
   | "timeline"
   | "tasks"
   | "goals"
@@ -80,10 +75,6 @@ type PaletteMode = "all" | "capture"
 
 const groupIcons: Record<SearchType, typeof Search> = {
   inbox: Inbox,
-  someday: Target,
-  waiting: History,
-  commitments: ClipboardCheck,
-  maintenance: Shield,
   timeline: History,
   tasks: CheckSquare,
   goals: Target,

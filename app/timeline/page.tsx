@@ -21,10 +21,7 @@ import {
   History,
   X,
   Filter,
-  Wrench,
-  Shield,
   Users,
-  ClipboardCheck,
   Sparkles,
 } from "lucide-react"
 import type { EventType, TimelineEvent, LifeAreaRow } from "@/lib/timeline"
@@ -93,29 +90,11 @@ const EVENT_TYPE_CONFIG: Record<
     badge: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
     dot: "bg-amber-500",
   },
-  maintenance_completed: {
-    label: "Maintenance Done",
-    Icon: Wrench,
-    badge: "bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300",
-    dot: "bg-slate-500",
-  },
-  vault_renewal_completed: {
-    label: "Vault Renewal",
-    Icon: Shield,
-    badge: "bg-lime-100 text-lime-700 dark:bg-lime-900/40 dark:text-lime-300",
-    dot: "bg-lime-500",
-  },
   people_followup_completed: {
     label: "Follow-up Done",
     Icon: Users,
     badge: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300",
     dot: "bg-cyan-500",
-  },
-  commitment_completed: {
-    label: "Commitment Done",
-    Icon: ClipboardCheck,
-    badge: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
-    dot: "bg-purple-500",
   },
 }
 
@@ -362,7 +341,7 @@ export default function TimelinePage() {
                 <>
                   <p className="text-sm font-medium">Your timeline is empty.</p>
                   <p className="text-xs text-muted-foreground">
-                    Complete tasks, goals, projects, commitments, maintenance, habits, reviews, and other milestones to see them here.
+                    Complete tasks, goals, projects, habits, reviews and other milestones to see them here.
                   </p>
                 </>
               )}

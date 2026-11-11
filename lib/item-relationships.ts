@@ -19,11 +19,7 @@ export const itemRelationshipTypes = [
   "person",
   "vault_item",
   "wishlist_item",
-  "someday_item",
   "inbox_item",
-  "waiting_item",
-  "commitment",
-  "maintenance_item",
   "custom_section",
 ] as const
 
@@ -65,11 +61,7 @@ const TABLE_BY_TYPE: Record<ItemRelationshipType, string> = {
   person: "people",
   vault_item: "vault_items",
   wishlist_item: "wishlist_items",
-  someday_item: "someday_items",
   inbox_item: "inbox_items",
-  waiting_item: "waiting_items",
-  commitment: "commitments",
-  maintenance_item: "maintenance_items",
   custom_section: "custom_sections",
 }
 

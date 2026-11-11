@@ -11,10 +11,7 @@ export type EventType =
   | "wishlist_purchased"
   | "investment_added"
   | "budget_milestone"
-  | "maintenance_completed"
-  | "vault_renewal_completed"
   | "people_followup_completed"
-  | "commitment_completed"
 
 export type TimelineEvent = {
   id: string
@@ -179,10 +176,7 @@ export async function getTimelineData(userId: string, filters: TimelineFilters =
     investmentRows,
     budgetCategoryRows,
     budgetGoalRows,
-    maintenanceRows,
-    vaultRenewalRows,
     peopleFollowupRows,
-    commitmentRows,
     checkinRows,
     areaRows,
   ] = await Promise.all([
@@ -280,32 +274,6 @@ export async function getTimelineData(userId: string, filters: TimelineFilters =
         AND bg.current_amount >= bg.target_amount
     ` as Promise<Record<string, unknown>[]>),
     safe(sql`
-      SELECT mi.id::text AS source_id, mi.title,
-             (mi.last_completed_date::timestamp + TIME '12:00') AS occurred_at,
-             mi.life_area_id, la.name AS life_area_name, la.icon AS life_area_icon, la.color AS life_area_color,
-             mi.category AS meta1,
-             mi.recurrence AS meta2
-      FROM maintenance_items mi
-      LEFT JOIN life_areas la ON mi.life_area_id = la.id AND la.user_id = ${uid}
-      WHERE mi.user_id = ${uid}
-        AND mi.last_completed_date IS NOT NULL
-    ` as Promise<Record<string, unknown>[]>),
-    safe(sql`
-      SELECT mi.id::text AS source_id,
-             COALESCE(vi.title, mi.title) AS title,
-             (mi.last_completed_date::timestamp + TIME '12:00') AS occurred_at,
-             COALESCE(mi.life_area_id, vi.life_area_id) AS life_area_id,
-             la.name AS life_area_name, la.icon AS life_area_icon, la.color AS life_area_color,
-             mi.title AS meta1,
-             vi.category AS meta2
-      FROM maintenance_items mi
-      JOIN vault_items vi ON mi.vault_item_id = vi.id AND vi.user_id = ${uid}
-      LEFT JOIN life_areas la ON COALESCE(mi.life_area_id, vi.life_area_id) = la.id AND la.user_id = ${uid}
-      WHERE mi.user_id = ${uid}
-        AND mi.last_completed_date IS NOT NULL
-        AND mi.vault_item_id IS NOT NULL
-    ` as Promise<Record<string, unknown>[]>),
-    safe(sql`
       SELECT pr.id::text AS source_id,
              COALESCE(NULLIF(pr.title, ''), 'Follow up with ' || p.name) AS title,
              COALESCE(pr.updated_at, pr.remind_at) AS occurred_at,
@@ -317,16 +285,6 @@ export async function getTimelineData(userId: string, filters: TimelineFilters =
       WHERE pr.user_id = ${uid}
         AND pr.reminder_type = 'follow_up'
         AND pr.is_sent = TRUE
-    ` as Promise<Record<string, unknown>[]>),
-    safe(sql`
-      SELECT c.id::text AS source_id, c.title, c.updated_at AS occurred_at,
-             c.life_area_id, la.name AS life_area_name, la.icon AS life_area_icon, la.color AS life_area_color,
-             c.committed_to AS meta1,
-             c.commitment_type AS meta2
-      FROM commitments c
-      LEFT JOIN life_areas la ON c.life_area_id = la.id AND la.user_id = ${uid}
-      WHERE c.user_id = ${uid}
-        AND c.status = 'completed'
     ` as Promise<Record<string, unknown>[]>),
     safe(sql`
       SELECT hc.checkin_date, hc.habit_id,
@@ -354,10 +312,7 @@ export async function getTimelineData(userId: string, filters: TimelineFilters =
     ...investmentRows.map((r) => makeEvent("investment_added", "Added investment", r, undefined, { symbol: r.meta1 })),
     ...budgetCategoryRows.map((r) => makeEvent("budget_milestone", "Started budget category", r)),
     ...budgetGoalRows.map((r) => makeEvent("budget_milestone", "Reached budget goal", r, `goal-${r.source_id}`, { target_amount: r.meta1, current_amount: r.meta2 })),
-    ...maintenanceRows.map((r) => makeEvent("maintenance_completed", "Completed maintenance", r, undefined, { category: r.meta1, recurrence: r.meta2 })),
-    ...vaultRenewalRows.map((r) => makeEvent("vault_renewal_completed", "Completed vault renewal", r, undefined, { maintenance_item: r.meta1, category: r.meta2 })),
     ...peopleFollowupRows.map((r) => makeEvent("people_followup_completed", "Completed people follow-up", r, undefined, { person: r.meta1 })),
-    ...commitmentRows.map((r) => makeEvent("commitment_completed", "Completed commitment", r, undefined, { committed_to: r.meta1, commitment_type: r.meta2 })),
     ...computeStreakMilestones(checkinRows),
   ]
 

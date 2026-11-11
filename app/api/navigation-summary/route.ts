@@ -9,14 +9,6 @@ type CountKey =
   | "calendarToday"
   | "habitsDueToday"
   | "unsortedInbox"
-  | "waitingFollowUpsDue"
-  | "waitingOverdue"
-  | "commitmentsDueSoon"
-  | "commitmentsAtRisk"
-  | "commitmentsOverdue"
-  | "maintenanceUpcoming"
-  | "maintenanceOverdue"
-  | "somedayReviewDue"
   | "weeklyReviewPending"
   | "unreadNotifications"
 
@@ -26,14 +18,6 @@ const emptyCounts: Record<CountKey, number> = {
   calendarToday: 0,
   habitsDueToday: 0,
   unsortedInbox: 0,
-  waitingFollowUpsDue: 0,
-  waitingOverdue: 0,
-  commitmentsDueSoon: 0,
-  commitmentsAtRisk: 0,
-  commitmentsOverdue: 0,
-  maintenanceUpcoming: 0,
-  maintenanceOverdue: 0,
-  somedayReviewDue: 0,
   weeklyReviewPending: 0,
   unreadNotifications: 0,
 }
@@ -42,12 +26,6 @@ function todayString() {
   const date = new Date()
   const offset = date.getTimezoneOffset()
   return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 10)
-}
-
-function addDays(value: string, days: number) {
-  const date = new Date(`${value}T00:00:00`)
-  date.setDate(date.getDate() + days)
-  return date.toISOString().slice(0, 10)
 }
 
 function weekStart(value: string) {
@@ -91,8 +69,6 @@ export async function GET() {
   }
 
   const today = todayString()
-  const inSevenDays = addDays(today, 7)
-  const inThirtyDays = addDays(today, 30)
   const monday = weekStart(today)
   const dayOfWeek = new Date(`${today}T00:00:00`).getDay()
   const unavailable: string[] = []
@@ -141,68 +117,6 @@ export async function GET() {
       FROM inbox_items
       WHERE user_id = ${user.id}
         AND status = 'unsorted'
-    `, unavailable),
-    safeCount("waitingFollowUpsDue", sql`
-      SELECT COUNT(*) AS count
-      FROM waiting_items
-      WHERE user_id = ${user.id}
-        AND status IN ('waiting', 'follow_up_needed')
-        AND follow_up_date IS NOT NULL
-        AND follow_up_date <= ${today}
-    `, unavailable),
-    safeCount("waitingOverdue", sql`
-      SELECT COUNT(*) AS count
-      FROM waiting_items
-      WHERE user_id = ${user.id}
-        AND status IN ('waiting', 'follow_up_needed')
-        AND expected_date IS NOT NULL
-        AND expected_date < ${today}
-    `, unavailable),
-    safeCount("commitmentsDueSoon", sql`
-      SELECT COUNT(*) AS count
-      FROM commitments
-      WHERE user_id = ${user.id}
-        AND status IN ('open', 'at_risk')
-        AND due_date IS NOT NULL
-        AND due_date BETWEEN ${today} AND ${inSevenDays}
-    `, unavailable),
-    safeCount("commitmentsAtRisk", sql`
-      SELECT COUNT(*) AS count
-      FROM commitments
-      WHERE user_id = ${user.id}
-        AND status = 'at_risk'
-    `, unavailable),
-    safeCount("commitmentsOverdue", sql`
-      SELECT COUNT(*) AS count
-      FROM commitments
-      WHERE user_id = ${user.id}
-        AND status IN ('open', 'at_risk')
-        AND due_date IS NOT NULL
-        AND due_date < ${today}
-    `, unavailable),
-    safeCount("maintenanceUpcoming", sql`
-      SELECT COUNT(*) AS count
-      FROM maintenance_items
-      WHERE user_id = ${user.id}
-        AND status = 'active'
-        AND next_due_date IS NOT NULL
-        AND next_due_date BETWEEN ${today} AND ${inThirtyDays}
-    `, unavailable),
-    safeCount("maintenanceOverdue", sql`
-      SELECT COUNT(*) AS count
-      FROM maintenance_items
-      WHERE user_id = ${user.id}
-        AND status = 'active'
-        AND next_due_date IS NOT NULL
-        AND next_due_date < ${today}
-    `, unavailable),
-    safeCount("somedayReviewDue", sql`
-      SELECT COUNT(*) AS count
-      FROM someday_items
-      WHERE user_id = ${user.id}
-        AND status = 'someday'
-        AND review_date IS NOT NULL
-        AND review_date <= ${today}
     `, unavailable),
     safeCount("weeklyReviewPending", sql`
       SELECT CASE WHEN EXISTS (

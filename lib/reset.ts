@@ -6,9 +6,6 @@ export type ResetItemType =
   | "project"
   | "habit"
   | "inbox"
-  | "waiting"
-  | "commitment"
-  | "maintenance"
 
 export type ResetActionType = "reschedule" | "mark_complete" | "archive" | "delete" | "move_someday"
 
@@ -34,9 +31,6 @@ export type ResetSection = {
     | "inactive_projects"
     | "missed_habits"
     | "unsorted_inbox"
-    | "overdue_waiting"
-    | "overdue_commitments"
-    | "overdue_maintenance"
     | "upcoming_deadlines"
   title: string
   description: string
@@ -140,14 +134,9 @@ export async function getResetData(userId: string) {
     inactiveProjects,
     missedHabits,
     unsortedInbox,
-    overdueWaiting,
-    overdueCommitments,
-    overdueMaintenance,
     upcomingTasks,
     upcomingGoals,
     upcomingProjects,
-    upcomingCommitments,
-    upcomingMaintenance,
   ] = await Promise.all([
     safeRows("life_areas", sql`
       SELECT id::text, name, icon, color
@@ -160,6 +149,7 @@ export async function getResetData(userId: string) {
       FROM tasks
       WHERE user_id = ${userId}
         AND completed IS NOT TRUE
+        AND COALESCE(status, 'next') <> 'someday'
         AND due_date IS NOT NULL
         AND due_date < CURRENT_DATE
       ORDER BY due_date ASC, updated_at DESC NULLS LAST
@@ -216,38 +206,6 @@ export async function getResetData(userId: string) {
       ORDER BY updated_at DESC, created_at DESC
       LIMIT 40
     `, unavailable),
-    safeRows("overdue_waiting", sql`
-      SELECT id, title, description, waiting_on_name, status, expected_date, follow_up_date, updated_at, created_at, life_area_id
-      FROM waiting_items
-      WHERE user_id = ${userId}
-        AND status IN ('waiting', 'follow_up_needed')
-        AND (
-          (expected_date IS NOT NULL AND expected_date < CURRENT_DATE)
-          OR (follow_up_date IS NOT NULL AND follow_up_date <= CURRENT_DATE)
-        )
-      ORDER BY follow_up_date ASC NULLS LAST, expected_date ASC NULLS LAST, updated_at DESC
-      LIMIT 40
-    `, unavailable),
-    safeRows("overdue_commitments", sql`
-      SELECT id, title, description, committed_to, status, commitment_type, due_date, updated_at, created_at, life_area_id
-      FROM commitments
-      WHERE user_id = ${userId}
-        AND status IN ('open', 'at_risk')
-        AND due_date IS NOT NULL
-        AND due_date < CURRENT_DATE
-      ORDER BY due_date ASC, updated_at DESC
-      LIMIT 40
-    `, unavailable),
-    safeRows("overdue_maintenance", sql`
-      SELECT id, title, notes AS description, category, status, recurrence, next_due_date, updated_at, created_at, life_area_id
-      FROM maintenance_items
-      WHERE user_id = ${userId}
-        AND status = 'active'
-        AND next_due_date IS NOT NULL
-        AND next_due_date < CURRENT_DATE
-      ORDER BY next_due_date ASC, updated_at DESC
-      LIMIT 40
-    `, unavailable),
     safeRows("upcoming_tasks", sql`
       SELECT id, title, priority, due_date, updated_at, created_at, life_area_id
       FROM tasks
@@ -278,26 +236,6 @@ export async function getResetData(userId: string) {
       ORDER BY due_date ASC
       LIMIT 20
     `, unavailable),
-    safeRows("upcoming_commitments", sql`
-      SELECT id, title, due_date, status, updated_at, created_at, life_area_id
-      FROM commitments
-      WHERE user_id = ${userId}
-        AND status IN ('open', 'at_risk')
-        AND due_date >= CURRENT_DATE
-        AND due_date <= CURRENT_DATE + INTERVAL '14 days'
-      ORDER BY due_date ASC
-      LIMIT 20
-    `, unavailable),
-    safeRows("upcoming_maintenance", sql`
-      SELECT id, title, next_due_date, status, updated_at, created_at, life_area_id
-      FROM maintenance_items
-      WHERE user_id = ${userId}
-        AND status = 'active'
-        AND next_due_date >= CURRENT_DATE
-        AND next_due_date <= CURRENT_DATE + INTERVAL '14 days'
-      ORDER BY next_due_date ASC
-      LIMIT 20
-    `, unavailable),
   ])
 
   const upcoming = [
@@ -320,20 +258,6 @@ export async function getResetData(userId: string) {
       href: `/projects/${row.id}`,
       date: dateOnly(row.due_date),
       reason: "Project deadline is approaching",
-      actions: ["reschedule", "mark_complete", "archive", "move_someday", "delete"],
-    })),
-    ...upcomingCommitments.map((row) => item(row, "commitment", {
-      subtitle: "Commitment due soon",
-      href: "/commitments",
-      date: dateOnly(row.due_date),
-      reason: "Commitment deadline is approaching",
-      actions: ["reschedule", "mark_complete", "archive", "move_someday", "delete"],
-    })),
-    ...upcomingMaintenance.map((row) => item(row, "maintenance", {
-      subtitle: "Maintenance due soon",
-      href: "/maintenance",
-      date: dateOnly(row.next_due_date),
-      reason: "Maintenance is due soon",
       actions: ["reschedule", "mark_complete", "archive", "move_someday", "delete"],
     })),
   ].sort((a, b) => new Date(a.date || "").getTime() - new Date(b.date || "").getTime()).slice(0, 40)
@@ -400,42 +324,6 @@ export async function getResetData(userId: string) {
       })),
     },
     {
-      key: "overdue_waiting",
-      title: "Overdue Waiting For",
-      description: "Waiting items whose expected or follow-up date has passed.",
-      items: overdueWaiting.map((row) => item(row, "waiting", {
-        subtitle: row.waiting_on_name ? `Waiting on ${row.waiting_on_name}` : "Waiting item",
-        href: "/waiting",
-        date: dateOnly(row.follow_up_date || row.expected_date),
-        reason: row.follow_up_date ? "Follow-up is due" : "Expected date has passed",
-        actions: ["reschedule", "mark_complete", "archive", "move_someday", "delete"],
-      })),
-    },
-    {
-      key: "overdue_commitments",
-      title: "Overdue Commitments",
-      description: "Open commitments with due dates before today.",
-      items: overdueCommitments.map((row) => item(row, "commitment", {
-        subtitle: row.committed_to ? `Committed to ${row.committed_to}` : "Commitment",
-        href: "/commitments",
-        date: dateOnly(row.due_date),
-        reason: "Due date has passed",
-        actions: ["reschedule", "mark_complete", "archive", "move_someday", "delete"],
-      })),
-    },
-    {
-      key: "overdue_maintenance",
-      title: "Overdue Maintenance",
-      description: "Active maintenance items with due dates before today.",
-      items: overdueMaintenance.map((row) => item(row, "maintenance", {
-        subtitle: row.category ? `${row.category} maintenance` : "Maintenance",
-        href: "/maintenance",
-        date: dateOnly(row.next_due_date),
-        reason: "Maintenance due date has passed",
-        actions: ["reschedule", "mark_complete", "archive", "move_someday", "delete"],
-      })),
-    },
-    {
       key: "upcoming_deadlines",
       title: "Upcoming Deadlines",
       description: "Things due in the next 14 days that may need rescheduling or focus.",
@@ -451,7 +339,9 @@ export async function getResetData(userId: string) {
     unavailable: Array.from(new Set(unavailable)),
     counts: {
       total: allItems.length,
-      urgent: sections.slice(0, 8).reduce((sum, section) => sum + section.items.length, 0),
+      urgent: sections
+        .filter((section) => section.key !== "upcoming_deadlines")
+        .reduce((sum, section) => sum + section.items.length, 0),
       upcoming: upcoming.length,
       unavailable: new Set(unavailable).size,
     },
@@ -521,47 +411,6 @@ export async function applyResetAction(userId: string, input: ResetActionInput) 
   if (type === "inbox") {
     if (action === "archive") return changed(await sql`UPDATE inbox_items SET status = 'archived', updated_at = NOW() WHERE id = ${itemId} AND user_id = ${userId} RETURNING id`)
     if (action === "delete") return changed(await sql`DELETE FROM inbox_items WHERE id = ${itemId} AND user_id = ${userId} RETURNING id`)
-  }
-
-  if (type === "waiting") {
-    if (action === "reschedule") return changed(await sql`UPDATE waiting_items SET follow_up_date = ${targetDate}, status = 'follow_up_needed', updated_at = NOW() WHERE id = ${itemId} AND user_id = ${userId} RETURNING id`)
-    if (action === "mark_complete") return changed(await sql`UPDATE waiting_items SET status = 'resolved', updated_at = NOW() WHERE id = ${itemId} AND user_id = ${userId} RETURNING id`)
-    if (action === "archive") return changed(await sql`UPDATE waiting_items SET status = 'cancelled', updated_at = NOW() WHERE id = ${itemId} AND user_id = ${userId} RETURNING id`)
-    if (action === "move_someday") return changed(await sql`UPDATE waiting_items SET expected_date = NULL, follow_up_date = NULL, status = 'waiting', updated_at = NOW() WHERE id = ${itemId} AND user_id = ${userId} RETURNING id`)
-    if (action === "delete") return changed(await sql`DELETE FROM waiting_items WHERE id = ${itemId} AND user_id = ${userId} RETURNING id`)
-  }
-
-  if (type === "commitment") {
-    if (action === "reschedule") return changed(await sql`UPDATE commitments SET due_date = ${targetDate}, updated_at = NOW() WHERE id = ${itemId} AND user_id = ${userId} RETURNING id`)
-    if (action === "mark_complete") return changed(await sql`UPDATE commitments SET status = 'completed', updated_at = NOW() WHERE id = ${itemId} AND user_id = ${userId} RETURNING id`)
-    if (action === "archive") return changed(await sql`UPDATE commitments SET status = 'cancelled', updated_at = NOW() WHERE id = ${itemId} AND user_id = ${userId} RETURNING id`)
-    if (action === "move_someday") return changed(await sql`UPDATE commitments SET due_date = NULL, status = 'open', updated_at = NOW() WHERE id = ${itemId} AND user_id = ${userId} RETURNING id`)
-    if (action === "delete") return changed(await sql`DELETE FROM commitments WHERE id = ${itemId} AND user_id = ${userId} RETURNING id`)
-  }
-
-  if (type === "maintenance") {
-    if (action === "reschedule") return changed(await sql`UPDATE maintenance_items SET next_due_date = ${targetDate}, updated_at = NOW() WHERE id = ${itemId} AND user_id = ${userId} RETURNING id`)
-    if (action === "mark_complete") {
-      return changed(await sql`
-        UPDATE maintenance_items
-        SET
-          last_completed_date = CURRENT_DATE,
-          next_due_date = CASE
-            WHEN recurrence = 'weekly' THEN CURRENT_DATE + INTERVAL '7 days'
-            WHEN recurrence = 'monthly' THEN CURRENT_DATE + INTERVAL '1 month'
-            WHEN recurrence = 'quarterly' THEN CURRENT_DATE + INTERVAL '3 months'
-            WHEN recurrence = 'yearly' THEN CURRENT_DATE + INTERVAL '1 year'
-            ELSE CURRENT_DATE + (GREATEST(COALESCE(custom_interval_days, 30), 1) || ' days')::interval
-          END,
-          status = 'active',
-          updated_at = NOW()
-        WHERE id = ${itemId} AND user_id = ${userId}
-        RETURNING id
-      `)
-    }
-    if (action === "archive") return changed(await sql`UPDATE maintenance_items SET status = 'paused', updated_at = NOW() WHERE id = ${itemId} AND user_id = ${userId} RETURNING id`)
-    if (action === "move_someday") return changed(await sql`UPDATE maintenance_items SET status = 'paused', next_due_date = NULL, updated_at = NOW() WHERE id = ${itemId} AND user_id = ${userId} RETURNING id`)
-    if (action === "delete") return changed(await sql`DELETE FROM maintenance_items WHERE id = ${itemId} AND user_id = ${userId} RETURNING id`)
   }
 
   return { ok: false, error: "Action is not supported for this item" }

@@ -53,10 +53,6 @@ function toNumber(value: unknown) {
   return Number.isFinite(parsed) ? parsed : 0
 }
 
-function dateKey(value: unknown) {
-  return value ? String(value).slice(0, 10) : ""
-}
-
 function cleanEnergyLevel(value: unknown) {
   const normalized = text(value, "medium").toLowerCase()
   return energyLevels.has(normalized) ? normalized : "medium"
@@ -275,49 +271,6 @@ function projectItem(project: Row, label?: string) {
   }
 }
 
-function waitingItem(item: Row, label?: string) {
-  const date = (item.follow_up_date || item.expected_date || null) as string | Date | null
-  return {
-    id: `waiting-${item.id}`,
-    source_type: "waiting",
-    source_id: String(item.id),
-    title: String(item.title || "Waiting item"),
-    subtitle: label || [item.waiting_on_name, date].filter(Boolean).join(" · "),
-    href: "/waiting",
-    custom: false,
-    priority: "medium",
-    date,
-  }
-}
-
-function commitmentItem(item: Row, label?: string) {
-  return {
-    id: `commitment-${item.id}`,
-    source_type: "commitment",
-    source_id: String(item.id),
-    title: String(item.title || "Commitment"),
-    subtitle: label || [item.committed_to, item.due_date].filter(Boolean).join(" · "),
-    href: "/commitments",
-    custom: false,
-    priority: item.status === "at_risk" ? "high" : "medium",
-    date: (item.due_date || null) as string | Date | null,
-  }
-}
-
-function maintenanceItem(item: Row, label?: string) {
-  return {
-    id: `maintenance-${item.id}`,
-    source_type: "maintenance",
-    source_id: String(item.id),
-    title: String(item.title || "Maintenance item"),
-    subtitle: label || [item.category, item.next_due_date].filter(Boolean).join(" · "),
-    href: "/maintenance",
-    custom: false,
-    priority: "medium",
-    date: (item.next_due_date || null) as string | Date | null,
-  }
-}
-
 function noteItem(note: Row) {
   return {
     id: `note-${note.id}`,
@@ -386,9 +339,6 @@ async function getDerivedCandidates(userId: string, planDate: string) {
     todayGoals,
     overdueProjects,
     todayProjects,
-    waitingDue,
-    commitmentsDue,
-    maintenanceDue,
     undatedTasks,
     upcomingTasks,
     upcomingGoals,
@@ -462,38 +412,6 @@ async function getDerivedCandidates(userId: string, planDate: string) {
       ORDER BY
         CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
         updated_at DESC NULLS LAST
-      LIMIT 8
-    `, unavailable),
-    safeRows("waiting due", sql`
-      SELECT id, title, waiting_on_name, status, expected_date, follow_up_date, updated_at, created_at
-      FROM waiting_items
-      WHERE user_id = ${userId}
-        AND status IN ('waiting', 'follow_up_needed')
-        AND (
-          (follow_up_date IS NOT NULL AND follow_up_date <= ${planDate})
-          OR (expected_date IS NOT NULL AND expected_date <= ${planDate})
-        )
-      ORDER BY follow_up_date ASC NULLS LAST, expected_date ASC NULLS LAST, updated_at DESC NULLS LAST
-      LIMIT 8
-    `, unavailable),
-    safeRows("commitments due", sql`
-      SELECT id, title, committed_to, status, due_date, updated_at, created_at
-      FROM commitments
-      WHERE user_id = ${userId}
-        AND status IN ('open', 'at_risk')
-        AND due_date IS NOT NULL
-        AND due_date <= ${planDate}
-      ORDER BY due_date ASC, updated_at DESC NULLS LAST
-      LIMIT 8
-    `, unavailable),
-    safeRows("maintenance due", sql`
-      SELECT id, title, category, next_due_date, updated_at, created_at
-      FROM maintenance_items
-      WHERE user_id = ${userId}
-        AND status = 'active'
-        AND next_due_date IS NOT NULL
-        AND next_due_date <= ${planDate}
-      ORDER BY next_due_date ASC, updated_at DESC NULLS LAST
       LIMIT 8
     `, unavailable),
     safeRows("undated tasks", sql`
@@ -610,18 +528,6 @@ async function getDerivedCandidates(userId: string, planDate: string) {
     ...todayGoals.map((goal) => goalItem(goal, "Goal due today")),
     ...overdueProjects.map((project) => projectItem(project, `Project was due ${project.due_date}`)),
     ...todayProjects.map((project) => projectItem(project, "Project due today")),
-    ...waitingDue.map((item) => {
-      const date = dateKey(item.follow_up_date || item.expected_date)
-      return waitingItem(item, date && date < planDate ? `Follow-up was due ${date}` : "Follow-up due today")
-    }),
-    ...commitmentsDue.map((item) => {
-      const date = dateKey(item.due_date)
-      return commitmentItem(item, date < planDate ? `Commitment was due ${date}` : "Commitment due today")
-    }),
-    ...maintenanceDue.map((item) => {
-      const date = dateKey(item.next_due_date)
-      return maintenanceItem(item, date < planDate ? `Maintenance was due ${date}` : "Maintenance due today")
-    }),
   ].slice(0, 20)
   const dueOrOverdueItemCount =
     overdueTasks.length +
@@ -629,10 +535,7 @@ async function getDerivedCandidates(userId: string, planDate: string) {
     overdueGoals.length +
     todayGoals.length +
     overdueProjects.length +
-    todayProjects.length +
-    waitingDue.length +
-    commitmentsDue.length +
-    maintenanceDue.length
+    todayProjects.length
 
   const mustDo = [
     ...todayToDo,
@@ -711,8 +614,7 @@ async function getDerivedCandidates(userId: string, planDate: string) {
         ...todayGoals,
         ...overdueProjects,
         ...todayProjects,
-        ...commitmentsDue.filter((item) => item.status === "at_risk"),
-      ].filter((item) => item.priority === "high" || item.status === "at_risk").length,
+      ].filter((item) => item.priority === "high").length,
     },
   }
 }

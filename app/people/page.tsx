@@ -79,9 +79,8 @@ type PersonLink = {
   item_href: string
 }
 
+// Commitments and Waiting For folded into Tasks (2026-11-11), so a person only counts linked tasks.
 type PersonCounts = {
-  commitments: number
-  waiting: number
   tasks: number
 }
 
@@ -502,14 +501,8 @@ function PersonCard({
               </div>
             )}
 
-            {counts && (counts.commitments > 0 || counts.waiting > 0 || counts.tasks > 0) && (
+            {counts && counts.tasks > 0 && (
               <div className="mt-3 flex flex-wrap gap-1.5">
-                {counts.commitments > 0 && (
-                  <Badge variant="secondary" className="text-xs">{counts.commitments} commitments</Badge>
-                )}
-                {counts.waiting > 0 && (
-                  <Badge variant="secondary" className="text-xs">{counts.waiting} waiting</Badge>
-                )}
                 {counts.tasks > 0 && (
                   <Badge variant="secondary" className="text-xs">{counts.tasks} tasks</Badge>
                 )}
@@ -800,27 +793,8 @@ export default function PeoplePage() {
 
     const entries = await Promise.all(
       items.map(async (person): Promise<[number, PersonCounts]> => {
-        const [commitmentsRes, waitingRes, linksRes] = await Promise.allSettled([
-          fetch(`/api/commitments?person_id=${person.id}&view=open&limit=100`),
-          fetch(`/api/waiting?person_id=${person.id}&view=all&limit=100`),
-          fetch(`/api/people/links?person_id=${person.id}`),
-        ])
+        const [linksRes] = await Promise.allSettled([fetch(`/api/people/links?person_id=${person.id}`)])
 
-        const commitments =
-          commitmentsRes.status === "fulfilled" && commitmentsRes.value.ok
-            ? await commitmentsRes.value.json().then((data) => (Array.isArray(data) ? data.length : 0)).catch(() => 0)
-            : 0
-        const waiting =
-          waitingRes.status === "fulfilled" && waitingRes.value.ok
-            ? await waitingRes.value
-                .json()
-                .then((data) =>
-                  Array.isArray(data)
-                    ? data.filter((item: { status?: string }) => item.status !== "resolved" && item.status !== "cancelled").length
-                    : 0,
-                )
-                .catch(() => 0)
-            : 0
         const tasks =
           linksRes.status === "fulfilled" && linksRes.value.ok
             ? await linksRes.value
@@ -829,7 +803,7 @@ export default function PeoplePage() {
                 .catch(() => 0)
             : 0
 
-        return [person.id, { commitments, waiting, tasks }]
+        return [person.id, { tasks }]
       }),
     )
 
