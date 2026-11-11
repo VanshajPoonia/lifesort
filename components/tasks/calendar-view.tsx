@@ -92,6 +92,7 @@ interface Task {
   title: string
   description?: string | null
   completed: boolean
+  status?: string | null
   priority: "low" | "medium" | "high"
   due_date?: string | null
   due_time?: string | null
@@ -218,6 +219,7 @@ function normalizeTask(raw: Record<string, unknown>): Task {
     title: typeof raw.title === "string" ? raw.title : "Untitled task",
     description: typeof raw.description === "string" ? raw.description : null,
     completed: Boolean(raw.completed),
+    status: typeof raw.status === "string" ? raw.status : null,
     priority,
     due_date: typeof raw.due_date === "string" ? raw.due_date.slice(0, 10) : null,
     due_time: typeof raw.due_time === "string" ? raw.due_time.slice(0, 5) : null,
@@ -387,8 +389,10 @@ export function CalendarView() {
   const todayKey = toDateKey(new Date())
   const selectedDateKey = toDateKey(selectedDate)
 
-  const draftTasks = useMemo(() => tasks.filter((task) => !task.completed && !task.due_date), [tasks])
-  const scheduledTasks = useMemo(() => tasks.filter((task) => !task.completed && task.due_date), [tasks])
+  // Tasks parked as Later stay off the calendar, the same as on Today.
+  const activeTasks = useMemo(() => tasks.filter((task) => !task.completed && task.status !== "someday"), [tasks])
+  const draftTasks = useMemo(() => activeTasks.filter((task) => !task.due_date), [activeTasks])
+  const scheduledTasks = useMemo(() => activeTasks.filter((task) => task.due_date), [activeTasks])
 
   const itemsByDate = useMemo(() => {
     const map = new Map<string, CalendarDisplayItem[]>()
