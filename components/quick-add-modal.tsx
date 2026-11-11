@@ -67,7 +67,17 @@ type QuickAddConfig = {
   icon: ElementType
   fields: QuickAddField[]
   buildPayload: (values: Record<string, string>) => Record<string, unknown>
+  // Runs after the item is created, for settings that live on their own endpoint.
+  afterCreate?: (item: { id?: number | string } | null, values: Record<string, string>) => Promise<void>
 }
+
+// Repeating tasks replaced Maintenance items (Stage 1 step 3).
+const repeatOptions = [
+  { value: "weekly", label: "Every week" },
+  { value: "monthly", label: "Every month" },
+  { value: "yearly", label: "Every year" },
+  { value: "daily", label: "Every day" },
+]
 
 const priorityOptions = [
   { value: "low", label: "Low" },
@@ -107,61 +117,6 @@ const investmentTypeOptions = [
   { value: "other", label: "Other" },
 ]
 
-const waitingOnTypeOptions = [
-  { value: "person", label: "Person" },
-  { value: "company", label: "Company" },
-  { value: "school", label: "School" },
-  { value: "bank", label: "Bank" },
-  { value: "government", label: "Government" },
-  { value: "delivery", label: "Delivery" },
-  { value: "refund", label: "Refund" },
-  { value: "job", label: "Job" },
-  { value: "other", label: "Other" },
-]
-
-const commitmentTypeOptions = [
-  { value: "personal", label: "Personal" },
-  { value: "work", label: "Work" },
-  { value: "school", label: "School" },
-  { value: "family", label: "Family" },
-  { value: "friend", label: "Friend" },
-  { value: "client", label: "Client" },
-  { value: "financial", label: "Financial" },
-  { value: "other", label: "Other" },
-]
-
-const maintenanceCategoryOptions = [
-  { value: "home", label: "Home" },
-  { value: "vehicle", label: "Vehicle" },
-  { value: "health", label: "Health" },
-  { value: "finance", label: "Finance" },
-  { value: "digital", label: "Digital" },
-  { value: "school", label: "School" },
-  { value: "work", label: "Work" },
-  { value: "business", label: "Business" },
-  { value: "other", label: "Other" },
-]
-
-const maintenanceRecurrenceOptions = [
-  { value: "weekly", label: "Weekly" },
-  { value: "monthly", label: "Monthly" },
-  { value: "quarterly", label: "Quarterly" },
-  { value: "yearly", label: "Yearly" },
-  { value: "custom", label: "Custom" },
-]
-
-const somedayCategoryOptions = [
-  { value: "idea", label: "Idea" },
-  { value: "project", label: "Project" },
-  { value: "purchase", label: "Purchase" },
-  { value: "travel", label: "Travel" },
-  { value: "learning", label: "Learning" },
-  { value: "relationship", label: "Relationship" },
-  { value: "finance", label: "Finance" },
-  { value: "health", label: "Health" },
-  { value: "other", label: "Other" },
-]
-
 function numericValue(value: string) {
   if (!value.trim()) return null
   const parsed = Number.parseFloat(value)
@@ -197,94 +152,91 @@ const quickAddConfigs: QuickAddConfig[] = [
       source: "quick_add",
     }),
   },
+  // Someday, Waiting, Commitments and Maintenance are tasks now (Stage 1 step 3).
+  // The type keys stay so existing callers keep working.
   {
     type: "someday",
-    label: "Someday",
-    description: "Save a maybe-one-day idea",
-    endpoint: "/api/someday",
-    eventType: "someday",
+    label: "Later",
+    description: "Park something for another time",
+    endpoint: "/api/tasks",
+    eventType: "task",
     icon: Lightbulb,
     fields: [
       { name: "title", label: "Title", type: "text", required: true, placeholder: "Learn pottery, visit Japan, build a tiny app..." },
-      { name: "category", label: "Category", type: "select", options: somedayCategoryOptions },
-      { name: "review_date", label: "Review date", type: "date" },
-      { name: "description", label: "Description", type: "textarea", placeholder: "Optional notes for future you..." },
+      { name: "description", label: "Note", type: "textarea", placeholder: "Optional notes for future you..." },
     ],
     buildPayload: (values) => ({
       title: values.title,
       description: values.description || null,
-      category: values.category || "idea",
-      review_date: values.review_date || null,
+      priority: "medium",
       status: "someday",
     }),
   },
   {
     type: "waiting",
-    label: "Waiting For",
-    description: "Track a follow-up",
-    endpoint: "/api/waiting",
-    eventType: "waiting",
+    label: "Waiting on",
+    description: "Something in someone else's hands",
+    endpoint: "/api/tasks",
+    eventType: "task",
     icon: Clock,
     fields: [
       { name: "title", label: "Title", type: "text", required: true, placeholder: "Refund from airline" },
-      { name: "waiting_on_name", label: "Waiting on", type: "text", required: true, placeholder: "Airline support" },
-      { name: "waiting_on_type", label: "Type", type: "select", options: waitingOnTypeOptions },
-      { name: "expected_date", label: "Expected date", type: "date" },
-      { name: "follow_up_date", label: "Follow-up date", type: "date" },
+      { name: "waiting_on", label: "Waiting on", type: "text", placeholder: "Airline support" },
+      { name: "due_date", label: "Check back on", type: "date" },
     ],
     buildPayload: (values) => ({
       title: values.title,
-      waiting_on_name: values.waiting_on_name,
-      waiting_on_type: values.waiting_on_type || "other",
-      expected_date: values.expected_date || null,
-      follow_up_date: values.follow_up_date || null,
+      description: values.waiting_on ? `Waiting on ${values.waiting_on}` : null,
+      due_date: values.due_date || null,
+      priority: "medium",
       status: "waiting",
     }),
   },
   {
     type: "commitment",
-    label: "Commitment",
-    description: "Track a promise",
-    endpoint: "/api/commitments",
-    eventType: "commitment",
+    label: "Promise",
+    description: "Something you told someone you'd do",
+    endpoint: "/api/tasks",
+    eventType: "task",
     icon: ClipboardCheck,
     fields: [
       { name: "title", label: "Title", type: "text", required: true, placeholder: "Send recommendation letter" },
-      { name: "committed_to", label: "Committed to", type: "text", required: true, placeholder: "My friend, team, client, or myself" },
-      { name: "commitment_type", label: "Type", type: "select", options: commitmentTypeOptions },
+      { name: "committed_to", label: "Promised to", type: "text", placeholder: "A friend, your team, a client" },
       { name: "due_date", label: "Due date", type: "date" },
     ],
     buildPayload: (values) => ({
       title: values.title,
-      committed_to: values.committed_to,
-      commitment_type: values.commitment_type || "personal",
+      description: values.committed_to ? `Promised to ${values.committed_to}` : null,
       due_date: values.due_date || null,
-      status: "open",
+      priority: "medium",
     }),
   },
   {
     type: "maintenance",
-    label: "Maintenance",
-    description: "Track a recurring life responsibility",
-    endpoint: "/api/maintenance",
-    eventType: "maintenance",
+    label: "Repeating task",
+    description: "Something that comes round again",
+    endpoint: "/api/tasks",
+    eventType: "task",
     icon: Wrench,
     fields: [
       { name: "title", label: "Title", type: "text", required: true, placeholder: "Renew domain, book checkup, review subscriptions" },
-      { name: "category", label: "Category", type: "select", options: maintenanceCategoryOptions },
-      { name: "recurrence", label: "Recurrence", type: "select", options: maintenanceRecurrenceOptions },
-      { name: "next_due_date", label: "Next due date", type: "date" },
-      { name: "reminder_days_before", label: "Reminder days before", type: "number" },
+      { name: "frequency", label: "Repeats", type: "select", options: repeatOptions },
+      { name: "due_date", label: "Next due", type: "date", required: true },
     ],
     buildPayload: (values) => ({
       title: values.title,
-      category: values.category || "other",
-      recurrence: values.recurrence || "monthly",
-      custom_interval_days: values.recurrence === "custom" ? 30 : null,
-      next_due_date: values.next_due_date || null,
-      reminder_days_before: numericValue(values.reminder_days_before) ?? 7,
-      status: "active",
+      due_date: values.due_date || null,
+      priority: "medium",
     }),
+    afterCreate: async (item, values) => {
+      if (!item?.id) throw new Error("Task was not returned")
+      const response = await fetch(`/api/tasks/${item.id}/recurrence`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ frequency: values.frequency || "monthly", interval_count: 1, repeat_after_completion: false }),
+      })
+      if (!response.ok) throw new Error("Repeat could not be saved")
+    },
   },
   {
     type: "task",
@@ -514,10 +466,10 @@ const quickAddConfigs: QuickAddConfig[] = [
 
 const defaultValues: Record<QuickAddType, Record<string, string>> = {
   inbox: {},
-  someday: { category: "idea" },
-  waiting: { waiting_on_type: "person" },
-  commitment: { commitment_type: "personal" },
-  maintenance: { category: "other", recurrence: "monthly", reminder_days_before: "7" },
+  someday: {},
+  waiting: {},
+  commitment: {},
+  maintenance: { frequency: "monthly" },
   task: { priority: "medium" },
   goal: { category: "personal", priority: "medium" },
   note: {},
@@ -599,6 +551,16 @@ export function QuickAddModal({ open, onOpenChange, initialType, initialValues }
         throw new Error(data?.error || `Failed to create ${config.label.toLowerCase()}.`)
       }
 
+      let savedNote = "Saved to LifeSort."
+      if (config.afterCreate) {
+        try {
+          await config.afterCreate(data, values)
+        } catch (afterError) {
+          console.error("Quick add follow-up failed:", afterError)
+          savedNote = "Saved, but the repeat couldn't be set. Open the task in Tasks to set it."
+        }
+      }
+
       window.dispatchEvent(
         new CustomEvent("lifesort:quick-add-created", {
           detail: { type: config.eventType, item: data },
@@ -607,7 +569,7 @@ export function QuickAddModal({ open, onOpenChange, initialType, initialValues }
 
       toast({
         title: `${config.label} added`,
-        description: "Saved to LifeSort.",
+        description: savedNote,
       })
       setValues(defaultValues[activeType] || {})
       onOpenChange(false)

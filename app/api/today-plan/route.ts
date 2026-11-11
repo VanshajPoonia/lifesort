@@ -404,6 +404,7 @@ async function getDerivedCandidates(userId: string, planDate: string) {
       FROM tasks
       WHERE user_id = ${userId}
         AND completed = false
+        AND COALESCE(status, 'next') <> 'someday'
         AND due_date IS NOT NULL
         AND due_date < ${planDate}
       ORDER BY due_date ASC, priority DESC, updated_at DESC NULLS LAST
@@ -414,6 +415,7 @@ async function getDerivedCandidates(userId: string, planDate: string) {
       FROM tasks
       WHERE user_id = ${userId}
         AND completed = false
+        AND COALESCE(status, 'next') <> 'someday'
         AND due_date = ${planDate}
       ORDER BY
         CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,

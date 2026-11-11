@@ -112,6 +112,7 @@ type TodayTab = "today" | "week"
 type WeekTask = {
   id: number | string
   title: string
+  status?: string | null
   priority?: string | null
   completed?: boolean
   due_date?: string | null
@@ -1922,8 +1923,10 @@ function WeekPlanner() {
     ])
     const weekTasks = weekTasksRes.ok ? await weekTasksRes.json() : []
     const overdueTasks = overdueRes.ok ? await overdueRes.json() : []
+    const all: WeekTask[] = [...(Array.isArray(overdueTasks) ? overdueTasks : []), ...(Array.isArray(weekTasks) ? weekTasks : [])]
     return {
-      tasks: [...(Array.isArray(overdueTasks) ? overdueTasks : []), ...(Array.isArray(weekTasks) ? weekTasks : [])],
+      // Later tasks are parked, so the week planner leaves them out like Today does.
+      tasks: all.filter((task) => task.status !== "someday"),
       focusByDate: Object.fromEntries(
         week.map((day, index) => [day.key, Array.isArray(planResults[index]?.plan?.focus_items) ? planResults[index].plan.focus_items : []]),
       ) as Record<string, TodayItem[]>,

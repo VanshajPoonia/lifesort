@@ -4,16 +4,11 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import {
   BookOpenText,
-  CalendarDays,
   CheckSquare,
-  ClipboardCheck,
-  Clock,
   FileText,
-  Flame,
   FolderPlus,
   Inbox,
   Link2,
-  Lightbulb,
   Map,
   Paintbrush,
   Plus,
@@ -23,7 +18,6 @@ import {
   Timer,
   Users,
   Wand2,
-  Wrench,
   Zap,
 } from "lucide-react"
 
@@ -31,12 +25,12 @@ import { DashboardLayout } from "@/components/dashboard-layout"
 import { HubGrid, HubHero, type HubCard } from "@/components/hub-page"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
-type WorkspaceTab = "plan" | "capture" | "visual" | "systems" | "follow-ups"
+type WorkspaceTab = "plan" | "capture" | "visual" | "systems"
 
 const planCards: HubCard[] = [
   {
     title: "Tasks",
-    description: "Daily actions, due dates, priorities, and linked goal work.",
+    description: "Your list, board, calendar and habits. Waiting and Later live here too.",
     href: "/tasks",
     icon: CheckSquare,
     statusKey: "overdueTasks",
@@ -57,25 +51,6 @@ const planCards: HubCard[] = [
     href: "/projects",
     icon: FolderPlus,
     priority: "primary",
-  },
-  {
-    title: "Habits & Routines",
-    description: "Keep recurring practices and routines visible.",
-    href: "/tasks?tab=habits",
-    icon: Flame,
-    statusKey: "habitsDueToday",
-    statusLabel: "today",
-    zeroLabel: "0 today",
-    priority: "primary",
-  },
-  {
-    title: "Calendar",
-    description: "See events, deadlines, and synced schedule context.",
-    href: "/tasks?tab=calendar",
-    icon: CalendarDays,
-    statusKey: "calendarToday",
-    statusLabel: "today",
-    zeroLabel: "0 today",
   },
   {
     title: "Focus Goal",
@@ -105,22 +80,13 @@ const captureCards: HubCard[] = [
   },
   {
     title: "Capture Inbox",
-    description: "Save unsorted thoughts and future Someday/Maybe ideas before deciding where they belong.",
+    description: "Save unsorted thoughts before deciding where they belong.",
     href: "/inbox",
     icon: Inbox,
     statusKey: "unsortedInbox",
     statusLabel: "unsorted",
     zeroLabel: "0 unsorted",
     priority: "primary",
-  },
-  {
-    title: "Someday / Maybe",
-    description: "Review saved-for-later ideas without making them active yet.",
-    href: "/someday",
-    icon: Lightbulb,
-    statusKey: "somedayReviewDue",
-    statusLabel: "to review",
-    zeroLabel: "0 to review",
   },
   {
     title: "Notes",
@@ -207,43 +173,10 @@ const systemsCards: HubCard[] = [
   },
 ]
 
-const followUpCards: HubCard[] = [
-  {
-    title: "Waiting For",
-    description: "Track replies, approvals, deliveries, refunds, and follow-ups.",
-    href: "/waiting",
-    icon: Clock,
-    statusKey: "waitingFollowUpsDue",
-    statusLabel: "due",
-    zeroLabel: "0 due",
-    priority: "primary",
-  },
-  {
-    title: "Commitments",
-    description: "Keep promises and obligations visible.",
-    href: "/commitments",
-    icon: ClipboardCheck,
-    statusKey: "commitmentsDueSoon",
-    statusLabel: "due soon",
-    zeroLabel: "0 pending",
-    priority: "primary",
-  },
-  {
-    title: "Maintenance Reminders",
-    description: "Recurring admin, repairs, checkups, renewals, and reviews.",
-    href: "/maintenance",
-    icon: Wrench,
-    statusKey: "maintenanceOverdue",
-    statusLabel: "overdue",
-    zeroLabel: "0 overdue",
-    priority: "primary",
-  },
-]
-
 const tabCopy: Record<WorkspaceTab, { title: string; description: string; cards: HubCard[] }> = {
   plan: {
     title: "Plan active work",
-    description: "Tasks, goals, projects, habits, dates, Focus Goal, and Focus Timer live here.",
+    description: "Tasks, goals, projects, Focus Goal and Focus Timer live here.",
     cards: planCards,
   },
   capture: {
@@ -261,17 +194,13 @@ const tabCopy: Record<WorkspaceTab, { title: string; description: string; cards:
     description: "Templates, custom structures, people, and vault records keep LifeSort extensible.",
     cards: systemsCards,
   },
-  "follow-ups": {
-    title: "Follow-ups & Promises",
-    description: "Waiting For, commitments, and recurring maintenance stay together.",
-    cards: followUpCards,
-  },
 }
 
 function readInitialTab(): WorkspaceTab {
   if (typeof window === "undefined") return "plan"
   const tab = new URL(window.location.href).searchParams.get("tab")
-  return tab === "capture" || tab === "visual" || tab === "systems" || tab === "follow-ups" || tab === "plan" ? tab : "plan"
+  // "follow-ups" folded into Tasks (Stage 1 step 3), so old links land on the plan tab.
+  return tab === "capture" || tab === "visual" || tab === "systems" || tab === "plan" ? tab : "plan"
 }
 
 export default function WorkspacePage() {
@@ -301,10 +230,9 @@ export default function WorkspacePage() {
             <TabsTrigger value="capture" className="min-w-max flex-1 sm:flex-none">Inbox & Ideas</TabsTrigger>
             <TabsTrigger value="visual" className="min-w-max flex-1 sm:flex-none">Boards & Spaces</TabsTrigger>
             <TabsTrigger value="systems" className="min-w-max flex-1 sm:flex-none">Templates & Routines</TabsTrigger>
-            <TabsTrigger value="follow-ups" className="min-w-max flex-1 sm:flex-none">Waiting & Commitments</TabsTrigger>
           </TabsList>
 
-          {(["plan", "capture", "visual", "systems", "follow-ups"] as WorkspaceTab[]).map((tab) => (
+          {(["plan", "capture", "visual", "systems"] as WorkspaceTab[]).map((tab) => (
             <TabsContent key={tab} value={tab} className="section-enter space-y-5 md:space-y-6">
               <HubGrid cards={tabCopy[tab].cards} />
             </TabsContent>

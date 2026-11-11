@@ -59,8 +59,8 @@ const EXAMPLES = [
 
 const TYPE_META: Record<DraftActionType, { label: string; color: string; icon: React.ElementType }> = {
   task:          { label: "Task",          color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",     icon: CheckCircle2 },
-  waiting_item:  { label: "Waiting For",   color: "bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300",         icon: Clock },
-  someday_item:  { label: "Someday",       color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300", icon: Lightbulb },
+  waiting_item:  { label: "Waiting",       color: "bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300",         icon: Clock },
+  someday_item:  { label: "Later",         color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300", icon: Lightbulb },
   goal:          { label: "Goal",          color: "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300", icon: Target },
   habit:         { label: "Habit",         color: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300", icon: Sparkles },
   note:          { label: "Note",          color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",   icon: FileText },
@@ -76,8 +76,8 @@ const SOMEDAY_CATEGORIES = ["idea", "project", "purchase", "travel", "learning",
 
 const ENDPOINT_MAP: Record<DraftActionType, string> = {
   task:           "/api/tasks",
-  waiting_item:   "/api/waiting",
-  someday_item:   "/api/someday",
+  waiting_item:   "/api/tasks",
+  someday_item:   "/api/tasks",
   goal:           "/api/goals",
   habit:          "/api/habits",
   note:           "/api/notes",
@@ -85,6 +85,26 @@ const ENDPOINT_MAP: Record<DraftActionType, string> = {
   vault_item:     "/api/vault",
   wishlist_item:  "/api/wishlist",
   calendar_event: "/api/calendar-events",
+}
+
+// Waiting and Someday drafts are saved as tasks with that status (Stage 1 step 3).
+function requestBody(action: DraftAction): Record<string, unknown> {
+  if (action.type === "waiting_item") {
+    const payload = action.payload
+    const notes = [payload.waiting_on_name ? `Waiting on ${payload.waiting_on_name}` : null, payload.description || null]
+    return {
+      title: payload.title,
+      description: notes.filter(Boolean).join("\n\n") || null,
+      due_date: payload.follow_up_date || payload.expected_date || null,
+      priority: "medium",
+      status: "waiting",
+    }
+  }
+  if (action.type === "someday_item") {
+    const payload = action.payload
+    return { title: payload.title, description: payload.description || null, priority: "medium", status: "someday" }
+  }
+  return action.payload as Record<string, unknown>
 }
 
 const captureHubCards: HubCard[] = [
@@ -543,7 +563,7 @@ export default function CapturePage() {
         const res = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(draft.action.payload),
+          body: JSON.stringify(requestBody(draft.action)),
         })
         if (res.ok) {
           setResults((prev) => ({ ...prev, [draft.id]: "created" }))
