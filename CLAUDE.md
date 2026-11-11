@@ -23,7 +23,7 @@ The memory files are the source of truth. Read them before starting and consult 
 |---|---|
 | `AI_BUILD_PLAN.md` | Before feature work: Part 0 is the current direction and build order. |
 | `AI_MARKET_RESEARCH.md` | When a choice depends on who LifeSort is for or what competitors do. |
-| `AI_TASK_LOG.md` | Before starting: read recent entries and known issues. During work: check if a migration or fix was already attempted. After work: write the new entry. |
+| `AI_TASK_LOG.md` | Before starting: read recent entries and known issues. During work: check if a migration or fix was already attempted (also search `AI_TASK_LOG_ARCHIVE.md` for anything before 2026-10). After work: write the new entry. |
 | `AI_DECISIONS.md` | Before introducing any pattern, library, or architecture change: confirm it aligns with recorded decisions. |
 | `AI_CHECKLIST.md` | Before running commands or touching env vars: verify the correct command and variable names. |
 | `AI_PROJECT.md` | When scope is unclear: confirm whether a feature is already implemented or planned. |

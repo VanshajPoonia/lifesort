@@ -44,7 +44,8 @@ Use the right file for the right question. Consult these files during work, not 
 | Was this architecture decision already made? | `AI_DECISIONS.md` → Current Architecture Decisions |
 | What commands do I use to install, build, or verify? | `AI_CHECKLIST.md` → Commands |
 | What environment variables are required? | `AI_CHECKLIST.md` → Environment Setup |
-| Has a migration already been written for this table? | `AI_TASK_LOG.md` + `scripts/` directory |
+| Has a migration already been written for this table? | `AI_TASK_LOG.md` + `AI_TASK_LOG_ARCHIVE.md` + `scripts/` directory |
+| What happened before 2026-10? | `AI_TASK_LOG_ARCHIVE.md` (moved word for word out of the live log) |
 | What changed in the last session? | `AI_TASK_LOG.md` → most recent dated entry |
 | What should be built next, and in what order? | `AI_BUILD_PLAN.md` → Part 0 |
 | Who is LifeSort for, and what do competitors do? | `AI_MARKET_RESEARCH.md` |
