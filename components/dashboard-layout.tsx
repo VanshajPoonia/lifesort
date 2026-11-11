@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import { useState, useEffect, useCallback, useLayoutEffect, useRef, useSyncExternalStore } from "react"
+import { useState, useEffect, useLayoutEffect, useRef, useSyncExternalStore } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -15,7 +15,8 @@ import {
   LogOut,
   Plus,
   Activity,
-  Archive,
+  CheckSquare,
+  Inbox,
   MoreHorizontal,
   Search,
   User,
@@ -24,7 +25,6 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   BookOpenText,
-  Sparkles,
   Target,
   Compass,
 } from "lucide-react"
@@ -34,6 +34,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { ThemeSwitcher } from "@/components/theme-switcher"
 import { QuickAddModal, type QuickAddType } from "@/components/quick-add-modal"
 import { GlobalCommandPalette } from "@/components/global-command-palette"
+import { CoachPanelButton } from "@/components/coach/coach-panel"
 import { NotificationBell } from "@/components/notification-bell"
 import { useDomainFocus } from "@/components/domain-focus-provider"
 import { useBreakpoint } from "@/hooks/use-breakpoint"
@@ -47,141 +48,56 @@ interface DashboardLayoutProps {
   showGreeting?: boolean
 }
 
-const DEFAULT_SIDEBAR_PREFS = {
-  home: true,
-  domains: true,
-  workspace: true,
-  organize: true,
-  reflect: true,
-  plan: true,
-  money: true,
-  life_admin: true,
-  settings: true,
-  admin: true,
-  dashboard: true,
-  reset: true,
-  rules: true,
-  someday: true,
-  inbox: true,
-  waiting: true,
-  commitments: true,
-  maintenance: true,
-  today: true,
-  journal: true,
-  whiteboard: true,
-  library: true,
-  spaces: true,
-  review: true,
-  insights: true,
-  life_areas: true,
-  projects: true,
-  people: true,
-  vault: true,
-  calendar: true,
-  links: true,
-  daily_content: true,
-  budget: true,
-  custom_sections: true,
-  notes: true,
-  tasks: true,
-  goals: true,
-  bookmarks: true,
-  wishlist: true,
-  nuke: true,
-  pomodoro: true,
-  investments: true,
-  income: true,
-  ai_assistant: true,
-  habits: true,
-  capture: true,
-  templates: true,
-  timeline: true,
-  notifications: true,
-}
+// The sidebar is the seven places from AI_BUILD_PLAN.md Part 0 (Stage 1 step 8, 2026-11-11),
+// then Settings. It never grows past seven, so it has no group labels and nothing to hide.
+// Old routes count as their new place through `aliases`, so the highlight follows them.
+type SidebarGroup = "main" | "utilities"
 
-// Sidebar groups follow the spirit of the full-product spec's §4 grouped nav
-// (TODAY / PLAN / LIFE DOMAINS / WORKSPACE / UTILITIES), reconciled onto
-// LifeSort's actual hub set rather than copied literally -- our hubs already
-// consolidate many spec-level features (e.g. Workspace bundles Tasks/Goals/
-// Calendar/Inbox/...), so grouping applies one level up. See AI_BUILD_PLAN.md
-// Phase 0 "Nav restructure" and AI_TASK_LOG.md for the reasoning.
-type SidebarGroup = "today" | "domains" | "workspace" | "reflect" | "utilities"
-
-const GROUP_ORDER: SidebarGroup[] = ["today", "domains", "workspace", "reflect", "utilities"]
-const GROUP_LABELS: Record<SidebarGroup, string> = {
-  today: "Today",
-  domains: "Life Domains",
-  workspace: "Workspace",
-  reflect: "Reflect",
-  utilities: "Utilities",
-}
+const GROUP_ORDER: SidebarGroup[] = ["main", "utilities"]
 
 type SidebarItem = {
-  id: keyof typeof DEFAULT_SIDEBAR_PREFS
+  id: string
   label: string
   href: string
   icon: React.ElementType
   group: SidebarGroup
   aliases?: string[]
   adminOnly?: boolean
-  legacyFallback?: keyof typeof DEFAULT_SIDEBAR_PREFS
 }
 
 const HUB_NAV_ITEMS: SidebarItem[] = [
-  // Home and Today are one page since Stage 1 (2026-11-11). The "home" id keeps saved sidebar prefs working.
-  { id: "home", label: "Today", href: "/", icon: CalendarCheck, group: "today", aliases: ["/today"], legacyFallback: "dashboard" },
+  { id: "today", label: "Today", href: "/", icon: CalendarCheck, group: "main", aliases: ["/today"] },
+  { id: "inbox", label: "Inbox", href: "/inbox", icon: Inbox, group: "main", aliases: ["/capture"] },
+  {
+    id: "tasks",
+    label: "Tasks",
+    href: "/tasks",
+    icon: CheckSquare,
+    group: "main",
+    aliases: ["/calendar", "/habits", "/waiting", "/someday", "/commitments", "/maintenance", "/pomodoro", "/nuke", "/workspace", "/organize", "/plan", "/life-admin"],
+  },
   {
     id: "domains",
     label: "Domains",
     href: "/domains",
     icon: Compass,
-    group: "domains",
-    aliases: ["/life-areas"],
+    group: "main",
+    aliases: ["/life-areas", "/goals", "/projects", "/templates"],
   },
-  {
-    id: "workspace",
-    label: "Workspace",
-    href: "/workspace",
-    icon: Archive,
-    group: "workspace",
-    aliases: [
-      "/organize",
-      "/plan",
-      "/capture",
-      "/life-admin",
-      "/tasks",
-      "/goals",
-      "/projects",
-      "/habits",
-      "/calendar",
-      "/waiting",
-      "/commitments",
-      "/someday",
-      "/nuke",
-      "/pomodoro",
-      "/inbox",
-      "/templates",
-      "/daily-content",
-      "/maintenance",
-      "/notifications",
-    ],
-    legacyFallback: "organize",
-  },
-  // Notes, Journal, People, Vault, Links and Whiteboards are tabs of Library since Stage 1 step 6 (2026-11-11).
   {
     id: "library",
     label: "Library",
     href: "/library",
     icon: BookOpenText,
-    group: "workspace",
-    aliases: ["/notes", "/journal", "/people", "/vault", "/links", "/whiteboard"],
+    group: "main",
+    aliases: ["/notes", "/journal", "/people", "/vault", "/links", "/whiteboard", "/spaces", "/custom-sections"],
   },
   {
     id: "money",
     label: "Money",
     href: "/money",
     icon: Wallet,
-    group: "workspace",
+    group: "main",
     aliases: ["/budget", "/income", "/investments", "/wishlist"],
   },
   {
@@ -189,21 +105,18 @@ const HUB_NAV_ITEMS: SidebarItem[] = [
     label: "Reflect",
     href: "/reflect",
     icon: Activity,
-    group: "reflect",
-    aliases: ["/insights", "/review", "/timeline", "/reset"],
+    group: "main",
+    aliases: ["/insights", "/review", "/timeline", "/reset", "/ai-chat"],
   },
-  { id: "ai_assistant", label: "Coach", href: "/ai-chat", icon: Sparkles, group: "reflect" },
-  { id: "settings", label: "Settings", href: "/settings", icon: Settings, group: "utilities", aliases: ["/rules"] },
+  { id: "settings", label: "Settings", href: "/settings", icon: Settings, group: "utilities", aliases: ["/rules", "/notifications"] },
   { id: "admin", label: "Admin", href: "/admin", icon: Shield, group: "utilities", adminOnly: true },
 ]
 
 const MOBILE_PRIMARY_ITEMS = HUB_NAV_ITEMS.filter((item) =>
-  ["home", "workspace", "money"].includes(item.id),
+  ["today", "inbox", "tasks", "library"].includes(item.id),
 )
+const MOBILE_MORE_ITEMS = HUB_NAV_ITEMS.filter((item) => !MOBILE_PRIMARY_ITEMS.includes(item))
 
-// Module-level cache — persists across client-side navigations so the
-// sidebar never re-fetches after the first successful load.
-let _sidebarPrefsCache: Record<string, boolean> | null = null
 // Every page mounts its own DashboardLayout, so these survive the remount:
 // the collapsed rail doesn't flash open, and the nav highlight can glide
 // from where the previous page left it.
@@ -225,25 +138,12 @@ function useShortcutLabel() {
   )
 }
 
-function applyWorkspacePreferenceFallback(preferences: Record<string, boolean>) {
-  if (preferences.workspace === undefined && preferences.organize !== undefined) {
-    return { ...preferences, workspace: preferences.organize }
-  }
-  return preferences
-}
-
-export function clearSidebarPrefsCache() {
-  _sidebarPrefsCache = null
-}
-
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const pathname = usePathname()
   const { user, logout } = useAuth()
   const { focus: domainFocus, clearFocus: clearDomainFocus } = useDomainFocus()
   const { isTablet } = useBreakpoint()
-  const [sidebarPrefs, setSidebarPrefs] = useState<Record<string, boolean> | null>(null)
-  const [, setPrefsLoaded] = useState(false)
   const [quickAddOpen, setQuickAddOpen] = useState(false)
   const [quickAddInitialType, setQuickAddInitialType] = useState<QuickAddType | null>(null)
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
@@ -267,70 +167,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     setSidebarCollapsed(_sidebarCollapsedCache)
   }, [])
 
-  const fetchSidebarPrefs = useCallback(async () => {
-    // 1. Module-level cache hit — instant, no network, no await.
-    //    This is the common case after the first page load.
-    if (_sidebarPrefsCache) {
-      return _sidebarPrefsCache
-    }
-
-    // 2. sessionStorage hit — instant on first page load after a hard refresh.
-    try {
-      const stored = sessionStorage.getItem("sidebar_prefs")
-      if (stored) {
-        const parsed = JSON.parse(stored)
-        const prefs = { ...DEFAULT_SIDEBAR_PREFS, ...applyWorkspacePreferenceFallback(parsed) }
-        _sidebarPrefsCache = prefs
-        return prefs
-      }
-    } catch {
-      // Corrupt cache — fall through to network.
-    }
-
-    // 3. First ever load — fetch from the API and warm both caches.
-    try {
-      const response = await fetch("/api/sidebar-preferences")
-      if (response.ok) {
-        const data = await response.json()
-        if (data.preferences && typeof data.preferences === "object") {
-          const prefs = { ...DEFAULT_SIDEBAR_PREFS, ...applyWorkspacePreferenceFallback(data.preferences) }
-          _sidebarPrefsCache = prefs
-          sessionStorage.setItem("sidebar_prefs", JSON.stringify(data.preferences))
-          return prefs
-        }
-        _sidebarPrefsCache = DEFAULT_SIDEBAR_PREFS
-        return DEFAULT_SIDEBAR_PREFS
-      }
-      return DEFAULT_SIDEBAR_PREFS
-    } catch (error) {
-      console.error("Error fetching sidebar preferences:", error)
-      return DEFAULT_SIDEBAR_PREFS
-    }
-  }, [])
-
-  useEffect(() => {
-    let cancelled = false
-    fetchSidebarPrefs().then((prefs) => {
-      if (cancelled) return
-      setSidebarPrefs(prefs)
-      setPrefsLoaded(true)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [fetchSidebarPrefs])
 
 
-  // Use defaults while loading, then use actual prefs
-  const prefs = sidebarPrefs || DEFAULT_SIDEBAR_PREFS
   const matchesPath = (href: string) => href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`)
   const isActiveItem = (item: SidebarItem) => matchesPath(item.href) || Boolean(item.aliases?.some(matchesPath))
-  const isItemVisible = (item: SidebarItem) => {
-    if (item.adminOnly && !user?.is_admin) return false
-    if (prefs[item.id] !== undefined) return prefs[item.id]
-    if (item.legacyFallback && prefs[item.legacyFallback] !== undefined) return prefs[item.legacyFallback]
-    return true
-  }
+  const isItemVisible = (item: SidebarItem) => !item.adminOnly || Boolean(user?.is_admin)
   const railMode = isTablet || sidebarCollapsed
   const visibleNavItems = HUB_NAV_ITEMS.filter(isItemVisible)
   const activeNavId = visibleNavItems.find(isActiveItem)?.id ?? null
@@ -510,9 +351,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 if (items.length === 0) return null
                 return (
                   <div key={group} className="min-w-0 space-y-0.5">
-                    <p className={cn("px-3 pb-1 text-[11px] font-medium text-muted-foreground", railMode && "sr-only")}>
-                      {GROUP_LABELS[group]}
-                    </p>
                     {items.map((item) => {
                       const Icon = item.icon
                       const active = isActiveItem(item)
@@ -621,6 +459,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             <Plus className="h-4 w-4" aria-hidden="true" />
             Quick Add
           </Button>
+          <CoachPanelButton />
           <ThemeSwitcher />
           <NotificationBell />
         </div>
@@ -644,7 +483,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       </Button>
 
       <nav aria-label="Primary" className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-card/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur sm:hidden">
-        <div className="grid grid-cols-4 gap-1">
+        <div className="grid grid-cols-5 gap-1">
           {MOBILE_PRIMARY_ITEMS.map((item) => {
             const Icon = item.icon
             const active = isActiveItem(item)
@@ -668,7 +507,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             type="button"
             className={cn(
               "flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[11px] font-medium transition-colors duration-150 ease-out active:scale-[0.97] motion-reduce:transform-none",
-              ["/library", "/notes", "/journal", "/people", "/vault", "/links", "/whiteboard", "/reflect", "/insights", "/review", "/timeline", "/reset", "/ai-chat", "/life-areas", "/domains", "/settings", "/rules", "/admin"].some(matchesPath)
+              MOBILE_MORE_ITEMS.some(isActiveItem)
                 ? "bg-primary-tint text-primary"
                 : "text-muted-foreground hover:bg-muted/70",
             )}
@@ -690,14 +529,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </SheetHeader>
           <div className={cn("mt-3 grid divide-y divide-border/70", motionPresets.staggerContainer)}>
             {[
-              { href: "/domains", label: "Domains", icon: Compass },
-              { href: "/library", label: "Library", icon: BookOpenText },
-              { href: "/ai-chat", label: "LifeSort Coach", icon: Sparkles },
-              { href: "/reflect", label: "Reflect", icon: Activity },
-              { href: "/settings", label: "Settings", icon: Settings },
+              ...MOBILE_MORE_ITEMS.filter(isItemVisible).map((item) => ({ href: item.href, label: item.label, icon: item.icon })),
               { href: "/settings?tab=profile", label: "Profile", icon: User },
               { href: "/settings?tab=faqs", label: "Support / Upgrade", icon: HelpCircle },
-              ...(user?.is_admin ? [{ href: "/admin", label: "Admin", icon: Shield }] : []),
             ].map((item) => {
               const Icon = item.icon
               const active = matchesPath(item.href.split("?")[0]) && !item.href.includes("?")

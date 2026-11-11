@@ -185,7 +185,11 @@ Architecture and product decision memory for LifeSort.
 - Tests: no new test files added in this pass (the fix was 4 one-line changes across 2 already-untested routes; adding full CRUD test coverage for `people`/`vault` would be a separate, larger task — see `AI_TASK_LOG.md`'s Proposed Next Work). Verified instead via a live Playwright script against the real running app, then deleted the throwaway QA account.
 - Verification: `npx tsc --noEmit` clean, `npm test` 102/102 (unchanged), `npm run build` clean with `typescript.ignoreBuildErrors: false` now actually enforced (a strictly stronger guarantee than before, since previously a broken build would have shipped anyway), `npm run lint` 187 → 164 with zero new findings, dev server restarted clean and re-confirmed healthy after each build (the build/dev `.next`-collision bug from earlier in the session recurred twice more during this verification — see `AI_TASK_LOG.md`, not a code defect).
 
-## Sidebar Nav Restructure (2026-07-24)
+## Sidebar: seven places (2026-11-11)
+
+- The sidebar is Today, Inbox, Tasks, Domains, Library, Money and Reflect, then Settings. It replaced the July grouped layout below. No group labels, no per-user hiding, and no eighth item. Coach is a header-button side panel instead of a nav item, and Workspace is gone (its tabs redirect to the place that now holds them).
+
+## Sidebar Nav Restructure (2026-07-24, superseded)
 
 - Decision: The sidebar (`components/dashboard-layout.tsx`) now renders `HUB_NAV_ITEMS` grouped under 5 labeled sections (Today, Life Domains, Workspace, Reflect, Utilities) instead of one flat list, implementing `AI_BUILD_PLAN.md` Phase 0's nav-restructure item / A9. Group labels use `DESIGN.md`'s `label` typography role (small uppercase, muted) and are hidden in rail mode (tablet/collapsed desktop) where item text labels are already hidden — only vertical spacing signals grouping there.
   - Evidence: `SidebarGroup` type, `GROUP_ORDER`/`GROUP_LABELS`, and the `group` field added to `SidebarItem` in `components/dashboard-layout.tsx`.
@@ -349,7 +353,7 @@ Architecture and product decision memory for LifeSort.
 - Money Overview is a derived dashboard, not a new finance ledger. Net worth, savings rate, cash flow, budget health, upcoming bills, and wishlist progress are computed from existing user-owned finance/Vault/Wishlist data plus the small liabilities table; do not introduce fake totals or automatic write actions.
 - Reflect is the primary insight/review surface at `/reflect`. `/insights` remains a compatibility feature route with the same tabbed Reflect workflow so old deep links do not break. LifeScore is the first/default tab, followed by Life Balance, Timeline, Ignored Signals, Weekly Review, and Journal. Reset My Life remains reachable through a standalone emergency CTA instead of a review tab.
 - Reflect Journal Insights use `/api/journal/insights`, which intentionally returns only the last 90 days of journal date, mood, star ratings, and gratitude. Do not include rich notes or full journal text in that insights payload.
-- Mobile navigation uses a bottom bar for Today, Workspace, Money, and More (Home and Today merged 2026-11-11). More exposes Library, LifeSort Coach, Reflect, Settings, Profile, Support/FAQs, and admin-only Admin while the header still keeps Global Search, Quick Add, notifications, profile/settings, and sign-out reachable.
+- Mobile navigation uses a bottom bar for Today, Inbox, Tasks, Library and More (2026-11-11). More is built from the remaining `HUB_NAV_ITEMS`, so it cannot drift from the sidebar.
 - Whiteboard remains linked from Workspace > Visual and is also a direct sidebar/mobile More entry for discoverability. `/whiteboard` remains deep-linkable.
 - Spaces live under Workspace > Boards & Spaces rather than the top-level sidebar. `/spaces` and `/spaces/[id]` remain deep-linkable and highlight Workspace as their active navigation area.
 - Global capture/search/navigation lives in `GlobalCommandPalette`: Cmd/Ctrl+K opens the palette, Quick Add/FAB opens the same palette in capture mode, and capture writes still happen through the existing `QuickAddModal` or feature pages. The palette may link to existing AI pages, but must not introduce a new inline AI write surface without the usual draft/confirm pattern.

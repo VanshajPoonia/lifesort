@@ -72,8 +72,8 @@ Settings absorbs Rules and the full Notifications page. Every old URL keeps work
 4. ✅ Fold Capture into Inbox (done 2026-11-11).
 5. ✅ Remove Spaces and Custom Sections: pages, API routes, nav entries and the template item types that create them. Daily Content and games stay hidden. (Done 2026-11-11. The code was deployed, then `scripts/migrations/2026-11-11-drop-spaces-custom-sections.sql` dropped their five tables.)
 6. ✅ Build the Library hub (done 2026-11-11: `/library` with Notes, Journal, People, Vault, Links and Whiteboards tabs, one sidebar item in place of Journal and Whiteboard).
-7. Rebuild Reflect around Weekly Review and turn Coach into a side panel.
-8. Cut the sidebar to the 7 places.
+7. ✅ Rebuild Reflect around Weekly Review and turn Coach into a side panel (done 2026-11-11: Weekly Review is Reflect's first tab, Coach opens from a header button on every page).
+8. ✅ Cut the sidebar to the 7 places (done 2026-11-11).
 - **Exit:** 7 sidebar places, every old URL redirects, the retired screens are gone.
 
 **Stage 2: Installable web app and capture**

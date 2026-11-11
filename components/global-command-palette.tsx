@@ -11,7 +11,6 @@ import {
   DollarSign,
   FileText,
   FolderPlus,
-  Gauge,
   History,
   Inbox,
   Link2,
@@ -103,18 +102,20 @@ const captureActions: Array<{
   { label: "Open Inbox", description: "Jot something down, or sort it with AI", icon: Plus, href: "/inbox" },
 ]
 
+// The seven places first, then the most-used tabs inside them.
 const navigationActions = [
   { label: "Today", description: "Your day: focus, tasks, habits", href: "/", icon: CalendarCheck },
+  { label: "Inbox", description: "Jot something down or sort it", href: "/inbox", icon: Inbox },
+  { label: "Tasks", description: "List, board, calendar and habits", href: "/tasks", icon: CheckSquare },
+  { label: "Domains", description: "Life areas, goals and projects", href: "/domains", icon: Target },
+  { label: "Library", description: "Notes, journal, people, vault, links, boards", href: "/library", icon: FileText },
+  { label: "Money", description: "Budget, income, investments, wishlist", href: "/money", icon: Wallet },
+  { label: "Reflect", description: "Weekly review and insights", href: "/reflect", icon: Activity },
   { label: "Journal", description: "Daily reflection", href: "/library?tab=journal", icon: BookOpenText },
-  { label: "Workspace", description: "Plan, capture, visual tools, systems, and follow-ups", href: "/workspace", icon: FolderPlus },
-  { label: "Whiteboard", description: "Sketch and collaborate", href: "/library?tab=whiteboards", icon: Paintbrush },
-  { label: "Money", description: "Finance hub", href: "/money", icon: Wallet },
-  { label: "Reflect", description: "Review and insight", href: "/reflect", icon: Activity },
+  { label: "Calendar", description: "Events and scheduled tasks", href: "/tasks?tab=calendar", icon: CalendarCheck },
+  { label: "Habits", description: "Habits and weekly streaks", href: "/tasks?tab=habits", icon: CheckSquare },
+  { label: "Whiteboards", description: "Sketch and collaborate", href: "/library?tab=whiteboards", icon: Paintbrush },
   { label: "Settings", description: "Profile and preferences", href: "/settings", icon: Settings },
-  { label: "Tasks", description: "To-do list", href: "/tasks", icon: CheckSquare },
-  { label: "Notes", description: "Notes and folders", href: "/library", icon: FileText },
-  { label: "Budget", description: "Budget categories", href: "/money?tab=budget", icon: Wallet },
-  { label: "Weekly Review", description: "Review this week", href: "/review", icon: Gauge },
 ]
 
 const aiActions = [

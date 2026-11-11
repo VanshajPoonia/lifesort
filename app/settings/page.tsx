@@ -4,7 +4,7 @@ import React from "react"
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import NextLink from "next/link"
-import { DashboardLayout, clearSidebarPrefsCache } from "@/components/dashboard-layout"
+import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -32,15 +32,9 @@ import {
   Calendar,
   Sparkles,
   Shield,
-  LayoutDashboard,
-  CalendarCheck,
   HelpCircle,
-  Activity,
-  Archive,
-  Settings2,
   Wallet,
   BookOpenText,
-  Compass,
 } from "lucide-react"
 import {
   Accordion,
@@ -111,56 +105,6 @@ export default function SettingsPage() {
     show_games: true,
   })
 
-  const [sidebarPrefs, setSidebarPrefs] = useState({
-    home: true,
-    domains: true,
-    workspace: true,
-    organize: true,
-    reflect: true,
-    plan: true,
-    money: true,
-    life_admin: true,
-    settings: true,
-    admin: true,
-    dashboard: true,
-    reset: true,
-    rules: true,
-    someday: true,
-    inbox: true,
-    waiting: true,
-    commitments: true,
-    maintenance: true,
-    today: true,
-    journal: true,
-    whiteboard: true,
-    library: true,
-    review: true,
-    insights: true,
-    life_areas: true,
-    projects: true,
-    people: true,
-    vault: true,
-    calendar: true,
-    goals: true,
-    habits: true,
-    tasks: true,
-    nuke: true,
-    pomodoro: true,
-    notes: true,
-    wishlist: true,
-    investments: true,
-    income: true,
-    budget: true,
-    links: true,
-    custom_sections: true,
-    daily_content: true,
-    ai_assistant: true,
-    capture: true,
-    templates: true,
-    timeline: true,
-    notifications: true,
-  })
-
   const fetchAppPreferences = useCallback(async () => {
     try {
       const response = await fetch("/api/app-preferences")
@@ -197,18 +141,6 @@ export default function SettingsPage() {
     url.searchParams.set("tab", tab)
     window.history.replaceState(null, "", `${url.pathname}?${url.searchParams.toString()}`)
   }
-
-  const fetchSidebarPrefs = useCallback(async () => {
-    try {
-      const response = await fetch("/api/sidebar-preferences")
-      const data = await response.json()
-      if (data.preferences) {
-        setSidebarPrefs(prev => ({ ...prev, ...data.preferences }))
-      }
-    } catch (error) {
-      console.error("[v0] Error fetching sidebar preferences:", error)
-    }
-  }, [])
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -247,7 +179,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const tab = new URL(window.location.href).searchParams.get("tab")
-    if (tab && ["profile", "journal", "sidebar", "content", "faqs", "account"].includes(tab)) {
+    if (tab && ["profile", "journal", "content", "faqs", "account"].includes(tab)) {
       // Flagged by react-hooks/set-state-in-effect: supports deep-linking to
       // a specific tab via ?tab=, overriding the default "profile".
       setActiveTab(tab)
@@ -255,9 +187,8 @@ export default function SettingsPage() {
     // Flagged by react-hooks/set-state-in-effect: fetchProfile is shared
     // with save handlers below that need the reload afterward too.
     fetchProfile()
-    fetchSidebarPrefs()
     fetchAppPreferences()
-  }, [fetchProfile, fetchSidebarPrefs, fetchAppPreferences])
+  }, [fetchProfile, fetchAppPreferences])
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -335,30 +266,6 @@ export default function SettingsPage() {
     } catch (error) {
       console.error("[v0] Error saving journal preferences:", error)
       alert(error instanceof Error ? error.message : "Failed to save journal preferences")
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const saveSidebarPrefs = async () => {
-    setSaving(true)
-    try {
-      const response = await fetch("/api/sidebar-preferences", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...sidebarPrefs, organize: sidebarPrefs.workspace }),
-      })
-
-      if (response.ok) {
-        // Clear both caches so the sidebar picks up new prefs on next render.
-        sessionStorage.removeItem("sidebar_prefs")
-        clearSidebarPrefsCache()
-        alert("Sidebar preferences saved!")
-        window.location.reload()
-      }
-    } catch (error) {
-      console.error("Error saving sidebar preferences:", error)
-      alert("Failed to save sidebar preferences")
     } finally {
       setSaving(false)
     }
@@ -471,10 +378,6 @@ export default function SettingsPage() {
           <TabsTrigger value="journal" className="min-w-max">
             <BookOpenText className="mr-2 h-4 w-4" />
             Journal
-          </TabsTrigger>
-          <TabsTrigger value="sidebar" className="min-w-max">
-            <LayoutDashboard className="mr-2 h-4 w-4" />
-            Sidebar
           </TabsTrigger>
           <TabsTrigger value="content" className="min-w-max">
             <Sparkles className="mr-2 h-4 w-4" />
@@ -686,66 +589,6 @@ export default function SettingsPage() {
         </TabsContent>
 
         {/* Sidebar Customization Tab */}
-        <TabsContent value="sidebar" className="section-enter space-y-5 md:space-y-6">
-          <Card className="surface-card">
-            <CardHeader>
-              <CardTitle>Sidebar Sections</CardTitle>
-              <CardDescription>
-                Choose which sections to display in your sidebar navigation
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid gap-4 sm:grid-cols-2">
-                {[
-                  { id: "home", label: "Today", icon: CalendarCheck, description: "Your day: focus, today's list, habits and calendar" },
-                  { id: "domains", label: "Domains", icon: Compass, description: "Life Domains: goals, projects, tasks, habits, and knowledge by life area" },
-                  { id: "workspace", label: "Workspace", icon: Archive, description: "Plan, Capture, Visual, Systems, and Follow-ups" },
-                  { id: "library", label: "Library", icon: BookOpenText, description: "Notes, journal, people, vault, links and whiteboards" },
-                  { id: "money", label: "Money", icon: Wallet, description: "Budget, income, investments, and wishlist" },
-                  { id: "reflect", label: "Reflect", icon: Activity, description: "Life Balance, Weekly Review, Timeline, Reset, Coach, and LifeScore insights" },
-                  { id: "ai_assistant", label: "Coach", icon: Sparkles, description: "LifeSort Coach for app-aware planning questions" },
-                  { id: "settings", label: "Settings", icon: Settings2, description: "Profile, operating rules, preferences, integrations, and account settings" },
-                  { id: "admin", label: "Admin", icon: Shield, description: "Admin subscription controls", adminOnly: true },
-                ].filter((item) => !item.adminOnly || user?.is_admin).map(({ id, label, icon: Icon, description }) => (
-                  <div
-                    key={id}
-                    className={`interactive-card flex cursor-pointer items-start gap-3 rounded-lg border p-4 ${
-                      sidebarPrefs[id as keyof typeof sidebarPrefs] 
-                        ? "border-primary bg-primary/5" 
-                        : "border-border hover:border-muted-foreground/50"
-                    }`}
-                    onClick={() => setSidebarPrefs(prev => ({ ...prev, [id]: !prev[id as keyof typeof prev] }))}
-                  >
-                    <Checkbox
-                      id={id}
-                      checked={sidebarPrefs[id as keyof typeof sidebarPrefs]}
-                      onCheckedChange={(checked) => 
-                        setSidebarPrefs(prev => ({ ...prev, [id]: !!checked }))
-                      }
-                    />
-                    <div className="flex-1">
-                      <label htmlFor={id} className="flex items-center gap-2 cursor-pointer font-medium">
-                        <Icon className="h-4 w-4 text-primary" />
-                        {label}
-                      </label>
-                      <p className="text-xs text-muted-foreground mt-1">{description}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <Button onClick={saveSidebarPrefs} disabled={saving}>
-                {saving ? (
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent mr-2" />
-                ) : (
-                  <Save className="h-4 w-4 mr-2" />
-                )}
-                Save Sidebar Settings
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
         {/* Content Preferences Tab */}
         <TabsContent value="content" className="section-enter space-y-5 md:space-y-6">
           <Card className="surface-card">
@@ -925,13 +768,11 @@ export default function SettingsPage() {
             <CardContent>
               <Accordion type="single" collapsible className="w-full">
                 <AccordionItem value="sidebar">
-                  <AccordionTrigger>How do I customize my sidebar?</AccordionTrigger>
+                  <AccordionTrigger>Can I change what&apos;s in the sidebar?</AccordionTrigger>
                   <AccordionContent>
                     <p className="text-muted-foreground">
-                      Go to <strong>Settings &gt; Sidebar</strong> tab. You&apos;ll see a list of all available sections
-                      (Dashboard, Calendar, Goals, Tasks, Budget, etc.). Check the boxes next to the features you want
-                      to see in your sidebar, then click &quot;Save Sidebar Settings&quot;. The changes will take effect after
-                      you refresh the page.
+                      The sidebar always shows the same seven places: Today, Inbox, Tasks, Domains, Library, Money and
+                      Reflect. Everything else lives inside one of them, so there is nothing to set up.
                     </p>
                   </AccordionContent>
                 </AccordionItem>

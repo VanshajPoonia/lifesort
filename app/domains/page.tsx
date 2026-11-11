@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowDown, ArrowUp, Edit, Plus, Trash2 } from "lucide-react"
@@ -250,10 +251,22 @@ export default function DomainsPage() {
             <h1 className="text-2xl font-bold text-foreground">Life Domains</h1>
             <p className="mt-1 text-sm text-muted-foreground">Create the major spaces that your tasks, goals, notes, money, and trackers belong to.</p>
           </div>
-          <Button onClick={openCreate} className="gap-2">
-            <Plus className="h-4 w-4" />
-            New Domain
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {/* Goals, projects and templates hang off domains since the sidebar became seven places (2026-11-11). */}
+            <Button asChild variant="outline" className="bg-card">
+              <Link href="/goals">Goals</Link>
+            </Button>
+            <Button asChild variant="outline" className="bg-card">
+              <Link href="/projects">Projects</Link>
+            </Button>
+            <Button asChild variant="outline" className="bg-card">
+              <Link href="/templates">Templates</Link>
+            </Button>
+            <Button onClick={openCreate} className="gap-2">
+              <Plus className="h-4 w-4" />
+              New Domain
+            </Button>
+          </div>
         </section>
 
         <Tabs value={statusFilter} onValueChange={(value) => setStatusFilter(value as DomainStatus | "all")}>

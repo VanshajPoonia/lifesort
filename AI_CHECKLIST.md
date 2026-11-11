@@ -169,13 +169,13 @@ Run after changes to `DashboardLayout`, command/search/capture UI, Home preferen
 ## Navigation / Information Architecture Checklist
 
 1. Preserve deep links when consolidating navigation; hide routes from the sidebar only, never delete feature pages.
-2. Keep the primary sidebar focused but discoverable, grouped since 2026-07-24 into 5 labeled sections (see `AI_DECISIONS.md` "Sidebar Nav Restructure"): **Today** (one item, `/`), **Life Domains** (Domains), **Workspace** (Workspace, Library, Money), **Reflect** (Reflect, Coach), **Utilities** (Settings, admin-only Admin). When adding or removing a hub item, update all three of `components/dashboard-layout.tsx` (`DEFAULT_SIDEBAR_PREFS` + `HUB_NAV_ITEMS`), `app/api/sidebar-preferences/route.ts` (`DEFAULT_SIDEBAR_SECTIONS`), and `app/settings/page.tsx` (sidebar toggle list) together — nothing keeps them in sync automatically.
+2. The sidebar is exactly seven places (Today, Inbox, Tasks, Domains, Library, Money, Reflect) plus Settings and admin-only Admin, defined in `HUB_NAV_ITEMS` in `components/dashboard-layout.tsx` (2026-11-11). Do not add an eighth place: fold new screens into a place as a tab and add the old route to that item's `aliases`. There are no per-user sidebar preferences any more.
 3. Keep Home short and attention-focused; do not re-add full module dashboards there when a hub or deep feature route already owns the workflow.
 4. Keep Today as the primary daily focus surface, with focus/due/suggested items unified into Must/Should/Could priority filters.
 5. Keep `/today` defaulting to the Today tab. The This Week planner is opt-in through `/today?tab=week` and should reschedule existing tasks through `/api/tasks`, not create a separate planning table.
 6. Preserve compatibility routes: `/organize` should lead to Workspace, `/plan` should lead to Workspace > Tasks & Goals, `/life-admin` should lead to Workspace > Templates & Routines, `/capture` remains the Universal Capture feature page, and `/insights` remains a Reflect compatibility feature route.
 7. Keep Quick Add, Global Search, notifications, profile/settings, and sign-out reachable from the shared layout.
-8. Keep mobile navigation compact: Today, Workspace, Money, and More. More should include Library, LifeSort Coach, Reflect, Settings/Profile, Support/FAQs, and admin-only Admin.
+8. Keep mobile navigation compact: Today, Inbox, Tasks, Library and More. More lists the other places from `HUB_NAV_ITEMS` plus Profile and Support. Coach opens from the header button on every screen size.
 9. Keep hub summary endpoints read-only, authenticated, user-scoped, and missing-schema tolerant.
 10. Add hub cards or tab links for any feature hidden from the sidebar so discoverability is not lost.
 11. Life Area detail views should use optional filters on existing module APIs and preserve normal unfiltered module pages when no `life_area_id` query param is present.
