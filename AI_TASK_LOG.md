@@ -27,6 +27,7 @@ Current verification state (2026-11-11, after Stage 1 step 3):
 - **Found, not fixed:** `https://lifesort.kreativvantage.com` (the `NEXT_PUBLIC_APP_URL`) returns a Cloudflare 404 for every path, `/` included, and never reaches Vercel. It is listed as an alias on the deployment, so this is a DNS or Cloudflare proxy setting on the domain, unrelated to this deploy. Left for the user because it is a DNS change.
 - **Changes, one commit each:**
   - `scripts/schema.sql`, `scripts/fresh-install.sql`, `AI_BUILD_PLAN.md`, `AI_PROJECT.md`: record that the migration ran and drop the four tables from the schema snapshots.
+  - `app/inbox/page.tsx`, `components/inbox/ai-sort-panel.tsx` (new, built from the old `app/capture/page.tsx` draft editor): Inbox is the one place to capture. One box with Save and Sort with AI. Sort with AI saves the text to Inbox first (source `ai_capture`), so nothing is lost if the AI fails or the person walks away, then shows the drafts to edit and confirm. Once anything is added, the Inbox item is marked `converted`. Unsorted items get Sort (the old convert dialog) and an AI button. Waiting and Later drafts only ask for what tasks store. The capture form lost its optional title, type and domain fields (Edit still has them), the stat tiles are gone, and the list uses chips and compact rows.
 
 ### 2026-11-11 23:30 IST - Stage 1 step 3: Tasks becomes the hub
 

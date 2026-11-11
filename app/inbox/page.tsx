@@ -14,6 +14,8 @@ import {
   Heart,
   Inbox,
   Loader2,
+  MoreHorizontal,
+  Pencil,
   RotateCcw,
   Search,
   Shield,
@@ -23,11 +25,10 @@ import {
 } from "lucide-react"
 
 import { DashboardLayout } from "@/components/dashboard-layout"
-import { LifeAreaBadge, LifeAreaSelect } from "@/components/life-area-controls"
+import { AI_SORT_MAX_CHARS, AiSortPanel } from "@/components/inbox/ai-sort-panel"
+import { LifeAreaSelect } from "@/components/life-area-controls"
 import { useAuth } from "@/components/auth-provider"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -36,13 +37,25 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
+import { useToast } from "@/hooks/use-toast"
 import type { LifeArea } from "@/lib/life-areas"
-import { denormalizedLifeArea, normalizeLifeArea } from "@/lib/life-areas"
+import { normalizeLifeArea } from "@/lib/life-areas"
+import { cn } from "@/lib/utils"
+
+// Inbox is the one place to capture (Stage 1 step 4, 2026-11-11). Universal
+// Capture folded in here: save a thought as is, or save it and let AI draft
+// tasks, events and the rest for you to confirm.
 
 type InboxStatus = "unsorted" | "converted" | "archived" | "all"
 type InboxSource = "manual" | "quick_add" | "ai_capture"
@@ -65,12 +78,20 @@ type InboxItem = {
   updated_at: string
 }
 
-const statusFilters: Array<{ value: InboxStatus; label: string }> = [
-  { value: "unsorted", label: "Unsorted" },
-  { value: "converted", label: "Converted" },
-  { value: "archived", label: "Archived" },
-  { value: "all", label: "All" },
+type AiSource = { key: string; text: string; inboxItemId: number | null }
+
+const statusFilters: Array<{ value: InboxStatus; label: string; empty: string }> = [
+  { value: "unsorted", label: "To sort", empty: "Your Inbox is clear. Anything you jot down above lands here." },
+  { value: "converted", label: "Sorted", empty: "Nothing sorted yet." },
+  { value: "archived", label: "Archived", empty: "Nothing archived." },
+  { value: "all", label: "All", empty: "Nothing here yet. Jot something down above." },
 ]
+
+const sourceLabels: Record<InboxSource, string> = {
+  manual: "Typed here",
+  quick_add: "Quick Add",
+  ai_capture: "Sorted with AI",
+}
 
 const targetOptions: Array<{ value: TargetType; label: string; icon: ElementType }> = [
   { value: "task", label: "Task", icon: CheckSquare },
@@ -97,28 +118,6 @@ const convertedHrefs: Record<TargetType, (id: number | null) => string> = {
 
 function titleFromText(rawText: string) {
   return rawText.trim().split(/\r?\n/)[0]?.trim().slice(0, 255) || "Inbox item"
-}
-
-function formatDate(value?: string | null) {
-  if (!value) return "Unknown"
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return "Unknown"
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-}
-
-function areaForItem(item: InboxItem, areas: LifeArea[]) {
-  if (!item.life_area_id) return null
-  const area = areas.find((candidate) => String(candidate.id) === String(item.life_area_id))
-  if (area) return area
-  if (item.life_area_name) {
-    return denormalizedLifeArea({
-      id: String(item.life_area_id),
-      name: item.life_area_name,
-      icon: item.life_area_icon,
-      color: item.life_area_color,
-    })
-  }
-  return null
 }
 
 function defaultPayload(item: InboxItem, targetType: TargetType): Record<string, string | null> {
@@ -149,8 +148,24 @@ function defaultPayload(item: InboxItem, targetType: TargetType): Record<string,
   return { title, description: text, priority: "medium", due_date: "", target_date: "", life_area_id }
 }
 
+function shortDate(value?: string | null) {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+}
+
+// Text the AI sees for an existing item: the title, plus the body when it adds anything.
+function aiTextFor(item: InboxItem) {
+  const body = item.raw_text?.trim() || ""
+  const title = item.title?.trim() || ""
+  if (!body) return title
+  return body.startsWith(title) ? body : `${title}\n${body}`
+}
+
 export default function InboxPage() {
   const router = useRouter()
+  const { toast } = useToast()
   const { user, loading: authLoading } = useAuth()
 
   const [items, setItems] = useState<InboxItem[]>([])
@@ -160,7 +175,8 @@ export default function InboxPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [saving, setSaving] = useState(false)
-  const [capture, setCapture] = useState({ title: "", raw_text: "", suggested_type: "none", life_area_id: null as string | null })
+  const [captureText, setCaptureText] = useState("")
+  const [aiSource, setAiSource] = useState<AiSource | null>(null)
   const [editing, setEditing] = useState<InboxItem | null>(null)
   const [editValues, setEditValues] = useState({ title: "", raw_text: "", suggested_type: "none", life_area_id: null as string | null })
   const [converting, setConverting] = useState<InboxItem | null>(null)
@@ -169,7 +185,6 @@ export default function InboxPage() {
   const [convertError, setConvertError] = useState("")
 
   const fetchData = useCallback(async () => {
-    setLoading(true)
     setError("")
     try {
       const [itemsRes, areasRes] = await Promise.all([
@@ -211,14 +226,7 @@ export default function InboxPage() {
     return items.filter((item) => {
       if (filter !== "all" && item.status !== filter) return false
       if (!q) return true
-      const haystack = [
-        item.title,
-        item.raw_text,
-        item.suggested_type ? targetLabels[item.suggested_type] : "",
-        item.status,
-        item.source,
-        item.life_area_name || "",
-      ].join(" ").toLowerCase()
+      const haystack = [item.title, item.raw_text, item.life_area_name || ""].join(" ").toLowerCase()
       return haystack.includes(q)
     })
   }, [filter, items, search])
@@ -233,14 +241,10 @@ export default function InboxPage() {
     )
   }, [items])
 
-  const createInboxItem = async () => {
-    const rawText = capture.raw_text.trim()
-    const title = capture.title.trim() || titleFromText(rawText)
-    if (!rawText && !capture.title.trim()) {
-      setError("Add a title or some text first.")
-      return
-    }
-
+  // Saving always comes first, so a thought is never lost while the AI works.
+  const saveCapture = async (sortWithAi: boolean) => {
+    const rawText = captureText.trim()
+    if (!rawText || saving) return
     setSaving(true)
     setError("")
     try {
@@ -248,23 +252,30 @@ export default function InboxPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title,
+          title: titleFromText(rawText),
           raw_text: rawText,
-          suggested_type: capture.suggested_type === "none" ? null : capture.suggested_type,
-          life_area_id: capture.life_area_id,
-          source: "manual",
+          source: sortWithAi ? "ai_capture" : "manual",
         }),
       })
       const data = await response.json().catch(() => null)
-      if (!response.ok) throw new Error(data?.error || "Failed to capture item.")
-      setCapture({ title: "", raw_text: "", suggested_type: "none", life_area_id: null })
+      if (!response.ok) throw new Error(data?.error || "Couldn't save that.")
+      setCaptureText("")
       setFilter("unsorted")
-      if (filter === "unsorted") await fetchData()
+      await fetchData()
+      if (sortWithAi && data?.id) {
+        setAiSource({ key: `item-${data.id}-${Date.now()}`, text: rawText, inboxItemId: Number(data.id) })
+      } else {
+        toast({ title: "Saved to Inbox", description: "Sort it whenever you have a minute." })
+      }
     } catch (createError) {
-      setError(createError instanceof Error ? createError.message : "Failed to capture item.")
+      setError(createError instanceof Error ? createError.message : "Couldn't save that.")
     } finally {
       setSaving(false)
     }
+  }
+
+  const sortItemWithAi = (item: InboxItem) => {
+    setAiSource({ key: `item-${item.id}-${Date.now()}`, text: aiTextFor(item), inboxItemId: item.id })
   }
 
   const updateItem = async (item: InboxItem, patch: Partial<InboxItem>) => {
@@ -363,8 +374,8 @@ export default function InboxPage() {
       const data = await response.json().catch(() => null)
       if (!response.ok) throw new Error(data?.error || "Failed to convert inbox item.")
       setConverting(null)
-      setFilter("converted")
-      if (filter === "converted") await fetchData()
+      toast({ title: `Made a ${targetLabels[targetType].toLowerCase()}`, description: converting.title })
+      await fetchData()
     } catch (conversionError) {
       setConvertError(conversionError instanceof Error ? conversionError.message : "Failed to convert inbox item.")
     } finally {
@@ -374,7 +385,7 @@ export default function InboxPage() {
 
   if (authLoading || !user) {
     return (
-      <DashboardLayout title="Inbox">
+      <DashboardLayout>
         <div className="flex items-center justify-center py-24 text-muted-foreground">
           <Loader2 className="h-6 w-6 animate-spin" />
         </div>
@@ -382,213 +393,214 @@ export default function InboxPage() {
     )
   }
 
+  const activeFilter = statusFilters.find((option) => option.value === filter) ?? statusFilters[0]
+  const tooLongForAi = captureText.trim().length > AI_SORT_MAX_CHARS
+
   return (
-    <DashboardLayout title="Inbox" subtitle="Capture now. Sort later.">
-      <div className="space-y-6">
-        <Card className="border-primary/20">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Inbox className="h-5 w-5 text-primary" />
-              Quick Capture
-            </CardTitle>
-            <CardDescription>Drop the thought here before it gets lost.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
-              <Input
-                value={capture.title}
-                onChange={(event) => setCapture((current) => ({ ...current, title: event.target.value }))}
-                placeholder="Optional title"
-              />
-              <Select
-                value={capture.suggested_type}
-                onValueChange={(value) => setCapture((current) => ({ ...current, suggested_type: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Suggested type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No suggestion</SelectItem>
-                  {targetOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Textarea
-              value={capture.raw_text}
-              onChange={(event) => setCapture((current) => ({ ...current, raw_text: event.target.value }))}
-              placeholder="A reminder, worry, idea, responsibility, shopping thought, or anything unfinished..."
-              className="min-h-[120px]"
-            />
-            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-              <div className="space-y-2">
-                <Label>Life Domain</Label>
-                <LifeAreaSelect
-                  areas={lifeAreas}
-                  value={capture.life_area_id}
-                  onChange={(value) => setCapture((current) => ({ ...current, life_area_id: value }))}
-                />
-              </div>
-              <Button onClick={createInboxItem} disabled={saving} className="gap-2">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Inbox className="h-4 w-4" />}
-                Capture
+    <DashboardLayout>
+      <div className="section-enter mx-auto w-full max-w-3xl space-y-6">
+        <header>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-[28px]">Inbox</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Dump it here. Sort it when you have a minute.</p>
+        </header>
+
+        <section aria-label="Capture" className="rounded-xl border bg-card p-4 sm:p-5">
+          <Label htmlFor="inbox-capture" className="sr-only">
+            What&apos;s on your mind?
+          </Label>
+          <Textarea
+            id="inbox-capture"
+            value={captureText}
+            onChange={(event) => setCaptureText(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                event.preventDefault()
+                void saveCapture(false)
+              }
+            }}
+            placeholder="What's on your mind? A reminder, a worry, an idea, a whole messy list..."
+            className="min-h-[110px] resize-none border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0"
+          />
+          <div className="mt-3 flex flex-col gap-3 border-t border-border/70 pt-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-muted-foreground">
+              {tooLongForAi
+                ? `AI can sort up to ${AI_SORT_MAX_CHARS} characters. Save it, or shorten it to sort with AI.`
+                : "Sort with AI sends the text to the AI. It saves to Inbox first, so nothing is lost."}
+            </p>
+            <div className="flex shrink-0 gap-2">
+              <Button variant="outline" onClick={() => void saveCapture(false)} disabled={!captureText.trim() || saving} className="gap-2">
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Inbox className="h-4 w-4" aria-hidden="true" />}
+                Save
+              </Button>
+              <Button onClick={() => void saveCapture(true)} disabled={!captureText.trim() || saving || tooLongForAi} className="gap-2">
+                <Sparkles className="h-4 w-4" aria-hidden="true" />
+                Sort with AI
               </Button>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </section>
 
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="grid grid-cols-2 gap-2 sm:flex">
-            {statusFilters.map((status) => (
-              <Button
-                key={status.value}
-                type="button"
-                variant={filter === status.value ? "secondary" : "outline"}
-                size="sm"
-                onClick={() => setFilter(status.value)}
-              >
-                {status.label}
-              </Button>
-            ))}
-          </div>
-          <div className="relative md:w-80">
-            <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search Inbox..."
-              className="pl-9"
-            />
-          </div>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-lg border bg-card p-4">
-            <p className="text-2xl font-bold">{counts.unsorted}</p>
-            <p className="text-xs text-muted-foreground">unsorted</p>
-          </div>
-          <div className="rounded-lg border bg-card p-4">
-            <p className="text-2xl font-bold">{counts.converted}</p>
-            <p className="text-xs text-muted-foreground">converted</p>
-          </div>
-          <div className="rounded-lg border bg-card p-4">
-            <p className="text-2xl font-bold">{counts.archived}</p>
-            <p className="text-xs text-muted-foreground">archived</p>
-          </div>
-        </div>
-
-        {error && (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-            {error}
-          </div>
+        {aiSource && (
+          <AiSortPanel
+            key={aiSource.key}
+            text={aiSource.text}
+            inboxItemId={aiSource.inboxItemId}
+            onClose={() => setAiSource(null)}
+            onFinished={() => void fetchData()}
+          />
         )}
 
-        <div className="space-y-3">
-          {loading ? (
-            <>
-              <Skeleton className="h-32 w-full" />
-              <Skeleton className="h-32 w-full" />
-              <Skeleton className="h-32 w-full" />
-            </>
-          ) : filteredItems.length === 0 ? (
-            <div className="rounded-lg border border-dashed p-10 text-center">
-              <Inbox className="mx-auto h-10 w-10 text-muted-foreground" />
-              <h2 className="mt-3 text-lg font-semibold">
-                {search ? "No matching inbox items" : filter === "unsorted" ? "Your Inbox is clear" : "Nothing here yet"}
-              </h2>
-              <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-                {filter === "unsorted"
-                  ? "Capture something above, or use Quick Add when a thought is too messy for a module."
-                  : "Switch filters or capture a new item to start sorting."}
-              </p>
-            </div>
-          ) : (
-            filteredItems.map((item) => {
-              const area = areaForItem(item, lifeAreas)
-              const suggested = item.suggested_type ? targetLabels[item.suggested_type] : null
-              const convertedHref = item.converted_type ? convertedHrefs[item.converted_type](item.converted_id) : null
+        {error && (
+          <p role="status" className="rounded-xl border border-dashed bg-card/60 p-4 text-sm text-muted-foreground">
+            {error}
+          </p>
+        )}
 
-              return (
-                <Card key={item.id}>
-                  <CardHeader className="pb-3">
-                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <CardTitle className="truncate text-lg">{item.title}</CardTitle>
-                          <Badge variant={item.status === "unsorted" ? "default" : "outline"}>{item.status}</Badge>
-                          <Badge variant="outline">{item.source.replace("_", " ")}</Badge>
-                          {suggested && <Badge variant="secondary">{suggested}</Badge>}
-                          <LifeAreaBadge area={area} fallback="No area" />
-                        </div>
-                        <CardDescription className="mt-1">Updated {formatDate(item.updated_at)}</CardDescription>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {item.status === "unsorted" && (
-                          <Button size="sm" onClick={() => openConvert(item)} className="gap-2">
-                            Convert
-                            <ArrowRight className="h-4 w-4" />
-                          </Button>
-                        )}
-                        <Button size="sm" variant="outline" onClick={() => openEdit(item)}>
-                          Edit
-                        </Button>
-                        {item.status === "archived" ? (
-                          <Button size="sm" variant="outline" onClick={() => updateItem(item, { status: "unsorted" })} className="gap-2">
-                            <RotateCcw className="h-4 w-4" />
-                            Restore
-                          </Button>
-                        ) : item.status !== "converted" ? (
-                          <Button size="sm" variant="outline" onClick={() => updateItem(item, { status: "archived" })} className="gap-2">
-                            <Archive className="h-4 w-4" />
-                            Archive
-                          </Button>
-                        ) : null}
-                        <Button size="sm" variant="ghost" onClick={() => deleteItem(item)} className="gap-2 text-destructive">
-                          <Trash2 className="h-4 w-4" />
-                          Delete
-                        </Button>
-                      </div>
+        <section aria-labelledby="inbox-list" className="space-y-3">
+          <h2 id="inbox-list" className="sr-only">Inbox items</h2>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div role="group" aria-label="Show" className="-mx-4 flex gap-1 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0 sm:pb-0">
+              {statusFilters.map((option) => {
+                const selected = filter === option.value
+                const count = option.value === "all" ? null : counts[option.value]
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => setFilter(option.value)}
+                    className={cn(
+                      "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors duration-150",
+                      selected
+                        ? "border-primary/30 bg-primary-tint text-primary"
+                        : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground",
+                    )}
+                  >
+                    {option.label}
+                    {count ? <span className="tabular-nums opacity-80">{count}</span> : null}
+                  </button>
+                )
+              })}
+            </div>
+            {items.length > 5 && (
+              <div className="relative sm:w-64">
+                <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                <Input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search Inbox"
+                  aria-label="Search Inbox"
+                  className="h-9 bg-card pl-9"
+                />
+              </div>
+            )}
+          </div>
+
+          {loading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-20 w-full rounded-xl" />
+              <Skeleton className="h-20 w-full rounded-xl" />
+            </div>
+          ) : filteredItems.length === 0 ? (
+            <p className="rounded-xl border border-dashed bg-card/60 p-5 text-sm text-muted-foreground">
+              {search ? "Nothing matches that search." : activeFilter.empty}
+            </p>
+          ) : (
+            <ul className="divide-y divide-border/70 overflow-hidden rounded-xl border bg-card">
+              {filteredItems.map((item) => {
+                const convertedHref = item.converted_type ? convertedHrefs[item.converted_type](item.converted_id) : null
+                const body = item.raw_text?.trim() && item.raw_text.trim() !== item.title.trim() ? item.raw_text.trim() : null
+                const meta = [
+                  shortDate(item.created_at),
+                  sourceLabels[item.source] || null,
+                  item.life_area_name || null,
+                  item.suggested_type && item.status === "unsorted" ? `Maybe a ${targetLabels[item.suggested_type].toLowerCase()}` : null,
+                ].filter(Boolean)
+                return (
+                  <li key={item.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <p className="break-words text-sm font-medium text-foreground">{item.title}</p>
+                      {body && <p className="mt-0.5 line-clamp-2 whitespace-pre-wrap text-sm text-muted-foreground">{body}</p>}
+                      {meta.length > 0 && <p className="mt-1 text-xs text-muted-foreground">{meta.join(" · ")}</p>}
                     </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {item.raw_text ? (
-                      <p className="whitespace-pre-wrap rounded-md bg-muted/50 p-3 text-sm text-muted-foreground">{item.raw_text}</p>
-                    ) : (
-                      <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">No extra text saved.</p>
-                    )}
-                    {convertedHref && item.converted_type && (
-                      <Button asChild variant="outline" size="sm" className="gap-2">
-                        <Link href={convertedHref}>
-                          Open {targetLabels[item.converted_type]}
-                          <ArrowRight className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                    )}
-                  </CardContent>
-                </Card>
-              )
-            })
+                    <div className="flex shrink-0 items-center gap-1">
+                      {item.status === "unsorted" && (
+                        <>
+                          <Button size="sm" variant="outline" className="h-8 bg-card" onClick={() => openConvert(item)}>
+                            Sort
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 gap-1.5 text-primary"
+                            onClick={() => sortItemWithAi(item)}
+                            disabled={aiTextFor(item).length > AI_SORT_MAX_CHARS}
+                          >
+                            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                            AI
+                          </Button>
+                        </>
+                      )}
+                      {convertedHref && item.converted_type && (
+                        <Button asChild size="sm" variant="ghost" className="h-8 gap-1.5">
+                          <Link href={convertedHref}>
+                            Open {targetLabels[item.converted_type].toLowerCase()}
+                            <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                          </Link>
+                        </Button>
+                      )}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" aria-label={`More for ${item.title}`}>
+                            <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onSelect={() => openEdit(item)}>
+                            <Pencil className="mr-2 h-4 w-4" aria-hidden="true" />
+                            Edit
+                          </DropdownMenuItem>
+                          {item.status === "archived" ? (
+                            <DropdownMenuItem onSelect={() => void updateItem(item, { status: "unsorted" })}>
+                              <RotateCcw className="mr-2 h-4 w-4" aria-hidden="true" />
+                              Move back to sort
+                            </DropdownMenuItem>
+                          ) : item.status !== "converted" ? (
+                            <DropdownMenuItem onSelect={() => void updateItem(item, { status: "archived" })}>
+                              <Archive className="mr-2 h-4 w-4" aria-hidden="true" />
+                              Archive
+                            </DropdownMenuItem>
+                          ) : null}
+                          <DropdownMenuItem onSelect={() => void deleteItem(item)} className="text-destructive focus:text-destructive">
+                            <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
           )}
-        </div>
+        </section>
       </div>
 
       <Dialog open={Boolean(editing)} onOpenChange={(open) => !open && setEditing(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Inbox Item</DialogTitle>
-            <DialogDescription>Adjust the capture before sorting it.</DialogDescription>
+            <DialogTitle>Edit</DialogTitle>
+            <DialogDescription>Tidy it up before you sort it.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Title</Label>
-              <Input value={editValues.title} onChange={(event) => setEditValues((current) => ({ ...current, title: event.target.value }))} />
+              <Label htmlFor="inbox-edit-title">Title</Label>
+              <Input id="inbox-edit-title" value={editValues.title} onChange={(event) => setEditValues((current) => ({ ...current, title: event.target.value }))} />
             </div>
             <div className="space-y-2">
-              <Label>Text</Label>
+              <Label htmlFor="inbox-edit-text">Text</Label>
               <Textarea
+                id="inbox-edit-text"
                 value={editValues.raw_text}
                 onChange={(event) => setEditValues((current) => ({ ...current, raw_text: event.target.value }))}
                 className="min-h-[120px]"
@@ -596,13 +608,13 @@ export default function InboxPage() {
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>Suggested type</Label>
+                <Label>Probably a</Label>
                 <Select value={editValues.suggested_type} onValueChange={(value) => setEditValues((current) => ({ ...current, suggested_type: value }))}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">No suggestion</SelectItem>
+                    <SelectItem value="none">Not sure yet</SelectItem>
                     {targetOptions.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
                         {option.label}
@@ -612,7 +624,7 @@ export default function InboxPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Life Domain</Label>
+                <Label>Life domain</Label>
                 <LifeAreaSelect
                   areas={lifeAreas}
                   value={editValues.life_area_id}
@@ -626,7 +638,7 @@ export default function InboxPage() {
               Cancel
             </Button>
             <Button onClick={saveEdit} disabled={saving}>
-              {saving ? "Saving..." : "Save changes"}
+              {saving ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -635,13 +647,13 @@ export default function InboxPage() {
       <Dialog open={Boolean(converting)} onOpenChange={(open) => !open && setConverting(null)}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Convert Inbox Item</DialogTitle>
-            <DialogDescription>Review the destination and details before creating anything.</DialogDescription>
+            <DialogTitle>Sort it</DialogTitle>
+            <DialogDescription>Pick what this becomes and check the details. Nothing is created until you confirm.</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Convert to</Label>
+              <Label>Make it a</Label>
               <Select value={targetType} onValueChange={(value) => changeTargetType(value as TargetType)}>
                 <SelectTrigger>
                   <SelectValue />
