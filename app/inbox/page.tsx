@@ -89,10 +89,10 @@ const convertedHrefs: Record<TargetType, (id: number | null) => string> = {
   goal: () => "/goals",
   note: () => "/notes",
   project: (id) => (id ? `/projects/${id}` : "/projects"),
-  habit: () => "/habits",
+  habit: () => "/tasks?tab=habits",
   wishlist_item: () => "/wishlist",
   vault_item: () => "/vault",
-  calendar_event: () => "/calendar",
+  calendar_event: () => "/tasks?tab=calendar",
 }
 
 function titleFromText(rawText: string) {

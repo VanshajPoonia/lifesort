@@ -130,7 +130,7 @@ function improvementFor(componentKey: LifeScoreComponentKey, score: number): Lif
     habit_consistency: {
       title: "Check in on one habit",
       description: "Mark today's smallest habit win, or pause a habit that no longer fits this week.",
-      href: "/habits",
+      href: "/tasks?tab=habits",
       component_key: "habit_consistency",
     },
     goals_updated: {
@@ -526,7 +526,7 @@ export async function getLifeScoreData(userId: string): Promise<LifeScoreData> {
       explanation: activeHabits === 0
         ? "No active habits are tracked yet, so this stays neutral."
         : `${completedCheckins} habit check-in${completedCheckins === 1 ? "" : "s"} logged across the last 7 days.`,
-      href: "/habits",
+      href: "/tasks?tab=habits",
     }))
   }
 

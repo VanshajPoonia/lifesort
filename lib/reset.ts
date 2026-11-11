@@ -381,7 +381,7 @@ export async function getResetData(userId: string) {
       description: "Habits due today that have not been checked in.",
       items: missedHabits.map((row) => item(row, "habit", {
         subtitle: "Due today",
-        href: "/habits",
+        href: "/tasks?tab=habits",
         date: localDateString(),
         reason: "No completed check-in today",
         actions: ["mark_complete", "archive", "move_someday", "delete"],

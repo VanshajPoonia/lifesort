@@ -223,7 +223,7 @@ async function createTarget(userId: string, targetType: string, payload: Record<
       )
       RETURNING id, name
     `
-    return { id: result[0].id as number, title: result[0].name as string, href: "/habits" }
+    return { id: result[0].id as number, title: result[0].name as string, href: "/tasks?tab=habits" }
   }
 
   if (targetType === "wishlist_item") {
@@ -290,7 +290,7 @@ async function createTarget(userId: string, targetType: string, payload: Record<
       VALUES (${userId}, ${title}, ${cleanText(payload.description, fallbackText)}, ${eventDate}, ${startTime}, ${endTime})
       RETURNING id, title
     `
-    return { id: result[0].id as number, title: result[0].title as string, href: "/calendar" }
+    return { id: result[0].id as number, title: result[0].title as string, href: "/tasks?tab=calendar" }
   }
 
   throw new Error("Unsupported conversion type")

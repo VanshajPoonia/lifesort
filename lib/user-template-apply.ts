@@ -88,7 +88,7 @@ export async function applyUserTemplateItems(user: TemplateApplyUser, items: Use
             ${item.icon || "CheckSquare"},
             0
           )
-          RETURNING 'habit' AS type, id::text AS id, name AS title, '/habits' AS href
+          RETURNING 'habit' AS type, id::text AS id, name AS title, '/tasks?tab=habits' AS href
         `)
         return
       }

@@ -689,7 +689,6 @@ export function CalendarView() {
     setSelectedDate(today)
   }
 
-  const firstName = user?.name?.split(" ")[0] || "Your"
 
   if (pageLoading || !user) {
     return (

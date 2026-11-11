@@ -173,7 +173,7 @@ export async function POST(request: Request) {
             ${habit.icon || "CheckSquare"},
             0
           )
-          RETURNING 'habit' AS type, id::text AS id, name AS title, '/habits' AS href, FALSE AS linked_to_space
+          RETURNING 'habit' AS type, id::text AS id, name AS title, '/tasks?tab=habits' AS href, FALSE AS linked_to_space
         `)
       })
 

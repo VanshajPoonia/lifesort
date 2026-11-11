@@ -83,12 +83,12 @@ function hrefFor(section: keyof DataState, domainId: string) {
   const routes: Record<keyof DataState, string> = {
     tasks: `/tasks?life_area_id=${encoded}`,
     goals: `/goals?life_area_id=${encoded}`,
-    habits: `/habits?life_area_id=${encoded}`,
+    habits: `/tasks?tab=habits&life_area_id=${encoded}`,
     projects: `/projects?life_area_id=${encoded}`,
     notes: `/notes?life_area_id=${encoded}`,
     categories: `/money?tab=budget&life_area_id=${encoded}`,
     wishlist: `/money?tab=wishlist&life_area_id=${encoded}`,
-    events: `/calendar`,
+    events: `/tasks?tab=calendar`,
     journal: `/journal`,
   }
   return routes[section]

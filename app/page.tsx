@@ -1497,7 +1497,7 @@ export default function TodayPage() {
                 <section aria-labelledby="today-calendar">
                   <div className="mb-3 flex items-baseline justify-between gap-3">
                     <h2 id="today-calendar" className={sectionTitle}>Calendar</h2>
-                    <Link href="/calendar" className={sectionLink}>
+                    <Link href="/tasks?tab=calendar" className={sectionLink}>
                       Open
                       <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                     </Link>
@@ -1531,7 +1531,7 @@ export default function TodayPage() {
                         </span>
                       )}
                     </h2>
-                    <Link href="/habits" className={sectionLink}>
+                    <Link href="/tasks?tab=habits" className={sectionLink}>
                       Open
                       <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                     </Link>

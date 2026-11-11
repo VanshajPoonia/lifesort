@@ -962,7 +962,7 @@ export function HabitsView() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Habits & Routines</h1>
+            <h2 className="text-lg font-semibold tracking-tight text-foreground">Habits and routines</h2>
             <p className="text-sm text-muted-foreground mt-1">
               Build consistency with tracked habits and structured routines.
             </p>

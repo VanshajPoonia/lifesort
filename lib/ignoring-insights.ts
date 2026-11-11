@@ -438,7 +438,7 @@ export async function getIgnoringInsightsData(userId: string): Promise<IgnoringI
       title: text(row.title, "Habit"),
       description: "This active habit is due today and has not been checked in.",
       evidence: `Target count ${n(row.target_count) || 1}`,
-      href: "/habits",
+      href: "/tasks?tab=habits",
       date: new Date().toISOString().slice(0, 10),
       days_inactive: 0,
       severity: "medium",

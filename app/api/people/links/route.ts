@@ -39,7 +39,7 @@ export async function GET(request: Request) {
           WHEN 'task' THEN '/tasks'
           WHEN 'note' THEN '/notes'
           WHEN 'project' THEN '/projects/' || pl.item_id::text
-          WHEN 'calendar_event' THEN '/calendar'
+          WHEN 'calendar_event' THEN '/tasks?tab=calendar'
         END AS item_href
       FROM people_links pl
       WHERE pl.person_id = ${personId} AND pl.user_id = ${user.id}

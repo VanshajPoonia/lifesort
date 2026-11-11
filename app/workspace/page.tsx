@@ -61,7 +61,7 @@ const planCards: HubCard[] = [
   {
     title: "Habits & Routines",
     description: "Keep recurring practices and routines visible.",
-    href: "/habits",
+    href: "/tasks?tab=habits",
     icon: Flame,
     statusKey: "habitsDueToday",
     statusLabel: "today",
@@ -71,7 +71,7 @@ const planCards: HubCard[] = [
   {
     title: "Calendar",
     description: "See events, deadlines, and synced schedule context.",
-    href: "/calendar",
+    href: "/tasks?tab=calendar",
     icon: CalendarDays,
     statusKey: "calendarToday",
     statusLabel: "today",

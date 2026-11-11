@@ -1,12 +1,12 @@
-"use client"
+import { redirect } from "next/navigation"
 
-import { DashboardLayout } from "@/components/dashboard-layout"
-import { CalendarView } from "@/components/tasks/calendar-view"
+import { redirectTarget } from "@/lib/redirect-target"
 
-export default function CalendarPage() {
-  return (
-    <DashboardLayout>
-      <CalendarView />
-    </DashboardLayout>
-  )
+// Calendar is a tab of Tasks since Stage 1 step 3 (2026-11-11).
+export default async function CalendarRedirectPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}) {
+  redirect(redirectTarget("/tasks", await searchParams, { tab: "calendar" }))
 }

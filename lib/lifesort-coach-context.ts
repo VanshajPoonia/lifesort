@@ -232,7 +232,7 @@ async function getTodayContext(userId: string, unavailable: string[], citations:
       type: "calendar",
       id: row.id,
       title: row.title,
-      href: "/calendar",
+      href: "/tasks?tab=calendar",
       subtitle: `${String(row.start_time ?? "").slice(0, 5)}-${String(row.end_time ?? "").slice(0, 5)}`,
       date: row.event_date,
     })
@@ -247,7 +247,7 @@ async function getTodayContext(userId: string, unavailable: string[], citations:
       type: "habit",
       id: row.id,
       title: row.name,
-      href: "/habits",
+      href: "/tasks?tab=habits",
       subtitle: `${text(row.frequency, "daily")}; done today: ${boolLabel(done)}`,
       life_area_name: row.life_area_name,
     })
@@ -395,8 +395,8 @@ async function getWeekContext(userId: string, unavailable: string[], citations: 
 
   addRows("Tasks this week", tasks, "task", "/tasks", (row) => `priority ${text(row.priority, "medium")}; completed ${boolLabel(row.completed)}`, "due_date")
   addRows("Goals this week", goals, "goal", "/goals", (row) => `status ${text(row.status)}; progress ${numberValue(row.progress)}%`, "target_date")
-  addRows("Calendar this week", events, "calendar", "/calendar", (row) => `${String(row.start_time ?? "").slice(0, 5)}-${String(row.end_time ?? "").slice(0, 5)}`, "event_date")
-  addRows("Habit completion this week", habits, "habit", "/habits", (row) => `${numberValue(row.completed_checkins)} completed check-ins`, "updated_at")
+  addRows("Calendar this week", events, "calendar", "/tasks?tab=calendar", (row) => `${String(row.start_time ?? "").slice(0, 5)}-${String(row.end_time ?? "").slice(0, 5)}`, "event_date")
+  addRows("Habit completion this week", habits, "habit", "/tasks?tab=habits", (row) => `${numberValue(row.completed_checkins)} completed check-ins`, "updated_at")
   addRows("Projects this week", projects, "project", "/projects", (row) => `status ${text(row.status)}; progress ${numberValue(row.progress)}%`, "due_date")
 
   if (review.length) {

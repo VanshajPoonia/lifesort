@@ -339,7 +339,7 @@ function calendarItem(event: Row) {
     source_id: String(event.id),
     title: String(event.title || "Calendar event"),
     subtitle: [event.start_time, event.location].filter(Boolean).join(" · "),
-    href: "/calendar",
+    href: "/tasks?tab=calendar",
     custom: false,
     date: (event.event_date || null) as string | Date | null,
     life_area_id: event.life_area_id != null ? String(event.life_area_id) : null,
