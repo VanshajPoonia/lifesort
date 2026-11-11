@@ -10,9 +10,9 @@ Keep it short. Entries dated before 2026-10 were moved word for word to `AI_TASK
 
 LifeSort is a broad Next.js App Router application with many implemented product areas and a Vercel-oriented deployment. The repo now has persistent AI memory files in the project root.
 
-Current verification state (2026-10-28):
+Current verification state (2026-11-11):
 
-- `npm run build` passes with TypeScript validation now actually enforced (`next.config.mjs`'s `typescript.ignoreBuildErrors` is `false`; `tsc --noEmit` is clean). `eslint.ignoreDuringBuilds` remains `true` — 65 pre-existing lint findings remain (down from 293 originally; see the 2026-07-25 ESLint cleanup entry, and 66 → 65 in the 2026-10-28 design pass), every one a reviewed-and-commented `react-hooks/set-state-in-effect` exception (either a real state transition or a function intentionally shared with non-effect call sites). It still exits non-zero; that is expected and not a blocker.
+- `npm run build` passes with TypeScript validation now actually enforced (`next.config.mjs`'s `typescript.ignoreBuildErrors` is `false`; `tsc --noEmit` is clean). `eslint.ignoreDuringBuilds` remains `true` — 64 pre-existing lint findings remain (down from 293 originally; see the 2026-07-25 ESLint cleanup entry, 66 → 65 in the 2026-10-28 design pass and 65 → 64 in the 2026-11-11 Today merge), every one a reviewed-and-commented `react-hooks/set-state-in-effect` exception (either a real state transition or a function intentionally shared with non-effect call sites). It still exits non-zero; that is expected and not a blocker.
 - `npm run lint` runs cleanly via `eslint.config.mjs` (ESLint 9.x + `eslint-config-next@16`) — it exits non-zero on real findings, it does not fail to run.
 - `npm test` runs Vitest: 104/104 tests passing across 7 suites (`lib/auth.test.ts`, `lib/date-math.test.ts`, `app/api/tags/route.test.ts`, `app/api/item-relationships/route.test.ts`, `app/api/tasks/[id]/checklist-items/route.test.ts`, `app/api/tasks/[id]/recurrence/route.test.ts`, `app/api/tasks/route.test.ts`).
 - `npx tsc --noEmit` is clean.
@@ -28,6 +28,12 @@ Current verification state (2026-10-28):
   - `app/api/today-plan/route.ts`: past-due labels say "Was due" instead of "Overdue since". The past-due task query also returns `status` and `email_reminder`, so Today can undo a decision exactly. Undated tasks with status `someday` no longer show up as "could do". Custom focus items link to `/`.
   - `app/page.tsx`, `app/today/page.tsx`, `next.config.mjs`: Home and Today merged into one page at `/`. `/today` redirects there, keeping `?tab=week`, both in `next.config.mjs` and in a redirect stub page. Kept from the two pages: greeting, onboarding check, up to 3 focus items, the 25-minute focus timer, today's list with drag reordering, the AI day plan, habits, today's calendar, the Life domains overview, the This Week tab and the evening reflection. New: a Done checkbox on task rows, a target button to add any row to focus, one-tap energy (Low, Okay, Good) instead of the capacity form, "Needs a decision" for past-due tasks with Today, Later, Done and Let go, a "Start fresh" card when 6+ tasks are past due or you return after 3+ days away (last visit kept in `localStorage`), a folded Anytime list for undated tasks, an Inbox nudge, and an evening wrap-up folded until 5pm. Every decision shows a 10-second Undo toast. Removed: stat tiles, red counts, Must/Should/Could filter chips, Quick Notes, Upcoming Deadlines, the Journal card, LifeScore, money totals, recent activity and the Someday, Waiting, Commitments and Maintenance widgets. LifeScore already has a tab in Reflect.
   - `AI_PROJECT.md`, `AI_DECISIONS.md`, `AI_BUILD_PLAN.md`: describe the merged page and the no-guilt rules. Part 0 step 2 is marked done, and weekly streaks moved to step 3 next to Habits.
+  - `components/dashboard-layout.tsx`, `components/global-command-palette.tsx`, `app/settings/page.tsx`, `lib/life-score.ts`, `app/review/page.tsx`, `app/api/journal/[date]/route.ts`, `AI_CHECKLIST.md`: the sidebar shows "Today" once (the `home` id is kept so saved sidebar prefs still work, with `/today` as an alias). The mobile bar is Today, Workspace, Money and More on a 4-column grid. The command palette and the Settings sidebar toggles list Today once. Every internal `/today` link now points at `/`.
+- **Commands run:** `npx tsc --noEmit` clean. `npm run build` passes (`/` is 23.7 kB, `/today` is a redirect). `npm test` 104/104. `npm run lint` 64 findings, down from 65 because the old Home effect exception is gone. All are the reviewed `set-state-in-effect` ones.
+- **Browser test:** with the user's OK, against the dev server at `127.0.0.1:3100`. Local dev uses the production database, so the test used a throwaway account (`lifesort-today-test-*@example.com`) with 11 fake tasks and 2 habits. Checked: `/today` and `/today?tab=week` redirect, sidebar shows Today once, Later saves `someday` with no date and Undo restores date, status and email reminder, Today moves a task into today's list, Done and Let go save `completed` and `cancelled`, the Done checkbox, adding to focus, one-tap energy, the welcome-back card after a faked 6-day gap, Start fresh plus Undo on 4 tasks, Anytime excluding someday tasks, the focus timer, the Reset fix, phone width at 390px with no sideways scroll, and the 10-second toast. The test account and all its rows (11 tasks, 2 habits, 13 starter domains, 1 day plan, 6 notifications, 2 sessions) were deleted afterwards in one guarded transaction. Production is back to 2 users.
+- **Remaining issues:** "Later" is called Someday in Tasks. Pick one word in step 3. Undo of Done on a recurring task puts the date back but keeps the bumped occurrence count. The onboarding modal logs a Radix "DialogContent requires a DialogTitle" warning (older code). The last-visit date lives in `localStorage`, so the welcome-back card is per device.
+- **Suggested next steps:** Stage 1 step 3. Give Tasks its List, Board, Calendar and Habits tabs, fold Waiting and Someday in as statuses, rename Someday to Later, and make habit streaks weekly.
+- **Handoff notes:** Today is `app/page.tsx`. Task decisions all go through `PUT /api/tasks` so recurrence and reminders stay right. Do not add stats or red counts back to Today. See `AI_DECISIONS.md` for the no-guilt rules.
 
 ### 2026-11-11 18:30 IST - Live usage check, task log archive, user answers on Stage 1
 
@@ -98,9 +104,9 @@ Current verification state (2026-10-28):
 
 ## Active Bugs / Issues
 
-- No known code bugs. Last full check was 2026-07-25 (see `AI_TASK_LOG_ARCHIVE.md`).
+- No known code bugs beyond the small ones in the 2026-11-11 22:00 entry. Habit saving was broken until 2026-11-11 (fixed in that entry).
 - Attachments are not deploy-ready. The `R2_*` env vars exist only in `.env.local`, not in Vercel, and the R2 token there was exposed in a past chat and should be rotated. Stage 4 of `AI_BUILD_PLAN.md` Part 0 depends on this.
-- `npm run lint` reports 65 reviewed `react-hooks/set-state-in-effect` findings and exits non-zero. Expected, not a blocker.
+- `npm run lint` reports 64 reviewed `react-hooks/set-state-in-effect` findings and exits non-zero. Expected, not a blocker.
 
 ## Known Risks
 
@@ -113,5 +119,5 @@ Current verification state (2026-10-28):
 
 - Raw SQL is duplicated across many route handlers.
 - Schema migration history is spread across many SQL files with overlapping changes.
-- Client pages hold large amounts of local state and fetch logic. `/today` alone is about 2,000 lines.
+- Client pages hold large amounts of local state and fetch logic. The Today page (`app/page.tsx`) alone is about 2,100 lines.
 - Tests cover `lib/auth.ts`, `lib/date-math.ts` and the tags, tasks, checklist-items, recurrence and item-relationships routes. Most other routes have no tests.

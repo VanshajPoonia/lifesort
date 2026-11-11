@@ -14,7 +14,6 @@ import {
   FolderPlus,
   Gauge,
   History,
-  Home,
   Inbox,
   Link2,
   Loader2,
@@ -115,8 +114,7 @@ const captureActions: Array<{
 ]
 
 const navigationActions = [
-  { label: "Home", description: "Dashboard", href: "/", icon: Home },
-  { label: "Today", description: "Daily planner", href: "/today", icon: CalendarCheck },
+  { label: "Today", description: "Your day: focus, tasks, habits", href: "/", icon: CalendarCheck },
   { label: "Journal", description: "Daily reflection", href: "/journal", icon: BookOpenText },
   { label: "Workspace", description: "Plan, capture, visual tools, systems, and follow-ups", href: "/workspace", icon: FolderPlus },
   { label: "Spaces", description: "Group related LifeSort records", href: "/spaces", icon: Map },

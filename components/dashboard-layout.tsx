@@ -9,7 +9,6 @@ import { useAuth } from "@/components/auth-provider"
 import {
   Shield,
   Settings,
-  LayoutGrid,
   CalendarCheck,
   Coffee,
   Wallet,
@@ -129,8 +128,8 @@ type SidebarItem = {
 }
 
 const HUB_NAV_ITEMS: SidebarItem[] = [
-  { id: "home", label: "Home", href: "/", icon: LayoutGrid, group: "today", legacyFallback: "dashboard" },
-  { id: "today", label: "Today", href: "/today", icon: CalendarCheck, group: "today" },
+  // Home and Today are one page since Stage 1 (2026-11-11). The "home" id keeps saved sidebar prefs working.
+  { id: "home", label: "Today", href: "/", icon: CalendarCheck, group: "today", aliases: ["/today"], legacyFallback: "dashboard" },
   {
     id: "domains",
     label: "Domains",
@@ -198,7 +197,7 @@ const HUB_NAV_ITEMS: SidebarItem[] = [
 ]
 
 const MOBILE_PRIMARY_ITEMS = HUB_NAV_ITEMS.filter((item) =>
-  ["home", "today", "workspace", "money"].includes(item.id),
+  ["home", "workspace", "money"].includes(item.id),
 )
 
 // Module-level cache — persists across client-side navigations so the
@@ -644,7 +643,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       </Button>
 
       <nav aria-label="Primary" className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-card/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur sm:hidden">
-        <div className="grid grid-cols-5 gap-1">
+        <div className="grid grid-cols-4 gap-1">
           {MOBILE_PRIMARY_ITEMS.map((item) => {
             const Icon = item.icon
             const active = isActiveItem(item)

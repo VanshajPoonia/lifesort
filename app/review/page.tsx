@@ -795,7 +795,7 @@ export default function WeeklyReviewPage() {
 
         <div className="flex justify-end">
           <Button asChild variant="outline">
-            <Link href="/today">
+            <Link href="/">
               Open Today Plan
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>

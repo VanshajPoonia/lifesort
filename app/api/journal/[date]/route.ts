@@ -53,7 +53,7 @@ function normalizeFocusItems(value: unknown): FocusItem[] {
         source_type: typeof raw.source_type === "string" && raw.source_type.trim() ? raw.source_type.trim() : "custom",
         source_id: typeof raw.source_id === "string" && raw.source_id.trim() ? raw.source_id.trim() : null,
         title: title.slice(0, 240),
-        href: typeof raw.href === "string" && raw.href.trim() ? raw.href.trim() : "/today",
+        href: typeof raw.href === "string" && raw.href.trim() ? raw.href.trim() : "/",
         custom: Boolean(raw.custom),
       }
     })

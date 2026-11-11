@@ -118,7 +118,7 @@ function improvementFor(componentKey: LifeScoreComponentKey, score: number): Lif
     focus_completion: {
       title: score < 70 ? "Choose one realistic focus item" : "Review today's focus",
       description: "Pick one to three visible priorities for today so the day has a clear center.",
-      href: "/today",
+      href: "/",
       component_key: "focus_completion",
     },
     overdue_task_load: {
@@ -500,7 +500,7 @@ export async function getLifeScoreData(userId: string): Promise<LifeScoreData> {
       explanation: focusItems.length === 0
         ? "No focus items are selected today, so this is a gentle neutral score."
         : `${completedFocusTasks}/${Math.max(focusTaskIds.length, focusItems.length)} visible focus item${focusItems.length === 1 ? "" : "s"} are complete or ready.`,
-      href: "/today",
+      href: "/",
     }))
   }
 

@@ -697,8 +697,7 @@ export default function SettingsPage() {
             <CardContent className="space-y-6">
               <div className="grid gap-4 sm:grid-cols-2">
                 {[
-                  { id: "home", label: "Home", icon: LayoutDashboard, description: "Dashboard, quick actions, LifeScore, and today snapshot" },
-                  { id: "today", label: "Today", icon: CalendarCheck, description: "Today Plan, calendar today, habits due, and capacity planning" },
+                  { id: "home", label: "Today", icon: CalendarCheck, description: "Your day: focus, today's list, habits and calendar" },
                   { id: "domains", label: "Domains", icon: Compass, description: "Life Domains: goals, projects, tasks, habits, and knowledge by life area" },
                   { id: "workspace", label: "Workspace", icon: Archive, description: "Plan, Capture, Visual, Systems, and Follow-ups" },
                   { id: "journal", label: "Journal", icon: BookOpenText, description: "Daily reflection, gratitude, intentions, and tomorrow setup" },
