@@ -90,7 +90,7 @@ const statusFilters: Array<{ value: InboxStatus; label: string; empty: string }>
 const sourceLabels: Record<InboxSource, string> = {
   manual: "Typed here",
   quick_add: "Quick Add",
-  ai_capture: "Sorted with AI",
+  ai_capture: "Sent to AI",
 }
 
 const targetOptions: Array<{ value: TargetType; label: string; icon: ElementType }> = [
