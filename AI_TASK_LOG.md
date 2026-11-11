@@ -17,6 +17,25 @@ Current verification state (2026-10-28):
 
 ## Completed Work
 
+### 2026-11-11 17:50 IST - Product direction: competitor research, consolidation plan, Claude as the only agent
+
+- **Agent/tool used:** Claude Code (Opus 5.5). From this session on, Claude Code is the only AI agent on this repo (user decision).
+- **Task completed:** The user said LifeSort is "too scattered" and asked for a consolidation plan built on the current features. They also wanted research on what competitors do that LifeSort is missing, and what LifeSort can do that nobody does well. They then set the direction: LifeSort is for everyday people, should be the simplest to use, should fit into people's lives through our templates, and ships as an installable web app. They asked for all of this to be saved and made Claude the only AI working on the repo.
+- **Research done:** web search across about 30 competitors and sources (Lunatask, TickTick, Todoist, Griply, Sunsama, Motion, Akiflow, Tiimo, Saner, Rosebud, Apple Journal, Exist, TimeAlign, life admin apps, Dex, Expensebit, Notion, ChatGPT), plus a DEV search. Reddit could not be searched. Most sources are vendor or affiliate content, which is flagged in the research file.
+- **Files changed:**
+  - `AI_MARKET_RESEARCH.md` (new): target user, competitor landscape, what competitors have that LifeSort lacks, where nobody does it well, threats, price snapshot, sources.
+  - `AI_BUILD_PLAN.md`: new Part 0 with the direction, rules for every change, the 7-place layout, a 6-stage build order, the data-merge track, a freeze list, the Part C mapping and open questions. Part B gained decisions 13 to 17. "How to use this file" now says to start at Part 0.
+  - `AI_DECISIONS.md`: new "Product Direction: Everyday Simplicity, Life Kits, Installable Web App (2026-11-11)" section.
+  - `AI_PROJECT.md`: Planned Work points at Part 0 and the research file.
+  - `CLAUDE.md`: rewritten. Claude Code is the only agent, and the Codex primary/fallback rules are gone.
+  - `AGENTS.md`: notes the single-agent setup and the new files, and adds two rows to the Memory Reference Guide.
+  - `AI_TASK_LOG.md`: this entry.
+- **Commands run:** `git status --short --branch` (clean on `design/declutter-shell-home`, one commit ahead of `main`, before starting). Created branch `docs/product-direction` from it. `npx tsc --noEmit` and `npm run build` were not run because this change is docs only and touches no code.
+- **Bugs found or fixed:** none.
+- **Remaining issues / known limitations:** nothing in the plan is built yet. Open questions for the user are listed in `AI_BUILD_PLAN.md` Part 0. `AI_CHECKLIST.md` still has Codex kickoff and handoff prompts, left in place as history.
+- **Suggested next steps:** Stage 1 of `AI_BUILD_PLAN.md` Part 0. Start with the read-only row count once the user says yes, then merge Home into Today with the messy-week rules.
+- **Handoff notes:** an earlier answer in the same session recommended freezing templates. The user's direction reversed that, and templates are now the core (Life Kits, Stage 3). Follow Part 0, not the earlier answer.
+
 ### 2026-10-28 13:45 IST - Design pass: declutter the shell, Home and hubs; motion; accessibility
 
 - **Agent/tool used:** Claude Code (Opus 5.5) as implementing agent (`CLAUDE.md` fallback mode: the user explicitly asked Claude to improve the design directly, using the `impeccable` design skill).
