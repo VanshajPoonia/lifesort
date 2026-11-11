@@ -214,7 +214,8 @@ Architecture and product decision memory for LifeSort.
 - **Decision: Claude Code is the only AI agent on this repo.** Codex is no longer used. `CLAUDE.md` and `AGENTS.md` were updated to match.
 - **Decision: consolidate to 7 sidebar places before adding differentiators.** These are Today, Inbox, Tasks, Domains, Library, Money and Reflect. The UI merges first with redirects and no schema change. Data merges come later, one table at a time, each with the user's OK.
 - Evidence: competitor research in `AI_MARKET_RESEARCH.md`. Build order in `AI_BUILD_PLAN.md` Part 0.
-- Still unconfirmed: the read-only row count on the live database, whether Daily Content, Spaces and Custom Sections are removed or hidden, which kits ship first, and the free vs paid split.
+- **Usage check (2026-11-11):** a read-only count on the production database, which every Vercel environment shares, found 2 accounts, no login since 2026-05-20 and almost every feature table empty. The user confirmed they stopped using LifeSort. The first goal is daily use by the user.
+- **Decision (user, 2026-11-11):** Waiting, Someday, Commitments and Maintenance fold into Tasks (statuses, recurring tasks, person links) and their empty tables get dropped. Spaces and Custom Sections are removed. Daily Content and games stay hidden. Everything is free for now. Kits are chosen later from a tick list. This supersedes the 2026-07-23 rule above about keeping trackers as compatibility lenses, which assumed real user data that does not exist.
 
 ## Patterns Agents Should Preserve
 

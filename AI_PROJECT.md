@@ -286,7 +286,7 @@ Never print or commit secret values.
 - Build health: passing, but with type and lint gates disabled.
 - Lint health: `npm run lint` runs (fixed 2026-07-24); 293 pre-existing findings not yet cleaned up.
 - Test health: `npm test` (Vitest) runs; 20 tests across 2 files as of 2026-07-24 — a starter harness, not full coverage.
-- Database health: schema source of truth needs confirmation against the live Neon database.
+- Database health: schema source of truth needs confirmation against the live Neon database. Every Vercel environment and `.env.local` share one production database. A read-only count on 2026-11-11 found 2 accounts, no login since 2026-05-20 and almost every feature table empty.
 
 ## Known Incomplete or Risky Areas
 

@@ -16,7 +16,11 @@ This file is the evidence. The build order that comes out of it lives in `AI_BUI
 
 In the user's own words (2026-11-11): LifeSort is for people to use in everyday life. It should be the simplest to use, and it should fit into people's lives through the templates we create. It ships as an installable web app.
 
-So the target is everyday people, not productivity hobbyists. When a power feature and simplicity conflict, simplicity wins.
+So the target is everyday people, not productivity hobbyists. When a power feature and simplicity conflict, simplicity wins. Everything is free for now.
+
+## Current usage (2026-11-11)
+
+A read-only count on the production database found 2 accounts, no login since 2026-05-20 and almost every feature table empty. The user confirmed they stopped using LifeSort. There is no product-market fit evidence yet, good or bad. The first test is whether the user uses LifeSort every day once it is simpler. After that, test with a few people outside the team.
 
 ## The one-line finding
 

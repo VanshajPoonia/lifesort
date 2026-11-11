@@ -19,6 +19,20 @@ Current verification state (2026-10-28):
 
 ## Completed Work
 
+### 2026-11-11 18:30 IST - Live usage check, task log archive, user answers on Stage 1
+
+- **Agent/tool used:** Claude Code (Opus 5.5).
+- **Task completed:** The user allowed the read-only row count and the task log cleanup, then answered the open questions with tick options: they stopped using LifeSort, Spaces and Custom Sections get removed, Waiting, Someday, Commitments and Maintenance fold into Tasks and their tables get dropped, Daily Content stays hidden, everything is free for now, kits get decided later, and Stage 1 starts now.
+- **Usage check:** `psql` against `DATABASE_URL_UNPOOLED` with `default_transaction_read_only=on`. The pooled URL rejects startup options, so use the unpooled one for this. The query counted total rows, distinct `user_id` and rows from the last 90 days for every public table. Results: 2 users, 3 tasks, 26 life_areas, 2 journal entries, 1 whiteboard, a few notifications, sessions, AI usage events and daily content rows. Every other feature table had 0 rows and nothing was created in the last 90 days. The last session was 2026-05-20 and the last journal entry 2026-06-03. `vercel env ls` shows `DATABASE_URL` is one value for Production, Preview and Development, so this is production. No secret values were printed.
+- **Files changed:**
+  - `AI_TASK_LOG.md`: split. Lines 1 to 72 stay, and new short Active Bugs, Known Risks and Architecture Concerns sections replace the stale May ones. Added this entry.
+  - `AI_TASK_LOG_ARCHIVE.md` (new): the old lines 73 to 5075, word for word (checked with `diff`).
+  - `AGENTS.md`, `CLAUDE.md`: point at the archive.
+  - `AI_BUILD_PLAN.md`: Part 0 has the usage finding, a reworked Stage 1, a "Retiring empty tables" section replacing the slow data-merge track, the user's answers and Part B #18.
+  - `AI_DECISIONS.md`, `AI_MARKET_RESEARCH.md`, `AI_PROJECT.md`: usage finding and decisions.
+- **Commands run:** the read-only `psql` queries above, `vercel env ls` (names and environments only) and `diff` checks on the archive split. No code changed, so `npx tsc --noEmit` and `npm run build` were not run.
+- **Suggested next steps:** Stage 1 step 2, merging Home into Today with the messy-week rules.
+
 ### 2026-11-11 17:50 IST - Product direction: competitor research, consolidation plan, Claude as the only agent
 
 - **Agent/tool used:** Claude Code (Opus 5.5). From this session on, Claude Code is the only AI agent on this repo (user decision).

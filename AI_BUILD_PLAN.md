@@ -33,7 +33,13 @@ Everyday people using it in everyday life. The user set three rules on 2026-11-1
 2. **Fits into a person's life through templates we create.** These become **Life Kits** (Stage 3).
 3. **Ships as an installable web app** (PWA), not a native app. The Capacitor attempt in `~/Code/Products/Lifesort App` is not being pursued.
 
-Claude Code is the only AI agent on this repo from 2026-11-11 (see `CLAUDE.md`).
+Claude Code is the only AI agent on this repo from 2026-11-11 (see `CLAUDE.md`). Everything is free for now.
+
+### Where LifeSort stands (read-only row count, 2026-11-11)
+
+The production database, which every Vercel environment shares, has 2 accounts. Both were created 2026-05-18. The last login was 2026-05-20 and the last journal entry 2026-06-03. Almost every feature table is empty, including Waiting, Someday, Commitments, Maintenance, Vault, People, Money, Notes, Habits, Spaces and Custom Sections. The user confirmed they stopped using LifeSort.
+
+So LifeSort has no active users yet, and there is almost no data to protect. **The first goal is that the user uses LifeSort every day.** Judge every stage by that. It also means consolidation can retire empty tables instead of keeping them as compatibility layers.
 
 ### Rules for every change
 
@@ -59,15 +65,16 @@ Settings absorbs Rules and the full Notifications page. Every old URL keeps work
 
 ### Build order
 
-**Stage 1: Consolidate (UI only, no schema change)**
-1. Run a read-only row count per table to see which features hold real data. Needs the user's OK first (`AGENTS.md`).
+**Stage 1: Consolidate**
+1. ✅ Read-only row count per table (2026-11-11, results above).
 2. Merge Home into Today and build the messy-week rules in from the start: a welcome-back reset after days away, "needs a decision" instead of overdue, weekly streaks.
-3. Give Tasks its List, Board, Calendar and Habits tabs. Fold in Waiting and Someday as filters. Redirect `/calendar`, `/habits`, `/waiting`, `/someday`.
+3. Give Tasks its List, Board, Calendar and Habits tabs. Fold Waiting and Someday in as task statuses, Maintenance as recurring tasks, and Commitments as tasks linked to a person. Redirect `/calendar`, `/habits`, `/waiting`, `/someday`, `/commitments`, `/maintenance`.
 4. Fold Capture into Inbox.
-5. Build the Library hub.
-6. Rebuild Reflect around Weekly Review and turn Coach into a side panel.
-7. Cut the sidebar to the 7 places.
-- **Exit:** 7 sidebar places, every old URL redirects, no data moved.
+5. Remove Spaces and Custom Sections: pages, API routes, nav entries and the template item types that create them. Daily Content and games stay hidden.
+6. Build the Library hub.
+7. Rebuild Reflect around Weekly Review and turn Coach into a side panel.
+8. Cut the sidebar to the 7 places.
+- **Exit:** 7 sidebar places, every old URL redirects, the retired screens are gone.
 
 **Stage 2: Installable web app and capture**
 - Service worker, install prompt, offline app shell, home screen shortcuts (Add task, Capture).
@@ -105,15 +112,22 @@ Settings absorbs Rules and the full Notifications page. Every old URL keeps work
 - Imports from Todoist, Notion and CSV. Bank statement upload. Shared household.
 - AI task breakdown with time estimates.
 
-### Data merges (separate track, one table at a time)
+### Retiring empty tables
 
-After Stage 1, consider moving `waiting_items` and `someday_items` into `tasks`, since those statuses already exist there. Decide per table for `commitments` (person links) and `maintenance_items` (vault links, lead times). Each move gets its own migration, a backup and the user's explicit OK. Part B #4 still applies.
+The user approved this on 2026-11-11. Once their screens are folded into Tasks or removed, drop these tables:
+- `waiting_items`, `someday_items`, `commitments`, `maintenance_items`
+- `spaces`, `space_items`
+- `custom_sections`, `custom_section_items`, `custom_section_records`
+
+All were empty on 2026-11-11. Before running a drop:
+- Write the migration under `scripts/migrations/`.
+- Re-run the read-only count and stop if any table has gained rows.
+- Search the code for remaining references (search, timeline, notifications, LifeScore, navigation summary, Coach context, templates, Reset).
 
 ### Freeze (no new work)
 
 - Whiteboards. They keep working but get no new features.
-- Daily Content and games. Hide or remove, user to decide.
-- Spaces and Custom Sections. Kits stop creating them, then retire them, user to decide.
+- Daily Content and games. They stay hidden (user decision 2026-11-11).
 - Live investment quotes.
 - New standalone AI insight screens.
 
@@ -124,16 +138,19 @@ After Stage 1, consider moving `waiting_items` and `someday_items` into `tasks`,
 - Phase 7 PWA moves up to Stage 2.
 - Rich editor upgrades, semantic search, favorites and imports wait until after Stage 6 unless a stage needs them.
 
-### Housekeeping (proposed, not done)
+### Housekeeping
 
-`AI_TASK_LOG.md` is about 575 KB, too big to read in one pass. Move entries older than 2026-10 into an archive file and keep the live log short.
+✅ Done 2026-11-11. `AI_TASK_LOG.md` was 576 KB. Entries before 2026-10 moved word for word to `AI_TASK_LOG_ARCHIVE.md`, and the live log is about 15 KB.
 
-### Open questions for the user
+### User answers (2026-11-11)
 
-1. OK to run a read-only row count per table on the Neon database?
-2. Daily Content and games, Spaces, Custom Sections: remove or hide?
-3. Which kits should ship first?
-4. What stays free and what is paid?
+- Read-only row count: allowed and done.
+- Daily Content and games: stay hidden.
+- Spaces and Custom Sections: remove.
+- Waiting, Someday, Commitments, Maintenance: fold into Tasks and drop the empty tables.
+- Pricing: everything is free for now.
+- Kits: the user decides later. At Stage 3, present kit options as a tick list.
+- Stage 1: start now.
 
 ---
 
@@ -298,6 +315,7 @@ Fast reference (each expanded in Part A). Record any change to these in `AI_DECI
 15. **User set 2026-11-11:** the mobile strategy is an installable web app (PWA). No native app for now. (Part 0)
 16. **User set 2026-11-11:** Claude Code is the only AI agent on this repo. (`CLAUDE.md`)
 17. Part 0 sets the build order. Part C is the backlog.
+18. **User approved 2026-11-11:** production holds almost no data, so #4's protection of tracker data no longer blocks retiring them. Waiting, Someday, Commitments and Maintenance fold into Tasks and their tables get dropped. Spaces and Custom Sections are removed. Daily Content stays hidden. (Part 0)
 
 ---
 
