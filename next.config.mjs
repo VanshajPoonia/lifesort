@@ -14,6 +14,7 @@ const nextConfig = {
   },
   async redirects() {
     return [
+      { source: "/today", destination: "/", permanent: false },
       { source: "/budget", destination: "/money?tab=budget", permanent: false },
       { source: "/income", destination: "/money?tab=income", permanent: false },
       { source: "/investments", destination: "/money?tab=investments", permanent: false },

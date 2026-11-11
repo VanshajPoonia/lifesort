@@ -67,8 +67,8 @@ Settings absorbs Rules and the full Notifications page. Every old URL keeps work
 
 **Stage 1: Consolidate**
 1. ✅ Read-only row count per table (2026-11-11, results above).
-2. Merge Home into Today and build the messy-week rules in from the start: a welcome-back reset after days away, "needs a decision" instead of overdue, weekly streaks.
-3. Give Tasks its List, Board, Calendar and Habits tabs. Fold Waiting and Someday in as task statuses, Maintenance as recurring tasks, and Commitments as tasks linked to a person. Redirect `/calendar`, `/habits`, `/waiting`, `/someday`, `/commitments`, `/maintenance`.
+2. ✅ Merge Home into Today and build the messy-week rules in from the start: a welcome-back reset after days away, "needs a decision" instead of overdue (done 2026-11-11). Weekly streaks moved to step 3, since streaks are calculated in Habits.
+3. Give Tasks its List, Board, Calendar and Habits tabs, and make habit streaks count by week. Fold Waiting and Someday in as task statuses, Maintenance as recurring tasks, and Commitments as tasks linked to a person. Redirect `/calendar`, `/habits`, `/waiting`, `/someday`, `/commitments`, `/maintenance`.
 4. Fold Capture into Inbox.
 5. Remove Spaces and Custom Sections: pages, API routes, nav entries and the template item types that create them. Daily Content and games stay hidden.
 6. Build the Library hub.
