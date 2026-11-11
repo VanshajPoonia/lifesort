@@ -69,8 +69,8 @@ Settings absorbs Rules and the full Notifications page. Every old URL keeps work
 1. ✅ Read-only row count per table (2026-11-11, results above).
 2. ✅ Merge Home into Today and build the messy-week rules in from the start: a welcome-back reset after days away, "needs a decision" instead of overdue (done 2026-11-11). Weekly streaks moved to step 3, since streaks are calculated in Habits.
 3. ✅ Give Tasks its List, Board, Calendar and Habits tabs, and make habit streaks count by week (done 2026-11-11, except dropping the four empty tables, which waits on a confirmed migration run). Fold Waiting and Someday in as task statuses, Maintenance as recurring tasks, and Commitments as tasks linked to a person. Redirect `/calendar`, `/habits`, `/waiting`, `/someday`, `/commitments`, `/maintenance`.
-4. Fold Capture into Inbox.
-5. Remove Spaces and Custom Sections: pages, API routes, nav entries and the template item types that create them. Daily Content and games stay hidden.
+4. ✅ Fold Capture into Inbox (done 2026-11-11).
+5. ✅ Remove Spaces and Custom Sections: pages, API routes, nav entries and the template item types that create them. Daily Content and games stay hidden. (Done 2026-11-11. Their five tables drop with `scripts/migrations/2026-11-11-drop-spaces-custom-sections.sql` once this code is deployed.)
 6. Build the Library hub.
 7. Rebuild Reflect around Weekly Review and turn Coach into a side panel.
 8. Cut the sidebar to the 7 places.
