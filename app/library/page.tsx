@@ -2,14 +2,21 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
+import dynamic from "next/dynamic"
+
 import { DashboardLayout } from "@/components/dashboard-layout"
-import { JournalView } from "@/components/library/journal-view"
-import { LinksView } from "@/components/library/links-view"
-import { NotesView } from "@/components/library/notes-view"
-import { PeopleView } from "@/components/library/people-view"
-import { VaultView } from "@/components/library/vault-view"
-import { WhiteboardsView } from "@/components/library/whiteboards-view"
+import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
+
+// Each tab loads on demand. Bundled together the six views were about 420 kB of
+// JavaScript before anything showed, mostly the rich-text editor Notes and Journal share.
+const tabLoading = () => <Skeleton className="h-64 w-full rounded-xl" />
+const NotesView = dynamic(() => import("@/components/library/notes-view").then((m) => m.NotesView), { loading: tabLoading })
+const JournalView = dynamic(() => import("@/components/library/journal-view").then((m) => m.JournalView), { loading: tabLoading })
+const PeopleView = dynamic(() => import("@/components/library/people-view").then((m) => m.PeopleView), { loading: tabLoading })
+const VaultView = dynamic(() => import("@/components/library/vault-view").then((m) => m.VaultView), { loading: tabLoading })
+const LinksView = dynamic(() => import("@/components/library/links-view").then((m) => m.LinksView), { loading: tabLoading })
+const WhiteboardsView = dynamic(() => import("@/components/library/whiteboards-view").then((m) => m.WhiteboardsView), { loading: tabLoading })
 
 // Library holds what you keep rather than what you do (AI_BUILD_PLAN.md Part 0, Stage 1 step 6).
 // Notes, Journal, People, Vault, Links and Whiteboards used to be separate pages.

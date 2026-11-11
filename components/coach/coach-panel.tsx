@@ -1,15 +1,24 @@
 "use client"
 
 import { useState } from "react"
+import dynamic from "next/dynamic"
 import Link from "next/link"
-import { ArrowUpRight, Sparkles } from "lucide-react"
+import { ArrowUpRight, Loader2, Sparkles } from "lucide-react"
 
-import { CoachChat } from "@/components/coach/coach-chat"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 
 // Coach as a side panel any page can open from the header (AI_BUILD_PLAN.md Part 0, Stage 1 step 7).
-// The chat only mounts while the panel is open, so closed pages make no Coach requests.
+// The chat code loads and mounts only when the panel opens. Imported directly, the AI chat
+// library added about 60 kB to every page in the app.
+const CoachChat = dynamic(() => import("@/components/coach/coach-chat").then((m) => m.CoachChat), {
+  loading: () => (
+    <div className="flex h-40 items-center justify-center text-muted-foreground">
+      <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+    </div>
+  ),
+})
+
 export function CoachPanelButton() {
   const [open, setOpen] = useState(false)
 

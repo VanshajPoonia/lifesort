@@ -2,12 +2,18 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
+import dynamic from "next/dynamic"
+
 import { DashboardLayout } from "@/components/dashboard-layout"
-import { CalendarView } from "@/components/tasks/calendar-view"
-import { HabitsView } from "@/components/tasks/habits-view"
-import { TaskBoardView } from "@/components/tasks/task-board-view"
 import { TaskListView } from "@/components/tasks/task-list-view"
+import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
+
+// List is the default tab, so it loads with the page. The others load when opened.
+const tabLoading = () => <Skeleton className="h-64 w-full rounded-xl" />
+const TaskBoardView = dynamic(() => import("@/components/tasks/task-board-view").then((m) => m.TaskBoardView), { loading: tabLoading })
+const CalendarView = dynamic(() => import("@/components/tasks/calendar-view").then((m) => m.CalendarView), { loading: tabLoading })
+const HabitsView = dynamic(() => import("@/components/tasks/habits-view").then((m) => m.HabitsView), { loading: tabLoading })
 
 // Tasks is the one place for things to do (AI_BUILD_PLAN.md Part 0, Stage 1 step 3).
 // Calendar and Habits used to be their own pages and now live here as tabs.
