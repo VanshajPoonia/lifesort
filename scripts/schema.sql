@@ -161,29 +161,6 @@ CREATE TABLE IF NOT EXISTS whiteboard_collaborators (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS spaces (
-  id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  name VARCHAR(255) NOT NULL,
-  description TEXT,
-  color VARCHAR(50) NOT NULL DEFAULT 'primary',
-  icon VARCHAR(80) NOT NULL DEFAULT 'FolderKanban',
-  favorite BOOLEAN NOT NULL DEFAULT FALSE,
-  archived_at TIMESTAMP,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS space_items (
-  id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  space_id VARCHAR(255) NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
-  item_type VARCHAR(50) NOT NULL CHECK (item_type IN ('note', 'whiteboard', 'task', 'project', 'link', 'custom_section')),
-  item_id VARCHAR(255) NOT NULL,
-  sort_order INTEGER NOT NULL DEFAULT 0,
-  created_at TIMESTAMP DEFAULT NOW(),
-  UNIQUE(space_id, item_type, item_id)
-);
-
 CREATE TABLE IF NOT EXISTS weekly_reviews (
   id SERIAL PRIMARY KEY,
   user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -620,28 +597,6 @@ CREATE INDEX IF NOT EXISTS idx_user_templates_user_updated
 CREATE INDEX IF NOT EXISTS idx_user_templates_user_source
   ON user_templates(user_id, source);
 
-CREATE TABLE IF NOT EXISTS custom_sections (
-  id SERIAL PRIMARY KEY,
-  user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  title VARCHAR(255) NOT NULL,
-  icon VARCHAR(50) DEFAULT 'Folder',
-  color VARCHAR(50) DEFAULT 'primary',
-  position INTEGER DEFAULT 0,
-  life_area_id INTEGER REFERENCES life_areas(id) ON DELETE SET NULL,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS custom_section_items (
-  id SERIAL PRIMARY KEY,
-  section_id INTEGER NOT NULL REFERENCES custom_sections(id) ON DELETE CASCADE,
-  title VARCHAR(500) NOT NULL,
-  description TEXT,
-  completed BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-
 -- api_usage is a SYSTEM-WIDE counter for external API quotas (e.g., the
 -- Alpha Vantage free-tier daily request cap). One row per (api_name, date).
 -- Intentionally has no user_id — used only by app/api/investments/background-fetch
@@ -697,11 +652,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_whiteboard_collaborators_board_email_uniqu
 CREATE UNIQUE INDEX IF NOT EXISTS idx_whiteboard_collaborators_one_owner
   ON whiteboard_collaborators(whiteboard_id)
   WHERE role = 'owner';
-CREATE INDEX IF NOT EXISTS idx_spaces_user_id ON spaces(user_id);
-CREATE INDEX IF NOT EXISTS idx_spaces_user_archived ON spaces(user_id, archived_at);
-CREATE INDEX IF NOT EXISTS idx_spaces_user_favorite ON spaces(user_id, favorite);
-CREATE INDEX IF NOT EXISTS idx_space_items_space_id ON space_items(space_id);
-CREATE INDEX IF NOT EXISTS idx_space_items_lookup ON space_items(item_type, item_id);
 CREATE INDEX IF NOT EXISTS idx_weekly_reviews_user_week ON weekly_reviews(user_id, week_start DESC);
 CREATE INDEX IF NOT EXISTS idx_life_score_history_user_date ON life_score_history(user_id, score_date DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_personal_rules_user_preferences ON personal_rules(user_id) WHERE rule_type = 'preferences';
@@ -750,7 +700,6 @@ CREATE INDEX IF NOT EXISTS idx_wishlist_life_area_id ON wishlist_items(life_area
 CREATE INDEX IF NOT EXISTS idx_investments_life_area_id ON investments(life_area_id);
 CREATE INDEX IF NOT EXISTS idx_income_sources_life_area_id ON income_sources(life_area_id);
 CREATE INDEX IF NOT EXISTS idx_budget_categories_life_area_id ON budget_categories(life_area_id);
-CREATE INDEX IF NOT EXISTS idx_custom_sections_life_area_id ON custom_sections(life_area_id);
 CREATE INDEX IF NOT EXISTS idx_budget_transactions_user_date ON budget_transactions(user_id, date);
 CREATE INDEX IF NOT EXISTS idx_daily_content_user_shown ON daily_content(user_id, shown_at DESC);
 CREATE INDEX IF NOT EXISTS idx_link_folders_share_token ON link_folders(share_token);
@@ -770,18 +719,7 @@ CREATE INDEX IF NOT EXISTS idx_user_links_share_token ON user_links(share_token)
 
 -- ── Custom sections additive columns + records table ────────────────────────
 
-ALTER TABLE custom_sections ADD COLUMN IF NOT EXISTS description TEXT;
-ALTER TABLE custom_sections ADD COLUMN IF NOT EXISTS fields JSONB NOT NULL DEFAULT '[]';
 
-CREATE TABLE IF NOT EXISTS custom_section_records (
-  id SERIAL PRIMARY KEY,
-  section_id INTEGER NOT NULL REFERENCES custom_sections(id) ON DELETE CASCADE,
-  data JSONB NOT NULL DEFAULT '{}',
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_custom_section_records_section_id ON custom_section_records(section_id);
 
 -- ── Habits & Routines (add-habits.sql) ──────────────────────────────────────
 
