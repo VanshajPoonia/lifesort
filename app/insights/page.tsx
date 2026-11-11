@@ -609,7 +609,7 @@ function ReflectExperience() {
                   </CardDescription>
                 </div>
                 <Button asChild className="gap-2">
-                  <a href="/journal">
+                  <a href="/library?tab=journal">
                     Open Journal
                     <ArrowRight className="h-4 w-4" />
                   </a>
@@ -736,7 +736,7 @@ function ReflectExperience() {
                           journalDigest.entries.slice(0, 5).map((entry) => (
                             <a
                               key={entry.id}
-                              href={`/journal?date=${entry.journal_date}`}
+                              href={`/library?tab=journal&date=${entry.journal_date}`}
                               className="block rounded-md border bg-muted/20 p-3 text-sm transition-colors hover:bg-muted/40"
                             >
                               <div className="flex items-center justify-between gap-3">

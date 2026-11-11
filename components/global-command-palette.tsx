@@ -99,20 +99,20 @@ const captureActions: Array<{
   { label: "Add Goal", description: "Start a goal", icon: Target, type: "goal" },
   { label: "Add Note", description: "Save a thought", icon: FileText, type: "note" },
   { label: "Add Inbox Item", description: "Capture something messy", icon: Inbox, type: "inbox" },
-  { label: "Journal Today", description: "Open today's journal", icon: BookOpenText, href: "/journal" },
+  { label: "Journal Today", description: "Open today's journal", icon: BookOpenText, href: "/library?tab=journal" },
   { label: "Open Inbox", description: "Jot something down, or sort it with AI", icon: Plus, href: "/inbox" },
 ]
 
 const navigationActions = [
   { label: "Today", description: "Your day: focus, tasks, habits", href: "/", icon: CalendarCheck },
-  { label: "Journal", description: "Daily reflection", href: "/journal", icon: BookOpenText },
+  { label: "Journal", description: "Daily reflection", href: "/library?tab=journal", icon: BookOpenText },
   { label: "Workspace", description: "Plan, capture, visual tools, systems, and follow-ups", href: "/workspace", icon: FolderPlus },
-  { label: "Whiteboard", description: "Sketch and collaborate", href: "/whiteboard", icon: Paintbrush },
+  { label: "Whiteboard", description: "Sketch and collaborate", href: "/library?tab=whiteboards", icon: Paintbrush },
   { label: "Money", description: "Finance hub", href: "/money", icon: Wallet },
   { label: "Reflect", description: "Review and insight", href: "/reflect", icon: Activity },
   { label: "Settings", description: "Profile and preferences", href: "/settings", icon: Settings },
   { label: "Tasks", description: "To-do list", href: "/tasks", icon: CheckSquare },
-  { label: "Notes", description: "Notes and folders", href: "/notes", icon: FileText },
+  { label: "Notes", description: "Notes and folders", href: "/library", icon: FileText },
   { label: "Budget", description: "Budget categories", href: "/money?tab=budget", icon: Wallet },
   { label: "Weekly Review", description: "Review this week", href: "/review", icon: Gauge },
 ]

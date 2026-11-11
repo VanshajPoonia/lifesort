@@ -108,11 +108,11 @@ const targetLabels = Object.fromEntries(targetOptions.map((item) => [item.value,
 const convertedHrefs: Record<TargetType, (id: number | null) => string> = {
   task: () => "/tasks",
   goal: () => "/goals",
-  note: () => "/notes",
+  note: () => "/library",
   project: (id) => (id ? `/projects/${id}` : "/projects"),
   habit: () => "/tasks?tab=habits",
   wishlist_item: () => "/wishlist",
-  vault_item: () => "/vault",
+  vault_item: () => "/library?tab=vault",
   calendar_event: () => "/tasks?tab=calendar",
 }
 

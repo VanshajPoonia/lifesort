@@ -24,7 +24,6 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   BookOpenText,
-  Paintbrush,
   Sparkles,
   Target,
   Compass,
@@ -70,6 +69,7 @@ const DEFAULT_SIDEBAR_PREFS = {
   today: true,
   journal: true,
   whiteboard: true,
+  library: true,
   spaces: true,
   review: true,
   insights: true,
@@ -160,19 +160,22 @@ const HUB_NAV_ITEMS: SidebarItem[] = [
       "/nuke",
       "/pomodoro",
       "/inbox",
-      "/notes",
-      "/links",
       "/templates",
       "/daily-content",
-      "/people",
-      "/vault",
       "/maintenance",
       "/notifications",
     ],
     legacyFallback: "organize",
   },
-  { id: "journal", label: "Journal", href: "/journal", icon: BookOpenText, group: "workspace" },
-  { id: "whiteboard", label: "Whiteboard", href: "/whiteboard", icon: Paintbrush, group: "workspace" },
+  // Notes, Journal, People, Vault, Links and Whiteboards are tabs of Library since Stage 1 step 6 (2026-11-11).
+  {
+    id: "library",
+    label: "Library",
+    href: "/library",
+    icon: BookOpenText,
+    group: "workspace",
+    aliases: ["/notes", "/journal", "/people", "/vault", "/links", "/whiteboard"],
+  },
   {
     id: "money",
     label: "Money",
@@ -665,7 +668,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             type="button"
             className={cn(
               "flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[11px] font-medium transition-colors duration-150 ease-out active:scale-[0.97] motion-reduce:transform-none",
-              ["/journal", "/whiteboard", "/reflect", "/insights", "/review", "/timeline", "/reset", "/ai-chat", "/life-areas", "/domains", "/settings", "/rules", "/admin"].some(matchesPath)
+              ["/library", "/notes", "/journal", "/people", "/vault", "/links", "/whiteboard", "/reflect", "/insights", "/review", "/timeline", "/reset", "/ai-chat", "/life-areas", "/domains", "/settings", "/rules", "/admin"].some(matchesPath)
                 ? "bg-primary-tint text-primary"
                 : "text-muted-foreground hover:bg-muted/70",
             )}
@@ -688,8 +691,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className={cn("mt-3 grid divide-y divide-border/70", motionPresets.staggerContainer)}>
             {[
               { href: "/domains", label: "Domains", icon: Compass },
-              { href: "/journal", label: "Journal", icon: BookOpenText },
-              { href: "/whiteboard", label: "Whiteboard", icon: Paintbrush },
+              { href: "/library", label: "Library", icon: BookOpenText },
               { href: "/ai-chat", label: "LifeSort Coach", icon: Sparkles },
               { href: "/reflect", label: "Reflect", icon: Activity },
               { href: "/settings", label: "Settings", icon: Settings },

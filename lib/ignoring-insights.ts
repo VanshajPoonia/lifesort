@@ -416,7 +416,7 @@ export async function getIgnoringInsightsData(userId: string): Promise<IgnoringI
       title: text(row.title, "Vault item"),
       description: renewalDate ? "This vault item has an upcoming renewal." : "This vault item expires soon.",
       evidence: renewalDate ? "Renewal date is within 30 days" : "Expiry date is within 30 days",
-      href: "/vault",
+      href: "/library?tab=vault",
       date: renewalDate || expiryDate,
       days_inactive: null,
       severity: "medium",

@@ -147,7 +147,7 @@ function improvementFor(componentKey: LifeScoreComponentKey, score: number): Lif
     maintenance_vault: {
       title: "Check one vault date",
       description: "Renew, update, or clear one document or subscription date that has passed.",
-      href: "/vault",
+      href: "/library?tab=vault",
       component_key: "maintenance_vault",
     },
     life_area_balance: {
@@ -521,7 +521,7 @@ export async function getLifeScoreData(userId: string): Promise<LifeScoreData> {
       explanation: overdueVault === 0
         ? "Vault dates look current."
         : `${overdueVault} vault date${overdueVault === 1 ? "" : "s"} need attention.`,
-      href: "/vault",
+      href: "/library?tab=vault",
     }))
   }
 

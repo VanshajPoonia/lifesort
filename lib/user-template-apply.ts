@@ -86,7 +86,7 @@ export async function applyUserTemplateItems(user: TemplateApplyUser, items: Use
         queries.push(tx`
           INSERT INTO notes (user_id, title, content, tags, is_pinned)
           VALUES (${user.id}, ${item.title}, ${item.content || item.description || ""}, ARRAY[]::text[], FALSE)
-          RETURNING 'note' AS type, id::text AS id, title, ('/notes?note=' || id::text) AS href
+          RETURNING 'note' AS type, id::text AS id, title, ('/library?note=' || id::text) AS href
         `)
         return
       }
@@ -95,7 +95,7 @@ export async function applyUserTemplateItems(user: TemplateApplyUser, items: Use
         queries.push(tx`
           INSERT INTO user_links (user_id, title, url, description, position, link_type)
           VALUES (${user.id}, ${item.title}, ${item.url || ""}, ${itemDescription(item)}, 0, 'link')
-          RETURNING 'link' AS type, id::text AS id, title, '/links' AS href
+          RETURNING 'link' AS type, id::text AS id, title, '/library?tab=links' AS href
         `)
         return
       }
@@ -146,7 +146,7 @@ export async function applyUserTemplateItems(user: TemplateApplyUser, items: Use
             NULL,
             ARRAY[]::text[]
           )
-          RETURNING 'vault_item' AS type, id::text AS id, title, '/vault' AS href
+          RETURNING 'vault_item' AS type, id::text AS id, title, '/library?tab=vault' AS href
         `)
       }
     })

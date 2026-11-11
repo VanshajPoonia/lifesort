@@ -40,7 +40,6 @@ import {
   Settings2,
   Wallet,
   BookOpenText,
-  Paintbrush,
   Compass,
 } from "lucide-react"
 import {
@@ -134,6 +133,7 @@ export default function SettingsPage() {
     today: true,
     journal: true,
     whiteboard: true,
+    library: true,
     review: true,
     insights: true,
     life_areas: true,
@@ -700,8 +700,7 @@ export default function SettingsPage() {
                   { id: "home", label: "Today", icon: CalendarCheck, description: "Your day: focus, today's list, habits and calendar" },
                   { id: "domains", label: "Domains", icon: Compass, description: "Life Domains: goals, projects, tasks, habits, and knowledge by life area" },
                   { id: "workspace", label: "Workspace", icon: Archive, description: "Plan, Capture, Visual, Systems, and Follow-ups" },
-                  { id: "journal", label: "Journal", icon: BookOpenText, description: "Daily reflection, gratitude, intentions, and tomorrow setup" },
-                  { id: "whiteboard", label: "Whiteboard", icon: Paintbrush, description: "Collaborative visual planning and sketches" },
+                  { id: "library", label: "Library", icon: BookOpenText, description: "Notes, journal, people, vault, links and whiteboards" },
                   { id: "money", label: "Money", icon: Wallet, description: "Budget, income, investments, and wishlist" },
                   { id: "reflect", label: "Reflect", icon: Activity, description: "Life Balance, Weekly Review, Timeline, Reset, Coach, and LifeScore insights" },
                   { id: "ai_assistant", label: "Coach", icon: Sparkles, description: "LifeSort Coach for app-aware planning questions" },

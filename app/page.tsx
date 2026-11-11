@@ -1064,7 +1064,7 @@ export default function TodayPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline" className="gap-2 bg-card">
-              <Link href={`/journal?date=${planDate}`}>
+              <Link href={`/library?tab=journal&date=${planDate}`}>
                 <BookOpenText className="h-4 w-4" aria-hidden="true" />
                 Journal
               </Link>
@@ -1629,7 +1629,7 @@ export default function TodayPage() {
                     <Button onClick={() => void saveReflection()} disabled={saveState === "saving"}>
                       Save
                     </Button>
-                    <Link href={`/journal?date=${planDate}`} className={sectionLink}>
+                    <Link href={`/library?tab=journal&date=${planDate}`} className={sectionLink}>
                       Write more in your journal
                       <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                     </Link>

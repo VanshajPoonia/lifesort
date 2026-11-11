@@ -107,7 +107,7 @@ export default function WhiteboardDetailPage() {
   return (
     <DashboardLayout title="Whiteboard" subtitle="Realtime visual planning">
       <div className="space-y-4">
-        <Button type="button" variant="ghost" className="gap-2" onClick={() => router.push("/whiteboard")}>
+        <Button type="button" variant="ghost" className="gap-2" onClick={() => router.push("/library?tab=whiteboards")}>
           <ArrowLeft className="h-4 w-4" />
           Back to whiteboards
         </Button>
@@ -118,7 +118,7 @@ export default function WhiteboardDetailPage() {
             <Skeleton className="h-[70vh] w-full" />
           </div>
         ) : error ? (
-          <AppEmptyState icon={AlertTriangle} title="Whiteboard unavailable" hint={error} primaryAction={{ label: "Back to whiteboards", href: "/whiteboard" }} />
+          <AppEmptyState icon={AlertTriangle} title="Whiteboard unavailable" hint={error} primaryAction={{ label: "Back to whiteboards", href: "/library?tab=whiteboards" }} />
         ) : !board ? (
           <AppEmptyState icon={Palette} title="Whiteboard not found" hint="This board may have been archived or you may not have access." />
         ) : !configured ? (

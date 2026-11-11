@@ -85,11 +85,11 @@ function hrefFor(section: keyof DataState, domainId: string) {
     goals: `/goals?life_area_id=${encoded}`,
     habits: `/tasks?tab=habits&life_area_id=${encoded}`,
     projects: `/projects?life_area_id=${encoded}`,
-    notes: `/notes?life_area_id=${encoded}`,
+    notes: `/library?life_area_id=${encoded}`,
     categories: `/money?tab=budget&life_area_id=${encoded}`,
     wishlist: `/money?tab=wishlist&life_area_id=${encoded}`,
     events: `/tasks?tab=calendar`,
-    journal: `/journal`,
+    journal: `/library?tab=journal`,
   }
   return routes[section]
 }
@@ -100,7 +100,7 @@ function openHref(section: keyof DataState, item: RecordItem, domainId: string) 
   if (section === "tasks" && item.id) return `${base}&task=${item.id}`
   if (section === "goals" && item.id) return `${base}&goal=${item.id}`
   if (section === "projects" && item.id) return `${base}&project=${item.id}`
-  if (section === "journal" && item.journal_date) return `/journal?date=${item.journal_date}`
+  if (section === "journal" && item.journal_date) return `/library?tab=journal&date=${item.journal_date}`
   return base
 }
 

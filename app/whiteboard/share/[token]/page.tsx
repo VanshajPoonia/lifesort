@@ -77,7 +77,7 @@ export default function WhiteboardSharePage() {
         {loading ? (
           <Skeleton className="h-72 rounded-lg" />
         ) : error ? (
-          <AppEmptyState icon={Palette} title="Share link unavailable" hint={error} primaryAction={{ label: "Open Whiteboards", href: "/whiteboard" }} />
+          <AppEmptyState icon={Palette} title="Share link unavailable" hint={error} primaryAction={{ label: "Open Whiteboards", href: "/library?tab=whiteboards" }} />
         ) : board ? (
           <Card className="surface-card">
             <CardHeader>

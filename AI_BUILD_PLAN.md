@@ -71,7 +71,7 @@ Settings absorbs Rules and the full Notifications page. Every old URL keeps work
 3. ✅ Give Tasks its List, Board, Calendar and Habits tabs, and make habit streaks count by week (done 2026-11-11, except dropping the four empty tables, which waits on a confirmed migration run). Fold Waiting and Someday in as task statuses, Maintenance as recurring tasks, and Commitments as tasks linked to a person. Redirect `/calendar`, `/habits`, `/waiting`, `/someday`, `/commitments`, `/maintenance`.
 4. ✅ Fold Capture into Inbox (done 2026-11-11).
 5. ✅ Remove Spaces and Custom Sections: pages, API routes, nav entries and the template item types that create them. Daily Content and games stay hidden. (Done 2026-11-11. The code was deployed, then `scripts/migrations/2026-11-11-drop-spaces-custom-sections.sql` dropped their five tables.)
-6. Build the Library hub.
+6. ✅ Build the Library hub (done 2026-11-11: `/library` with Notes, Journal, People, Vault, Links and Whiteboards tabs, one sidebar item in place of Journal and Whiteboard).
 7. Rebuild Reflect around Weekly Review and turn Coach into a side panel.
 8. Cut the sidebar to the 7 places.
 - **Exit:** 7 sidebar places, every old URL redirects, the retired screens are gone.
