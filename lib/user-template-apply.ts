@@ -1,5 +1,4 @@
 import { sql } from "@/lib/db"
-import { makeSpaceId } from "@/lib/spaces"
 import { makeWhiteboardId, makeWhiteboardRoomId, normalizeEmail } from "@/lib/whiteboards"
 import type { UserTemplateItem } from "@/lib/user-templates"
 
@@ -24,16 +23,6 @@ export async function applyUserTemplateItems(user: TemplateApplyUser, items: Use
     const queries: ReturnType<typeof tx>[] = []
 
     items.forEach((item) => {
-      if (item.type === "space") {
-        const spaceId = makeSpaceId()
-        queries.push(tx`
-          INSERT INTO spaces (id, user_id, name, description, color, icon, favorite)
-          VALUES (${spaceId}, ${user.id}, ${item.title}, ${itemDescription(item)}, ${item.color || "primary"}, ${item.icon || "FolderKanban"}, FALSE)
-          RETURNING 'space' AS type, id::text AS id, name AS title, ${`/spaces/${spaceId}`} AS href
-        `)
-        return
-      }
-
       if (item.type === "project") {
         queries.push(tx`
           WITH created AS (
@@ -107,15 +96,6 @@ export async function applyUserTemplateItems(user: TemplateApplyUser, items: Use
           INSERT INTO user_links (user_id, title, url, description, position, link_type)
           VALUES (${user.id}, ${item.title}, ${item.url || ""}, ${itemDescription(item)}, 0, 'link')
           RETURNING 'link' AS type, id::text AS id, title, '/links' AS href
-        `)
-        return
-      }
-
-      if (item.type === "custom_section") {
-        queries.push(tx`
-          INSERT INTO custom_sections (user_id, title, icon, color, description, fields, position)
-          VALUES (${user.id}, ${item.title}, ${item.icon || "Folder"}, ${item.color || "primary"}, ${itemDescription(item)}, '[]'::jsonb, 0)
-          RETURNING 'custom_section' AS type, id::text AS id, title, '/custom-sections' AS href
         `)
         return
       }

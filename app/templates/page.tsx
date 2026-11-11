@@ -94,22 +94,18 @@ const ICON_MAP: Record<string, ComponentType<{ className?: string }>> = {
 }
 
 const TYPE_CONFIG: Record<string, { label: string; plural: string; color: string }> = {
-  space: { label: "Space", plural: "Space", color: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300" },
   project: { label: "Project", plural: "Projects", color: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300" },
   task: { label: "Task", plural: "Tasks", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" },
   goal: { label: "Goal", plural: "Goals", color: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300" },
   habit: { label: "Habit", plural: "Habits", color: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300" },
   note: { label: "Note", plural: "Notes", color: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300" },
   link: { label: "Link", plural: "Links", color: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300" },
-  custom_section: { label: "Custom Section", plural: "Custom Sections", color: "bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300" },
   whiteboard: { label: "Whiteboard", plural: "Whiteboard", color: "bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/40 dark:text-fuchsia-300" },
   budget_category: { label: "Budget Category", plural: "Budget Categories", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" },
   vault_item: { label: "Vault Item", plural: "Vault Items", color: "bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300" },
 }
 
 const TYPE_ORDER = [
-  "space",
-  "custom_section",
   "task",
   "note",
   "habit",
@@ -132,8 +128,6 @@ const BUILDER_TYPE_OPTIONS: Array<{ value: UserTemplateItem["type"]; label: stri
   { value: "habit", label: "Habit" },
   { value: "note", label: "Note" },
   { value: "project", label: "Project" },
-  { value: "custom_section", label: "Custom Section" },
-  { value: "space", label: "Space" },
   { value: "link", label: "Link" },
   { value: "whiteboard", label: "Whiteboard" },
   { value: "budget_category", label: "Budget Category" },
@@ -181,7 +175,6 @@ function getItemTypeCounts(items: TemplateItem[]): string[] {
     goal: { one: "goal", many: "goals" },
     habit: { one: "habit", many: "habits" },
     note: { one: "note", many: "notes" },
-    custom_section: { one: "section", many: "sections" },
     budget_category: { one: "budget", many: "budgets" },
     vault_item: { one: "vault item", many: "vault items" },
   }
@@ -203,10 +196,6 @@ function groupByType(items: TemplateItem[]) {
 
 function generatedItems(template: GeneratedTemplate) {
   const items: Array<{ type: string; title: string; detail?: string }> = []
-  if (template.space.create) items.push({ type: "space", title: template.space.name, detail: template.space.description })
-  template.sections.forEach((section) =>
-    items.push({ type: "custom_section", title: section.title, detail: `${section.fields.length} fields` }),
-  )
   template.starter_tasks.forEach((task) => items.push({ type: "task", title: task.title, detail: task.priority }))
   template.starter_notes.forEach((note) => items.push({ type: "note", title: note.title, detail: note.content }))
   template.starter_habits.forEach((habit) => items.push({ type: "habit", title: habit.name, detail: habit.frequency }))
@@ -1336,7 +1325,7 @@ export default function TemplatesPage() {
                             </div>
                           )}
                         </div>
-                        {(item.type === "note" || item.type === "custom_section" || item.type === "space" || item.type === "whiteboard") ? (
+                        {(item.type === "note" || item.type === "whiteboard") ? (
                           <Textarea
                             value={item.type === "note" ? item.content ?? "" : item.description ?? ""}
                             onChange={(event) =>

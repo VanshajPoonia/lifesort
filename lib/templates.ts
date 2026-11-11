@@ -4,7 +4,6 @@ export type TemplateItem =
   | { type: "goal"; title: string; description?: string; priority?: "low" | "medium" | "high"; category?: string }
   | { type: "habit"; name: string; frequency?: "daily" | "weekly"; target_count?: number; description?: string }
   | { type: "note"; title: string; content?: string }
-  | { type: "custom_section"; title: string; description?: string; icon?: string }
   | { type: "budget_category"; name: string; budget_limit?: number; icon?: string; color?: string }
   | { type: "vault_item"; title: string; category?: string; description?: string }
 
@@ -26,7 +25,6 @@ export const ENDPOINT_MAP: Record<TemplateItem["type"], string> = {
   goal: "/api/goals",
   habit: "/api/habits",
   note: "/api/notes",
-  custom_section: "/api/custom-sections",
   budget_category: "/api/budget",
   vault_item: "/api/vault",
 }
@@ -183,7 +181,7 @@ export const TEMPLATES: Template[] = [
       { type: "note", title: "Learning Journal", content: "Date | What I learned | Key takeaway\n---\n" },
       { type: "note", title: "Key Concepts & Takeaways", content: "Capture the most important ideas:\n\n1. \n2. \n3. " },
       { type: "note", title: "Resources & Links", content: "Useful resources:\n\n- " },
-      { type: "custom_section", title: "Course Tracker", description: "Track courses, progress, and completion status", icon: "BookOpen" },
+      { type: "note", title: "Course Tracker", content: "Track courses, progress, and completion status.\n\nCourse | Progress | Done\n---\n" },
     ],
   },
   {
@@ -205,7 +203,7 @@ export const TEMPLATES: Template[] = [
       { type: "note", title: "Content Ideas & Concepts", content: "Dump all your content ideas here:\n\n- \n- \n- " },
       { type: "note", title: "Scripts & Drafts", content: "Draft your content scripts here before recording or writing." },
       { type: "note", title: "Analytics Log", content: "Date | Platform | Post | Views | Engagement | Notes\n---\n" },
-      { type: "custom_section", title: "Content Calendar", description: "Plan and schedule your content pipeline", icon: "Calendar" },
+      { type: "note", title: "Content Calendar", content: "Plan and schedule your content pipeline.\n\nIdea | Status | Publish date\n---\n" },
     ],
   },
   {
@@ -246,7 +244,7 @@ export const TEMPLATES: Template[] = [
       { type: "note", title: "Book Notes Template", content: "Book: \nAuthor: \nDate finished:\n\nKey ideas:\n1. \n2. \n3. \n\nFavourite quote:\n\nRating: /10\n\nWould I recommend it: " },
       { type: "note", title: "Reading List & Queue", content: "Currently reading:\n- \n\nUp next:\n- \n\nWant to read:\n- \n\nCompleted:\n- " },
       { type: "note", title: "Favourite Quotes", content: "Quotes that stuck with me:\n\n\"...\" — Author, Book\n\n\"...\" — Author, Book" },
-      { type: "custom_section", title: "Reading Tracker", description: "Track books read, ratings, and notes", icon: "BookOpen" },
+      { type: "note", title: "Reading Tracker", content: "Track books read, ratings, and notes.\n\nBook | Rating | Notes\n---\n" },
     ],
   },
   {

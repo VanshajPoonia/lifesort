@@ -18,8 +18,6 @@ export const templateColors = [
   "slate",
 ] as const
 
-export const templateFieldTypes = ["text", "number", "date", "checkbox", "select", "url", "notes"] as const
-
 export const templateBuilderExamples = [
   "Budget tracker",
   "Study planner",
@@ -30,21 +28,6 @@ export const templateBuilderExamples = [
   "Reading list",
   "Travel planner",
 ]
-
-export const templateFieldSchema = z.object({
-  name: z.string().trim().min(1).max(80),
-  type: z.enum(templateFieldTypes),
-  options: z.array(z.string().trim().min(1).max(60)).max(12),
-  required: z.boolean(),
-})
-
-export const templateSectionSchema = z.object({
-  title: z.string().trim().min(1).max(120),
-  description: z.string().trim().max(500),
-  icon: z.string().trim().min(1).max(50),
-  color: z.enum(templateColors),
-  fields: z.array(templateFieldSchema).max(8),
-})
 
 export const templateTaskSchema = z.object({
   title: z.string().trim().min(1).max(180),
@@ -86,14 +69,6 @@ export const generatedTemplateSchema = z.object({
   description: z.string().trim().min(1).max(800),
   icon: z.string().trim().min(1).max(50),
   color: z.enum(templateColors),
-  space: z.object({
-    create: z.boolean(),
-    name: z.string().trim().min(1).max(120),
-    description: z.string().trim().max(1000),
-    icon: z.string().trim().min(1).max(50),
-    color: z.enum(templateColors),
-  }),
-  sections: z.array(templateSectionSchema).max(6),
   starter_tasks: z.array(templateTaskSchema).max(12),
   starter_notes: z.array(templateNoteSchema).max(8),
   starter_habits: z.array(templateHabitSchema).max(8),
@@ -113,17 +88,14 @@ export const templateApplySchema = z.object({
 export type GeneratedTemplate = z.infer<typeof generatedTemplateSchema>
 
 export type CreatedTemplateItem = {
-  type: "space" | "custom_section" | "task" | "note" | "habit" | "link" | "whiteboard" | "budget_category"
+  type: "task" | "note" | "habit" | "link" | "whiteboard" | "budget_category"
   id: string
   title: string
   href: string
-  linkedToSpace: boolean
 }
 
 export function hasTemplateContent(template: GeneratedTemplate) {
   return (
-    template.space.create ||
-    template.sections.length > 0 ||
     template.starter_tasks.length > 0 ||
     template.starter_notes.length > 0 ||
     template.starter_habits.length > 0 ||
@@ -155,16 +127,13 @@ export function buildTemplateBuilderPrompt(userPrompt: string) {
   return `Create a practical LifeSort system from this user prompt: "${userPrompt}".
 
 Return a compact system that helps the user start immediately. Follow these rules:
-- Use LifeSort records only: Space, Custom Sections, starter tasks, starter notes, habits, links, optional whiteboard, optional budget categories.
+- Use LifeSort records only: starter tasks, starter notes, habits, links, optional whiteboard, optional budget categories.
 - Do not include apps, code projects, external automations, API keys, or fake user data.
-- Keep it useful and not bloated: 1 Space, 1-4 Custom Sections, 3-8 tasks, 1-4 notes, 0-5 habits, 0-5 links, 0-4 budget categories.
+- Keep it useful and not bloated: 3-8 tasks, 1-4 notes, 0-5 habits, 0-5 links, 0-4 budget categories.
+- When something needs tracking (a reading list, a job search), make it a note with a simple list rather than a new structure.
 - Use short human titles and concrete starter content.
-- The Space should usually be created unless the prompt is too tiny.
 - Whiteboard should be created only when visual planning would clearly help.
 - Links may have empty url strings when they are placeholders the user can fill in later.
-- Field names should be user-facing labels like "Status", "Due Date", "Priority", "Notes".
-- Select fields must include useful options. Non-select fields must use an empty options array.
-- Use only these field types: ${templateFieldTypes.join(", ")}.
 - Use only these color values: ${templateColors.join(", ")}.
 - Use icons as lucide-style names such as Sparkles, FolderKanban, BookOpen, PiggyBank, Dumbbell, Briefcase, Plane, Video, Calendar, Target.`
 }

@@ -4,14 +4,12 @@ import type { TemplateItem } from "@/lib/templates"
 import type { GeneratedTemplate } from "@/lib/template-builder"
 
 export const userTemplateItemTypes = [
-  "space",
   "task",
   "goal",
   "habit",
   "note",
   "link",
   "project",
-  "custom_section",
   "whiteboard",
   "budget_category",
   "vault_item",
@@ -113,7 +111,7 @@ export function templateItemToUserTemplateItem(item: TemplateItem): UserTemplate
     category: "category" in item ? item.category ?? "" : "",
     content: "content" in item ? item.content ?? "" : "",
     url: "",
-    icon: "icon" in item ? item.icon ?? "" : "",
+    icon: "",
     color: "",
     target_count: 1,
   }
@@ -121,40 +119,6 @@ export function templateItemToUserTemplateItem(item: TemplateItem): UserTemplate
 
 export function generatedTemplateToUserTemplateItems(template: GeneratedTemplate): UserTemplateItem[] {
   const items: UserTemplateItem[] = []
-
-  if (template.space.create) {
-    items.push({
-      id: crypto.randomUUID(),
-      type: "space",
-      title: template.space.name,
-      description: template.space.description,
-      icon: template.space.icon,
-      color: template.space.color,
-      priority: "medium",
-      frequency: "daily",
-      category: "",
-      content: "",
-      url: "",
-      target_count: 1,
-    })
-  }
-
-  template.sections.forEach((section) => {
-    items.push({
-      id: crypto.randomUUID(),
-      type: "custom_section",
-      title: section.title,
-      description: section.description,
-      icon: section.icon,
-      color: section.color,
-      priority: "medium",
-      frequency: "daily",
-      category: "",
-      content: "",
-      url: "",
-      target_count: 1,
-    })
-  })
 
   template.starter_tasks.forEach((task) => {
     items.push({
@@ -267,14 +231,12 @@ export function summarizeUserTemplateItems(items: UserTemplateItem[]) {
   items.forEach((item) => counts.set(item.type, (counts.get(item.type) ?? 0) + 1))
 
   const labels: Record<UserTemplateItem["type"], { one: string; many: string }> = {
-    space: { one: "space", many: "spaces" },
     task: { one: "task", many: "tasks" },
     goal: { one: "goal", many: "goals" },
     habit: { one: "habit", many: "habits" },
     note: { one: "note", many: "notes" },
     link: { one: "link", many: "links" },
     project: { one: "project", many: "projects" },
-    custom_section: { one: "section", many: "sections" },
     whiteboard: { one: "whiteboard", many: "whiteboards" },
     budget_category: { one: "budget", many: "budgets" },
     vault_item: { one: "vault item", many: "vault items" },
