@@ -8,6 +8,8 @@ LifeSort is a personal life-management web app. The current product scope includ
 
 This repository appears to be generated/synced from v0 and deployed on Vercel. Keep changes minimal, focused, and based on the existing codebase.
 
+**Since 2026-11-11, Claude Code is the only AI agent on this repo** (see `CLAUDE.md`). LifeSort is for everyday people and should be the simplest to use. The current direction and build order are in `AI_BUILD_PLAN.md` Part 0.
+
 ## Required Reading Before Any Task
 
 Before starting any task, every AI agent must read all five memory files:
@@ -18,7 +20,13 @@ Before starting any task, every AI agent must read all five memory files:
 - `AI_DECISIONS.md` — architecture decisions and patterns to preserve
 - `AI_CHECKLIST.md` — commands, env vars, and verification steps
 
-Three further files extend these when relevant: `AI_BUILD_PLAN.md` — the master reconciled roadmap for building the complete LifeSort product; **read it before any feature work that advances the full-product vision.** `AI_LIFE_DOMAINS_SPEC.md` — the Life Domains spec. `DESIGN.md` — the design system. `AI_AUDIT.md` is a historical 2026-05 snapshot; re-verify before acting on it.
+Further files extend these when relevant:
+
+- `AI_BUILD_PLAN.md` is the master roadmap for the complete LifeSort product. **Read it before any feature work, starting with Part 0** (current direction and build order).
+- `AI_MARKET_RESEARCH.md` is the competitor and product-market-fit research from 2026-11-11. It covers who LifeSort is for, what competitors have that it lacks, and where it can be first.
+- `AI_LIFE_DOMAINS_SPEC.md` is the Life Domains spec.
+- `DESIGN.md` is the design system.
+- `AI_AUDIT.md` is a historical 2026-05 snapshot. Re-verify before acting on it.
 
 **Do not rely on chat history.** These files are the single source of truth. If the chat says one thing and a memory file says another, trust the memory file and flag the conflict.
 
@@ -38,6 +46,8 @@ Use the right file for the right question. Consult these files during work, not 
 | What environment variables are required? | `AI_CHECKLIST.md` → Environment Setup |
 | Has a migration already been written for this table? | `AI_TASK_LOG.md` + `scripts/` directory |
 | What changed in the last session? | `AI_TASK_LOG.md` → most recent dated entry |
+| What should be built next, and in what order? | `AI_BUILD_PLAN.md` → Part 0 |
+| Who is LifeSort for, and what do competitors do? | `AI_MARKET_RESEARCH.md` |
 | What is the full-product roadmap, or how does a spec item map to what already exists? | `AI_BUILD_PLAN.md` |
 | What are the design rules for a surface? | `DESIGN.md` |
 

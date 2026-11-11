@@ -2,35 +2,27 @@
 
 # CLAUDE.md
 
-Operating instructions specific to Claude Code on the LifeSort repository. The shared workflow lives in `AGENTS.md` (imported above) and the four `AI_*.md` files in the project root.
+Operating instructions specific to Claude Code on the LifeSort repository. The shared workflow lives in `AGENTS.md` (imported above) and the `AI_*.md` files in the project root.
 
 ## Claude Code Role
 
-Claude Code's default role on this repository is to act as a **reviewer, architecture checker, and planning assistant**:
+**Claude Code is the only AI agent working on this repository** (user decision, 2026-11-11). Codex is no longer used. Claude plans, implements, reviews and verifies its own work.
 
-- Review proposed changes and PRs.
-- Sanity check architecture, conventions, and adherence to existing patterns.
-- Help plan implementation strategies before code is written.
-- Surface risks, regressions, and unrelated drift in proposed work.
+That means:
 
-Codex is the primary coding agent for this repo.
+- Build features and fixes directly when the user asks. No fallback signal is needed.
+- Plan before building anything large, and check the plan against `AI_BUILD_PLAN.md` Part 0, which holds the current direction and build order.
+- Review your own diff before committing. Look for regressions, unrelated drift and broken redirects.
+- Older `AI_*.md` entries mention Codex and handoffs between agents. Treat those as history.
 
-## Fallback Coding Agent Mode
+## Workflow
 
-Claude Code may act as the implementing coding agent when:
-
-- The user explicitly says Codex is unavailable.
-- The user explicitly says Codex is out of tokens or otherwise blocked.
-- The user explicitly asks Claude to implement the change directly.
-
-Without one of those signals, prefer review and planning over edits.
-
-## Workflow When Claude Acts as the Coding Agent
-
-When implementing directly, Claude Code must follow the same workflow as Codex. The five memory files are the source of truth — read them all before starting and consult them during work:
+The memory files are the source of truth. Read them before starting and consult them during work:
 
 | File | When to use it |
 |---|---|
+| `AI_BUILD_PLAN.md` | Before feature work: Part 0 is the current direction and build order. |
+| `AI_MARKET_RESEARCH.md` | When a choice depends on who LifeSort is for or what competitors do. |
 | `AI_TASK_LOG.md` | Before starting: read recent entries and known issues. During work: check if a migration or fix was already attempted. After work: write the new entry. |
 | `AI_DECISIONS.md` | Before introducing any pattern, library, or architecture change: confirm it aligns with recorded decisions. |
 | `AI_CHECKLIST.md` | Before running commands or touching env vars: verify the correct command and variable names. |
@@ -43,13 +35,14 @@ Implementation expectations:
 - Avoid unrelated refactors.
 - Preserve existing architecture unless there is a documented reason in `AI_DECISIONS.md` to change it.
 - Follow the coding conventions and architecture conventions described in `AGENTS.md`.
+- Keep LifeSort simple for everyday people. Fold new capability into an existing place before adding a page or nav item.
 - If a decision conflicts with the chat history, follow the memory file and flag it to the user.
 
-## Documentation Updates — Mandatory After Every Code Change
+## Documentation Updates After Every Code Change
 
 This is the most commonly skipped step. It is not optional.
 
-After any code change — no matter how small — Claude must update `AI_TASK_LOG.md` before the task is considered done. The update goes in the **same commit** as the code, not a separate one.
+After any code change, no matter how small, Claude must update `AI_TASK_LOG.md` before the task is considered done. The update goes in the **same commit** as the code, not a separate one.
 
 Checklist before closing a task:
 - [ ] `npx tsc --noEmit` run and result recorded
@@ -59,12 +52,3 @@ Checklist before closing a task:
 - [ ] Documentation staged and committed together with the code
 
 When Claude only reviews or plans without changing any files, no `AI_*.md` updates are required.
-
-## Normal Claude Code Usage
-
-Typical ways the user will invoke Claude Code on this repo:
-
-- "Review the latest completed work."
-- "Check the current architecture and identify risks."
-- "Act as the coding agent because Codex is unavailable."
-- "Create a Codex prompt to fix the highest-priority issues."
