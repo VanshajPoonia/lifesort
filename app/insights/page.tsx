@@ -27,6 +27,7 @@ import {
   Wallet,
 } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard-layout"
+import { WeeklyReviewView } from "@/components/reflect/weekly-review-view"
 import { useAuth } from "@/components/auth-provider"
 import { LifeAreaIcon } from "@/components/life-area-controls"
 import { Badge } from "@/components/ui/badge"
@@ -229,19 +230,20 @@ const IGNORING_SOURCE_LABELS: Record<IgnoringSignalSource, string> = {
 
 type ReflectTab = "lifescore" | "life-balance" | "timeline" | "ignored-signals" | "weekly-review" | "journal"
 
+// Weekly Review is the main page of Reflect (AI_BUILD_PLAN.md Part 0, Stage 1 step 7).
 const reflectTabs: Array<{ value: ReflectTab; label: string }> = [
+  { value: "weekly-review", label: "Weekly Review" },
   { value: "lifescore", label: "LifeScore" },
   { value: "life-balance", label: "Life Balance" },
+  { value: "ignored-signals", label: "What you're missing" },
   { value: "timeline", label: "Timeline" },
-  { value: "ignored-signals", label: "Ignored Signals" },
-  { value: "weekly-review", label: "Weekly Review" },
   { value: "journal", label: "Journal" },
 ]
 
 function normalizeReflectTab(value: string | null): ReflectTab {
   return value === "weekly-review" || value === "ignored-signals" || value === "journal" || value === "timeline" || value === "life-balance" || value === "lifescore"
     ? value
-    : "lifescore"
+    : "weekly-review"
 }
 
 function formatDateLabel(value: string | null) {
@@ -316,7 +318,7 @@ function ReflectExperience() {
   const compatibility = pathname.startsWith("/insights")
   const routeTitle = compatibility ? "Insights" : "Reflect"
   const routeHref = compatibility ? "/insights" : "/reflect"
-  const [activeReflectTab, setActiveReflectTab] = useState<ReflectTab>("lifescore")
+  const [activeReflectTab, setActiveReflectTab] = useState<ReflectTab>("weekly-review")
   const [metrics, setMetrics] = useState<LifeBalanceMetrics | null>(null)
   const [analysis, setAnalysis] = useState<AiLifeBalanceResult | null>(null)
   const [ignoringInsights, setIgnoringInsights] = useState<IgnoringInsightsData | null>(null)
@@ -585,15 +587,7 @@ function ReflectExperience() {
           </TabsList>
         </Tabs>
 
-        {activeReflectTab === "weekly-review" && (
-          <ReflectLinkPanel
-            icon={<CheckSquare className="h-5 w-5 text-primary" />}
-            title="Weekly Review"
-            description="Reflect on the week, save lessons, and choose next-week focus."
-            href="/review"
-            action="Open Weekly Review"
-          />
-        )}
+        {activeReflectTab === "weekly-review" && <WeeklyReviewView />}
 
         {activeReflectTab === "journal" && (
           <Card className="surface-card section-enter border-amber-500/20 bg-amber-500/5">

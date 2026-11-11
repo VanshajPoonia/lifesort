@@ -380,7 +380,7 @@ async function getWeekContext(userId: string, unavailable: string[], citations: 
       type: "weekly_review",
       id: row.id,
       title: `Weekly review ${dateOnly(row.week_start)}-${dateOnly(row.week_end)}`,
-      href: "/review",
+      href: "/reflect",
       subtitle: [
         row.reflection_wins ? "wins saved" : null,
         row.reflection_challenges ? "challenges saved" : null,
@@ -684,7 +684,7 @@ async function getFullContext(userId: string, unavailable: string[], citations: 
       type: "weekly_review",
       id: row.id,
       title: `Weekly review ${dateOnly(row.week_start)}-${dateOnly(row.week_end)}`,
-      href: "/review",
+      href: "/reflect",
       subtitle: [
         row.reflection_wins ? "wins saved" : null,
         row.reflection_challenges ? "challenges saved" : null,

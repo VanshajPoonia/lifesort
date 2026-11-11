@@ -1,0 +1,806 @@
+"use client"
+
+import { useCallback, useEffect, useMemo, useState } from "react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import {
+  AlertCircle,
+  ArrowRight,
+  CalendarCheck,
+  CheckCircle2,
+  ClipboardCheck,
+  Clock,
+  FileText,
+  Flame,
+  FolderPlus,
+  History,
+  Loader2,
+  Network,
+  Save,
+  Sparkles,
+  Target,
+  Trophy,
+  Wallet,
+} from "lucide-react"
+
+import { useAuth } from "@/components/auth-provider"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Textarea } from "@/components/ui/textarea"
+
+type Review = {
+  id: string | null
+  week_start: string
+  week_end: string
+  reflection_wins: string
+  reflection_challenges: string
+  reflection_lessons: string
+  reflection_next_week_focus: string
+  updated_at: string | null
+}
+
+type HistoryReview = {
+  id: string
+  week_start: string
+  week_end: string
+  reflection_wins: string
+  reflection_next_week_focus: string
+  updated_at: string | null
+}
+
+type WeeklySummary = {
+  week_start: string
+  week_end: string
+  unavailable: string[]
+  tasks: { completed: number; overdue: number; created_updated: number }
+  goals: { progressed: number; upcoming_deadlines: number }
+  habits: { completed_checkins: number; habits_completed: number; total_checkins: number }
+  projects: { updated: number; active: number; overdue: number; activity: number }
+  notes: { created: number; updated: number }
+  finance: {
+    income: number
+    expenses: number
+    net: number
+    transactions: number
+    near_budget_categories: Array<{ id: string; name: string; spent: number; budget_limit: number; percent_used: number }>
+    income_sources_updated: number
+    active_income_amount: number
+    investments_updated: number
+    investment_tracked_value: number
+  }
+  capacity: {
+    days_logged: number
+    low_energy_days: number
+    medium_energy_days: number
+    high_energy_days: number
+    average_focus_minutes: number
+    average_focus_items: number
+    overload_days: number
+    most_common_day_type: string | null
+  }
+  life_areas: Array<{ key: string; name: string; icon: string; color: string; activity_count: number }>
+}
+
+type WeeklyReviewResponse = {
+  week: { week_start: string; week_end: string }
+  review: Review
+  history: HistoryReview[]
+  summary: WeeklySummary
+}
+
+type AiSummaryResult = {
+  summary: string
+  wins: string[]
+  risks: string[]
+  ignored_areas: string[]
+  next_week_focus: string
+  next_actions: string[]
+}
+
+const emptyReview: Review = {
+  id: null,
+  week_start: "",
+  week_end: "",
+  reflection_wins: "",
+  reflection_challenges: "",
+  reflection_lessons: "",
+  reflection_next_week_focus: "",
+  updated_at: null,
+}
+
+function localDateString(date = new Date()) {
+  const offset = date.getTimezoneOffset()
+  return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 10)
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return "No date"
+  const date = new Date(`${String(value).slice(0, 10)}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return "No date"
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+}
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(value || 0)
+}
+
+function toNumber(value: unknown) {
+  const parsed = typeof value === "number" ? value : Number.parseFloat(String(value || 0))
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+function totalActivity(summary: WeeklySummary | null) {
+  if (!summary) return 0
+  return (
+    toNumber(summary.tasks.completed) +
+    toNumber(summary.tasks.created_updated) +
+    toNumber(summary.goals.progressed) +
+    toNumber(summary.habits.completed_checkins) +
+    toNumber(summary.projects.updated) +
+    toNumber(summary.projects.activity) +
+    toNumber(summary.notes.created) +
+    toNumber(summary.notes.updated) +
+    toNumber(summary.finance.transactions) +
+    toNumber(summary.capacity?.days_logged)
+  )
+}
+
+function SummaryMetric({
+  title,
+  value,
+  subtitle,
+  icon: Icon,
+}: {
+  title: string
+  value: string | number
+  subtitle: string
+  icon: React.ElementType
+}) {
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-sm font-medium">
+          <Icon className="h-4 w-4 text-primary" />
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">{value}</div>
+        <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>
+      </CardContent>
+    </Card>
+  )
+}
+
+function EmptyState({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+      {children}
+    </div>
+  )
+}
+
+export function WeeklyReviewView() {
+  const { user, loading } = useAuth()
+  const router = useRouter()
+  const [selectedDate, setSelectedDate] = useState(localDateString())
+  const [summary, setSummary] = useState<WeeklySummary | null>(null)
+  const [review, setReview] = useState<Review>(emptyReview)
+  const [history, setHistory] = useState<HistoryReview[]>([])
+  const [loadingReview, setLoadingReview] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [saveState, setSaveState] = useState<"idle" | "saved" | "failed">("idle")
+  const [error, setError] = useState("")
+  const [aiSummary, setAiSummary] = useState<AiSummaryResult | null>(null)
+  const [generatingAi, setGeneratingAi] = useState(false)
+  const [aiError, setAiError] = useState("")
+
+  const fetchReview = useCallback(async (date: string) => {
+    setLoadingReview(true)
+    setError("")
+    setSaveState("idle")
+
+    try {
+      const response = await fetch(`/api/weekly-review?date=${date}`)
+      const data = (await response.json().catch(() => null)) as WeeklyReviewResponse | null
+      if (!response.ok || !data) {
+        throw new Error((data as { error?: string } | null)?.error || "Weekly review could not be loaded.")
+      }
+
+      setSummary(data.summary)
+      setReview(data.review)
+      setHistory(data.history || [])
+    } catch (fetchError) {
+      setError(fetchError instanceof Error ? fetchError.message : "Weekly review could not be loaded.")
+      setSummary(null)
+      setReview(emptyReview)
+      setHistory([])
+    } finally {
+      setLoadingReview(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login")
+      return
+    }
+
+    if (user) {
+      // Flagged by react-hooks/set-state-in-effect: fetchReview is shared
+      // with saveReview below, which needs the reload afterward too.
+      fetchReview(selectedDate)
+    }
+  }, [user, loading, router, selectedDate, fetchReview])
+
+  const saveReview = async () => {
+    setSaving(true)
+    setSaveState("idle")
+    setError("")
+
+    try {
+      const response = await fetch("/api/weekly-review", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date: selectedDate,
+          reflection_wins: review.reflection_wins,
+          reflection_challenges: review.reflection_challenges,
+          reflection_lessons: review.reflection_lessons,
+          reflection_next_week_focus: review.reflection_next_week_focus,
+        }),
+      })
+      const data = await response.json().catch(() => null)
+      if (!response.ok) {
+        throw new Error(data?.error || "Weekly review could not be saved.")
+      }
+
+      setReview(data.review)
+      setSummary(data.summary)
+      setSaveState("saved")
+      await fetchReview(selectedDate)
+    } catch (saveError) {
+      setSaveState("failed")
+      setError(saveError instanceof Error ? saveError.message : "Weekly review could not be saved.")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const generateAiSummary = async () => {
+    if (!summary || generatingAi) return
+    setGeneratingAi(true)
+    setAiError("")
+    setAiSummary(null)
+
+    try {
+      const response = await fetch("/api/ai/weekly-summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ week_start: summary.week_start, summary }),
+      })
+      const data = await response.json().catch(() => null)
+      if (!response.ok) {
+        throw new Error(data?.error || "AI summary failed")
+      }
+      setAiSummary(data.result)
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : "AI summary failed")
+    } finally {
+      setGeneratingAi(false)
+    }
+  }
+
+  const applyAiToReflections = () => {
+    if (!aiSummary) return
+    const nextWeekContent = aiSummary.next_actions.length > 0
+      ? `${aiSummary.next_week_focus}\n\nNext actions:\n${aiSummary.next_actions.map((a, i) => `${i + 1}. ${a}`).join("\n")}`
+      : aiSummary.next_week_focus
+    setReview((current) => ({
+      ...current,
+      reflection_wins: aiSummary.wins.join("\n"),
+      reflection_challenges: aiSummary.risks.join("\n"),
+      reflection_next_week_focus: nextWeekContent,
+    }))
+    setSaveState("idle")
+  }
+
+  const statusLabel = useMemo(() => {
+    if (saving) return "Saving..."
+    if (saveState === "saved") return "Saved"
+    if (saveState === "failed") return "Save failed"
+    return review.id ? "Saved review" : "Not saved yet"
+  }, [review.id, saveState, saving])
+
+  if (loading || !user) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <p className="mt-4 text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <div className="space-y-6">
+        <section className="flex flex-col gap-4 rounded-lg border bg-card p-5 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-sm text-muted-foreground">Monday-Sunday review</p>
+            <h2 className="mt-1 text-xl font-semibold tracking-tight text-foreground">Review your week</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Look across tasks, goals, habits, projects, notes, finance, and life domains before choosing next week&apos;s focus.
+            </p>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Badge variant={saveState === "failed" ? "destructive" : "outline"}>{statusLabel}</Badge>
+            <Button
+              onClick={generateAiSummary}
+              disabled={generatingAi || loadingReview || !summary}
+              variant="outline"
+              className="gap-2"
+            >
+              {generatingAi ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              AI Summary
+            </Button>
+            <Button onClick={saveReview} disabled={saving || loadingReview} className="gap-2">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Save Review
+            </Button>
+          </div>
+        </section>
+
+        {error && (
+          <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            {error}
+          </div>
+        )}
+
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <CalendarCheck className="h-5 w-5 text-primary" />
+                      {loadingReview || !summary ? "This Week" : `${formatDate(summary.week_start)} - ${formatDate(summary.week_end)}`}
+                    </CardTitle>
+                    <CardDescription>Derived from existing LifeSort records. Source records are not changed.</CardDescription>
+                  </div>
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(event) => setSelectedDate(event.target.value)}
+                    className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                  />
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loadingReview ? (
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <Skeleton className="h-28" />
+                    <Skeleton className="h-28" />
+                    <Skeleton className="h-28" />
+                    <Skeleton className="h-28" />
+                  </div>
+                ) : !summary ? (
+                  <EmptyState>Weekly metrics are unavailable right now.</EmptyState>
+                ) : totalActivity(summary) === 0 ? (
+                  <EmptyState>
+                    There is not much activity for this week yet. You can still save reflections and set a next-week focus.
+                  </EmptyState>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <SummaryMetric
+                      title="Tasks"
+                      value={summary.tasks.completed}
+                      subtitle={`${summary.tasks.overdue} overdue · ${summary.tasks.created_updated} created or updated`}
+                      icon={ClipboardCheck}
+                    />
+                    <SummaryMetric
+                      title="Goals"
+                      value={summary.goals.progressed}
+                      subtitle={`${summary.goals.upcoming_deadlines} upcoming deadlines`}
+                      icon={Target}
+                    />
+                    <SummaryMetric
+                      title="Habits"
+                      value={summary.habits.completed_checkins}
+                      subtitle={`${summary.habits.habits_completed} habits completed this week`}
+                      icon={Flame}
+                    />
+                    <SummaryMetric
+                      title="Projects"
+                      value={summary.projects.updated}
+                      subtitle={`${summary.projects.activity} activity items · ${summary.projects.overdue} overdue`}
+                      icon={FolderPlus}
+                    />
+                    <SummaryMetric
+                      title="Notes"
+                      value={summary.notes.created + summary.notes.updated}
+                      subtitle={`${summary.notes.created} created · ${summary.notes.updated} updated`}
+                      icon={FileText}
+                    />
+                    <SummaryMetric
+                      title="Budget Net"
+                      value={formatCurrency(summary.finance.net)}
+                      subtitle={`${formatCurrency(summary.finance.income)} in · ${formatCurrency(summary.finance.expenses)} out`}
+                      icon={Wallet}
+                    />
+                    <SummaryMetric
+                      title="Investments"
+                      value={formatCurrency(summary.finance.investment_tracked_value)}
+                      subtitle={`${summary.finance.investments_updated} updated investments`}
+                      icon={Trophy}
+                    />
+                    <SummaryMetric
+                      title="Income"
+                      value={summary.finance.income_sources_updated}
+                      subtitle={`${formatCurrency(summary.finance.active_income_amount)} active source amount`}
+                      icon={CheckCircle2}
+                    />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {summary?.unavailable?.length ? (
+              <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="mt-0.5 h-4 w-4" />
+                  <div>
+                    <p className="font-medium text-foreground">Some sections are unavailable.</p>
+                    <p className="mt-1">{summary.unavailable.join(", ")}</p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-primary" />
+                  Energy & Capacity Patterns
+                </CardTitle>
+                <CardDescription>Planning signals from the Today Plan entries you saved this week.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loadingReview ? (
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <Skeleton className="h-24" />
+                    <Skeleton className="h-24" />
+                    <Skeleton className="h-24" />
+                    <Skeleton className="h-24" />
+                  </div>
+                ) : !summary?.capacity || summary.capacity.days_logged === 0 ? (
+                  <EmptyState>Save Today Plan capacity for a few days to see energy and workload patterns here.</EmptyState>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="rounded-md border p-3">
+                      <p className="text-sm font-medium">Days logged</p>
+                      <p className="mt-2 text-2xl font-bold">{summary.capacity.days_logged}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">Today Plan capacity entries</p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                      <p className="text-sm font-medium">Energy mix</p>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Low {summary.capacity.low_energy_days} · Medium {summary.capacity.medium_energy_days} · High {summary.capacity.high_energy_days}
+                      </p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                      <p className="text-sm font-medium">Average focus time</p>
+                      <p className="mt-2 text-2xl font-bold">{summary.capacity.average_focus_minutes || 0}m</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {summary.capacity.average_focus_items || 0} focus items on average
+                      </p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                      <p className="text-sm font-medium">Load fit</p>
+                      <p className="mt-2 text-2xl font-bold">{summary.capacity.overload_days}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        overloaded day{summary.capacity.overload_days === 1 ? "" : "s"} · most common: {summary.capacity.most_common_day_type || "not set"}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {(generatingAi || aiSummary || aiError) && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-primary" />
+                    AI Weekly Summary
+                  </CardTitle>
+                  <CardDescription>
+                    AI-generated from numeric activity data. Does not modify your records.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {generatingAi && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Analyzing your week...
+                    </div>
+                  )}
+                  {aiError && !generatingAi && (
+                    <div className="text-sm text-destructive">{aiError}</div>
+                  )}
+                  {aiSummary && !generatingAi && (
+                    <div className="space-y-4">
+                      <p className="text-sm">{aiSummary.summary}</p>
+
+                      {aiSummary.wins.length > 0 && (
+                        <div>
+                          <p className="mb-2 text-sm font-medium text-green-600 dark:text-green-400">Wins</p>
+                          <ul className="space-y-1">
+                            {aiSummary.wins.map((win, i) => (
+                              <li key={i} className="flex items-start gap-2 text-sm">
+                                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-500" />
+                                {win}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {aiSummary.risks.length > 0 && (
+                        <div>
+                          <p className="mb-2 text-sm font-medium text-destructive">Risks</p>
+                          <ul className="space-y-1">
+                            {aiSummary.risks.map((risk, i) => (
+                              <li key={i} className="flex items-start gap-2 text-sm">
+                                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                                {risk}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {aiSummary.ignored_areas.length > 0 && (
+                        <div>
+                          <p className="mb-2 text-sm font-medium text-muted-foreground">Ignored Areas</p>
+                          <div className="flex flex-wrap gap-2">
+                            {aiSummary.ignored_areas.map((area, i) => (
+                              <Badge key={i} variant="outline">{area}</Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div>
+                        <p className="mb-1 text-sm font-medium">Next Week Focus</p>
+                        <p className="text-sm text-muted-foreground">{aiSummary.next_week_focus}</p>
+                      </div>
+
+                      {aiSummary.next_actions.length > 0 && (
+                        <div>
+                          <p className="mb-2 text-sm font-medium">Next Actions</p>
+                          <ol className="space-y-1">
+                            {aiSummary.next_actions.map((action, i) => (
+                              <li key={i} className="flex items-start gap-2 text-sm">
+                                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                                  {i + 1}
+                                </span>
+                                {action}
+                              </li>
+                            ))}
+                          </ol>
+                        </div>
+                      )}
+
+                      <div className="flex justify-end border-t pt-4">
+                        <Button onClick={applyAiToReflections} variant="outline" size="sm" className="gap-2">
+                          <ArrowRight className="h-4 w-4" />
+                          Apply to Reflections
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Network className="h-5 w-5 text-primary" />
+                    Life Domain Balance
+                  </CardTitle>
+                  <CardDescription>Activity grouped by assigned Life Domain.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {loadingReview ? (
+                    <div className="space-y-3">
+                      <Skeleton className="h-14" />
+                      <Skeleton className="h-14" />
+                    </div>
+                  ) : !summary?.life_areas?.length ? (
+                    <EmptyState>Assign items to Life Domains to see weekly balance here.</EmptyState>
+                  ) : (
+                    <div className="space-y-3">
+                      {summary.life_areas.map((area) => {
+                        const total = Math.max(...summary.life_areas.map((item) => item.activity_count), 1)
+                        return (
+                          <div key={area.key} className="space-y-2">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-2">
+                                <span className="h-3 w-3 rounded-full" style={{ backgroundColor: area.color }} />
+                                <span className="font-medium">{area.name}</span>
+                              </div>
+                              <span className="text-sm text-muted-foreground">{area.activity_count}</span>
+                            </div>
+                            <Progress value={(area.activity_count / total) * 100} className="h-2" />
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Finance Highlights</CardTitle>
+                  <CardDescription>Budget categories near or over their monthly limit.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {loadingReview ? (
+                    <div className="space-y-3">
+                      <Skeleton className="h-14" />
+                      <Skeleton className="h-14" />
+                    </div>
+                  ) : !summary?.finance.near_budget_categories.length ? (
+                    <EmptyState>No budget categories are near their limit.</EmptyState>
+                  ) : (
+                    <div className="space-y-3">
+                      {summary.finance.near_budget_categories.map((category) => (
+                        <div key={category.id} className="rounded-md border p-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="font-medium">{category.name}</p>
+                            <Badge variant={category.percent_used >= 100 ? "destructive" : "outline"}>
+                              {category.percent_used}%
+                            </Badge>
+                          </div>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            {formatCurrency(category.spent)} of {formatCurrency(category.budget_limit)}
+                          </p>
+                          <Progress value={Math.min(100, category.percent_used)} className="mt-3 h-2" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Reflection</CardTitle>
+                <CardDescription>Save your written review for this week.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium" htmlFor="wins-this-week">Wins this week</label>
+                  <Textarea
+                    id="wins-this-week"
+                    value={review.reflection_wins}
+                    onChange={(event) => {
+                      setReview((current) => ({ ...current, reflection_wins: event.target.value }))
+                      setSaveState("idle")
+                    }}
+                    className="min-h-[140px]"
+                    placeholder="What went well?"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium" htmlFor="challenges">Challenges</label>
+                  <Textarea
+                    id="challenges"
+                    value={review.reflection_challenges}
+                    onChange={(event) => {
+                      setReview((current) => ({ ...current, reflection_challenges: event.target.value }))
+                      setSaveState("idle")
+                    }}
+                    className="min-h-[140px]"
+                    placeholder="What got in the way?"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium" htmlFor="lessons-learned">Lessons learned</label>
+                  <Textarea
+                    id="lessons-learned"
+                    value={review.reflection_lessons}
+                    onChange={(event) => {
+                      setReview((current) => ({ ...current, reflection_lessons: event.target.value }))
+                      setSaveState("idle")
+                    }}
+                    className="min-h-[140px]"
+                    placeholder="What did this week teach you?"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium" htmlFor="next-week-focus">Next week focus</label>
+                  <Textarea
+                    id="next-week-focus"
+                    value={review.reflection_next_week_focus}
+                    onChange={(event) => {
+                      setReview((current) => ({ ...current, reflection_next_week_focus: event.target.value }))
+                      setSaveState("idle")
+                    }}
+                    className="min-h-[140px]"
+                    placeholder="What deserves your attention next?"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <History className="h-5 w-5 text-primary" />
+                Previous Reviews
+              </CardTitle>
+              <CardDescription>Saved weekly reflections from earlier weeks.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingReview ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-20" />
+                  <Skeleton className="h-20" />
+                  <Skeleton className="h-20" />
+                </div>
+              ) : history.length === 0 ? (
+                <EmptyState>No previous reviews yet. Save this week and history will build from here.</EmptyState>
+              ) : (
+                <div className="space-y-3">
+                  {history.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className="w-full rounded-md border p-3 text-left transition-colors hover:bg-muted/50"
+                      onClick={() => setSelectedDate(String(item.week_start).slice(0, 10))}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="font-medium">
+                          {formatDate(item.week_start)} - {formatDate(item.week_end)}
+                        </p>
+                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
+                        {item.reflection_wins || item.reflection_next_week_focus || "No reflection preview."}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="flex justify-end">
+          <Button asChild variant="outline">
+            <Link href="/">
+              Open Today Plan
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
+      </div>
+    </>
+  )
+}

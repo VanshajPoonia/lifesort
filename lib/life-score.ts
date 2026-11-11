@@ -141,7 +141,7 @@ function improvementFor(componentKey: LifeScoreComponentKey, score: number): Lif
     weekly_review_status: {
       title: "Save this week's review",
       description: "A short weekly review is enough to keep the system honest and calm.",
-      href: "/review",
+      href: "/reflect",
       component_key: "weekly_review_status",
     },
     maintenance_vault: {
@@ -508,7 +508,7 @@ export async function getLifeScoreData(userId: string): Promise<LifeScoreData> {
       explanation: n(reviews.current_week_reviews) > 0
         ? "This week's review has been saved."
         : "This week's review is still open.",
-      href: "/review",
+      href: "/reflect",
     }))
   }
 
