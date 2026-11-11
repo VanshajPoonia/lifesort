@@ -10,11 +10,11 @@ Keep it short. Entries dated before 2026-10 were moved word for word to `AI_TASK
 
 LifeSort is a broad Next.js App Router application with many implemented product areas and a Vercel-oriented deployment. The repo now has persistent AI memory files in the project root.
 
-Current verification state (2026-11-11):
+Current verification state (2026-11-11, after Stage 1 step 3):
 
-- `npm run build` passes with TypeScript validation now actually enforced (`next.config.mjs`'s `typescript.ignoreBuildErrors` is `false`; `tsc --noEmit` is clean). `eslint.ignoreDuringBuilds` remains `true` — 64 pre-existing lint findings remain (down from 293 originally; see the 2026-07-25 ESLint cleanup entry, 66 → 65 in the 2026-10-28 design pass and 65 → 64 in the 2026-11-11 Today merge), every one a reviewed-and-commented `react-hooks/set-state-in-effect` exception (either a real state transition or a function intentionally shared with non-effect call sites). It still exits non-zero; that is expected and not a blocker.
+- `npm run build` passes with TypeScript validation now actually enforced (`next.config.mjs`'s `typescript.ignoreBuildErrors` is `false`; `tsc --noEmit` is clean). `eslint.ignoreDuringBuilds` remains `true` — 62 pre-existing lint findings remain (down from 293 originally; see the 2026-07-25 ESLint cleanup entry, 66 → 65 in the 2026-10-28 design pass, 65 → 64 in the 2026-11-11 Today merge and 64 → 62 in Stage 1 step 3), every one a reviewed-and-commented `react-hooks/set-state-in-effect` exception (either a real state transition or a function intentionally shared with non-effect call sites). It still exits non-zero; that is expected and not a blocker.
 - `npm run lint` runs cleanly via `eslint.config.mjs` (ESLint 9.x + `eslint-config-next@16`) — it exits non-zero on real findings, it does not fail to run.
-- `npm test` runs Vitest: 104/104 tests passing across 7 suites (`lib/auth.test.ts`, `lib/date-math.test.ts`, `app/api/tags/route.test.ts`, `app/api/item-relationships/route.test.ts`, `app/api/tasks/[id]/checklist-items/route.test.ts`, `app/api/tasks/[id]/recurrence/route.test.ts`, `app/api/tasks/route.test.ts`).
+- `npm test` runs Vitest: 114/114 tests passing across 8 suites (`lib/auth.test.ts`, `lib/date-math.test.ts`, `lib/habit-streaks.test.ts`, `app/api/tags/route.test.ts`, `app/api/item-relationships/route.test.ts`, `app/api/tasks/[id]/checklist-items/route.test.ts`, `app/api/tasks/[id]/recurrence/route.test.ts`, `app/api/tasks/route.test.ts`).
 - `npx tsc --noEmit` is clean.
 
 ## Completed Work
@@ -32,6 +32,12 @@ Current verification state (2026-11-11):
   - `components/tasks/calendar-view.tsx`: found in browser testing. The calendar listed Later tasks under "Draft Tasks" as if they needed scheduling, and showed dated ones on the grid. It now carries `status` through its task normaliser and leaves `someday` tasks out, the same as Today.
   - `lib/lifesort-coach-context.ts`, `lib/ignoring-insights.ts`, `app/insights/page.tsx`: the Coach and "What am I ignoring" read tasks with status `waiting` instead of `waiting_items`. Their commitments and maintenance parts are gone. The Coach's due-task list also skips Later tasks.
   - `app/api/search/route.ts`, `app/api/navigation-summary/route.ts`, `app/api/today-plan/route.ts`, `lib/timeline.ts`, `app/timeline/page.tsx`, `lib/life-score.ts`, `lib/reset.ts`, `lib/item-relationships.ts`, `app/people/page.tsx`, `components/global-command-palette.tsx`, and the deleted `app/api/someday/`, `app/api/waiting/`, `app/api/commitments/`, `app/api/maintenance/`: nothing reads or writes the four folded tables any more. Search lost four result groups. Navigation summary lost eight counts that nothing displayed. Today lost its waiting, commitment and maintenance candidates. Timeline lost three event types, including vault renewals, which were only ever recorded through `maintenance_items`. LifeScore dropped "Commitments kept" (it only showed when commitments existed) and its "Maintenance and vault" part became "Vault dates", keeping the `maintenance_vault` key so old score history still lines up. Reset lost three sections and their actions, counts its urgent total as every section except Upcoming, and skips Later tasks. People cards only count linked tasks. Item relationships no longer accept the four types.
+  - `scripts/migrations/2026-11-11-drop-folded-tables.sql` (new): drops the four tables inside one transaction after a guard that recounts their rows and refuses if any exist. A read-only dry run against production passed the guard (0 rows) and was then refused at the DROP, as expected. Not run, because `main` is what production runs and it still reads these tables.
+- **Commands run:** `npx tsc --noEmit` clean. `npm test` 114/114 across 8 suites (10 new streak tests). `npm run lint` 62 findings, down from 64 because deleted pages took their effect exceptions with them. `npm run build` passes, `/tasks` is 30.9 kB and the six old routes are small redirects. Read-only row recount of the four tables: all 0, and no foreign keys point at them.
+- **Browser test:** with the user's OK, on `127.0.0.1:3100` with a throwaway account (`lifesort-tasks-test-*@example.com`), 9 fake tasks, a daily habit with 6 check-ins. Checked: `/someday` lands on the Later chip, chip counts, adding on the Later chip saves status `someday`, opening a row shows the editors, Board drag from To do to Waiting, Board "Move to" Done, `/habits` lands on the Habits tab with "1 week in a row" and "2 of 4 this week", the Calendar tab (and the Later fix above), Quick Add's Repeating task saving a monthly rule, Today leaving out Later tasks, and after the reader removal search, navigation summary, Reset, LifeScore, Timeline, People and Reflect all loading with no errors. The account and all its rows (11 tasks, 1 habit, 6 check-ins, 1 recurrence rule, 13 domains, 1 LifeScore snapshot, 6 notifications, 2 sessions) were deleted in one guarded transaction. Production is back to 2 users.
+- **Remaining issues:** the drop migration waits on a production deploy. The sidebar still shows Workspace for `/tasks`, which step 8 fixes. Promises are a note on a task, not a real link to a person in People. Coach citations still use the old `waiting` type label.
+- **Suggested next steps:** merge and deploy, then run the drop migration. Then Stage 1 step 4, folding Capture into Inbox.
+- **Handoff notes:** Tasks lives in `app/tasks/page.tsx` with views in `components/tasks/`. The list filter is `?status=`, the tab is `?tab=`. Use `lib/redirect-target.ts` for any further page-to-tab redirects.
 
 ### 2026-11-11 22:00 IST - Stage 1 step 2: Home and Today become one page
 
@@ -120,7 +126,7 @@ Current verification state (2026-11-11):
 
 - No known code bugs beyond the small ones in the 2026-11-11 22:00 entry. Habit saving was broken until 2026-11-11 (fixed in that entry).
 - Attachments are not deploy-ready. The `R2_*` env vars exist only in `.env.local`, not in Vercel, and the R2 token there was exposed in a past chat and should be rotated. Stage 4 of `AI_BUILD_PLAN.md` Part 0 depends on this.
-- `npm run lint` reports 64 reviewed `react-hooks/set-state-in-effect` findings and exits non-zero. Expected, not a blocker.
+- `npm run lint` reports 62 reviewed `react-hooks/set-state-in-effect` findings and exits non-zero. Expected, not a blocker.
 
 ## Known Risks
 

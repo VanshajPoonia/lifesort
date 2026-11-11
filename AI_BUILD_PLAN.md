@@ -123,6 +123,9 @@ All were empty on 2026-11-11. Before running a drop:
 - Write the migration under `scripts/migrations/`.
 - Re-run the read-only count and stop if any table has gained rows.
 - Search the code for remaining references (search, timeline, notifications, LifeScore, navigation summary, Coach context, templates, Reset).
+- Run it only after the code without those references is deployed to production. Every Vercel environment shares one database, so dropping a table early breaks the live site.
+
+Status (2026-11-11): the four Stage 1 step 3 tables have no readers or writers left, and `scripts/migrations/2026-11-11-drop-folded-tables.sql` is written. It recounts the rows and refuses to drop if any exist. A read-only dry run passed the guard. It has not been run, because `main` (production) still reads those tables. Run it after this branch is merged and deployed.
 
 ### Freeze (no new work)
 
