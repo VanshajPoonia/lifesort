@@ -71,16 +71,8 @@ const planCards: HubCard[] = [
 
 const captureCards: HubCard[] = [
   {
-    title: "Universal Capture",
-    description: "Parse messy text into editable drafts or quickly add a LifeSort item.",
-    href: "/capture",
-    icon: Wand2,
-    badge: "Start here",
-    priority: "primary",
-  },
-  {
     title: "Capture Inbox",
-    description: "Save unsorted thoughts before deciding where they belong.",
+    description: "Jot it down, or let AI sort it into tasks and events.",
     href: "/inbox",
     icon: Inbox,
     statusKey: "unsortedInbox",
@@ -111,7 +103,7 @@ const captureCards: HubCard[] = [
   {
     title: "Quick Add",
     description: "Use the top-bar or mobile plus button anywhere in LifeSort.",
-    href: "/capture",
+    href: "/inbox",
     icon: Plus,
     badge: "Always available",
     priority: "secondary",

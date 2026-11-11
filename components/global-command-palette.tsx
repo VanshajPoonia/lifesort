@@ -101,7 +101,7 @@ const captureActions: Array<{
   { label: "Add Note", description: "Save a thought", icon: FileText, type: "note" },
   { label: "Add Inbox Item", description: "Capture something messy", icon: Inbox, type: "inbox" },
   { label: "Journal Today", description: "Open today's journal", icon: BookOpenText, href: "/journal" },
-  { label: "Universal Capture", description: "Parse text or open the full add form", icon: Plus, href: "/capture" },
+  { label: "Open Inbox", description: "Jot something down, or sort it with AI", icon: Plus, href: "/inbox" },
 ]
 
 const navigationActions = [
@@ -121,7 +121,7 @@ const navigationActions = [
 
 const aiActions = [
   { label: "LifeSort Coach", description: "Ask app-aware questions", href: "/ai-chat", icon: Sparkles },
-  { label: "Capture with AI", description: "Parse messy text into drafts", href: "/capture", icon: Sparkles },
+  { label: "Sort with AI", description: "Turn a messy note into tasks and events in Inbox", href: "/inbox", icon: Sparkles },
 ]
 
 function isTypingTarget(target: EventTarget | null) {

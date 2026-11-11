@@ -28,6 +28,7 @@ Current verification state (2026-11-11, after Stage 1 step 3):
 - **Changes, one commit each:**
   - `scripts/schema.sql`, `scripts/fresh-install.sql`, `AI_BUILD_PLAN.md`, `AI_PROJECT.md`: record that the migration ran and drop the four tables from the schema snapshots.
   - `app/inbox/page.tsx`, `components/inbox/ai-sort-panel.tsx` (new, built from the old `app/capture/page.tsx` draft editor): Inbox is the one place to capture. One box with Save and Sort with AI. Sort with AI saves the text to Inbox first (source `ai_capture`), so nothing is lost if the AI fails or the person walks away, then shows the drafts to edit and confirm. Once anything is added, the Inbox item is marked `converted`. Unsorted items get Sort (the old convert dialog) and an AI button. Waiting and Later drafts only ask for what tasks store. The capture form lost its optional title, type and domain fields (Edit still has them), the stat tiles are gone, and the list uses chips and compact rows.
+  - `app/capture/page.tsx`, `components/global-command-palette.tsx`, `app/workspace/page.tsx`: `/capture` redirects to `/inbox`. The palette's Universal Capture and Capture with AI entries became Open Inbox and Sort with AI, and Workspace lost its Universal Capture card.
 
 ### 2026-11-11 23:30 IST - Stage 1 step 3: Tasks becomes the hub
 
