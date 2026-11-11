@@ -6,6 +6,7 @@ This file is the **reconciled** plan: the raw product vision (Appendix A) filter
 
 ## How to use this file
 
+- **Start with Part 0** (added 2026-11-11). It holds the current direction and build order. The competitor research behind it is in `AI_MARKET_RESEARCH.md`.
 - **Before building any feature toward the full-product vision**, read the relevant phase in Part C and the reconciliation notes in Part A that touch it.
 - This file sits alongside — not above — the five standing memory files (`AGENTS.md`, `AI_PROJECT.md`, `AI_TASK_LOG.md`, `AI_DECISIONS.md`, `AI_CHECKLIST.md`) and the two existing specs (`AI_LIFE_DOMAINS_SPEC.md`, `DESIGN.md`). It is the *forward roadmap*; `AI_PROJECT.md` remains the *current-state* record. When a phase ships, update `AI_PROJECT.md` + `AI_TASK_LOG.md` as usual and tick the status here.
 - Design decisions are governed by `DESIGN.md` (the Linear-shell + Notion-content + calm-warmth hybrid). This plan does not re-specify design.
@@ -17,6 +18,122 @@ This file is the **reconciled** plan: the raw product vision (Appendix A) filter
 - 🟡 **Partial** — exists but incomplete vs the full-product target.
 - 🟠 **New** — not built; genuinely new work.
 - 🔵 **Decision** — a reconciliation choice recorded by this plan (see Part A/B).
+
+---
+
+## Part 0: Current direction (2026-11-11)
+
+**Start here. Part 0 sets the build order.** Where it disagrees with the phase order in Part C, Part 0 wins. Part C stays as the detailed backlog. The research behind every point is in `AI_MARKET_RESEARCH.md`.
+
+### Who LifeSort is for
+
+Everyday people using it in everyday life. The user set three rules on 2026-11-11:
+
+1. **Simplest to use.** When a power feature and simplicity conflict, simplicity wins.
+2. **Fits into a person's life through templates we create.** These become **Life Kits** (Stage 3).
+3. **Ships as an installable web app** (PWA), not a native app. The Capacitor attempt in `~/Code/Products/Lifesort App` is not being pursued.
+
+Claude Code is the only AI agent on this repo from 2026-11-11 (see `CLAUDE.md`).
+
+### Rules for every change
+
+- A new feature replaces something or folds into an existing place. The sidebar never grows past the 7 places below.
+- Zero setup. A new user picks a kit and is done.
+- No guilt. No page shows a red pile of overdue items. "Overdue" reads as "needs a decision". Streaks count by week, so one missed day does not wipe them.
+- Fewer fields by default. Advanced options stay collapsed.
+- AI drafts and the user confirms (Part B #8, unchanged).
+
+### Target layout: 7 places
+
+| Sidebar | What goes in it |
+|---|---|
+| Today | Home and Today merged. Reset My Life becomes the welcome-back flow. Focus Goal becomes a pinned goal. Pomodoro becomes a focus mode on a task |
+| Inbox | Inbox and Capture as one box. Typing, voice and photos all land here |
+| Tasks | List, Board, Calendar and Habits tabs. Waiting and Someday become task filters |
+| Domains | The one way to group things: Domain, then Goal, then Project, then Task. Kits attach here |
+| Library | Notes, Journal, People, Vault, Links and Whiteboards as tabs |
+| Money | Already consolidated. Overview, Budget, Income, Investments, Wishlist |
+| Reflect | Weekly Review is the main page. Life Patterns, Timeline and LifeScore become sections. Coach becomes a side panel available everywhere |
+
+Settings absorbs Rules and the full Notifications page. Every old URL keeps working through a redirect, the same way `/budget` redirects to `/money?tab=budget`.
+
+### Build order
+
+**Stage 1: Consolidate (UI only, no schema change)**
+1. Run a read-only row count per table to see which features hold real data. Needs the user's OK first (`AGENTS.md`).
+2. Merge Home into Today and build the messy-week rules in from the start: a welcome-back reset after days away, "needs a decision" instead of overdue, weekly streaks.
+3. Give Tasks its List, Board, Calendar and Habits tabs. Fold in Waiting and Someday as filters. Redirect `/calendar`, `/habits`, `/waiting`, `/someday`.
+4. Fold Capture into Inbox.
+5. Build the Library hub.
+6. Rebuild Reflect around Weekly Review and turn Coach into a side panel.
+7. Cut the sidebar to the 7 places.
+- **Exit:** 7 sidebar places, every old URL redirects, no data moved.
+
+**Stage 2: Installable web app and capture**
+- Service worker, install prompt, offline app shell, home screen shortcuts (Add task, Capture).
+- Web push for reminders, alongside the existing email cron. On iPhone this only works after the user adds LifeSort to the home screen.
+- Share target, so sharing from another app lands in Inbox.
+- Voice brain dump in Inbox, reusing `/api/ai/capture`.
+- **Exit:** installs on Android and iPhone home screens, a push reminder arrives, a shared link lands in Inbox, a spoken ramble becomes draft tasks.
+
+**Stage 3: Life Kits (templates as the way in)**
+- A kit is one life situation. First candidates: new semester, new job, moving house, getting fit, saving for something, job search, trip, renewing documents.
+- A kit creates real core objects across the app: a domain, a goal, dated tasks, habits or a routine, a budget category, renewal reminders, journal prompts. Kits stop creating Spaces and Custom Sections.
+- Kits are offered at onboarding ("What's going on in your life right now?"), in the New menu and on each Domain page.
+- A kit is live. It has phases with dates ("week 3 of 15"), can be paused, and can be removed cleanly: removing it archives what it created that the user never touched.
+- The AI Template Builder becomes "Describe your situation", which drafts a kit for the user to confirm.
+- Likely needs a table that records which objects a kit created, so removal works. That is a schema change, so confirm it first.
+- **Exit:** a new user picks one or two kits during onboarding and has a working Today the same minute.
+
+**Stage 4: Snap a photo and it's sorted**
+- Camera or upload in Inbox for a bill, policy, warranty or ID. AI drafts the linked set: a Vault entry, a renewal reminder, a budget line and a task if something is due. The user confirms.
+- Reuse the Groq vision parsing that Investments already uses. Files go to R2, so the `R2_*` env vars must reach Vercel and the flagged token must be rotated first.
+
+**Stage 5: Life Patterns**
+- One weekly "What I noticed" feed in Reflect, replacing the separate insight screens.
+- Plain-language patterns across journal mood and energy, habits, tasks, spending, domain attention and people follow-ups. For example: "Your mood is lower in weeks with 10+ open decisions."
+- Computed in SQL and explained by AI. Patterns can be dismissed, read as "noticed" rather than as causes, and respect `is_ai_excluded`.
+
+**Stage 6: Calendar and daily routine**
+- Two-way Google Calendar sync.
+- Drag tasks onto time slots, using the `scheduled_date` and `duration_minutes` fields tasks already have.
+- A guided morning plan and evening shutdown on Today.
+
+**Later**
+- A privacy-scoped connector for ChatGPT and Claude (MCP) that honors per-domain AI exclusion.
+- Email to task through a forwarding address. WhatsApp or Telegram capture.
+- Imports from Todoist, Notion and CSV. Bank statement upload. Shared household.
+- AI task breakdown with time estimates.
+
+### Data merges (separate track, one table at a time)
+
+After Stage 1, consider moving `waiting_items` and `someday_items` into `tasks`, since those statuses already exist there. Decide per table for `commitments` (person links) and `maintenance_items` (vault links, lead times). Each move gets its own migration, a backup and the user's explicit OK. Part B #4 still applies.
+
+### Freeze (no new work)
+
+- Whiteboards. They keep working but get no new features.
+- Daily Content and games. Hide or remove, user to decide.
+- Spaces and Custom Sections. Kits stop creating them, then retire them, user to decide.
+- Live investment quotes.
+- New standalone AI insight screens.
+
+### How Part C maps onto this
+
+- Phase 2 (Inbox processing, Today as command center) is now Stages 1 and 2.
+- Phase 5 Templates breadth moves up to Stage 3.
+- Phase 7 PWA moves up to Stage 2.
+- Rich editor upgrades, semantic search, favorites and imports wait until after Stage 6 unless a stage needs them.
+
+### Housekeeping (proposed, not done)
+
+`AI_TASK_LOG.md` is about 575 KB, too big to read in one pass. Move entries older than 2026-10 into an archive file and keep the live log short.
+
+### Open questions for the user
+
+1. OK to run a read-only row count per table on the Neon database?
+2. Daily Content and games, Spaces, Custom Sections: remove or hide?
+3. Which kits should ship first?
+4. What stays free and what is paid?
 
 ---
 
@@ -176,6 +293,11 @@ Fast reference (each expanded in Part A). Record any change to these in `AI_DECI
 10. `AI_AUDIT.md` is historical; re-verify before acting on it. (A8)
 11. **User confirmed 2026-07-24:** proceed with the A4 (careful capture/GTD consolidation) and A9 (nav restructure) directions as written, motivated by not wanting to overclutter the app. This unblocks starting Phase 0. It does not pre-authorize deleting or migrating any specific existing surface's data — that is still confirmed individually when proposed (A4).
 12. "Don't overclutter" is now an explicit, user-stated design constraint, not just an inference from `DESIGN.md`. Apply it when in doubt on borderline scope calls: prefer folding a capability into an existing surface over adding a new nav item, tab, or page.
+13. **User set 2026-11-11:** LifeSort is for everyday people. Simplest to use wins over power features. (Part 0)
+14. **User set 2026-11-11:** templates are how LifeSort fits into a person's life. They become live Life Kits that create core objects, and they move up from Phase 5 to Stage 3. (Part 0)
+15. **User set 2026-11-11:** the mobile strategy is an installable web app (PWA). No native app for now. (Part 0)
+16. **User set 2026-11-11:** Claude Code is the only AI agent on this repo. (`CLAUDE.md`)
+17. Part 0 sets the build order. Part C is the backlog.
 
 ---
 

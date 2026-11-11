@@ -206,6 +206,16 @@ Architecture and product decision memory for LifeSort.
 - **`app/globals.css` must keep the `* { border-color: hsl(var(--border)) }` base rule**, or dark mode borders fall back to Tailwind gray-200.
 - **Reduced motion keeps fades, removes travel.** The global block zeroes tailwindcss-animate translate/scale/rotate variables instead of disabling all animation.
 
+## Product Direction: Everyday Simplicity, Life Kits, Installable Web App (2026-11-11)
+
+- **Decision: LifeSort is for everyday people.** The user said it is "for people to use in everyday life" and "should be simplest to use". On a scope call, pick the simpler option, and fold new capability into an existing place.
+- **Decision: templates are how LifeSort fits into a life.** The user said LifeSort should "fit like a piece in lives through the templates we create". Templates become live Life Kits that create core objects (domain, goal, tasks, habits, budget category, renewal reminders), not Spaces or Custom Sections. This reverses a recommendation made earlier on 2026-11-11 to stop investing in templates.
+- **Decision: installable web app (PWA) for mobile.** No native app for now.
+- **Decision: Claude Code is the only AI agent on this repo.** Codex is no longer used. `CLAUDE.md` and `AGENTS.md` were updated to match.
+- **Decision: consolidate to 7 sidebar places before adding differentiators.** These are Today, Inbox, Tasks, Domains, Library, Money and Reflect. The UI merges first with redirects and no schema change. Data merges come later, one table at a time, each with the user's OK.
+- Evidence: competitor research in `AI_MARKET_RESEARCH.md`. Build order in `AI_BUILD_PLAN.md` Part 0.
+- Still unconfirmed: the read-only row count on the live database, whether Daily Content, Spaces and Custom Sections are removed or hidden, which kits ship first, and the free vs paid split.
+
 ## Patterns Agents Should Preserve
 
 - Keep App Router page and route-handler structure.
