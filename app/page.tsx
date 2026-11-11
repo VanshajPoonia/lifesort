@@ -406,7 +406,7 @@ function decisionToast(decision: Decision, items: TodayItem[]) {
   const count = items.length
   const what = count === 1 ? `"${items[0].title}"` : `${count} tasks`
   if (decision === "today") return { title: `Moved ${what} to today` }
-  if (decision === "later") return { title: `Moved ${what} to Later`, description: "No date for now. It's in Tasks under Someday." }
+  if (decision === "later") return { title: `Moved ${what} to Later`, description: "No date for now. Find it in Tasks under Later." }
   if (decision === "done") return { title: count === 1 ? "Done" : `${count} tasks done`, description: count === 1 ? items[0].title : undefined }
   return { title: `Let go of ${what}`, description: "It stays in Tasks as cancelled." }
 }
