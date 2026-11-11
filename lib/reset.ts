@@ -482,8 +482,8 @@ export async function applyResetAction(userId: string, input: ResetActionInput) 
 
   if (type === "task") {
     if (action === "reschedule") return changed(await sql`UPDATE tasks SET due_date = ${targetDate}, updated_at = NOW() WHERE id = ${itemId} AND user_id = ${userId} RETURNING id`)
-    if (action === "mark_complete") return changed(await sql`UPDATE tasks SET completed = TRUE, updated_at = NOW() WHERE id = ${itemId} AND user_id = ${userId} RETURNING id`)
-    if (action === "move_someday") return changed(await sql`UPDATE tasks SET due_date = NULL, due_time = NULL, category = 'someday', updated_at = NOW() WHERE id = ${itemId} AND user_id = ${userId} RETURNING id`)
+    if (action === "mark_complete") return changed(await sql`UPDATE tasks SET status = 'completed', completed = TRUE, updated_at = NOW() WHERE id = ${itemId} AND user_id = ${userId} RETURNING id`)
+    if (action === "move_someday") return changed(await sql`UPDATE tasks SET due_date = NULL, due_time = NULL, status = 'someday', reminder_at = NULL, email_reminder = FALSE, updated_at = NOW() WHERE id = ${itemId} AND user_id = ${userId} RETURNING id`)
     if (action === "delete") return changed(await sql`DELETE FROM tasks WHERE id = ${itemId} AND user_id = ${userId} RETURNING id`)
   }
 

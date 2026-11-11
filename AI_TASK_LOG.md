@@ -19,6 +19,12 @@ Current verification state (2026-10-28):
 
 ## Completed Work
 
+### 2026-11-11 22:00 IST - Stage 1 step 2: Home and Today become one page
+
+- **Agent/tool used:** Claude Code (Opus 5.5).
+- **Changes, one commit each:**
+  - `lib/reset.ts`: Reset My Life's "mark complete" on a task set `completed = TRUE` but left `status` at its old value, so Tasks still showed it as open. It now sets `status = 'completed'` too. "Move to Someday" wrote `category = 'someday'`, which nothing reads. It now sets `status = 'someday'`, clears the due date and turns the email reminder off, the same way `PUT /api/tasks` does for an undated task.
+
 ### 2026-11-11 18:30 IST - Live usage check, task log archive, user answers on Stage 1
 
 - **Agent/tool used:** Claude Code (Opus 5.5).
