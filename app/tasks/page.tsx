@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { CalendarView } from "@/components/tasks/calendar-view"
 import { HabitsView } from "@/components/tasks/habits-view"
+import { TaskBoardView } from "@/components/tasks/task-board-view"
 import { TaskListView } from "@/components/tasks/task-list-view"
 import { cn } from "@/lib/utils"
 
@@ -12,6 +13,7 @@ import { cn } from "@/lib/utils"
 // Calendar and Habits used to be their own pages and now live here as tabs.
 const tabs = [
   { value: "list", label: "List" },
+  { value: "board", label: "Board" },
   { value: "calendar", label: "Calendar" },
   { value: "habits", label: "Habits" },
 ] as const
@@ -67,6 +69,7 @@ export default function TasksPage() {
         </div>
 
         {activeTab === "list" && <TaskListView />}
+        {activeTab === "board" && <TaskBoardView />}
         {activeTab === "calendar" && <CalendarView />}
         {activeTab === "habits" && <HabitsView />}
       </div>
