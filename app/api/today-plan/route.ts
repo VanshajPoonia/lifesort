@@ -100,7 +100,7 @@ function normalizeFocusItems(value: unknown): FocusItem[] {
         source_type: custom ? "custom" : sourceType,
         source_id: sourceId,
         title,
-        href: custom ? "/today" : text(raw.href, "/today"),
+        href: custom ? "/" : text(raw.href, "/"),
         custom,
       }
     })
@@ -239,6 +239,9 @@ function taskItem(task: Row, label?: string) {
     priority: task.priority || "medium",
     date: (task.due_date || null) as string | Date | null,
     life_area_id: task.life_area_id != null ? String(task.life_area_id) : null,
+    // Only the past-due query selects these. Today needs them to undo a decision.
+    ...(task.status !== undefined ? { status: (task.status as string | null) ?? null } : {}),
+    ...(task.email_reminder !== undefined ? { email_reminder: Boolean(task.email_reminder) } : {}),
   }
 }
 
@@ -397,7 +400,7 @@ async function getDerivedCandidates(userId: string, planDate: string) {
     savingsProgress,
   ] = await Promise.all([
     safeRows("overdue tasks", sql`
-      SELECT id, title, priority, due_date, life_area_id, updated_at, created_at
+      SELECT id, title, priority, due_date, status, email_reminder, life_area_id, updated_at, created_at
       FROM tasks
       WHERE user_id = ${userId}
         AND completed = false
@@ -497,6 +500,7 @@ async function getDerivedCandidates(userId: string, planDate: string) {
       WHERE user_id = ${userId}
         AND completed = false
         AND due_date IS NULL
+        AND COALESCE(status, 'next') <> 'someday'
       ORDER BY updated_at DESC NULLS LAST, created_at DESC
       LIMIT 6
     `, unavailable),
@@ -597,24 +601,24 @@ async function getDerivedCandidates(userId: string, planDate: string) {
   const highOrMediumToday = todayTasks.filter((task) => task.priority !== "low")
   const lowToday = todayTasks.filter((task) => task.priority === "low")
   const todayToDo = [
-    ...overdueTasks.map((task) => taskItem(task, `Overdue since ${task.due_date}`)),
+    ...overdueTasks.map((task) => taskItem(task, `Was due ${task.due_date}`)),
     ...highOrMediumToday.map((task) => taskItem(task, "Due today")),
     ...lowToday.map((task) => taskItem(task, "Low-priority task due today")),
-    ...overdueGoals.map((goal) => goalItem(goal, `Goal overdue since ${goal.target_date}`)),
+    ...overdueGoals.map((goal) => goalItem(goal, `Goal was due ${goal.target_date}`)),
     ...todayGoals.map((goal) => goalItem(goal, "Goal due today")),
-    ...overdueProjects.map((project) => projectItem(project, `Project overdue since ${project.due_date}`)),
+    ...overdueProjects.map((project) => projectItem(project, `Project was due ${project.due_date}`)),
     ...todayProjects.map((project) => projectItem(project, "Project due today")),
     ...waitingDue.map((item) => {
       const date = dateKey(item.follow_up_date || item.expected_date)
-      return waitingItem(item, date && date < planDate ? `Follow-up overdue since ${date}` : "Follow-up due today")
+      return waitingItem(item, date && date < planDate ? `Follow-up was due ${date}` : "Follow-up due today")
     }),
     ...commitmentsDue.map((item) => {
       const date = dateKey(item.due_date)
-      return commitmentItem(item, date < planDate ? `Commitment overdue since ${date}` : "Commitment due today")
+      return commitmentItem(item, date < planDate ? `Commitment was due ${date}` : "Commitment due today")
     }),
     ...maintenanceDue.map((item) => {
       const date = dateKey(item.next_due_date)
-      return maintenanceItem(item, date < planDate ? `Maintenance overdue since ${date}` : "Maintenance due today")
+      return maintenanceItem(item, date < planDate ? `Maintenance was due ${date}` : "Maintenance due today")
     }),
   ].slice(0, 20)
   const dueOrOverdueItemCount =

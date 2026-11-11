@@ -25,6 +25,7 @@ Current verification state (2026-10-28):
 - **Changes, one commit each:**
   - `lib/reset.ts`: Reset My Life's "mark complete" on a task set `completed = TRUE` but left `status` at its old value, so Tasks still showed it as open. It now sets `status = 'completed'` too. "Move to Someday" wrote `category = 'someday'`, which nothing reads. It now sets `status = 'someday'`, clears the due date and turns the email reminder off, the same way `PUT /api/tasks` does for an undated task.
   - `app/api/habits/route.ts`: creating or editing any habit failed with `malformed array literal: "[]"`. The route passed `JSON.stringify(customDays)` into an `::integer[]` cast, and Postgres arrays are written `{}`, not `[]`. It now passes the array itself and the driver formats it. Found while adding test habits. This is likely why the `habits` table was empty in the 2026-11-11 row count.
+  - `app/api/today-plan/route.ts`: past-due labels say "Was due" instead of "Overdue since". The past-due task query also returns `status` and `email_reminder`, so Today can undo a decision exactly. Undated tasks with status `someday` no longer show up as "could do". Custom focus items link to `/`.
 
 ### 2026-11-11 18:30 IST - Live usage check, task log archive, user answers on Stage 1
 
