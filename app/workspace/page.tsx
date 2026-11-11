@@ -9,7 +9,6 @@ import {
   FolderPlus,
   Inbox,
   Link2,
-  Map,
   Paintbrush,
   Plus,
   Shield,
@@ -118,23 +117,9 @@ const visualCards: HubCard[] = [
     icon: Paintbrush,
     priority: "primary",
   },
-  {
-    title: "Spaces",
-    description: "Group related notes, whiteboards, tasks, links, projects, and systems by context.",
-    href: "/spaces",
-    icon: Map,
-    priority: "primary",
-  },
 ]
 
 const systemsCards: HubCard[] = [
-  {
-    title: "Custom Sections",
-    description: "Create structured lists for anything LifeSort does not model yet.",
-    href: "/custom-sections",
-    icon: FolderPlus,
-    priority: "primary",
-  },
   {
     title: "Smart Templates",
     description: "Apply prebuilt life systems after previewing their items.",
@@ -178,12 +163,12 @@ const tabCopy: Record<WorkspaceTab, { title: string; description: string; cards:
   },
   visual: {
     title: "Map ideas visually",
-    description: "Whiteboards and Spaces help you plan beyond lists.",
+    description: "Whiteboards help you plan beyond lists.",
     cards: visualCards,
   },
   systems: {
     title: "Build reusable systems",
-    description: "Templates, custom structures, people, and vault records keep LifeSort extensible.",
+    description: "Templates, people and vault records.",
     cards: systemsCards,
   },
 }
@@ -220,7 +205,7 @@ export default function WorkspacePage() {
           <TabsList className="flex w-full justify-start overflow-x-auto rounded-lg bg-muted/70 p-1 sm:inline-flex sm:w-auto">
             <TabsTrigger value="plan" className="min-w-max flex-1 sm:flex-none">Tasks & Goals</TabsTrigger>
             <TabsTrigger value="capture" className="min-w-max flex-1 sm:flex-none">Inbox & Ideas</TabsTrigger>
-            <TabsTrigger value="visual" className="min-w-max flex-1 sm:flex-none">Boards & Spaces</TabsTrigger>
+            <TabsTrigger value="visual" className="min-w-max flex-1 sm:flex-none">Boards</TabsTrigger>
             <TabsTrigger value="systems" className="min-w-max flex-1 sm:flex-none">Templates & Routines</TabsTrigger>
           </TabsList>
 

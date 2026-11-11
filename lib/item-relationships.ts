@@ -15,12 +15,10 @@ export const itemRelationshipTypes = [
   "life_area",
   "journal_entry",
   "whiteboard",
-  "space",
   "person",
   "vault_item",
   "wishlist_item",
   "inbox_item",
-  "custom_section",
 ] as const
 
 export type ItemRelationshipType = (typeof itemRelationshipTypes)[number]
@@ -57,12 +55,10 @@ const TABLE_BY_TYPE: Record<ItemRelationshipType, string> = {
   life_area: "life_areas",
   journal_entry: "daily_journal_entries",
   whiteboard: "whiteboards",
-  space: "spaces",
   person: "people",
   vault_item: "vault_items",
   wishlist_item: "wishlist_items",
   inbox_item: "inbox_items",
-  custom_section: "custom_sections",
 }
 
 // Only the 5 types the "Related items" UI can actually create links between
@@ -77,8 +73,7 @@ const LABEL_COLUMN_BY_TYPE: Partial<Record<ItemRelationshipType, string>> = {
   life_area: "name",
 }
 
-// Ownership check per linked type, matching the validateSpaceItemAccess pattern in
-// lib/spaces.ts. Table names are drawn from a fixed internal map, never interpolated
+// Ownership check per linked type. Table names are drawn from a fixed internal map, never interpolated
 // from user input, so this stays injection-safe despite the per-type branching.
 export async function validateItemOwnership(
   user: MinimalUser,

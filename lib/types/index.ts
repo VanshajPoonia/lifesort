@@ -19,7 +19,6 @@ export type {
   DomainStatus,
   LifeArea,
 } from "@/lib/life-areas"
-export type { HydratedSpaceItem, Space, SpaceItemType } from "@/lib/spaces"
 export type { Whiteboard, WhiteboardRole, WhiteboardVisibility } from "@/lib/whiteboards"
 export type { Session, User } from "@/lib/auth"
 export type { ItemRelationship, ItemRelationshipType, RelationType } from "@/lib/item-relationships"
