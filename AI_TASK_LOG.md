@@ -19,6 +19,15 @@ Current verification state (2026-11-11, after Stage 1 step 3):
 
 ## Completed Work
 
+### 2026-11-11 23:59 IST - Deploy, drop the folded tables, Stage 1 step 4 (Capture into Inbox)
+
+- **Agent/tool used:** Claude Code (Opus 5.5). The user said to proceed and merge if required.
+- **Deploy:** `main` was fast-forwarded to `stage1/tasks-hub` (22 commits, every earlier branch was already in it) and pushed. The Vercel production deploy for project `v0-calendar-app-sb` came up Ready. On `https://lifesort.vercel.app`, `/today` redirects to `/` and `/api/waiting` returns 404, so the new code is live.
+- **Table drop:** ran `scripts/migrations/2026-11-11-drop-folded-tables.sql` against production with `psql` on `DATABASE_URL_UNPOOLED`. The guard passed and all four tables (`waiting_items`, `someday_items`, `commitments`, `maintenance_items`) are gone. `users` still has 2 rows. `scripts/schema.sql` and `scripts/fresh-install.sql` no longer create those tables, their indexes, or the two constraint blocks that only touched them.
+- **Found, not fixed:** `https://lifesort.kreativvantage.com` (the `NEXT_PUBLIC_APP_URL`) returns a Cloudflare 404 for every path, `/` included, and never reaches Vercel. It is listed as an alias on the deployment, so this is a DNS or Cloudflare proxy setting on the domain, unrelated to this deploy. Left for the user because it is a DNS change.
+- **Changes, one commit each:**
+  - `scripts/schema.sql`, `scripts/fresh-install.sql`, `AI_BUILD_PLAN.md`, `AI_PROJECT.md`: record that the migration ran and drop the four tables from the schema snapshots.
+
 ### 2026-11-11 23:30 IST - Stage 1 step 3: Tasks becomes the hub
 
 - **Agent/tool used:** Claude Code (Opus 5.5). Branch `stage1/tasks-hub`, stacked on `stage1/today-home-merge`.
@@ -125,6 +134,7 @@ Current verification state (2026-11-11, after Stage 1 step 3):
 ## Active Bugs / Issues
 
 - No known code bugs beyond the small ones in the 2026-11-11 22:00 entry. Habit saving was broken until 2026-11-11 (fixed in that entry).
+- `lifesort.kreativvantage.com` returns a Cloudflare 404 for every path (seen 2026-11-11). Production itself works at `lifesort.vercel.app`. Needs a DNS or Cloudflare fix by the user.
 - Attachments are not deploy-ready. The `R2_*` env vars exist only in `.env.local`, not in Vercel, and the R2 token there was exposed in a past chat and should be rotated. Stage 4 of `AI_BUILD_PLAN.md` Part 0 depends on this.
 - `npm run lint` reports 62 reviewed `react-hooks/set-state-in-effect` findings and exits non-zero. Expected, not a blocker.
 
