@@ -19,6 +19,12 @@ Current verification state (2026-11-11):
 
 ## Completed Work
 
+### 2026-11-11 23:30 IST - Stage 1 step 3: Tasks becomes the hub
+
+- **Agent/tool used:** Claude Code (Opus 5.5). Branch `stage1/tasks-hub`, stacked on `stage1/today-home-merge`.
+- **Changes, one commit each:**
+  - `lib/habit-streaks.ts` (new), `lib/habit-streaks.test.ts` (new), `app/api/habits/checkins/route.ts`, `app/habits/page.tsx`: habit streaks count weeks. The old code counted days in a row, showed 0 every morning until you checked in, ignored weekly and custom habits, and built date keys with `toISOString()`, which shifts a day in IST. The new rule is in `AI_DECISIONS.md`. Habits show "N weeks in a row" and "X of Y this week".
+
 ### 2026-11-11 22:00 IST - Stage 1 step 2: Home and Today become one page
 
 - **Agent/tool used:** Claude Code (Opus 5.5).

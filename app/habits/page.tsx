@@ -54,9 +54,12 @@ type Habit = {
   icon: string
 }
 
+// Streaks count weeks, so a missed day never resets them (see lib/habit-streaks.ts).
 type HabitStats = {
   current_streak: number
   best_streak: number
+  week_done: number
+  week_goal: number
   completion_week: number
   completion_month: number
 }
@@ -124,9 +127,9 @@ function isDueToday(habit: Habit) {
   return false
 }
 
-function streakLabel(n: number) {
-  if (n === 0) return "No streak"
-  return `${n} day${n === 1 ? "" : "s"}`
+function streakLabel(weeks: number) {
+  if (weeks === 0) return "No streak yet"
+  return `${weeks} week${weeks === 1 ? "" : "s"} in a row`
 }
 
 // ── Habit Form ────────────────────────────────────────────────────────────────
@@ -586,7 +589,9 @@ function HabitCard({
                 </span>
               )}
               {stats && (
-                <span>{stats.completion_week}% this week</span>
+                <span>
+                  {stats.week_done} of {stats.week_goal} this week
+                </span>
               )}
               {habit.life_area_name && (
                 <span
@@ -921,7 +926,7 @@ export default function HabitsPage() {
     const c = checkins.find((c) => c.habit_id === h.id)
     return (c?.count ?? 0) >= h.target_count
   })
-  const totalStreak = Object.values(stats).reduce((sum, s) => sum + s.current_streak, 0)
+  const longestStreak = Object.values(stats).reduce((max, s) => Math.max(max, s.current_streak), 0)
 
   function editHabitInitial(h: Habit): HabitFormData {
     return {
@@ -981,9 +986,9 @@ export default function HabitsPage() {
               <CardContent className="pt-4 pb-4">
                 <p className="text-2xl font-bold text-orange-500 flex items-center justify-center gap-1">
                   <Flame className="h-5 w-5" />
-                  {totalStreak}
+                  {longestStreak}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">Total streak days</p>
+                <p className="text-xs text-muted-foreground mt-1">Longest streak (weeks)</p>
               </CardContent>
             </Card>
             <Card className="text-center">
@@ -1224,11 +1229,11 @@ export default function HabitsPage() {
                                   <Flame className="h-4 w-4" />
                                   {s?.current_streak ?? 0}
                                 </p>
-                                <p className="text-xs text-muted-foreground">Current streak</p>
+                                <p className="text-xs text-muted-foreground">Weeks in a row</p>
                               </div>
                               <div className="text-center">
                                 <p className="text-lg font-bold">{s?.best_streak ?? 0}</p>
-                                <p className="text-xs text-muted-foreground">Best streak</p>
+                                <p className="text-xs text-muted-foreground">Best run (weeks)</p>
                               </div>
                               <div className="text-center">
                                 <p className="text-lg font-bold">{s?.completion_week ?? 0}%</p>

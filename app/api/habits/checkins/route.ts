@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { neon } from '@/lib/neon-client'
 import { getUserFromSession } from '@/lib/auth'
+import { computeHabitStreak, STREAK_WINDOW_WEEKS, type HabitStreakStats } from '@/lib/habit-streaks'
 
 const sql = neon(process.env.DATABASE_URL!)
 
@@ -62,8 +63,8 @@ export async function GET(request: Request) {
       `
     }
 
-    // Streak stats for all active habits
-    const stats = await computeStats(user.id)
+    // Weekly streak stats for all active habits
+    const stats = await computeStats(user.id, date ?? serverToday())
 
     return NextResponse.json({ checkins, stats })
   } catch (error) {
@@ -143,10 +144,11 @@ export async function DELETE(request: Request) {
   }
 }
 
-// Streak computation — runs a single SQL query to get last 90 days of check-ins
-// and computes current streak, best streak, and week/month completion rates.
-async function computeStats(userId: string) {
-  type Row = { habit_id: string; checkin_date: string; count: string; target_count: string; frequency: string; custom_days: string }
+// Weekly streaks for all active habits, from the last 26 weeks of check-ins.
+// `today` is the browser's local date when it sent one, so the week lines up
+// with the user's calendar rather than the server's.
+async function computeStats(userId: string, today: string) {
+  type Row = { habit_id: string; checkin_date: string; count: string; target_count: string; frequency: string; custom_days: string | null }
 
   const rows = await sql`
     SELECT
@@ -161,81 +163,40 @@ async function computeStats(userId: string) {
     WHERE hc.user_id = ${userId}
       AND h.user_id = ${userId}
       AND h.is_active = TRUE
-      AND hc.checkin_date >= CURRENT_DATE - INTERVAL '90 days'
+      AND hc.checkin_date >= ${today}::date - ${STREAK_WINDOW_WEEKS * 7 + 7}::int
     ORDER BY hc.habit_id, hc.checkin_date DESC
   ` as Row[]
 
-  // Group by habit
   const byHabit = new Map<string, Row[]>()
   for (const row of rows) {
-    const key = row.habit_id
-    if (!byHabit.has(key)) byHabit.set(key, [])
-    byHabit.get(key)!.push(row)
+    if (!byHabit.has(row.habit_id)) byHabit.set(row.habit_id, [])
+    byHabit.get(row.habit_id)!.push(row)
   }
 
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-
-  const stats: Record<string, { current_streak: number; best_streak: number; completion_week: number; completion_month: number }> = {}
-
+  const stats: Record<string, HabitStreakStats> = {}
   for (const [habitId, checkins] of byHabit) {
-    const firstRow = checkins[0]
-    const targetCount = Number(firstRow.target_count) || 1
-
-    // Build a set of completed dates (where count >= target)
-    const completedDates = new Set<string>()
-    for (const c of checkins) {
-      if (Number(c.count) >= targetCount) completedDates.add(c.checkin_date)
-    }
-
-    // Current streak: consecutive days going backwards from today
-    let current = 0
-    const cursor = new Date(today)
-    while (true) {
-      const key = cursor.toISOString().slice(0, 10)
-      if (!completedDates.has(key)) break
-      current++
-      cursor.setDate(cursor.getDate() - 1)
-    }
-
-    // Best streak in the last 90 days
-    let best = 0
-    let run = 0
-    const allDays = new Date(today)
-    for (let i = 0; i < 90; i++) {
-      const key = allDays.toISOString().slice(0, 10)
-      if (completedDates.has(key)) {
-        run++
-        if (run > best) best = run
-      } else {
-        run = 0
-      }
-      allDays.setDate(allDays.getDate() - 1)
-    }
-
-    // Week completion (last 7 days)
-    let weekDone = 0
-    const weekCursor = new Date(today)
-    for (let i = 0; i < 7; i++) {
-      if (completedDates.has(weekCursor.toISOString().slice(0, 10))) weekDone++
-      weekCursor.setDate(weekCursor.getDate() - 1)
-    }
-
-    // Month completion (last 30 days)
-    let monthDone = 0
-    const monthCursor = new Date(today)
-    for (let i = 0; i < 30; i++) {
-      if (completedDates.has(monthCursor.toISOString().slice(0, 10))) monthDone++
-      monthCursor.setDate(monthCursor.getDate() - 1)
-    }
-
-    stats[habitId] = {
-      current_streak: current,
-      best_streak: Math.max(best, current),
-      completion_week: Math.round((weekDone / 7) * 100),
-      completion_month: Math.round((monthDone / 30) * 100),
-    }
+    const first = checkins[0]
+    stats[habitId] = computeHabitStreak(
+      {
+        frequency: first.frequency,
+        customDays: parseIntArray(first.custom_days),
+        targetCount: Number(first.target_count) || 1,
+        checkins: checkins.map((checkin) => ({ date: checkin.checkin_date, count: Number(checkin.count) })),
+      },
+      today,
+    )
   }
 
   return stats
+}
+
+// Postgres sends integer[] as text like "{1,3,5}".
+function parseIntArray(value: string | null) {
+  if (!value) return []
+  return value.replace(/[{}]/g, "").split(",").map((part) => Number.parseInt(part, 10)).filter(Number.isInteger)
+}
+
+function serverToday() {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
 }
