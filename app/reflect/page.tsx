@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import dynamic from "next/dynamic"
 import { usePathname, useRouter } from "next/navigation"
 import {
@@ -15,7 +15,6 @@ import {
   Flame,
   FolderPlus,
   Heart,
-  LayoutDashboard,
   Loader2,
   Plus,
   Search,
@@ -45,6 +44,9 @@ const JournalMoodTrend = dynamic(() => import("./journal-insights-charts").then(
 const JournalRatingBreakdown = dynamic(() => import("./journal-insights-charts").then((mod) => mod.JournalRatingBreakdown), {
   ssr: false,
   loading: () => <Skeleton className="h-[220px] w-full" />,
+})
+const LifeScoreView = dynamic(() => import("@/components/reflect/lifescore-view").then((mod) => mod.LifeScoreView), {
+  loading: () => <Skeleton className="h-64 w-full rounded-xl" />,
 })
 const TimelineView = dynamic(() => import("@/components/reflect/timeline-view").then((mod) => mod.TimelineView), {
   loading: () => <Skeleton className="h-64 w-full rounded-xl" />,
@@ -755,15 +757,7 @@ export default function ReflectPage() {
 
         {activeReflectTab === "timeline" && <TimelineView />}
 
-        {activeReflectTab === "lifescore" && (
-          <ReflectLinkPanel
-            icon={<LayoutDashboard className="h-5 w-5 text-primary" />}
-            title="LifeScore"
-            description="See the explainable organization signal on Home."
-            href="/"
-            action="Open Home"
-          />
-        )}
+        {activeReflectTab === "lifescore" && <LifeScoreView />}
 
         <section className={cn("surface-card section-enter rounded-lg border bg-card/95 p-4 md:p-5", activeReflectTab !== "life-balance" && "hidden")}>
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -1199,40 +1193,6 @@ export default function ReflectPage() {
         </Card>
       </div>
     </DashboardLayout>
-  )
-}
-
-function ReflectLinkPanel({
-  icon,
-  title,
-  description,
-  href,
-  action,
-}: {
-  icon: ReactNode
-  title: string
-  description: string
-  href: string
-  action: string
-}) {
-  return (
-    <Card className="surface-card section-enter border-primary/20 bg-primary/5">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          {icon}
-          {title}
-        </CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Button asChild className="gap-2">
-          <a href={href}>
-            {action}
-            <ArrowRight className="h-4 w-4" />
-          </a>
-        </Button>
-      </CardContent>
-    </Card>
   )
 }
 
