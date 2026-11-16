@@ -30,7 +30,7 @@ Current verification state (2026-11-17, after imports and task breakdown):
   - `lib/bank-import.ts` and test (6), `app/api/import/transactions/route.ts`: statement parser and idempotent bulk insert in batches of 250.
   - `components/money/bank-import.tsx`, `app/money/page.tsx`: Import a bank statement on the Budget tab; the budget panel remounts after an import (`key`).
 - **Commands run:** `npx tsc --noEmit` clean. `npm test` 189/189 in 19 suites. `npm run lint` 50, unchanged. `npm run build` passes.
-- **Checks without test data:** one real Gemini breakdown of a made-up task (\"Clean out the garage\") returned six steps with minutes in 16 seconds and skipped the listed existing step. Both import inserts were run as `EXPLAIN` in read-only transactions through the real route handlers with sample rows including nulls; nothing was written.
+- **Checks without test data:** one real Gemini breakdown of a made-up task ("Clean out the garage") returned six steps with minutes in 16 seconds and skipped the listed existing step. Both import inserts were run as `EXPLAIN` in read-only transactions through the real route handlers with sample rows including nulls; nothing was written.
 - **Not verified:** any of the three in a browser, and real Todoist or bank files (the parsers were tested on hand-written samples in those formats).
 - **Suggested next steps:** the user tries a Todoist export and one bank CSV. Remaining Later items need the user (connector, email/WhatsApp capture, Notion import, shared household), as do Stage 4 and two-way Google sync.
 
