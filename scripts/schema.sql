@@ -352,21 +352,6 @@ CREATE TABLE IF NOT EXISTS tasks (
   updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS nuke_goals (
-  id SERIAL PRIMARY KEY,
-  user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  title VARCHAR(500) NOT NULL,
-  description TEXT,
-  deadline DATE,
-  milestones JSONB DEFAULT '[]'::jsonb,
-  completed BOOLEAN DEFAULT FALSE,
-  email_reminder BOOLEAN DEFAULT TRUE,
-  reminder_days INTEGER DEFAULT 3,
-  reminder_sent BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-
 CREATE TABLE IF NOT EXISTS calendar_events (
   id SERIAL PRIMARY KEY,
   user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -1050,7 +1035,6 @@ CREATE INDEX IF NOT EXISTS idx_notifications_user_type ON notifications(user_id,
 CREATE INDEX IF NOT EXISTS idx_routine_steps_routine_sort ON routine_steps(routine_id, sort_order);
 
 CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id ON password_reset_tokens(user_id);
-CREATE INDEX IF NOT EXISTS idx_nuke_goals_user_id ON nuke_goals(user_id);
 CREATE INDEX IF NOT EXISTS idx_budget_goals_user_id ON budget_goals(user_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_budget_goals_user_wishlist
   ON budget_goals(user_id, wishlist_item_id)
@@ -1064,27 +1048,6 @@ CREATE INDEX IF NOT EXISTS idx_liabilities_user_id ON liabilities(user_id);
 -- user_id rewritten to VARCHAR(255) for consistency with the rest of the schema
 -- (legacy versions used INTEGER/UUID which were incompatible with users.id).
 -- ─────────────────────────────────────────────────────────────────────────────
-
-CREATE TABLE IF NOT EXISTS pomodoro_sessions (
-  id SERIAL PRIMARY KEY,
-  user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  task_name VARCHAR(255),
-  duration INTEGER NOT NULL,
-  completed BOOLEAN DEFAULT FALSE,
-  session_date DATE DEFAULT CURRENT_DATE,
-  created_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_pomodoro_sessions_user_date
-  ON pomodoro_sessions(user_id, session_date DESC);
-
-CREATE TABLE IF NOT EXISTS pomodoro_settings (
-  user_id VARCHAR(255) PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-  focus_duration INTEGER DEFAULT 25,
-  short_break_duration INTEGER DEFAULT 5,
-  long_break_duration INTEGER DEFAULT 15,
-  updated_at TIMESTAMP DEFAULT NOW()
-);
 
 CREATE TABLE IF NOT EXISTS payment_logs (
   id SERIAL PRIMARY KEY,

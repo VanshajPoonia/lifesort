@@ -126,7 +126,7 @@ All were empty on 2026-11-11. Before running a drop:
 - Search the code for remaining references (search, timeline, notifications, LifeScore, navigation summary, Coach context, templates, Reset).
 - Run it only after the code without those references is deployed to production. Every Vercel environment shares one database, so dropping a table early breaks the live site.
 
-Added 2026-11-16 with the user's OK: `nuke_goals`, `pomodoro_sessions` and `pomodoro_settings` (0 rows, no readers left). Migration: `scripts/migrations/2026-11-16-drop-focus-goal-pomodoro.sql`, same rules as below.
+Added 2026-11-16 with the user's OK: `nuke_goals`, `pomodoro_sessions` and `pomodoro_settings` (0 rows, no readers left). Migration: `scripts/migrations/2026-11-16-drop-focus-goal-pomodoro.sql`. It ran on 2026-11-16 after the deploy was live, and all three tables are gone.
 
 Status (2026-11-11): the four Stage 1 step 3 tables have no readers or writers left, and `scripts/migrations/2026-11-11-drop-folded-tables.sql` is written. It recounts the rows and refuses to drop if any exist. A read-only dry run passed the guard. It ran on 2026-11-11 after `main` was fast-forwarded and the production deploy was Ready. All four tables are gone and the schema snapshots no longer create them.
 
