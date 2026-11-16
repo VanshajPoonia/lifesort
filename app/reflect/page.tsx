@@ -14,7 +14,6 @@ import {
   FileText,
   Flame,
   FolderPlus,
-  History,
   Heart,
   LayoutDashboard,
   Loader2,
@@ -46,6 +45,9 @@ const JournalMoodTrend = dynamic(() => import("./journal-insights-charts").then(
 const JournalRatingBreakdown = dynamic(() => import("./journal-insights-charts").then((mod) => mod.JournalRatingBreakdown), {
   ssr: false,
   loading: () => <Skeleton className="h-[220px] w-full" />,
+})
+const TimelineView = dynamic(() => import("@/components/reflect/timeline-view").then((mod) => mod.TimelineView), {
+  loading: () => <Skeleton className="h-64 w-full rounded-xl" />,
 })
 
 type AreaMetrics = {
@@ -751,15 +753,7 @@ export default function ReflectPage() {
           </Card>
         )}
 
-        {activeReflectTab === "timeline" && (
-          <ReflectLinkPanel
-            icon={<History className="h-5 w-5 text-primary" />}
-            title="Life Timeline"
-            description="Review milestones and meaningful activity over time."
-            href="/timeline"
-            action="Open Timeline"
-          />
-        )}
+        {activeReflectTab === "timeline" && <TimelineView />}
 
         {activeReflectTab === "lifescore" && (
           <ReflectLinkPanel

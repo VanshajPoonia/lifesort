@@ -151,7 +151,7 @@ export async function GET(request: Request) {
         id: event.id,
         title: event.title,
         subtitle: event.label,
-        href: "/timeline",
+        href: "/reflect?tab=timeline",
         updated_at: event.occurred_at,
         created_at: event.occurred_at,
       }))),
