@@ -229,6 +229,7 @@ Architecture and product decision memory for LifeSort.
 - **Remove tidies, it doesn't wipe.** Untouched steps go to Let go (status `cancelled`), unused habits stop, and an unused goal, budget category (no transactions) or Vault entry is deleted. Anything the person changed, did or checked in stays.
 - **Kits use the person's date.** The browser sends `today`; the server accepts it within a day of its own UTC date.
 - **Onboarding no longer creates domains.** Every account already gets the default set on first load; the old step added six near-duplicates. Kits attach to the default domains by name (School, Work, Home, Fitness, Finance, Travel, Personal).
+- **Custom kits are data, not code.** An AI draft (`KitDraft`, validated by `kitDraftSchema`) is turned into a normal definition by `definitionFromDraft`, so planning, cards and progress don't branch. Only the description, today's date and the default domain names go to the AI.
 - **Kit tasks don't email.** Tasks default to `email_reminder = FALSE`; the kit goal keeps the goals default (one email three days before its date) and the morning push covers the rest.
 
 ## Installable Web App and Push (Stage 2, 2026-11-16)
