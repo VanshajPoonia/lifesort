@@ -93,6 +93,7 @@ Settings absorbs Rules and the full Notifications page. Every old URL keeps work
 - The AI Template Builder becomes "Describe your situation", which drafts a kit for the user to confirm.
 - Likely needs a table that records which objects a kit created, so removal works. That is a schema change, so confirm it first.
 - **Exit:** a new user picks one or two kits during onboarding and has a working Today the same minute.
+- 🟡 Built 2026-11-16: the eight kits the user ticked (new semester, new job, moving house, getting fit, saving for something, job search, trip, renewing documents) in `lib/life-kits.ts`, `life_kits` + `life_kit_items`, `/api/kits`, the Start a kit picker with a preview, kit cards on Domains and each domain page, onboarding's first step, and Start a kit in the command palette. Journal prompts became a weekly question on the kit card. Not built yet: "Describe your situation" (AI drafts a custom kit). The user declined a browser test, so the kit SQL was only checked with EXPLAIN in read-only transactions.
 
 **Stage 4: Snap a photo and it's sorted**
 - Camera or upload in Inbox for a bill, policy, warranty or ID. AI drafts the linked set: a Vault entry, a renewal reminder, a budget line and a task if something is due. The user confirms.
@@ -162,6 +163,7 @@ Status (2026-11-11): the four Stage 1 step 3 tables have no readers or writers l
 ### User answers (2026-11-16)
 
 - Stage 2 push: add `web-push`, a `push_subscriptions` table and VAPID keys in Vercel: yes. Move the reminder cron to 8:00 IST: yes.
+- Stage 3 kits: all eight candidates (new semester, new job, moving house, getting fit, saving for something, job search, trip, renewing documents). The two kit tables: yes. A browser test with a throwaway account: no.
 - Throwaway test account on the production database for the browser test: allowed, deleted afterwards.
 - Drop `nuke_goals`, `pomodoro_sessions` and `pomodoro_settings` after the deploy: yes.
 - Pinned goal on Today in place of Focus Goal: no, the Focus list is enough.

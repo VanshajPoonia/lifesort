@@ -10,14 +10,29 @@ Keep it short. Entries dated before 2026-10 were moved word for word to `AI_TASK
 
 LifeSort is a broad Next.js App Router application with many implemented product areas and a Vercel-oriented deployment. The repo now has persistent AI memory files in the project root.
 
-Current verification state (2026-11-16, after Stage 2):
+Current verification state (2026-11-16, after Stage 3 kits):
 
 - `npm run build` passes with TypeScript validation now actually enforced (`next.config.mjs`'s `typescript.ignoreBuildErrors` is `false`; `tsc --noEmit` is clean). `eslint.ignoreDuringBuilds` remains `true` — 51 pre-existing lint findings remain (down from 293 originally; see the 2026-07-25 ESLint cleanup entry, 66 → 65 in the 2026-10-28 design pass, 65 → 64 in the 2026-11-11 Today merge, 64 → 62 in Stage 1 step 3, then 51 after the Stage 1 deletions), every one a reviewed-and-commented `react-hooks/set-state-in-effect` exception (either a real state transition or a function intentionally shared with non-effect call sites). It still exits non-zero; that is expected and not a blocker.
 - `npm run lint` runs cleanly via `eslint.config.mjs` (ESLint 9.x + `eslint-config-next@16`) — it exits non-zero on real findings, it does not fail to run.
-- `npm test` runs Vitest: 133/133 tests passing across 12 suites (`lib/auth.test.ts`, `lib/date-math.test.ts`, `lib/habit-streaks.test.ts`, `lib/shared-capture.test.ts`, `lib/reminder-push.test.ts`, `lib/push.test.ts`, `app/api/push/subscriptions/route.test.ts`, `app/api/tags/route.test.ts`, `app/api/item-relationships/route.test.ts`, `app/api/tasks/[id]/checklist-items/route.test.ts`, `app/api/tasks/[id]/recurrence/route.test.ts`, `app/api/tasks/route.test.ts`).
+- `npm test` runs Vitest: 151/151 tests passing across 14 suites (`lib/life-kits.test.ts`, `lib/life-kit-input.test.ts`, `lib/auth.test.ts`, `lib/date-math.test.ts`, `lib/habit-streaks.test.ts`, `lib/shared-capture.test.ts`, `lib/reminder-push.test.ts`, `lib/push.test.ts`, `app/api/push/subscriptions/route.test.ts`, `app/api/tags/route.test.ts`, `app/api/item-relationships/route.test.ts`, `app/api/tasks/[id]/checklist-items/route.test.ts`, `app/api/tasks/[id]/recurrence/route.test.ts`, `app/api/tasks/route.test.ts`).
 - `npx tsc --noEmit` is clean.
 
 ## Completed Work
+
+### 2026-11-16 23:59 IST - Stage 3: Life Kits
+
+- **Agent/tool used:** Claude Code (Opus 5.5). Branch `stage3/life-kits`. The user said to keep going. They ticked all eight kit candidates, approved the two kit tables, and declined a browser test with a throwaway account.
+- **Changes, one commit each:**
+  - `scripts/migrations/2026-11-16-life-kits.sql` (new), `scripts/schema.sql`, `scripts/fresh-install.sql`: `life_kits` (text id, user, kit_key, title, domain, anchor_date, start_date, status active/paused/finished, paused_on, details JSONB) and `life_kit_items` (kit, item type, item id, planned_date, kit_updated_at, moved_by_pause). Applied to the shared database before the code (additive).
+  - `lib/life-kits.ts` and test (12 tests): the eight definitions, `planKit` and `kitProgress`.
+  - `lib/life-kits-server.ts`, `lib/life-kit-input.ts` and test (6 tests), `app/api/kits/route.ts`, `app/api/kits/[id]/route.ts`: start (one transaction; tasks link to the kit goal through a subquery on `life_kit_items`), list, pause, resume, finish, remove.
+  - `components/kits/{kit-icon,start-kit-dialog,kit-card,kit-list}.tsx`, `app/domains/page.tsx`, `app/domains/[id]/page.tsx`: picker with preview and ticks, cards with Pause/Resume, Mark as finished and Remove (AlertDialog explains what it tidies). Domains shows Your kits; a domain page shows its kits and lost Apply a template.
+  - `components/onboarding-modal.tsx`, `lib/templates.ts`: onboarding is kits, then how Today should feel, then an optional task (due today), goal and gratitude. The domain step and the hidden Daily Content switch are gone. Nothing read `important_life_areas` or `daily_popup_enabled`; `kits_started` is saved instead.
+  - `components/global-command-palette.tsx`, `components/kits/kit-list.tsx`: Start a kit opens `/domains?start=kit`, which opens the picker.
+- **Commands run:** `npx tsc --noEmit` clean. `npm test` 151/151 in 14 suites. `npm run lint` 51, unchanged (the new files have none). `npm run build` passes.
+- **SQL check without test data:** the user declined a browser test. A temporary, uncommitted Vitest file mocked `@/lib/db` so every kit query ran as `EXPLAIN` inside a read-only Neon transaction, using the real driver and real parameter shapes. `startKit` for four kits (covering goal, task, habit, budget category and Vault inserts), `listKits` with and without a domain, `pauseKit`, `resumeKit` and `removeKit` all parsed and planned against the live schema. Afterwards `life_kits` and `life_kit_items` had 0 rows and `users` 2. This proves the SQL is valid, not that it behaves right at run time (which rows count as untouched, the goal link, the resume dates).
+- **Not verified:** starting, pausing, resuming and removing a kit for real, the onboarding kit step, and the picker in a browser.
+- **Suggested next steps:** the user tries a kit on production (for example Getting fit from Domains) and checks Today. Then "Describe your situation": the AI drafts a custom kit, which needs custom definitions stored in `life_kits.details`.
 
 ### 2026-11-16 23:55 IST - Stage 2: installable app, share, voice and push
 

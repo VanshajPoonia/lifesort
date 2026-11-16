@@ -221,6 +221,16 @@ Architecture and product decision memory for LifeSort.
 - **Usage check (2026-11-11):** a read-only count on the production database, which every Vercel environment shares, found 2 accounts, no login since 2026-05-20 and almost every feature table empty. The user confirmed they stopped using LifeSort. The first goal is daily use by the user.
 - **Decision (user, 2026-11-11):** Waiting, Someday, Commitments and Maintenance fold into Tasks (statuses, recurring tasks, person links) and their empty tables get dropped. Spaces and Custom Sections are removed. Daily Content and games stay hidden. Everything is free for now. Kits are chosen later from a tick list. This supersedes the 2026-07-23 rule above about keeping trackers as compatibility lenses, which assumed real user data that does not exist.
 
+## Life Kits (Stage 3, 2026-11-16)
+
+- **Kit definitions live in code, started kits in the database.** `lib/life-kits.ts` is pure (no database), so the picker previews exactly what the server will create. `life_kits.kit_key` names a definition.
+- **Every created row is recorded in `life_kit_items`,** so pause and remove act on exactly the kit's rows. `kit_updated_at` holds the item's `updated_at` after the kit last wrote it. A later `updated_at` means the person changed it. Kit writes only refresh `kit_updated_at` on items that were still untouched, so a pause never hides or fakes a person's change.
+- **Nothing is ever dated before today.** Start kits skip passed steps and say how many; deadline kits spread late steps one a day from today, before the day itself. This follows the no-guilt rule.
+- **Remove tidies, it doesn't wipe.** Untouched steps go to Let go (status `cancelled`), unused habits stop, and an unused goal, budget category (no transactions) or Vault entry is deleted. Anything the person changed, did or checked in stays.
+- **Kits use the person's date.** The browser sends `today`; the server accepts it within a day of its own UTC date.
+- **Onboarding no longer creates domains.** Every account already gets the default set on first load; the old step added six near-duplicates. Kits attach to the default domains by name (School, Work, Home, Fitness, Finance, Travel, Personal).
+- **Kit tasks don't email.** Tasks default to `email_reminder = FALSE`; the kit goal keeps the goals default (one email three days before its date) and the morning push covers the rest.
+
 ## Installable Web App and Push (Stage 2, 2026-11-16)
 
 - **Hand-written service worker, no PWA library.** `public/sw.js` is about 100 lines. Pages are always fetched from the network so a deploy is never hidden behind a cached page; only Next's hashed `/_next/static/` files are cached. API responses are never cached because they are per-user and must stay fresh. It registers in production builds only.
