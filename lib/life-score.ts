@@ -543,7 +543,8 @@ export async function getLifeScoreData(userId: string): Promise<LifeScoreData> {
     : 0
   const label = labelFor(score)
   const reasons = buildReasons(score, components, previous.components, previous.score)
-  const topImprovements = [...components]
+  const topImprovements = components
+    .filter((item) => item.score < 100)
     .sort((a, b) => a.score - b.score)
     .slice(0, 3)
     .map((item) => improvementFor(item.key, item.score))
