@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import type { ElementType } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   Archive,
   ArrowRight,
@@ -165,6 +165,7 @@ function aiTextFor(item: InboxItem) {
 
 export default function InboxPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
   const { user, loading: authLoading } = useAuth()
 
@@ -419,6 +420,7 @@ export default function InboxPage() {
               }
             }}
             placeholder="What's on your mind? A reminder, a worry, an idea, a whole messy list..."
+            autoFocus={searchParams.get("capture") === "1"}
             className="min-h-[110px] resize-none border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0"
           />
           <div className="mt-3 flex flex-col gap-3 border-t border-border/70 pt-3 sm:flex-row sm:items-center sm:justify-between">

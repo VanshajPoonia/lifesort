@@ -938,6 +938,7 @@ export function TaskListView() {
             }}
             placeholder={addPlaceholder[activeFilter]}
             aria-label="Add a task"
+            autoFocus={searchParams.get("add") === "1"}
             className="bg-card"
           />
           <Button onClick={() => void handleAddTask()} disabled={creating || !newTaskTitle.trim()} className="shrink-0 gap-1.5">
