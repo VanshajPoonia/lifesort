@@ -14,8 +14,7 @@ export type Template = {
   icon: string
   color: string
   items: TemplateItem[]
-  // Matches a Life Domain name (see components/onboarding-modal.tsx STARTER_DOMAINS) so
-  // applying this template from a domain page can auto-tag created items with life_area_id.
+  // A Life Domain name, so applying with ?domain_id= can tag created items with life_area_id.
   domainName?: string
 }
 

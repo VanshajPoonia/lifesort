@@ -1,32 +1,22 @@
 "use client"
 
 import { useState } from "react"
-import { BookOpenText, BriefcaseBusiness, CheckSquare, ChevronLeft, ChevronRight, Heart, Plus, Target, X } from "lucide-react"
+import { BookOpenText, BriefcaseBusiness, CheckSquare, ChevronLeft, ChevronRight, Target } from "lucide-react"
 
+import { KitIcon, localToday } from "@/components/kits/kit-icon"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
-import { LifeAreaIcon } from "@/components/life-area-controls"
+import { addDaysToDate } from "@/lib/date-math"
+import { LIFE_KITS } from "@/lib/life-kits"
 
 interface OnboardingModalProps {
   isOpen: boolean
   onComplete: () => void
 }
-
-// Starter Life Domains (AI_LIFE_DOMAINS_SPEC.md section 1 and 4) -- pre-checked suggestions,
-// created as real life_areas rows via /api/life-areas on completion, not just a preference.
-const STARTER_DOMAINS = [
-  { name: "Physical", icon: "Dumbbell", color: "#EA580C", description: "Exercise, sleep, nutrition, and medical care" },
-  { name: "Mental", icon: "HeartPulse", color: "#DC2626", description: "Emotional wellbeing, stress, and mindset" },
-  { name: "Financial", icon: "Wallet", color: "#059669", description: "Money, budgeting, saving, and investing" },
-  { name: "Career", icon: "Briefcase", color: "#2563EB", description: "Work, professional growth, and projects" },
-  { name: "Relationships", icon: "Users", color: "#DB2777", description: "Family, friends, and community" },
-  { name: "Personal", icon: "User", color: "#4F46E5", description: "Personal admin, routines, and self-management" },
-]
 
 const planningStyles = [
   { id: "light", label: "Light", description: "A short list and gentle reminders." },
@@ -34,109 +24,82 @@ const planningStyles = [
   { id: "flexible", label: "Flexible", description: "Loose priorities that can adapt during the day." },
 ]
 
-function localDateString() {
-  const date = new Date()
-  const offset = date.getTimezoneOffset()
-  const local = new Date(date.getTime() - offset * 60000)
-  return local.toISOString().slice(0, 10)
-}
+type PickedKit = { date: string; label: string }
 
 async function bestEffortWrite(url: string, body: unknown) {
   try {
-    await fetch(url, {
+    const response = await fetch(url, {
       method: url.includes("/journal/") ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     })
+    return response.ok
   } catch (error) {
     console.warn("Optional onboarding write failed:", error)
+    return false
   }
 }
 
+// Onboarding starts with "What's going on in your life right now?" (AI_BUILD_PLAN.md
+// Part 0, Stage 3). Picked kits are set up on finish, so Today has real steps at once.
+// Domains are no longer chosen here; every account already gets the default set.
 export function OnboardingModal({ isOpen, onComplete }: OnboardingModalProps) {
   const [step, setStep] = useState(1)
-  const [selectedDomains, setSelectedDomains] = useState<Set<string>>(new Set(STARTER_DOMAINS.map((domain) => domain.name)))
-  const [customDomains, setCustomDomains] = useState<string[]>([])
-  const [customDomainInput, setCustomDomainInput] = useState("")
+  const [picked, setPicked] = useState<Record<string, PickedKit>>({})
   const [planningStyle, setPlanningStyle] = useState("light")
   const [workStart, setWorkStart] = useState("09:00")
   const [workEnd, setWorkEnd] = useState("17:00")
   const [firstTask, setFirstTask] = useState("")
   const [firstGoal, setFirstGoal] = useState("")
   const [firstGratitude, setFirstGratitude] = useState("")
-  const [dailyPopupEnabled, setDailyPopupEnabled] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [kitError, setKitError] = useState("")
 
-  const totalSteps = 4
+  const totalSteps = 3
+  const today = localToday()
 
-  const toggleDomain = (name: string) => {
-    setSelectedDomains((current) => {
-      const next = new Set(current)
-      if (next.has(name)) {
-        next.delete(name)
-      } else {
-        next.add(name)
-      }
+  const toggleKit = (key: string, defaultOffset: number) => {
+    setPicked((current) => {
+      const next = { ...current }
+      if (next[key]) delete next[key]
+      else next[key] = { date: addDaysToDate(today, defaultOffset), label: "" }
       return next
     })
   }
 
-  const addCustomDomain = () => {
-    const name = customDomainInput.trim()
-    if (!name || customDomains.includes(name) || STARTER_DOMAINS.some((domain) => domain.name === name)) return
-    setCustomDomains((current) => [...current, name])
-    setSelectedDomains((current) => new Set(current).add(name))
-    setCustomDomainInput("")
-  }
-
-  const removeCustomDomain = (name: string) => {
-    setCustomDomains((current) => current.filter((item) => item !== name))
-    setSelectedDomains((current) => {
-      const next = new Set(current)
-      next.delete(name)
-      return next
-    })
+  const updateKit = (key: string, patch: Partial<PickedKit>) => {
+    setPicked((current) => ({ ...current, [key]: { ...current[key], ...patch } }))
   }
 
   const completeOnboarding = async (skipped = false) => {
     if (saving) return
     setSaving(true)
+    setKitError("")
 
     try {
+      const startedKits: string[] = []
       if (!skipped) {
+        // One at a time: two kits can share a domain (New job and Job search both use Work).
+        for (const [key, kit] of Object.entries(picked)) {
+          const ok = await bestEffortWrite("/api/kits", {
+            kit_key: key,
+            anchor_date: kit.date,
+            today,
+            label: kit.label.trim() || null,
+          })
+          if (ok) startedKits.push(key)
+        }
+
         const optionalWrites = []
-
-        let sortOrder = 0
-        for (const domain of STARTER_DOMAINS) {
-          if (!selectedDomains.has(domain.name)) continue
-          optionalWrites.push(
-            bestEffortWrite("/api/life-areas", {
-              name: domain.name,
-              icon: domain.icon,
-              color: domain.color,
-              description: domain.description,
-              sort_order: sortOrder++,
-            }),
-          )
-        }
-        for (const name of customDomains) {
-          if (!selectedDomains.has(name)) continue
-          optionalWrites.push(
-            bestEffortWrite("/api/life-areas", { name, icon: "Target", color: "#2563EB", sort_order: sortOrder++ }),
-          )
-        }
-
         if (firstTask.trim()) {
-          optionalWrites.push(bestEffortWrite("/api/tasks", { title: firstTask.trim(), priority: "medium" }))
+          optionalWrites.push(bestEffortWrite("/api/tasks", { title: firstTask.trim(), priority: "medium", due_date: today }))
         }
-
         if (firstGoal.trim()) {
           optionalWrites.push(bestEffortWrite("/api/goals", { title: firstGoal.trim(), priority: "medium", status: "active" }))
         }
-
         if (firstGratitude.trim()) {
           optionalWrites.push(
-            bestEffortWrite(`/api/journal/${localDateString()}`, {
+            bestEffortWrite(`/api/journal/${today}`, {
               mood: null,
               gratitude: [firstGratitude.trim(), "", ""],
               affirmation_text: null,
@@ -161,7 +124,6 @@ export function OnboardingModal({ isOpen, onComplete }: OnboardingModalProps) {
             }),
           )
         }
-
         await Promise.allSettled(optionalWrites)
       }
 
@@ -170,10 +132,9 @@ export function OnboardingModal({ isOpen, onComplete }: OnboardingModalProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           app_preferences: {
-            daily_popup_enabled: dailyPopupEnabled,
             onboarding_date: new Date().toISOString(),
             onboarding_skipped: skipped,
-            important_life_areas: Array.from(selectedDomains),
+            kits_started: startedKits,
             planning_style: planningStyle,
             work_hours_start: workStart,
             work_hours_end: workEnd,
@@ -183,18 +144,19 @@ export function OnboardingModal({ isOpen, onComplete }: OnboardingModalProps) {
       })
 
       if (!response.ok) {
-        alert("Failed to save setup. Please try again or contact support.")
+        setKitError("Couldn't save your setup. Check your connection and try again.")
         return
       }
-
       onComplete()
     } catch (error) {
       console.error("Error saving onboarding:", error)
-      alert("Failed to save setup. Please check your connection and try again.")
+      setKitError("Couldn't save your setup. Check your connection and try again.")
     } finally {
       setSaving(false)
     }
   }
+
+  const pickedCount = Object.keys(picked).length
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && completeOnboarding(true)}>
@@ -218,64 +180,53 @@ export function OnboardingModal({ isOpen, onComplete }: OnboardingModalProps) {
         {step === 1 && (
           <div className="space-y-6 p-6">
             <div className="space-y-2 text-center">
-              <h2 className="text-2xl font-bold">Set up your Life Domains</h2>
-              <p className="text-muted-foreground">These become real spaces in LifeSort — uncheck any you don&apos;t want, or add your own.</p>
+              <h2 className="text-2xl font-bold">What&apos;s going on in your life right now?</h2>
+              <p className="text-muted-foreground">Tick anything that fits. LifeSort sets up the steps, a goal and habits for each one.</p>
             </div>
 
-            <div className="grid gap-2 sm:grid-cols-2">
-              {STARTER_DOMAINS.map((domain) => {
-                const selected = selectedDomains.has(domain.name)
+            <ul className="space-y-2">
+              {LIFE_KITS.map((kit) => {
+                const choice = picked[kit.key]
+                const checkboxId = `onboarding-kit-${kit.key}`
                 return (
-                  <Card
-                    key={domain.name}
-                    className={`interactive-card cursor-pointer transition-colors ${
-                      selected ? "border-primary bg-primary/5" : "hover:bg-secondary"
-                    }`}
-                    onClick={() => toggleDomain(domain.name)}
-                  >
-                    <CardContent className="flex items-center gap-3 p-4">
-                      <Checkbox checked={selected} aria-label={`Create ${domain.name} as a Life Domain`} />
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: domain.color }}>
-                        <LifeAreaIcon name={domain.icon} className="h-4 w-4" />
+                  <li key={kit.key} className={`rounded-lg border p-3 transition-colors ${choice ? "border-primary bg-primary/5" : ""}`}>
+                    <div className="flex items-start gap-3">
+                      <Checkbox id={checkboxId} checked={Boolean(choice)} onCheckedChange={() => toggleKit(kit.key, kit.defaultDateOffset)} className="mt-1" />
+                      <label htmlFor={checkboxId} className="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
+                        <KitIcon name={kit.icon} className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                        <span className="min-w-0">
+                          <span className="block font-medium">{kit.name}</span>
+                          <span className="block text-sm text-muted-foreground">{kit.summary}</span>
+                        </span>
+                      </label>
+                    </div>
+                    {choice && (
+                      <div className="mt-3 grid gap-3 pl-7 sm:grid-cols-2">
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`${checkboxId}-date`}>{kit.dateLabel}</Label>
+                          <Input id={`${checkboxId}-date`} type="date" value={choice.date} onChange={(event) => updateKit(kit.key, { date: event.target.value })} />
+                        </div>
+                        {kit.labelPrompt && (
+                          <div className="space-y-1.5">
+                            <Label htmlFor={`${checkboxId}-label`}>{kit.labelPrompt.question}</Label>
+                            <Input
+                              id={`${checkboxId}-label`}
+                              value={choice.label}
+                              maxLength={60}
+                              placeholder={kit.labelPrompt.placeholder}
+                              onChange={(event) => updateKit(kit.key, { label: event.target.value })}
+                            />
+                          </div>
+                        )}
                       </div>
-                      <span className="font-medium">{domain.name}</span>
-                    </CardContent>
-                  </Card>
+                    )}
+                  </li>
                 )
               })}
-              {customDomains.map((name) => (
-                <Card key={name} className="border-primary bg-primary/5">
-                  <CardContent className="flex items-center gap-3 p-4">
-                    <Checkbox checked={selectedDomains.has(name)} onCheckedChange={() => toggleDomain(name)} aria-label={`Create ${name} as a Life Domain`} />
-                    <span className="min-w-0 flex-1 truncate font-medium">{name}</span>
-                    <button type="button" onClick={() => removeCustomDomain(name)} aria-label={`Remove ${name}`} className="shrink-0 text-muted-foreground hover:text-destructive">
-                      <X className="h-4 w-4" />
-                    </button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            <div className="flex gap-2">
-              <Input
-                value={customDomainInput}
-                onChange={(event) => setCustomDomainInput(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault()
-                    addCustomDomain()
-                  }
-                }}
-                placeholder="Add a custom domain (e.g. Creativity)"
-              />
-              <Button type="button" variant="outline" onClick={addCustomDomain} className="shrink-0 gap-2">
-                <Plus className="h-4 w-4" />
-                Add
-              </Button>
-            </div>
+            </ul>
 
             <Button className="w-full gap-2" onClick={() => setStep(2)}>
-              Continue
+              {pickedCount === 0 ? "Nothing big right now" : "Continue"}
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
@@ -334,98 +285,45 @@ export function OnboardingModal({ isOpen, onComplete }: OnboardingModalProps) {
         {step === 3 && (
           <div className="space-y-6 p-6">
             <div className="space-y-2 text-center">
-              <h2 className="text-2xl font-bold">Create your first anchors</h2>
-              <p className="text-muted-foreground">Optional, but helpful: one task and one goal to make the app feel yours.</p>
+              <h2 className="text-2xl font-bold">Anything else for today?</h2>
+              <p className="text-muted-foreground">All optional. Leave these blank and finish.</p>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="first-task" className="flex items-center gap-2">
                   <CheckSquare className="h-4 w-4 text-primary" />
-                  First task
+                  A task for today
                 </Label>
-                <Input
-                  id="first-task"
-                  value={firstTask}
-                  onChange={(event) => setFirstTask(event.target.value)}
-                  placeholder="Example: Plan tomorrow morning"
-                />
+                <Input id="first-task" value={firstTask} onChange={(event) => setFirstTask(event.target.value)} placeholder="Call the dentist" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="first-goal" className="flex items-center gap-2">
                   <Target className="h-4 w-4 text-primary" />
-                  First goal
+                  A goal
                 </Label>
-                <Input
-                  id="first-goal"
-                  value={firstGoal}
-                  onChange={(event) => setFirstGoal(event.target.value)}
-                  placeholder="Example: Build a calm routine"
-                />
+                <Input id="first-goal" value={firstGoal} onChange={(event) => setFirstGoal(event.target.value)} placeholder="Build a calm morning routine" />
               </div>
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="first-gratitude" className="flex items-center gap-2">
+                <BookOpenText className="h-4 w-4 text-amber-600" />
+                Something you&apos;re thankful for
+              </Label>
+              <Input id="first-gratitude" value={firstGratitude} onChange={(event) => setFirstGratitude(event.target.value)} placeholder="A slow breakfast" />
+            </div>
+
+            {kitError && <p className="text-sm text-destructive">{kitError}</p>}
 
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setStep(2)}>
                 <ChevronLeft className="mr-2 h-4 w-4" />
                 Back
               </Button>
-              <Button className="flex-1 gap-2" onClick={() => setStep(4)}>
-                Continue
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {step === 4 && (
-          <div className="space-y-6 p-6">
-            <div className="space-y-2 text-center">
-              <h2 className="text-2xl font-bold">Start gently</h2>
-              <p className="text-muted-foreground">Add one gratitude note and choose whether to keep daily content on.</p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="first-gratitude" className="flex items-center gap-2">
-                <BookOpenText className="h-4 w-4 text-amber-600" />
-                First journal gratitude
-              </Label>
-              <Input
-                id="first-gratitude"
-                value={firstGratitude}
-                onChange={(event) => setFirstGratitude(event.target.value)}
-                placeholder="I am thankful for..."
-              />
-            </div>
-
-            <Card
-              className={`interactive-card cursor-pointer transition-colors ${
-                dailyPopupEnabled ? "border-primary bg-primary/5" : "hover:bg-secondary"
-              }`}
-              onClick={() => setDailyPopupEnabled((enabled) => !enabled)}
-            >
-              <CardContent className="flex items-start gap-3 p-4">
-                <Checkbox checked={dailyPopupEnabled} aria-label="Enable daily content" />
-                <div>
-                  <div className="flex items-center gap-2 font-medium">
-                    <Heart className="h-4 w-4 text-primary" />
-                    Keep daily quotes, jokes, and games on
-                  </div>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    You can always change this later in Settings.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setStep(3)}>
-                <ChevronLeft className="mr-2 h-4 w-4" />
-                Back
-              </Button>
               <Button className="flex-1" onClick={() => completeOnboarding(false)} disabled={saving}>
                 {saving && <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent" />}
-                Complete Setup
+                {pickedCount > 0 ? `Set up ${pickedCount} ${pickedCount === 1 ? "kit" : "kits"} and finish` : "Finish"}
               </Button>
             </div>
           </div>
