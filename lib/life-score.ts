@@ -534,7 +534,7 @@ export async function getLifeScoreData(userId: string): Promise<LifeScoreData> {
       explanation: lifeAreaCount === 0
         ? "No Life Domains are set up yet, so this stays neutral."
         : `${activeAreaIds.size}/${lifeAreaCount} Life Domain${lifeAreaCount === 1 ? "" : "s"} have recent tracked activity.`,
-      href: "/insights",
+      href: "/reflect?tab=life-balance",
     }))
   }
 
