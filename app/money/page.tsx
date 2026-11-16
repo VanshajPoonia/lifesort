@@ -108,6 +108,7 @@ type MoneySummary = {
   liabilities: Liability[]
 }
 
+const BankImport = dynamic(() => import("@/components/money/bank-import").then((mod) => mod.BankImport))
 const BudgetPanel = dynamic(() => import("@/components/money/budget-panel").then((mod) => mod.BudgetPanel), {
   ssr: false,
   loading: () => <MoneyTabFallback />,
@@ -249,6 +250,8 @@ export default function MoneyHubPage() {
   const [activeTab, setActiveTab] = useState<MoneyTab>("overview")
   const [summary, setSummary] = useState<MoneySummary | null>(null)
   const [preferredCurrency, setPreferredCurrency] = useState("USD")
+  // Bumped after a bank import so the budget panel reloads its transactions.
+  const [budgetVersion, setBudgetVersion] = useState(0)
   const [loading, setLoading] = useState(true)
   const [liabilityForm, setLiabilityForm] = useState(emptyLiabilityForm)
   const [savingLiability, setSavingLiability] = useState(false)
@@ -679,8 +682,9 @@ export default function MoneyHubPage() {
             )}
           </TabsContent>
 
-          <TabsContent value="budget" className="section-enter">
-            <BudgetPanel preferredCurrency={preferredCurrency} />
+          <TabsContent value="budget" className="section-enter space-y-4">
+            <BankImport currency={preferredCurrency} onImported={() => setBudgetVersion((current) => current + 1)} />
+            <BudgetPanel key={budgetVersion} preferredCurrency={preferredCurrency} />
           </TabsContent>
           <TabsContent value="income" className="section-enter">
             <IncomePanel preferredCurrency={preferredCurrency} />
