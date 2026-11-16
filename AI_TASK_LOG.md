@@ -10,14 +10,29 @@ Keep it short. Entries dated before 2026-10 were moved word for word to `AI_TASK
 
 LifeSort is a broad Next.js App Router application with many implemented product areas and a Vercel-oriented deployment. The repo now has persistent AI memory files in the project root.
 
-Current verification state (2026-11-17, after Stage 6 day planning):
+Current verification state (2026-11-17, after imports and task breakdown):
 
 - `npm run build` passes with TypeScript validation now actually enforced (`next.config.mjs`'s `typescript.ignoreBuildErrors` is `false`; `tsc --noEmit` is clean). `eslint.ignoreDuringBuilds` remains `true` — 50 pre-existing lint findings remain (down from 293 originally; see the 2026-07-25 ESLint cleanup entry, 66 → 65 in the 2026-10-28 design pass, 65 → 64 in the 2026-11-11 Today merge, 64 → 62 in Stage 1 step 3, then 51 after the Stage 1 deletions and 50 after the Reflect rebuild), every one a reviewed-and-commented `react-hooks/set-state-in-effect` exception (either a real state transition or a function intentionally shared with non-effect call sites). It still exits non-zero; that is expected and not a blocker.
 - `npm run lint` runs cleanly via `eslint.config.mjs` (ESLint 9.x + `eslint-config-next@16`) — it exits non-zero on real findings, it does not fail to run.
-- `npm test` runs Vitest: 172/172 tests passing across 16 suites (`lib/day-plan.test.ts`, `lib/life-patterns.test.ts`, `lib/life-kits.test.ts`, `lib/life-kit-input.test.ts`, `lib/auth.test.ts`, `lib/date-math.test.ts`, `lib/habit-streaks.test.ts`, `lib/shared-capture.test.ts`, `lib/reminder-push.test.ts`, `lib/push.test.ts`, `app/api/push/subscriptions/route.test.ts`, `app/api/tags/route.test.ts`, `app/api/item-relationships/route.test.ts`, `app/api/tasks/[id]/checklist-items/route.test.ts`, `app/api/tasks/[id]/recurrence/route.test.ts`, `app/api/tasks/route.test.ts`).
+- `npm test` runs Vitest: 189/189 tests passing across 19 suites (`lib/task-breakdown.test.ts`, `lib/task-import.test.ts`, `lib/bank-import.test.ts`, `lib/day-plan.test.ts`, `lib/life-patterns.test.ts`, `lib/life-kits.test.ts`, `lib/life-kit-input.test.ts`, `lib/auth.test.ts`, `lib/date-math.test.ts`, `lib/habit-streaks.test.ts`, `lib/shared-capture.test.ts`, `lib/reminder-push.test.ts`, `lib/push.test.ts`, `app/api/push/subscriptions/route.test.ts`, `app/api/tags/route.test.ts`, `app/api/item-relationships/route.test.ts`, `app/api/tasks/[id]/checklist-items/route.test.ts`, `app/api/tasks/[id]/recurrence/route.test.ts`, `app/api/tasks/route.test.ts`).
 - `npx tsc --noEmit` is clean.
 
 ## Completed Work
+
+### 2026-11-17 IST - Later list: task breakdown, task import, bank statement import
+
+- **Agent/tool used:** Claude Code (Opus 5.5). Branches `later/task-breakdown` then `later/task-import` (stacked). The user said to keep building; these are the Later items that need no outside service or decision.
+- **Changes, one commit each:**
+  - `lib/task-breakdown.ts` and test (3), `app/api/ai/task-breakdown/route.ts`, `lib/ai-usage.ts` (`task_breakdown`, 10 a day): AI steps with minutes; refuses AI-excluded domains; sends existing checklist titles so they aren't repeated.
+  - `components/task-breakdown.tsx`, `components/task-checklist.tsx`: Break it down in the checklist panel of the task editor.
+  - `lib/task-import.ts` and test (8), `app/api/import/tasks/route.ts`: CSV parser, Todoist and generic mapping, `prepareImport`, bulk insert with `unnest` in batches of 200.
+  - `components/settings/import-tasks.tsx`, `app/settings/page.tsx`: Bring your tasks over at the top of Settings > Account (lazy-loaded).
+  - `lib/bank-import.ts` and test (6), `app/api/import/transactions/route.ts`: statement parser and idempotent bulk insert in batches of 250.
+  - `components/money/bank-import.tsx`, `app/money/page.tsx`: Import a bank statement on the Budget tab; the budget panel remounts after an import (`key`).
+- **Commands run:** `npx tsc --noEmit` clean. `npm test` 189/189 in 19 suites. `npm run lint` 50, unchanged. `npm run build` passes.
+- **Checks without test data:** one real Gemini breakdown of a made-up task (\"Clean out the garage\") returned six steps with minutes in 16 seconds and skipped the listed existing step. Both import inserts were run as `EXPLAIN` in read-only transactions through the real route handlers with sample rows including nulls; nothing was written.
+- **Not verified:** any of the three in a browser, and real Todoist or bank files (the parsers were tested on hand-written samples in those formats).
+- **Suggested next steps:** the user tries a Todoist export and one bank CSV. Remaining Later items need the user (connector, email/WhatsApp capture, Notion import, shared household), as do Stage 4 and two-way Google sync.
 
 ### 2026-11-17 IST - Stage 6: plan your hours and evening carry-over
 

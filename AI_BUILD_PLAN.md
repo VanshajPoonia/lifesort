@@ -116,6 +116,7 @@ Settings absorbs Rules and the full Notifications page. Every old URL keeps work
 - Email to task through a forwarding address. WhatsApp or Telegram capture.
 - Imports from Todoist, Notion and CSV. Bank statement upload. Shared household.
 - AI task breakdown with time estimates.
+- 🟡 Built 2026-11-17 from this list: AI task breakdown (Break it down in a task's checklist), task import from Todoist or any CSV (Settings > Account), and bank statement import (Money > Budget). Still waiting on the user: the ChatGPT/Claude connector, email and WhatsApp/Telegram capture (need an inbound service), Notion import, and a shared household (changes who sees what).
 
 ### Retiring empty tables
 

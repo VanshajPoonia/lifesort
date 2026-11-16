@@ -221,6 +221,15 @@ Architecture and product decision memory for LifeSort.
 - **Usage check (2026-11-11):** a read-only count on the production database, which every Vercel environment shares, found 2 accounts, no login since 2026-05-20 and almost every feature table empty. The user confirmed they stopped using LifeSort. The first goal is daily use by the user.
 - **Decision (user, 2026-11-11):** Waiting, Someday, Commitments and Maintenance fold into Tasks (statuses, recurring tasks, person links) and their empty tables get dropped. Spaces and Custom Sections are removed. Daily Content and games stay hidden. Everything is free for now. Kits are chosen later from a tick list. This supersedes the 2026-07-23 rule above about keeping trackers as compatibility lenses, which assumed real user data that does not exist.
 
+## Imports and task breakdown (2026-11-17)
+
+- **Files are parsed in the browser.** The person sees what was found before anything is saved, and the server only takes validated rows (zod, size caps). No file uploads, no new dependency: `parseCsv` in `lib/task-import.ts` is a small RFC 4180 reader.
+- **Imports follow no-guilt defaults:** finished tasks are left out and past due dates cleared unless the person unticks those options.
+- **Never guess a date.** Unreadable task dates go into the notes; numeric bank dates are day first (the user is in India) unless a value proves month first, and the card asks when it can't tell.
+- **Bank imports are idempotent.** Rows matching an existing transaction's date, amount, type and description are skipped, so re-importing a statement adds nothing. Identical rows inside one file are kept, since two equal purchases on a day are real.
+- **Todoist priority:** its template CSV uses 1 for p1 (highest). The preview shows the mapped priority so a mismatch would be visible.
+- **Break it down writes through existing APIs** (checklist items, then a partial task PUT), so it needs no new storage.
+
 ## Day planning (Stage 6, 2026-11-17)
 
 - **Time slots live on Today, not in the calendar grid.** Planning hours is a morning habit, so Plan your hours sits on Today and opens before noon. The Tasks calendar keeps its month and week grids.
