@@ -221,6 +221,13 @@ Architecture and product decision memory for LifeSort.
 - **Usage check (2026-11-11):** a read-only count on the production database, which every Vercel environment shares, found 2 accounts, no login since 2026-05-20 and almost every feature table empty. The user confirmed they stopped using LifeSort. The first goal is daily use by the user.
 - **Decision (user, 2026-11-11):** Waiting, Someday, Commitments and Maintenance fold into Tasks (statuses, recurring tasks, person links) and their empty tables get dropped. Spaces and Custom Sections are removed. Daily Content and games stay hidden. Everything is free for now. Kits are chosen later from a tick list. This supersedes the 2026-07-23 rule above about keeping trackers as compatibility lenses, which assumed real user data that does not exist.
 
+## Day planning (Stage 6, 2026-11-17)
+
+- **Time slots live on Today, not in the calendar grid.** Planning hours is a morning habit, so Plan your hours sits on Today and opens before noon. The Tasks calendar keeps its month and week grids.
+- **No new API.** The planner reads the existing task, local event and Google sync endpoints and writes with partial `PUT /api/tasks`, which leaves status and due date alone.
+- **Every drag has a non-drag path.** A Place at menu per task works on phones and with a keyboard.
+- **Google stays read-only** (user decision 2026-11-17). Writing back needs the `calendar.events` scope, a Google Cloud change, and a reconnect.
+
 ## Life Patterns (Stage 5, 2026-11-17)
 
 - **Detectors are pure and conservative.** `lib/life-patterns.ts` works on weekly numbers only. Mood comparisons need two weeks on each side and a half-point gap; the busiest weekday needs 10 finished tasks and 1.5 times the average. Nothing shows until the data supports it.

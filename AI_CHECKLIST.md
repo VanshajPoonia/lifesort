@@ -318,7 +318,8 @@ Dependency notes:
 
 Test/lint status (updated 2026-07-25 — see `AI_TASK_LOG.md` for the full setup story):
 
-- 2026-11-17 (Stage 5): `npm test` is 165 tests in 15 suites, adding `lib/life-patterns.test.ts`.
+- 2026-11-17 (Stage 6): `npm test` is 172 tests in 16 suites, adding `lib/day-plan.test.ts`.
+- 2026-11-17 (Stage 5): `npm test` was 165 tests in 15 suites, adding `lib/life-patterns.test.ts`.
 - 2026-11-16 (Stage 3): `npm test` was 154 tests in 14 suites, adding `lib/life-kits.test.ts` and `lib/life-kit-input.test.ts`.
 - 2026-11-16: `npm test` was 133 tests in 12 suites, adding `lib/habit-streaks.test.ts`, `lib/shared-capture.test.ts`, `lib/reminder-push.test.ts`, `lib/push.test.ts` and `app/api/push/subscriptions/route.test.ts` to the list below. `web-push` 4 is an ES module with named exports only: import `{ sendNotification, setVapidDetails }` and mock it the same way.
 

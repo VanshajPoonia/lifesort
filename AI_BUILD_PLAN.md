@@ -109,6 +109,7 @@ Settings absorbs Rules and the full Notifications page. Every old URL keeps work
 - Two-way Google Calendar sync.
 - Drag tasks onto time slots, using the `scheduled_date` and `duration_minutes` fields tasks already have.
 - A guided morning plan and evening shutdown on Today.
+- 🟡 Built 2026-11-17: Plan your hours on Today (drag or pick a half-hour slot for today's tasks, next to local and Google events, with durations and overlaps; opens by itself before noon) and Move to tomorrow in the evening wrap-up with Undo. Two-way Google sync was skipped by the user: Google stays read-only, because writing needs the `calendar.events` scope in their Google Cloud project and a reconnect.
 
 **Later**
 - A privacy-scoped connector for ChatGPT and Claude (MCP) that honors per-domain AI exclusion.
@@ -164,6 +165,7 @@ Status (2026-11-11): the four Stage 1 step 3 tables have no readers or writers l
 ### User answers (2026-11-16)
 
 - Stage 2 push: add `web-push`, a `push_subscriptions` table and VAPID keys in Vercel: yes. Move the reminder cron to 8:00 IST: yes.
+- Stage 6: skip two-way Google sync for now. Keep Stage 4 parked (R2 token not rotated yet).
 - Stage 3 kits: all eight candidates (new semester, new job, moving house, getting fit, saving for something, job search, trip, renewing documents). The two kit tables: yes. A browser test with a throwaway account: no.
 - Throwaway test account on the production database for the browser test: allowed, deleted afterwards.
 - Drop `nuke_goals`, `pomodoro_sessions` and `pomodoro_settings` after the deploy: yes.

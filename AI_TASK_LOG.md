@@ -10,14 +10,25 @@ Keep it short. Entries dated before 2026-10 were moved word for word to `AI_TASK
 
 LifeSort is a broad Next.js App Router application with many implemented product areas and a Vercel-oriented deployment. The repo now has persistent AI memory files in the project root.
 
-Current verification state (2026-11-17, after Stage 5 patterns):
+Current verification state (2026-11-17, after Stage 6 day planning):
 
 - `npm run build` passes with TypeScript validation now actually enforced (`next.config.mjs`'s `typescript.ignoreBuildErrors` is `false`; `tsc --noEmit` is clean). `eslint.ignoreDuringBuilds` remains `true` — 50 pre-existing lint findings remain (down from 293 originally; see the 2026-07-25 ESLint cleanup entry, 66 → 65 in the 2026-10-28 design pass, 65 → 64 in the 2026-11-11 Today merge, 64 → 62 in Stage 1 step 3, then 51 after the Stage 1 deletions and 50 after the Reflect rebuild), every one a reviewed-and-commented `react-hooks/set-state-in-effect` exception (either a real state transition or a function intentionally shared with non-effect call sites). It still exits non-zero; that is expected and not a blocker.
 - `npm run lint` runs cleanly via `eslint.config.mjs` (ESLint 9.x + `eslint-config-next@16`) — it exits non-zero on real findings, it does not fail to run.
-- `npm test` runs Vitest: 165/165 tests passing across 15 suites (`lib/life-patterns.test.ts`, `lib/life-kits.test.ts`, `lib/life-kit-input.test.ts`, `lib/auth.test.ts`, `lib/date-math.test.ts`, `lib/habit-streaks.test.ts`, `lib/shared-capture.test.ts`, `lib/reminder-push.test.ts`, `lib/push.test.ts`, `app/api/push/subscriptions/route.test.ts`, `app/api/tags/route.test.ts`, `app/api/item-relationships/route.test.ts`, `app/api/tasks/[id]/checklist-items/route.test.ts`, `app/api/tasks/[id]/recurrence/route.test.ts`, `app/api/tasks/route.test.ts`).
+- `npm test` runs Vitest: 172/172 tests passing across 16 suites (`lib/day-plan.test.ts`, `lib/life-patterns.test.ts`, `lib/life-kits.test.ts`, `lib/life-kit-input.test.ts`, `lib/auth.test.ts`, `lib/date-math.test.ts`, `lib/habit-streaks.test.ts`, `lib/shared-capture.test.ts`, `lib/reminder-push.test.ts`, `lib/push.test.ts`, `app/api/push/subscriptions/route.test.ts`, `app/api/tags/route.test.ts`, `app/api/item-relationships/route.test.ts`, `app/api/tasks/[id]/checklist-items/route.test.ts`, `app/api/tasks/[id]/recurrence/route.test.ts`, `app/api/tasks/route.test.ts`).
 - `npx tsc --noEmit` is clean.
 
 ## Completed Work
+
+### 2026-11-17 IST - Stage 6: plan your hours and evening carry-over
+
+- **Agent/tool used:** Claude Code (Opus 5.5). Branch `stage6/day-planner`. The user chose to skip two-way Google sync and keep Stage 4 parked.
+- **Changes, one commit each:**
+  - `lib/day-plan.ts` and test (7 tests): half-hour slots 6 AM to 11 PM, HH:MM and minutes, labels, overlaps, free time.
+  - `components/today/day-planner.tsx`, `components/today/carry-over.tsx`, `app/page.tsx`: Plan your hours fold (open before noon, planner lazy-loaded) and Move to tomorrow in the evening wrap-up with an Undo toast. The planner reads `/api/tasks?completed=false`, `/api/calendar-events` and `/api/calendar/sync` for the day, and saves with partial `PUT /api/tasks`. The PUT keeps status and due date when only time fields are sent (checked in the route: due date only moves on a recurring task's completion).
+- **Commands run:** `npx tsc --noEmit` clean. `npm test` 172/172 in 16 suites. `npm run lint` 50, unchanged. `npm run build` passes; `/` first load 237 kB (was 232 kB; the planner itself loads on demand).
+- **Not verified:** the planner and carry-over in a browser. No new SQL was added; both use existing routes.
+- **Known limits:** tasks show in the slot they start in with their length as text; the grid doesn't stretch blocks over the hours they cover (covered rows get a light fill instead). Google events need an existing Google connection.
+- **Suggested next steps:** the user tries Plan your hours on Today. Remaining in Part 0: Stage 4 (waits on the R2 token), two-way Google sync (waits on the user), and the Later list.
 
 ### 2026-11-17 IST - Stage 5: Life Patterns
 
