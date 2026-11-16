@@ -9,9 +9,19 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import { addDaysToDate } from "@/lib/date-math"
-import { LIFE_KITS, getKitDefinition, planKit, type KitDefinition, type PlannedKitItem } from "@/lib/life-kits"
+import {
+  CUSTOM_KIT_KEY,
+  LIFE_KITS,
+  definitionFromDraft,
+  getKitDefinition,
+  planKit,
+  type KitDefinition,
+  type KitDraft,
+  type PlannedKitItem,
+} from "@/lib/life-kits"
 
 type StartKitDialogProps = {
   open: boolean
@@ -36,6 +46,10 @@ function shortDate(date: string) {
 export function StartKitDialog({ open, onOpenChange, lifeAreaId = null, onStarted }: StartKitDialogProps) {
   const { toast } = useToast()
   const [kitKey, setKitKey] = useState<string | null>(null)
+  const [describing, setDescribing] = useState(false)
+  const [description, setDescription] = useState("")
+  const [drafting, setDrafting] = useState(false)
+  const [draft, setDraft] = useState<KitDraft | null>(null)
   const [anchorDate, setAnchorDate] = useState("")
   const [label, setLabel] = useState("")
   const [amount, setAmount] = useState("")
@@ -43,7 +57,8 @@ export function StartKitDialog({ open, onOpenChange, lifeAreaId = null, onStarte
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
 
-  const definition = kitKey ? getKitDefinition(kitKey) : null
+  const customDefinition = useMemo(() => (draft ? definitionFromDraft(draft) : null), [draft])
+  const definition = kitKey === CUSTOM_KIT_KEY ? customDefinition : kitKey ? getKitDefinition(kitKey) : null
   const today = localToday()
   const amountValue = Number(amount)
   const plan = useMemo(() => {
@@ -63,11 +78,36 @@ export function StartKitDialog({ open, onOpenChange, lifeAreaId = null, onStarte
     setError("")
   }
 
+  const backToKits = () => {
+    setKitKey(null)
+    setDescribing(false)
+    setDraft(null)
+    setError("")
+  }
+
   const close = (next: boolean) => {
     onOpenChange(next)
-    if (!next) {
-      setKitKey(null)
-      setError("")
+    if (!next) backToKits()
+  }
+
+  const draftKit = async () => {
+    setDrafting(true)
+    setError("")
+    try {
+      const response = await fetch("/api/kits/draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description, today }),
+      })
+      const data = await response.json().catch(() => null)
+      if (!response.ok || !data?.draft) throw new Error(data?.error || "Couldn't draft a kit. Try again in a moment.")
+      const drafted = data.draft as KitDraft
+      setDraft(drafted)
+      chooseKit(definitionFromDraft(drafted))
+    } catch (draftError) {
+      setError(draftError instanceof Error ? draftError.message : "Couldn't draft a kit. Try again in a moment.")
+    } finally {
+      setDrafting(false)
     }
   }
 
@@ -90,6 +130,7 @@ export function StartKitDialog({ open, onOpenChange, lifeAreaId = null, onStarte
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           kit_key: definition.key,
+          draft: definition.key === CUSTOM_KIT_KEY ? draft : null,
           anchor_date: anchorDate,
           today,
           label: label.trim() || null,
@@ -115,7 +156,46 @@ export function StartKitDialog({ open, onOpenChange, lifeAreaId = null, onStarte
   return (
     <Dialog open={open} onOpenChange={close}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-        {!definition ? (
+        {!definition && describing ? (
+          <>
+            <DialogHeader>
+              <button
+                type="button"
+                onClick={backToKits}
+                className="mb-1 inline-flex w-fit items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+                All kits
+              </button>
+              <DialogTitle>Describe your situation</DialogTitle>
+              <DialogDescription>
+                The AI drafts a kit from what you write: a goal, dated steps and maybe a habit. You see all of it before anything is added.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-1.5">
+              <Label htmlFor="kit-description">What&apos;s going on?</Label>
+              <Textarea
+                id="kit-description"
+                value={description}
+                maxLength={600}
+                rows={4}
+                placeholder="We're getting a puppy in three weeks and we've never had a dog."
+                onChange={(event) => setDescription(event.target.value)}
+              />
+            </div>
+            {drafting && <p className="text-sm text-muted-foreground">Drafting your kit. This can take up to a minute.</p>}
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => close(false)}>
+                Cancel
+              </Button>
+              <Button onClick={() => void draftKit()} disabled={drafting || description.trim().length < 10} className="gap-2">
+                {drafting && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+                Draft my kit
+              </Button>
+            </DialogFooter>
+          </>
+        ) : !definition ? (
           <>
             <DialogHeader>
               <DialogTitle>What&apos;s going on in your life?</DialogTitle>
@@ -138,6 +218,22 @@ export function StartKitDialog({ open, onOpenChange, lifeAreaId = null, onStarte
                   </span>
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => {
+                  setDescribing(true)
+                  setError("")
+                }}
+                className="flex items-start gap-3 rounded-lg border border-dashed bg-card p-3 text-left transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:col-span-2"
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                  <KitIcon name="Sparkles" className="h-5 w-5" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium text-foreground">Something else? Describe your situation</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">The AI drafts a kit for you to check before it adds anything.</span>
+                </span>
+              </button>
             </div>
           </>
         ) : (
@@ -145,7 +241,7 @@ export function StartKitDialog({ open, onOpenChange, lifeAreaId = null, onStarte
             <DialogHeader>
               <button
                 type="button"
-                onClick={() => setKitKey(null)}
+                onClick={backToKits}
                 className="mb-1 inline-flex w-fit items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
               >
                 <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
