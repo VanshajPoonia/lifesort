@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import type { ReactNode } from "react"
 import Link from "next/link"
+import dynamic from "next/dynamic"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
   closestCenter,
@@ -44,6 +45,7 @@ import { DomainTodayOverview } from "@/components/domain-today-overview"
 import { useDomainFocus } from "@/components/domain-focus-provider"
 import { OnboardingModal } from "@/components/onboarding-modal"
 import { SortableList } from "@/components/sortable-list"
+import { CarryOver } from "@/components/today/carry-over"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -210,6 +212,12 @@ const FRESH_START_DISMISSED_KEY = "lifesort:today:fresh-start-dismissed"
 const BIG_PILE = 6
 const AWAY_DAYS = 3
 const WRAP_UP_HOUR = 17
+// "Plan your hours" opens by itself in the morning (Stage 6).
+const PLAN_HOURS_UNTIL = 12
+
+const DayPlanner = dynamic(() => import("@/components/today/day-planner").then((mod) => mod.DayPlanner), {
+  loading: () => <Skeleton className="h-64 w-full rounded-xl" />,
+})
 const DECISIONS_PREVIEW = 5
 
 function localDateString() {
@@ -446,6 +454,7 @@ export default function TodayPage() {
   const [freshStartDismissed, setFreshStartDismissed] = useState(false)
   const [showAllDecisions, setShowAllDecisions] = useState(false)
   const [wrapUpOpen, setWrapUpOpen] = useState(() => new Date().getHours() >= WRAP_UP_HOUR)
+  const [plannerOpen, setPlannerOpen] = useState(() => new Date().getHours() < PLAN_HOURS_UNTIL)
 
   useEffect(() => {
     if (!authLoading && !user) router.push("/login")
@@ -1587,6 +1596,28 @@ export default function TodayPage() {
               </aside>
             </div>
 
+            <Collapsible open={plannerOpen} onOpenChange={setPlannerOpen}>
+              <CollapsibleTrigger asChild>
+                <button
+                  type="button"
+                  className="group flex w-full items-center gap-3 rounded-lg py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <span aria-hidden="true" className="h-px flex-1 bg-border" />
+                  <span>Plan your hours</span>
+                  <ChevronDown
+                    aria-hidden="true"
+                    className={cn("h-4 w-4 transition-transform duration-200 motion-reduce:transition-none", plannerOpen && "rotate-180")}
+                  />
+                  <span aria-hidden="true" className="h-px flex-1 bg-border" />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="collapsible-content">
+                <section aria-label="Plan your hours" className="mt-4 rounded-xl border bg-card p-4 sm:p-5">
+                  {plannerOpen && <DayPlanner date={planDate} />}
+                </section>
+              </CollapsibleContent>
+            </Collapsible>
+
             <Collapsible open={wrapUpOpen} onOpenChange={setWrapUpOpen}>
               <CollapsibleTrigger asChild>
                 <button
@@ -1605,6 +1636,9 @@ export default function TodayPage() {
               <CollapsibleContent className="collapsible-content">
                 <section aria-label="Evening wrap-up" className="mt-4 rounded-xl border bg-card p-4 sm:p-5">
                   <p className="text-sm text-muted-foreground">Two minutes to close the day.</p>
+                  <div className="mt-4">
+                    <CarryOver date={planDate} onMoved={() => void refreshToday()} />
+                  </div>
                   <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
                     <ReflectionField
                       id="wrap-up-went-well"
