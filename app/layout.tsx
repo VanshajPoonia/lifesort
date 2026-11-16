@@ -4,6 +4,7 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { AuthProvider } from "@/components/auth-provider"
 import { DomainFocusProvider } from "@/components/domain-focus-provider"
+import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register"
 import { SubscriptionChecker } from "@/components/subscription-checker"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
@@ -57,6 +58,7 @@ export default function RootLayout({
               <SubscriptionChecker />
               {children}
               <Toaster />
+              <ServiceWorkerRegister />
             </DomainFocusProvider>
           </AuthProvider>
         </ThemeProvider>
