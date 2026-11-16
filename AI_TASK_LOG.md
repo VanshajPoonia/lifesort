@@ -10,14 +10,27 @@ Keep it short. Entries dated before 2026-10 were moved word for word to `AI_TASK
 
 LifeSort is a broad Next.js App Router application with many implemented product areas and a Vercel-oriented deployment. The repo now has persistent AI memory files in the project root.
 
-Current verification state (2026-11-16, after Stage 3 kits):
+Current verification state (2026-11-17, after Stage 5 patterns):
 
-- `npm run build` passes with TypeScript validation now actually enforced (`next.config.mjs`'s `typescript.ignoreBuildErrors` is `false`; `tsc --noEmit` is clean). `eslint.ignoreDuringBuilds` remains `true` — 51 pre-existing lint findings remain (down from 293 originally; see the 2026-07-25 ESLint cleanup entry, 66 → 65 in the 2026-10-28 design pass, 65 → 64 in the 2026-11-11 Today merge, 64 → 62 in Stage 1 step 3, then 51 after the Stage 1 deletions), every one a reviewed-and-commented `react-hooks/set-state-in-effect` exception (either a real state transition or a function intentionally shared with non-effect call sites). It still exits non-zero; that is expected and not a blocker.
+- `npm run build` passes with TypeScript validation now actually enforced (`next.config.mjs`'s `typescript.ignoreBuildErrors` is `false`; `tsc --noEmit` is clean). `eslint.ignoreDuringBuilds` remains `true` — 50 pre-existing lint findings remain (down from 293 originally; see the 2026-07-25 ESLint cleanup entry, 66 → 65 in the 2026-10-28 design pass, 65 → 64 in the 2026-11-11 Today merge, 64 → 62 in Stage 1 step 3, then 51 after the Stage 1 deletions and 50 after the Reflect rebuild), every one a reviewed-and-commented `react-hooks/set-state-in-effect` exception (either a real state transition or a function intentionally shared with non-effect call sites). It still exits non-zero; that is expected and not a blocker.
 - `npm run lint` runs cleanly via `eslint.config.mjs` (ESLint 9.x + `eslint-config-next@16`) — it exits non-zero on real findings, it does not fail to run.
-- `npm test` runs Vitest: 154/154 tests passing across 14 suites (`lib/life-kits.test.ts`, `lib/life-kit-input.test.ts`, `lib/auth.test.ts`, `lib/date-math.test.ts`, `lib/habit-streaks.test.ts`, `lib/shared-capture.test.ts`, `lib/reminder-push.test.ts`, `lib/push.test.ts`, `app/api/push/subscriptions/route.test.ts`, `app/api/tags/route.test.ts`, `app/api/item-relationships/route.test.ts`, `app/api/tasks/[id]/checklist-items/route.test.ts`, `app/api/tasks/[id]/recurrence/route.test.ts`, `app/api/tasks/route.test.ts`).
+- `npm test` runs Vitest: 165/165 tests passing across 15 suites (`lib/life-patterns.test.ts`, `lib/life-kits.test.ts`, `lib/life-kit-input.test.ts`, `lib/auth.test.ts`, `lib/date-math.test.ts`, `lib/habit-streaks.test.ts`, `lib/shared-capture.test.ts`, `lib/reminder-push.test.ts`, `lib/push.test.ts`, `app/api/push/subscriptions/route.test.ts`, `app/api/tags/route.test.ts`, `app/api/item-relationships/route.test.ts`, `app/api/tasks/[id]/checklist-items/route.test.ts`, `app/api/tasks/[id]/recurrence/route.test.ts`, `app/api/tasks/route.test.ts`).
 - `npx tsc --noEmit` is clean.
 
 ## Completed Work
+
+### 2026-11-17 IST - Stage 5: Life Patterns
+
+- **Agent/tool used:** Claude Code (Opus 5.5). Branch `stage5/life-patterns`. The user said to proceed with the rest after their usage limit reset. Stage 4 was skipped because it waits on the user's R2 decision.
+- **Changes, one commit each:**
+  - `lib/life-patterns.ts` and test (11 tests): week helpers (`mondayOf`, `patternWeeks`), nine detectors, `findPatterns`, `isDismissed`.
+  - `lib/life-patterns-server.ts`, `app/api/patterns/route.ts`, `app/api/patterns/dismiss/route.ts`, `app/api/ai/patterns/route.ts`, `lib/ai-usage.ts` (`life_patterns`, 5 a day): weekly SQL (journal mood and days, habit check-ins against planned days for habits that existed that week, tasks done and their weekday, tasks slipped, spending through category domains), quiet domains (activity in the last 12 weeks and none for 3, or high desired attention and none for 3), people reminders due in 14 days, Worth a look from `getIgnoringInsightsData` (no life_area signals, high and medium, top three), hiding in `app_preferences`. The AI route rebuilds the feed on the server and sends only titles and details.
+  - `app/reflect/page.tsx` (rewritten as a tab hub), `components/reflect/patterns-view.tsx` (new), `components/reflect/journal-insights-view.tsx` (moved from the page), `components/reflect/journal-insights-charts.tsx` (moved), `lib/life-score.ts` (balance link to `?tab=noticed`): What I noticed replaces Life Balance and What you're missing; their old `?tab=` values map to it. The page kept its sign-in redirect.
+  - Deleted `app/api/ai/life-balance/` and `app/api/ai/what-am-i-ignoring/` and their usage limits; nothing else called them.
+- **Commands run:** `npx tsc --noEmit` clean (after clearing stale `.next/types`). `npm test` 165/165 in 15 suites. `npm run lint` 50 (down from 51). `npm run build` passes; `/reflect` first load 195 kB (was 203 kB).
+- **SQL check without test data:** a temporary, uncommitted Vitest file wrapped every query in a read-only Neon transaction. `getPatternFeed` ran for real for a made-up user id against the live schema and returned an empty feed; `dismissPattern`'s UPDATE was parsed and planned, then stopped by the read-only guard, as intended. Nothing was written.
+- **Not verified:** patterns with real data (production has almost none), the What I noticed tab in a browser, and the AI read (same Gemini pattern as kit drafts, with the same 60-second risk).
+- **Suggested next steps:** Stage 6 (calendar and daily routine), or Stage 4 once the user decides on the R2 token.
 
 ### 2026-11-16 23:59 IST - Stage 3: Life Kits
 

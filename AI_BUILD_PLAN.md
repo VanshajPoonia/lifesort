@@ -103,6 +103,7 @@ Settings absorbs Rules and the full Notifications page. Every old URL keeps work
 - One weekly "What I noticed" feed in Reflect, replacing the separate insight screens.
 - Plain-language patterns across journal mood and energy, habits, tasks, spending, domain attention and people follow-ups. For example: "Your mood is lower in weeks with 10+ open decisions."
 - Computed in SQL and explained by AI. Patterns can be dismissed, read as "noticed" rather than as causes, and respect `is_ai_excluded`.
+- 🟡 Built 2026-11-17: What I noticed tab, nine pattern detectors over twelve completed weeks, Worth a look signals, four-week hide, optional AI read. Life Balance and What you're missing tabs and their AI routes are gone. Energy level is not used yet (journal energy is low, medium or high and rarely filled). Not tried with real data: production has almost none, and the user declined a test account, so the SQL was run read-only for a made-up user.
 
 **Stage 6: Calendar and daily routine**
 - Two-way Google Calendar sync.

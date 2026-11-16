@@ -318,7 +318,8 @@ Dependency notes:
 
 Test/lint status (updated 2026-07-25 — see `AI_TASK_LOG.md` for the full setup story):
 
-- 2026-11-16 (Stage 3): `npm test` is 154 tests in 14 suites, adding `lib/life-kits.test.ts` and `lib/life-kit-input.test.ts`.
+- 2026-11-17 (Stage 5): `npm test` is 165 tests in 15 suites, adding `lib/life-patterns.test.ts`.
+- 2026-11-16 (Stage 3): `npm test` was 154 tests in 14 suites, adding `lib/life-kits.test.ts` and `lib/life-kit-input.test.ts`.
 - 2026-11-16: `npm test` was 133 tests in 12 suites, adding `lib/habit-streaks.test.ts`, `lib/shared-capture.test.ts`, `lib/reminder-push.test.ts`, `lib/push.test.ts` and `app/api/push/subscriptions/route.test.ts` to the list below. `web-push` 4 is an ES module with named exports only: import `{ sendNotification, setVapidDetails }` and mock it the same way.
 
 - `npm test` runs Vitest (`vitest run`). Config: `vitest.config.ts` (Node environment, `@/` alias, dummy `DATABASE_URL` test env so `lib/auth.ts`/`lib/db.ts` import cleanly without a real database). Suites as of 2026-07-26: `lib/auth.test.ts` (12), `lib/date-math.test.ts` (11), `app/api/tags/route.test.ts` (8), `app/api/item-relationships/route.test.ts` (12), `app/api/tasks/[id]/checklist-items/route.test.ts` (17), `app/api/tasks/[id]/recurrence/route.test.ts` (12), `app/api/tasks/route.test.ts` (32) — **104 tests total**. `app/api/tasks/route.ts` imports `neon` from `@/lib/neon-client` (see below), same as every other DB-touching file now — its test mocks `@/lib/neon-client` directly rather than `@/lib/db`, since it still doesn't use the shared `sql` export, unlike every other route test in this repo. `app/api/item-relationships/route.test.ts`'s hoisted `sql` mock also carries a `.unsafe()` stub (`(value) => value`) — needed because `lib/item-relationships.ts`'s `attachRelationshipLabels()` calls real `sql.unsafe()` for dynamic table/column names and isn't itself mocked away, unlike `validateItemOwnership`.

@@ -221,6 +221,15 @@ Architecture and product decision memory for LifeSort.
 - **Usage check (2026-11-11):** a read-only count on the production database, which every Vercel environment shares, found 2 accounts, no login since 2026-05-20 and almost every feature table empty. The user confirmed they stopped using LifeSort. The first goal is daily use by the user.
 - **Decision (user, 2026-11-11):** Waiting, Someday, Commitments and Maintenance fold into Tasks (statuses, recurring tasks, person links) and their empty tables get dropped. Spaces and Custom Sections are removed. Daily Content and games stay hidden. Everything is free for now. Kits are chosen later from a tick list. This supersedes the 2026-07-23 rule above about keeping trackers as compatibility lenses, which assumed real user data that does not exist.
 
+## Life Patterns (Stage 5, 2026-11-17)
+
+- **Detectors are pure and conservative.** `lib/life-patterns.ts` works on weekly numbers only. Mood comparisons need two weeks on each side and a half-point gap; the busiest weekday needs 10 finished tasks and 1.5 times the average. Nothing shows until the data supports it.
+- **Wording describes, never explains.** Titles say what happened together. The page says plainly that it isn't a cause, and the AI read is told never to claim one. No guilt wording ("quieter", not "failed").
+- **AI-excluded domains are left out of the numbers, not just the AI call.** The feed can be sent to the AI, so the simplest safe rule is that excluded data never enters it.
+- **Hidden patterns live in `users.app_preferences.dismissed_patterns`** (key to date, pruned after 60 days). No new table. Week-specific notes (a spending spike) carry the week in their key, so hiding one doesn't hide next month's.
+- **Old signals fold in, not out.** What you're missing's stale goals, renewals and finance gaps show as Worth a look (high and medium only, top three); its quiet-domain signals are skipped because the patterns cover them.
+- **Task completion time is `tasks.updated_at`** (there is no completed_at), in server time. Weekday and week buckets can be off by a day near midnight for people far from UTC.
+
 ## Life Kits (Stage 3, 2026-11-16)
 
 - **Kit definitions live in code, started kits in the database.** `lib/life-kits.ts` is pure (no database), so the picker previews exactly what the server will create. `life_kits.kit_key` names a definition.
