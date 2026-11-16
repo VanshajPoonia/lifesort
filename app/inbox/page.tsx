@@ -14,6 +14,8 @@ import {
   Heart,
   Inbox,
   Loader2,
+  Mic,
+  MicOff,
   MoreHorizontal,
   Pencil,
   RotateCcw,
@@ -48,6 +50,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
+import { useDictation } from "@/hooks/use-dictation"
 import { useToast } from "@/hooks/use-toast"
 import type { LifeArea } from "@/lib/life-areas"
 import { normalizeLifeArea } from "@/lib/life-areas"
@@ -177,6 +180,10 @@ export default function InboxPage() {
   const [error, setError] = useState("")
   const [saving, setSaving] = useState(false)
   const [captureText, setCaptureText] = useState("")
+  const appendSpoken = useCallback((text: string) => {
+    setCaptureText((current) => (current.trim() ? `${current.trimEnd()} ${text}` : text))
+  }, [])
+  const dictation = useDictation(appendSpoken)
   const [aiSource, setAiSource] = useState<AiSource | null>(null)
   const [editing, setEditing] = useState<InboxItem | null>(null)
   const [editValues, setEditValues] = useState({ title: "", raw_text: "", suggested_type: "none", life_area_id: null as string | null })
@@ -246,6 +253,7 @@ export default function InboxPage() {
   const saveCapture = async (sortWithAi: boolean) => {
     const rawText = captureText.trim()
     if (!rawText || saving) return
+    if (dictation.listening) dictation.stop()
     setSaving(true)
     setError("")
     try {
@@ -424,12 +432,25 @@ export default function InboxPage() {
             className="min-h-[110px] resize-none border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0"
           />
           <div className="mt-3 flex flex-col gap-3 border-t border-border/70 pt-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs text-muted-foreground">
-              {tooLongForAi
-                ? `AI can sort up to ${AI_SORT_MAX_CHARS} characters. Save it, or shorten it to sort with AI.`
-                : "Sort with AI sends the text to the AI. It saves to Inbox first, so nothing is lost."}
+            <p className="text-xs text-muted-foreground" aria-live="polite">
+              {dictation.listening || dictation.unsupported
+                ? dictation.interim || dictation.message
+                : tooLongForAi
+                  ? `AI can sort up to ${AI_SORT_MAX_CHARS} characters. Save it, or shorten it to sort with AI.`
+                  : "Speak or type. Sort with AI turns it into tasks. It saves to Inbox first, so nothing is lost."}
             </p>
             <div className="flex shrink-0 gap-2">
+              <Button
+                type="button"
+                variant={dictation.listening ? "secondary" : "outline"}
+                size="icon"
+                onClick={dictation.toggle}
+                aria-label={dictation.listening ? "Stop listening" : "Speak instead of typing"}
+                aria-pressed={dictation.listening}
+                className="shrink-0"
+              >
+                {dictation.listening ? <MicOff className="h-4 w-4" aria-hidden="true" /> : <Mic className="h-4 w-4" aria-hidden="true" />}
+              </Button>
               <Button variant="outline" onClick={() => void saveCapture(false)} disabled={!captureText.trim() || saving} className="gap-2">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Inbox className="h-4 w-4" aria-hidden="true" />}
                 Save
