@@ -83,6 +83,7 @@ Settings absorbs Rules and the full Notifications page. Every old URL keeps work
 - Share target, so sharing from another app lands in Inbox.
 - Voice brain dump in Inbox, reusing `/api/ai/capture`.
 - **Exit:** installs on Android and iPhone home screens, a push reminder arrives, a shared link lands in Inbox, a spoken ramble becomes draft tasks.
+- 🟡 Built 2026-11-16 (see `AI_TASK_LOG.md`): manifest with shortcuts and share target, service worker with offline page, Install card and per-device push switch in Settings > Notifications, reminder pushes from the 8:00 IST cron, share to Inbox, mic in Inbox. Verified on desktop Chrome: installable, shortcuts focus, share lands in Inbox, push subscribes and the push service accepts. Still to confirm on the user's phones: install on Android and iPhone, a push arriving (this Mac's Chrome did not receive pushes from Google's push service, even with no payload), sharing from Android and a spoken ramble on a phone.
 
 **Stage 3: Life Kits (templates as the way in)**
 - A kit is one life situation. First candidates: new semester, new job, moving house, getting fit, saving for something, job search, trip, renewing documents.
@@ -160,6 +161,7 @@ Status (2026-11-11): the four Stage 1 step 3 tables have no readers or writers l
 
 ### User answers (2026-11-16)
 
+- Stage 2 push: add `web-push`, a `push_subscriptions` table and VAPID keys in Vercel: yes. Move the reminder cron to 8:00 IST: yes.
 - Throwaway test account on the production database for the browser test: allowed, deleted afterwards.
 - Drop `nuke_goals`, `pomodoro_sessions` and `pomodoro_settings` after the deploy: yes.
 - Pinned goal on Today in place of Focus Goal: no, the Focus list is enough.

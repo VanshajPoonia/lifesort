@@ -221,6 +221,14 @@ Architecture and product decision memory for LifeSort.
 - **Usage check (2026-11-11):** a read-only count on the production database, which every Vercel environment shares, found 2 accounts, no login since 2026-05-20 and almost every feature table empty. The user confirmed they stopped using LifeSort. The first goal is daily use by the user.
 - **Decision (user, 2026-11-11):** Waiting, Someday, Commitments and Maintenance fold into Tasks (statuses, recurring tasks, person links) and their empty tables get dropped. Spaces and Custom Sections are removed. Daily Content and games stay hidden. Everything is free for now. Kits are chosen later from a tick list. This supersedes the 2026-07-23 rule above about keeping trackers as compatibility lenses, which assumed real user data that does not exist.
 
+## Installable Web App and Push (Stage 2, 2026-11-16)
+
+- **Hand-written service worker, no PWA library.** `public/sw.js` is about 100 lines. Pages are always fetched from the network so a deploy is never hidden behind a cached page; only Next's hashed `/_next/static/` files are cached. API responses are never cached because they are per-user and must stay fresh. It registers in production builds only.
+- **Push uses `web-push` (user approved the dependency) with VAPID keys from env.** One row per device in `push_subscriptions`, endpoint unique so a shared browser moves to whoever signed in last. Devices the push service reports gone (404/410) are deleted on send. Push is off when any VAPID var is missing.
+- **Reminder pushes ride the existing daily cron** and mirror the email items: one push per person per run, not one per item. The cron moved to 02:30 UTC (8:00 IST) at the user's request. Vercel Hobby crons run once a day, so per-task reminder times would need another scheduler.
+- **Share target is GET and prefills, it doesn't auto-save.** A GET URL that saved on load would let any link add Inbox items. The person taps Save or Sort with AI, which matches the confirm-before-write rule.
+- **Dictation lives in `hooks/use-dictation.ts`.** The rich text editor and Inbox share it. It uses the browser's language. Still no server transcription (see the Voice dictation decision below).
+
 ## Patterns Agents Should Preserve
 
 - Keep App Router page and route-handler structure.

@@ -125,7 +125,7 @@ Current command caveats:
 - Database access is raw SQL through Neon. The closest canonical schema baseline is `scripts/website-current-schema.sql`; older SQL scripts contain drift.
 - Shared UI follows shadcn/Radix component conventions configured in `components.json`.
 - Styling uses Tailwind plus CSS variables in `app/globals.css`.
-- Deployment is Vercel-oriented. `vercel.json` defines a daily cron for `/api/cron/deadline-reminders`.
+- Deployment is Vercel-oriented. `vercel.json` defines a daily cron for `/api/cron/deadline-reminders` at 02:30 UTC (8:00 IST), which sends reminder emails and pushes.
 
 ## Required Pre-Change Workflow
 
