@@ -1,4 +1,4 @@
-import webpush from "web-push"
+import { sendNotification, setVapidDetails } from "web-push"
 
 import { sql } from "@/lib/db"
 
@@ -20,7 +20,7 @@ export function isPushConfigured() {
   const privateKey = process.env.VAPID_PRIVATE_KEY
   const subject = process.env.VAPID_SUBJECT
   configured = Boolean(publicKey && privateKey && subject)
-  if (publicKey && privateKey && subject) webpush.setVapidDetails(subject, publicKey, privateKey)
+  if (publicKey && privateKey && subject) setVapidDetails(subject, publicKey, privateKey)
   return configured
 }
 
@@ -37,7 +37,7 @@ export async function sendPushToUser(userId: string, payload: PushPayload) {
   await Promise.all(
     rows.map(async (row) => {
       try {
-        await webpush.sendNotification(
+        await sendNotification(
           { endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } },
           JSON.stringify(payload),
           { TTL: 60 * 60 * 12 },

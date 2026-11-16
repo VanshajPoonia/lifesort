@@ -7,7 +7,7 @@ const { sendNotification, setVapidDetails } = vi.hoisted(() => ({
 }))
 
 vi.mock("@/lib/db", () => ({ sql }))
-vi.mock("web-push", () => ({ default: { sendNotification, setVapidDetails } }))
+vi.mock("web-push", () => ({ sendNotification, setVapidDetails }))
 
 const payload = { title: "LifeSort", body: "Pay rent is due tomorrow", url: "/" }
 
