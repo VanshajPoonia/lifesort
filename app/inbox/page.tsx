@@ -54,6 +54,7 @@ import { useDictation } from "@/hooks/use-dictation"
 import { useToast } from "@/hooks/use-toast"
 import type { LifeArea } from "@/lib/life-areas"
 import { normalizeLifeArea } from "@/lib/life-areas"
+import { shareParams, sharedCapture } from "@/lib/shared-capture"
 import { cn } from "@/lib/utils"
 
 // Inbox is the one place to capture (Stage 1 step 4, 2026-11-11). Universal
@@ -179,11 +180,18 @@ export default function InboxPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [saving, setSaving] = useState(false)
-  const [captureText, setCaptureText] = useState("")
+  const [captureText, setCaptureText] = useState(() => sharedCapture(searchParams))
   const appendSpoken = useCallback((text: string) => {
     setCaptureText((current) => (current.trim() ? `${current.trimEnd()} ${text}` : text))
   }, [])
   const dictation = useDictation(appendSpoken)
+  // Kept from the first render because the URL is cleaned before the capture box mounts.
+  const [openedFromShare] = useState(() => shareParams.some((key) => searchParams.has(key)))
+
+  useEffect(() => {
+    if (openedFromShare) router.replace("/inbox", { scroll: false })
+  }, [openedFromShare, router])
+
   const [aiSource, setAiSource] = useState<AiSource | null>(null)
   const [editing, setEditing] = useState<InboxItem | null>(null)
   const [editValues, setEditValues] = useState({ title: "", raw_text: "", suggested_type: "none", life_area_id: null as string | null })
@@ -428,7 +436,7 @@ export default function InboxPage() {
               }
             }}
             placeholder="What's on your mind? A reminder, a worry, an idea, a whole messy list..."
-            autoFocus={searchParams.get("capture") === "1"}
+            autoFocus={searchParams.get("capture") === "1" || openedFromShare}
             className="min-h-[110px] resize-none border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0"
           />
           <div className="mt-3 flex flex-col gap-3 border-t border-border/70 pt-3 sm:flex-row sm:items-center sm:justify-between">
