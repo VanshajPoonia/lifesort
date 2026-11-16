@@ -3,7 +3,8 @@
 import React from "react"
 
 import { useState, useEffect, useRef, useCallback } from "react"
-import NextLink from "next/link"
+import dynamic from "next/dynamic"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -14,6 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAuth } from "@/components/auth-provider"
 import { SUPPORTED_CURRENCIES } from "@/lib/currency"
@@ -35,6 +37,8 @@ import {
   HelpCircle,
   Wallet,
   BookOpenText,
+  Bell,
+  ListChecks,
 } from "lucide-react"
 import {
   Accordion,
@@ -42,6 +46,17 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
+
+// Rules and Notifications were their own pages until 2026-11-16. They load on demand.
+const tabLoading = () => <Skeleton className="h-64 w-full rounded-xl" />
+const NotificationsView = dynamic(() => import("@/components/settings/notifications-view").then((m) => m.NotificationsView), { loading: tabLoading })
+const RulesView = dynamic(() => import("@/components/settings/rules-view").then((m) => m.RulesView), { loading: tabLoading })
+
+const settingsTabs = ["profile", "notifications", "rules", "journal", "content", "faqs", "account"]
+
+function normalizeTab(value: string | null) {
+  return value && settingsTabs.includes(value) ? value : "profile"
+}
 
 interface UserProfile {
   id: string
@@ -72,13 +87,16 @@ type HomeViewMode = "compact" | "detailed"
 
 export default function SettingsPage() {
   const { user } = useAuth()
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const activeTab = normalizeTab(searchParams.get("tab"))
   const fileInputRef = useRef<HTMLInputElement>(null)
   
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
-  const [activeTab, setActiveTab] = useState("profile")
   const [homeViewMode, setHomeViewMode] = useState<HomeViewMode>("compact")
   const [savingAppPreferences, setSavingAppPreferences] = useState(false)
   
@@ -136,10 +154,7 @@ export default function SettingsPage() {
   }
 
   const changeSettingsTab = (tab: string) => {
-    setActiveTab(tab)
-    const url = new URL(window.location.href)
-    url.searchParams.set("tab", tab)
-    window.history.replaceState(null, "", `${url.pathname}?${url.searchParams.toString()}`)
+    router.replace(tab === "profile" ? pathname : `${pathname}?tab=${tab}`, { scroll: false })
   }
 
   const fetchProfile = useCallback(async () => {
@@ -178,12 +193,6 @@ export default function SettingsPage() {
   }, [])
 
   useEffect(() => {
-    const tab = new URL(window.location.href).searchParams.get("tab")
-    if (tab && ["profile", "journal", "content", "faqs", "account"].includes(tab)) {
-      // Flagged by react-hooks/set-state-in-effect: supports deep-linking to
-      // a specific tab via ?tab=, overriding the default "profile".
-      setActiveTab(tab)
-    }
     // Flagged by react-hooks/set-state-in-effect: fetchProfile is shared
     // with save handlers below that need the reload afterward too.
     fetchProfile()
@@ -316,64 +325,24 @@ export default function SettingsPage() {
       subtitle="Manage your profile and preferences"
     >
       <div className="space-y-5 md:space-y-6">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Card className="surface-card">
-            <CardHeader>
-              <CardTitle className="text-base">Profile</CardTitle>
-              <CardDescription>Your identity, subscription, and account basics.</CardDescription>
-            </CardHeader>
-          </Card>
-          <Card className="surface-card">
-            <CardHeader>
-              <CardTitle className="text-base">Journal Preferences</CardTitle>
-              <CardDescription>Customize intention and day-rating labels.</CardDescription>
-            </CardHeader>
-          </Card>
-          <NextLink href="/rules">
-            <Card className="surface-card interactive-card h-full">
-              <CardHeader>
-                <CardTitle className="text-base">Operating Rules</CardTitle>
-                <CardDescription>Visible planning preferences and AI context.</CardDescription>
-              </CardHeader>
-            </Card>
-          </NextLink>
-          <Card className="surface-card">
-            <CardHeader>
-              <CardTitle className="text-base">App Preferences</CardTitle>
-              <CardDescription>Sidebar sections, daily content, and help.</CardDescription>
-            </CardHeader>
-          </Card>
-          <Card className="surface-card">
-            <CardHeader>
-              <CardTitle className="text-base">Security</CardTitle>
-              <CardDescription>Account information and connected services.</CardDescription>
-            </CardHeader>
-          </Card>
-          <Card className="surface-card">
-            <CardHeader>
-              <CardTitle className="text-base">Billing / Subscription</CardTitle>
-              <CardDescription>Plan status, trial details, and subscription basics.</CardDescription>
-            </CardHeader>
-          </Card>
-          <Card className="surface-card">
-            <CardHeader>
-              <CardTitle className="text-base">Integrations / Connections</CardTitle>
-              <CardDescription>Connected calendar and service settings when available.</CardDescription>
-            </CardHeader>
-          </Card>
-          <Card className="surface-card">
-            <CardHeader>
-              <CardTitle className="text-base">FAQs</CardTitle>
-              <CardDescription>Answers for account, preferences, billing, and support.</CardDescription>
-            </CardHeader>
-          </Card>
-        </div>
+        <header>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-[28px]">Settings</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Your profile, reminders, rules for the AI, and account.</p>
+        </header>
 
       <Tabs value={activeTab} onValueChange={changeSettingsTab} className="space-y-5 md:space-y-6">
         <TabsList className="flex w-full justify-start overflow-x-auto rounded-lg bg-muted/70 p-1 lg:w-fit">
           <TabsTrigger value="profile" className="min-w-max">
             <User className="mr-2 h-4 w-4" />
             Profile
+          </TabsTrigger>
+          <TabsTrigger value="notifications" className="min-w-max">
+            <Bell className="mr-2 h-4 w-4" />
+            Notifications
+          </TabsTrigger>
+          <TabsTrigger value="rules" className="min-w-max">
+            <ListChecks className="mr-2 h-4 w-4" />
+            Rules
           </TabsTrigger>
           <TabsTrigger value="journal" className="min-w-max">
             <BookOpenText className="mr-2 h-4 w-4" />
@@ -544,6 +513,14 @@ export default function SettingsPage() {
               </Button>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="notifications" className="section-enter">
+          {activeTab === "notifications" && <NotificationsView />}
+        </TabsContent>
+
+        <TabsContent value="rules" className="section-enter">
+          {activeTab === "rules" && <RulesView />}
         </TabsContent>
 
         <TabsContent value="journal" className="section-enter space-y-5 md:space-y-6">

@@ -165,7 +165,7 @@ export function NotificationBell() {
         {/* Footer */}
         <div className="border-t border-border px-4 py-2">
           <Button asChild variant="ghost" size="sm" className="w-full text-xs text-muted-foreground hover:text-foreground">
-            <Link href="/notifications" onClick={() => setOpen(false)}>
+            <Link href="/settings?tab=notifications" onClick={() => setOpen(false)}>
               View all notifications
             </Link>
           </Button>
