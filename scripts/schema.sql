@@ -877,6 +877,21 @@ CREATE TABLE IF NOT EXISTS notifications (
 CREATE INDEX IF NOT EXISTS idx_notifications_user_unread
   ON notifications(user_id, is_read, created_at DESC);
 
+-- ── Browser push subscriptions (migrations/2026-11-16-push-subscriptions.sql) ──
+
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id              SERIAL PRIMARY KEY,
+  user_id         VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  endpoint        TEXT         NOT NULL UNIQUE,
+  p256dh          TEXT         NOT NULL,
+  auth            TEXT         NOT NULL,
+  user_agent      TEXT,
+  created_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  last_success_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user ON push_subscriptions(user_id);
+
 -- ── Generic tags (2026-07-23-generic-tags.sql) ──────────────────────────────
 -- Additive only -- does not replace the existing TEXT[] tags columns on
 -- notes/people/vault_items/budget_transactions. Used for tasks/goals/projects,
