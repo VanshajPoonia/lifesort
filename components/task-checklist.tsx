@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { SortableList } from "@/components/sortable-list"
+import { TaskBreakdown } from "@/components/task-breakdown"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import type { TaskChecklistItem } from "@/lib/types"
@@ -172,6 +173,15 @@ export function TaskChecklist({ taskId }: { taskId: number }) {
               )}
             />
           )}
+
+          <TaskBreakdown
+            taskId={taskId}
+            onAdded={() => {
+              void fetchItems().then((data) => {
+                if (data) setItems(data)
+              })
+            }}
+          />
 
           <div className="flex items-center gap-2">
             <Input
