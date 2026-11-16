@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { Plus } from "lucide-react"
 
 import { KitCard } from "@/components/kits/kit-card"
@@ -20,7 +21,9 @@ type KitListProps = {
 export function KitList({ lifeAreaId = null, title = "Kits", emptyText }: KitListProps) {
   const [kits, setKits] = useState<KitSummary[] | null>(null)
   const [error, setError] = useState("")
-  const [open, setOpen] = useState(false)
+  const searchParams = useSearchParams()
+  // ?start=kit (from the command palette) opens the picker straight away.
+  const [open, setOpen] = useState(() => searchParams.get("start") === "kit")
   const [version, setVersion] = useState(0)
 
   const reload = useCallback(() => setVersion((current) => current + 1), [])

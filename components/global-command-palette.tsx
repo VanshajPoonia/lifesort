@@ -100,6 +100,7 @@ const captureActions: Array<{
   { label: "Add Inbox Item", description: "Capture something messy", icon: Inbox, type: "inbox" },
   { label: "Journal Today", description: "Open today's journal", icon: BookOpenText, href: "/library?tab=journal" },
   { label: "Open Inbox", description: "Jot something down, or sort it with AI", icon: Plus, href: "/inbox" },
+  { label: "Start a kit", description: "Set up a semester, a new job, a move or a trip", icon: Sparkles, href: "/domains?start=kit" },
 ]
 
 // The seven places first, then the most-used tabs inside them.
