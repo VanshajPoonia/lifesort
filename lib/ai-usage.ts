@@ -13,7 +13,6 @@ export type AiUsageRoute =
   | "refine_text"
   | "life_balance_insights"
   | "ignoring_insights"
-  | "reset_suggestions"
   | "life_score_explanation"
 export type AiUsageStatus = "accepted" | "success" | "provider_error" | "rate_limited" | "rejected"
 
@@ -28,7 +27,6 @@ const DAILY_LIMITS: Record<AiUsageRoute, number> = {
   refine_text: 20,
   life_balance_insights: 10,
   ignoring_insights: 5,
-  reset_suggestions: 5,
   life_score_explanation: 5,
 }
 

@@ -1177,20 +1177,6 @@ export default function ReflectPage() {
           </Card>
         )}
 
-        <Card className="surface-card section-enter border-destructive/20 bg-destructive/5">
-          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between md:p-5">
-            <div>
-              <p className="text-sm font-medium">Feeling overwhelmed?</p>
-              <p className="text-sm text-muted-foreground">Use Reset when stale and overdue items need emergency triage.</p>
-            </div>
-            <Button asChild variant="outline" className="gap-2 border-destructive/30 bg-background/80 text-destructive hover:bg-destructive/10 hover:text-destructive">
-              <a href="/reset">
-                <ShieldAlert className="h-4 w-4" />
-                Feeling overwhelmed? -&gt; Reset My Life
-              </a>
-            </Button>
-          </CardContent>
-        </Card>
       </div>
     </DashboardLayout>
   )
