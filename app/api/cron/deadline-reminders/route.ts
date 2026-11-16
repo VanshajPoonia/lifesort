@@ -2,12 +2,15 @@ import { NextResponse } from "next/server"
 import { neon } from "@/lib/neon-client"
 import { Resend } from "resend"
 import { timingSafeEqual } from "crypto"
+import { sendPushToUser } from "@/lib/push"
+import { reminderPushPayload } from "@/lib/reminder-push"
 
 const sql = neon(process.env.DATABASE_URL!)
 const resend = new Resend(process.env.RESEND_API_KEY)
 
 interface ReminderItem {
   id: string
+  user_id: string
   title: string
   description?: string
   target_date: string
@@ -52,7 +55,7 @@ export async function GET(request: Request) {
     
     // Find goals with custom reminder_days
     const goals = await sql`
-      SELECT g.id, g.title, g.description, g.target_date, g.reminder_days,
+      SELECT g.id, g.user_id, g.title, g.description, g.target_date, g.reminder_days,
              u.email, u.name as user_name
       FROM goals g
       JOIN users u ON g.user_id = u.id
@@ -74,7 +77,7 @@ export async function GET(request: Request) {
     
     // Find tasks with due dates
     const tasks = await sql`
-      SELECT t.id, t.title, t.description, t.due_date as target_date, t.reminder_days,
+      SELECT t.id, t.user_id, t.title, t.description, t.due_date as target_date, t.reminder_days,
              u.email, u.name as user_name
       FROM tasks t
       JOIN users u ON t.user_id = u.id
@@ -184,11 +187,28 @@ export async function GET(request: Request) {
       }
     }
 
+    // One push per person, sent whether or not their email went out.
+    const byUser = new Map<string, ReminderItem[]>()
+    for (const item of allReminders) {
+      byUser.set(item.user_id, [...(byUser.get(item.user_id) ?? []), item])
+    }
+    let pushesSent = 0
+    for (const [userId, items] of byUser) {
+      const payload = reminderPushPayload(items)
+      if (!payload) continue
+      try {
+        pushesSent += (await sendPushToUser(userId, payload)).sent
+      } catch (pushError) {
+        console.error(`[cron] Push failed for user ${userId}:`, pushError instanceof Error ? pushError.message : pushError)
+      }
+    }
+
     return NextResponse.json({
       success: true,
       date: todayStr,
       itemsFound: allReminders.length,
       emailsSent: emailsSent.length,
+      pushesSent,
       breakdown: {
         goals: allReminders.filter(r => r.type === 'goal').length,
         tasks: allReminders.filter(r => r.type === 'task').length,
