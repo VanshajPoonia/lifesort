@@ -1,4 +1,4 @@
-import { Briefcase, Dumbbell, FileText, GraduationCap, House, Plane, Search, Wallet, type LucideIcon } from "lucide-react"
+import { Briefcase, Dumbbell, FileText, GraduationCap, House, Plane, Search, Sparkles, Wallet, type LucideIcon } from "lucide-react"
 
 import type { KitDefinition } from "@/lib/life-kits"
 
@@ -11,6 +11,7 @@ const icons: Record<KitDefinition["icon"], LucideIcon> = {
   Search,
   Plane,
   FileText,
+  Sparkles,
 }
 
 export function KitIcon({ name, className }: { name: KitDefinition["icon"]; className?: string }) {

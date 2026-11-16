@@ -14,6 +14,7 @@ export type AiUsageRoute =
   | "life_balance_insights"
   | "ignoring_insights"
   | "life_score_explanation"
+  | "kit_draft"
 export type AiUsageStatus = "accepted" | "success" | "provider_error" | "rate_limited" | "rejected"
 
 const DAILY_LIMITS: Record<AiUsageRoute, number> = {
@@ -28,6 +29,7 @@ const DAILY_LIMITS: Record<AiUsageRoute, number> = {
   life_balance_insights: 10,
   ignoring_insights: 5,
   life_score_explanation: 5,
+  kit_draft: 5,
 }
 
 const COUNTED_STATUSES: AiUsageStatus[] = ["accepted", "success", "provider_error"]

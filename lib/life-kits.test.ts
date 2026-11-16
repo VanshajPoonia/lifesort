@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { LIFE_KITS, getKitDefinition, kitProgress, planKit, type PlannedKitItem } from "./life-kits"
+import { LIFE_KITS, definitionFromDraft, getKitDefinition, kitProgress, planKit, type PlannedKitItem } from "./life-kits"
 
 const kit = (key: string) => {
   const definition = getKitDefinition(key)
@@ -105,5 +105,37 @@ describe("kitProgress", () => {
 
   it("ends a deadline kit after its follow-up days", () => {
     expect(kitProgress(kit("moving-house"), "2026-11-01", "2026-10-01", "2026-11-16").ended).toBe(true)
+  })
+})
+
+describe("definitionFromDraft", () => {
+  const draft = {
+    name: "New puppy",
+    summary: "Get ready for a puppy.",
+    kind: "deadline" as const,
+    date_label: "When does the puppy come home?",
+    date_offset_days: 21,
+    length_days: 14,
+    domain_name: "Home",
+    phases: [{ name: "Getting ready", from: -60, to: -1 }],
+    goal: { title: "Settle the puppy in", day: 14 },
+    tasks: [
+      { title: "Set a budget for supplies", day: 1, from_start: true, priority: "high" as const },
+      { title: "Buy a crate and bowls", day: -10, from_start: false, priority: "medium" as const },
+    ],
+    habits: [{ name: "Short training session", frequency: "daily" as const, days: [] }],
+    budget_category: "Puppy",
+    prompts: ["What surprised you this week?"],
+  }
+
+  it("plans a drafted kit like a built-in one", () => {
+    const plan = planKit(definitionFromDraft(draft), "2026-12-07", "2026-11-16", none)
+    expect(plan.title).toBe("New puppy")
+    expect(tasks(plan.items).map((task) => [task.title, task.date])).toEqual([
+      ["Set a budget for supplies", "2026-11-17"],
+      ["Buy a crate and bowls", "2026-11-27"],
+    ])
+    expect(plan.items).toContainEqual(expect.objectContaining({ type: "budget_category", name: "Puppy" }))
+    expect(kitProgress(definitionFromDraft(draft), "2026-12-07", "2026-11-16", "2026-11-16").line).toBe("21 days to go")
   })
 })

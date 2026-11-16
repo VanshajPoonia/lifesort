@@ -19,7 +19,6 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useToast } from "@/hooks/use-toast"
-import { getKitDefinition } from "@/lib/life-kits"
 import type { KitSummary } from "@/lib/life-kits-server"
 
 function dueText(date: string | null, today: string) {
@@ -32,7 +31,6 @@ export function KitCard({ kit, onChanged }: { kit: KitSummary; onChanged: () => 
   const { toast } = useToast()
   const [busy, setBusy] = useState(false)
   const [confirmRemove, setConfirmRemove] = useState(false)
-  const definition = getKitDefinition(kit.kit_key)
   const today = localToday()
   const paused = kit.status === "paused"
 
@@ -83,7 +81,7 @@ export function KitCard({ kit, onChanged }: { kit: KitSummary; onChanged: () => 
     <article className="flex flex-col rounded-xl border bg-card p-4">
       <div className="flex items-start gap-3">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-          <KitIcon name={definition?.icon ?? "FileText"} className="h-5 w-5" />
+          <KitIcon name={kit.icon} className="h-5 w-5" />
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">

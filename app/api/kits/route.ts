@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 
 import { getUserFromSession } from "@/lib/auth"
 import { isPlausibleToday, startKitSchema } from "@/lib/life-kit-input"
-import { getKitDefinition } from "@/lib/life-kits"
+import { CUSTOM_KIT_KEY, getKitDefinition } from "@/lib/life-kits"
 import { listKits, startKit } from "@/lib/life-kits-server"
 
 // GET /api/kits?today=YYYY-MM-DD[&life_area_id=n]: the person's kits with progress.
@@ -36,7 +36,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "That kit isn't valid.", issues: parsed.error.issues }, { status: 400 })
   }
   const body = parsed.data
-  if (!getKitDefinition(body.kit_key)) return NextResponse.json({ error: "That kit doesn't exist." }, { status: 400 })
+  if (body.kit_key !== CUSTOM_KIT_KEY && !getKitDefinition(body.kit_key)) {
+    return NextResponse.json({ error: "That kit doesn't exist." }, { status: 400 })
+  }
   if (!isPlausibleToday(body.today)) return NextResponse.json({ error: "Your device date looks wrong." }, { status: 400 })
 
   try {
@@ -47,6 +49,7 @@ export async function POST(request: Request) {
       inputs: { label: body.label ?? null, amount: body.amount ?? null },
       lifeAreaId: body.life_area_id ?? null,
       skip: body.skip,
+      draft: body.kit_key === CUSTOM_KIT_KEY ? body.draft : null,
     })
     return NextResponse.json({ kit }, { status: 201 })
   } catch (error) {

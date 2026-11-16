@@ -3,7 +3,17 @@ import { randomUUID } from "crypto"
 import { addDaysToDate, daysBetweenDates } from "@/lib/date-math"
 import { sql } from "@/lib/db"
 import { DEFAULT_LIFE_AREAS } from "@/lib/life-areas"
-import { getKitDefinition, kitProgress, planKit, type KitInputs, type KitProgress } from "@/lib/life-kits"
+import {
+  CUSTOM_KIT_KEY,
+  definitionFromDraft,
+  getKitDefinition,
+  kitProgress,
+  planKit,
+  type KitDefinition,
+  type KitDraft,
+  type KitInputs,
+  type KitProgress,
+} from "@/lib/life-kits"
 
 // Database side of Life Kits. Every query is scoped by user_id. "Untouched" means the
 // item's updated_at is not later than kit_updated_at, the value the kit itself last wrote.
@@ -13,6 +23,7 @@ export type KitTask = { id: number; title: string; due_date: string | null; comp
 export type KitSummary = {
   id: string
   kit_key: string
+  icon: KitDefinition["icon"]
   title: string
   status: "active" | "paused" | "finished"
   anchor_date: string
@@ -37,6 +48,13 @@ type KitRow = {
   life_area_id: number | null
   domain_name: string | null
   domain_color: string | null
+  details: { draft?: KitDraft } | null
+}
+
+// Built-in kits come from code; custom kits from the draft saved when they started.
+function definitionFor(kitKey: string, details: { draft?: KitDraft } | null) {
+  if (kitKey === CUSTOM_KIT_KEY) return details?.draft ? definitionFromDraft(details.draft) : null
+  return getKitDefinition(kitKey)
 }
 
 async function resolveDomain(userId: string, domainName: string, lifeAreaId: number | null) {
@@ -66,18 +84,24 @@ export type StartKitInput = {
   inputs: KitInputs
   lifeAreaId: number | null
   skip: string[]
+  draft?: KitDraft | null
 }
 
 // Creates the kit and everything it plans in one transaction, recording each item.
 export async function startKit(userId: string, input: StartKitInput) {
-  const definition = getKitDefinition(input.kitKey)
+  const definition = input.draft ? definitionFromDraft(input.draft) : getKitDefinition(input.kitKey)
   if (!definition) throw new Error("Unknown kit")
 
   const plan = planKit(definition, input.anchorDate, input.today, input.inputs)
   const items = plan.items.filter((item) => !input.skip.includes(item.key))
   const areaId = await resolveDomain(userId, definition.domainName, input.lifeAreaId)
   const kitId = randomUUID()
-  const details = JSON.stringify({ label: input.inputs.label, amount: input.inputs.amount, skipped_past: plan.skippedPast })
+  const details = JSON.stringify({
+    label: input.inputs.label,
+    amount: input.inputs.amount,
+    skipped_past: plan.skippedPast,
+    ...(input.draft ? { draft: input.draft } : {}),
+  })
 
   await sql.transaction((tx) => {
     const queries = [
@@ -149,7 +173,7 @@ export async function startKit(userId: string, input: StartKitInput) {
 export async function listKits(userId: string, today: string, lifeAreaId: number | null): Promise<KitSummary[]> {
   const kits = (await sql`
     SELECT k.id, k.kit_key, k.title, k.status, k.anchor_date::text AS anchor_date, k.start_date::text AS start_date,
-      k.paused_on::text AS paused_on, k.life_area_id, la.name AS domain_name, la.color AS domain_color
+      k.paused_on::text AS paused_on, k.life_area_id, la.name AS domain_name, la.color AS domain_color, k.details
     FROM life_kits k
     LEFT JOIN life_areas la ON la.id = k.life_area_id
     WHERE k.user_id = ${userId} AND (${lifeAreaId}::integer IS NULL OR k.life_area_id = ${lifeAreaId})
@@ -167,7 +191,7 @@ export async function listKits(userId: string, today: string, lifeAreaId: number
   `) as Array<KitTask & { kit_id: string }>
 
   return kits.flatMap((kit) => {
-    const definition = getKitDefinition(kit.kit_key)
+    const definition = definitionFor(kit.kit_key, kit.details)
     if (!definition) return []
     const tasks = taskRows.filter((task) => task.kit_id === kit.id)
     const counted = tasks.filter((task) => task.status !== "cancelled")
@@ -175,6 +199,7 @@ export async function listKits(userId: string, today: string, lifeAreaId: number
       {
         id: kit.id,
         kit_key: kit.kit_key,
+        icon: definition.icon,
         title: kit.title,
         status: kit.status,
         anchor_date: kit.anchor_date,

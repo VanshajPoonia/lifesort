@@ -25,7 +25,7 @@ export type KitDefinition = {
   key: string
   name: string
   summary: string
-  icon: "GraduationCap" | "Briefcase" | "House" | "Dumbbell" | "Wallet" | "Search" | "Plane" | "FileText"
+  icon: "GraduationCap" | "Briefcase" | "House" | "Dumbbell" | "Wallet" | "Search" | "Plane" | "FileText" | "Sparkles"
   domainName: string
   kind: KitKind
   dateLabel: string
@@ -340,6 +340,49 @@ export const LIFE_KITS: KitDefinition[] = [
 
 export function getKitDefinition(key: string) {
   return LIFE_KITS.find((kit) => kit.key === key) ?? null
+}
+
+// A kit the AI drafted from "Describe your situation". Plain data, so it can be shown,
+// edited by unticking, and saved in life_kits.details. Validated by kitDraftSchema.
+export type KitDraft = {
+  name: string
+  summary: string
+  kind: KitKind
+  date_label: string
+  date_offset_days: number
+  length_days: number
+  domain_name: string
+  phases: { name: string; from: number; to: number }[]
+  goal: { title: string; day: number }
+  tasks: { title: string; day: number; from_start: boolean; priority: Priority }[]
+  habits: { name: string; frequency: "daily" | "weekly" | "custom"; days: number[] }[]
+  budget_category: string | null
+  prompts: string[]
+}
+
+export const CUSTOM_KIT_KEY = "custom"
+
+export function definitionFromDraft(draft: KitDraft): KitDefinition {
+  return {
+    key: CUSTOM_KIT_KEY,
+    name: draft.name,
+    summary: draft.summary,
+    icon: "Sparkles",
+    domainName: draft.domain_name,
+    kind: draft.kind,
+    dateLabel: draft.date_label,
+    defaultDateOffset: draft.date_offset_days,
+    lengthDays: draft.length_days,
+    title: () => draft.name,
+    phases: draft.phases,
+    goal: () => draft.goal,
+    tasks: () => draft.tasks.map((task) => ({ title: task.title, day: task.day, from: task.from_start ? "start" : undefined, priority: task.priority })),
+    habits: draft.habits.map((habit) => ({ name: habit.name, frequency: habit.frequency, days: habit.days })),
+    budgetCategory: draft.budget_category
+      ? () => ({ name: draft.budget_category as string, icon: "Wallet", color: "#0F766E" })
+      : undefined,
+    prompts: draft.prompts,
+  }
 }
 
 export type KitInputs = { label: string | null; amount: number | null }

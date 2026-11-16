@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { isPlausibleToday, kitStatusSchema, startKitSchema } from "./life-kit-input"
+import { isPlausibleToday, kitDraftSchema, kitStatusSchema, startKitSchema } from "./life-kit-input"
 
 const base = { kit_key: "trip", anchor_date: "2026-12-20", today: "2026-11-16" }
 
@@ -38,5 +38,31 @@ describe("kitStatusSchema", () => {
   it("only allows active, paused and finished", () => {
     expect(kitStatusSchema.safeParse({ status: "paused", today: "2026-11-16" }).success).toBe(true)
     expect(kitStatusSchema.safeParse({ status: "removed", today: "2026-11-16" }).success).toBe(false)
+  })
+})
+
+describe("custom kits", () => {
+  it("need their draft to start", () => {
+    expect(startKitSchema.safeParse({ ...base, kit_key: "custom" }).success).toBe(false)
+  })
+
+  it("reject a draft without tasks", () => {
+    const draft = {
+      name: "X",
+      summary: "",
+      kind: "start",
+      date_label: "When?",
+      date_offset_days: 0,
+      length_days: 30,
+      domain_name: "Personal",
+      phases: [],
+      goal: { title: "Done", day: 30 },
+      tasks: [],
+      habits: [],
+      budget_category: null,
+      prompts: [],
+    }
+    expect(kitDraftSchema.safeParse(draft).success).toBe(false)
+    expect(kitDraftSchema.safeParse({ ...draft, tasks: [{ title: "Start", day: 0, from_start: true, priority: "low" }] }).success).toBe(true)
   })
 })
