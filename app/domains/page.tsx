@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { ArrowDown, ArrowUp, Edit, Plus, Trash2 } from "lucide-react"
 
 import { DashboardLayout } from "@/components/dashboard-layout"
+import { KitList } from "@/components/kits/kit-list"
 import { LifeAreaIcon } from "@/components/life-area-controls"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -268,6 +269,8 @@ export default function DomainsPage() {
             </Button>
           </div>
         </section>
+
+        <KitList title="Your kits" emptyText="Starting a semester, a new job or a move? A kit sets up the steps, a goal and habits from one date." />
 
         <Tabs value={statusFilter} onValueChange={(value) => setStatusFilter(value as DomainStatus | "all")}>
           <TabsList className="flex w-full justify-start overflow-x-auto rounded-lg bg-muted/70 p-1 sm:inline-flex sm:w-auto">

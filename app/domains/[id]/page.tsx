@@ -3,11 +3,12 @@
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { ArrowLeft, CheckCircle2, ExternalLink, Link2, Loader2, Lock, Plus, Settings2, Sparkles, Target, Trash2 } from "lucide-react"
+import { ArrowLeft, CheckCircle2, ExternalLink, Link2, Loader2, Lock, Plus, Settings2, Target, Trash2 } from "lucide-react"
 
 import { useAuth } from "@/components/auth-provider"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { useDomainFocus } from "@/components/domain-focus-provider"
+import { KitList } from "@/components/kits/kit-list"
 import { LifeAreaIcon } from "@/components/life-area-controls"
 import { RelatedItems } from "@/components/related-items"
 import { Badge } from "@/components/ui/badge"
@@ -611,17 +612,6 @@ export default function DomainDetailPage() {
                       <Target className="h-4 w-4" />
                       {domainFocus?.id === String(domain.id) ? "Exit focus" : "Focus on this domain"}
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-2"
-                      onClick={() =>
-                        router.push(`/templates?domain_id=${domain.id}&domain_name=${encodeURIComponent(domain.name)}`)
-                      }
-                    >
-                      <Sparkles className="h-4 w-4" />
-                      Apply a template
-                    </Button>
                     <Button size="sm" variant="outline" className="gap-2" onClick={openSettings}>
                       <Settings2 className="h-4 w-4" />
                       Domain Settings
@@ -630,6 +620,8 @@ export default function DomainDetailPage() {
                 </div>
               </div>
             </section>
+
+            <KitList lifeAreaId={Number(domain.id)} emptyText={`No kits in ${domain.name} yet. A kit sets up steps, a goal and habits for something you're going through.`} />
 
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="flex w-full justify-start overflow-x-auto rounded-lg bg-muted/70 p-1 sm:inline-flex sm:w-auto">
