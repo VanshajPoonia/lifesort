@@ -51,6 +51,7 @@ import {
 const tabLoading = () => <Skeleton className="h-64 w-full rounded-xl" />
 const NotificationsView = dynamic(() => import("@/components/settings/notifications-view").then((m) => m.NotificationsView), { loading: tabLoading })
 const PhoneSetupCard = dynamic(() => import("@/components/pwa/phone-setup-card").then((m) => m.PhoneSetupCard), { loading: tabLoading })
+const ImportTasks = dynamic(() => import("@/components/settings/import-tasks").then((m) => m.ImportTasks), { loading: tabLoading })
 const RulesView = dynamic(() => import("@/components/settings/rules-view").then((m) => m.RulesView), { loading: tabLoading })
 
 const settingsTabs = ["profile", "notifications", "rules", "journal", "content", "faqs", "account"]
@@ -845,6 +846,7 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="account" className="section-enter space-y-5 md:space-y-6">
+          {activeTab === "account" && <ImportTasks />}
           <Card className="surface-card">
             <CardHeader>
               <CardTitle>Account Information</CardTitle>
