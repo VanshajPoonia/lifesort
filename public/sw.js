@@ -60,3 +60,41 @@ async function trimCache(cache) {
   const extra = keys.length - MAX_STATIC_ENTRIES
   for (const key of keys.slice(0, Math.max(0, extra))) await cache.delete(key)
 }
+
+// Push reminders sent by lib/push.ts. The payload is { title, body, url, tag }.
+self.addEventListener("push", (event) => {
+  let data = {}
+  try {
+    data = event.data ? event.data.json() : {}
+  } catch {
+    data = { body: event.data ? event.data.text() : "" }
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || "LifeSort", {
+      body: data.body || "",
+      icon: "/icon-192.png",
+      tag: data.tag,
+      data: { url: data.url || "/" },
+    }),
+  )
+})
+
+// Opens LifeSort at the reminder's page, reusing an open window when there is one.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close()
+  const target = new URL(event.notification.data?.url || "/", self.location.origin)
+  const url = target.origin === self.location.origin ? target.href : self.location.origin + "/"
+  event.waitUntil(
+    (async () => {
+      const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true })
+      const open = windows.find((client) => new URL(client.url).origin === self.location.origin)
+      if (open) {
+        await open.focus()
+        // navigate() rejects for a window this worker doesn't control yet.
+        const navigated = "navigate" in open ? await open.navigate(url).catch(() => null) : null
+        if (navigated) return
+      }
+      await self.clients.openWindow(url)
+    })(),
+  )
+})

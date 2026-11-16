@@ -50,6 +50,7 @@ import {
 // Rules and Notifications were their own pages until 2026-11-16. They load on demand.
 const tabLoading = () => <Skeleton className="h-64 w-full rounded-xl" />
 const NotificationsView = dynamic(() => import("@/components/settings/notifications-view").then((m) => m.NotificationsView), { loading: tabLoading })
+const PhoneSetupCard = dynamic(() => import("@/components/pwa/phone-setup-card").then((m) => m.PhoneSetupCard), { loading: tabLoading })
 const RulesView = dynamic(() => import("@/components/settings/rules-view").then((m) => m.RulesView), { loading: tabLoading })
 
 const settingsTabs = ["profile", "notifications", "rules", "journal", "content", "faqs", "account"]
@@ -515,8 +516,13 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="notifications" className="section-enter">
-          {activeTab === "notifications" && <NotificationsView />}
+        <TabsContent value="notifications" className="section-enter space-y-6">
+          {activeTab === "notifications" && (
+            <>
+              <PhoneSetupCard />
+              <NotificationsView />
+            </>
+          )}
         </TabsContent>
 
         <TabsContent value="rules" className="section-enter">
