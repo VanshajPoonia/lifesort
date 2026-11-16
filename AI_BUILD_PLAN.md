@@ -23,7 +23,7 @@ This file is the **reconciled** plan: the raw product vision (Appendix A) filter
 
 ## Part 0: Current direction (2026-11-11)
 
-**Start here. Part 0 sets the build order.** Where it disagrees with the phase order in Part C, Part 0 wins. Part C stays as the detailed backlog. The research behind every point is in `AI_MARKET_RESEARCH.md`.
+**Start here. Part 0 sets the build order.** Where it disagrees with the phase order in Part C, Part 0 wins. Part C stays as the detailed backlog. The research behind every point is in `AI_MARKET_RESEARCH.md`. A plain summary for the user lives in `STATUS.md`; update it whenever a stage or a waiting decision changes.
 
 ### Who LifeSort is for
 

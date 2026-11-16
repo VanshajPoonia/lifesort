@@ -19,6 +19,13 @@ Current verification state (2026-11-17, after imports and task breakdown):
 
 ## Completed Work
 
+### 2026-11-17 IST - STATUS.md for the user
+
+- **Agent/tool used:** Claude Code (Opus 5.5). The user asked for one markdown file to refer back to, and whether everything planned was done.
+- **Changes:** `STATUS.md` (new): the seven places, what each stage built and where to find it, what was checked and how, a try-it checklist, what waits on the user, what's left in Part C, and known issues. `AI_BUILD_PLAN.md` Part 0 now points to it and asks that it be kept current.
+- **Answer given:** Part 0 is mostly built and the rest waits on the user's decisions; Part C still has many partial or untouched items.
+- **Commands run:** none needed beyond a check that the file has no em dashes (docs only).
+
 ### 2026-11-17 IST - Later list: task breakdown, task import, bank statement import
 
 - **Agent/tool used:** Claude Code (Opus 5.5). Branches `later/task-breakdown` then `later/task-import` (stacked). The user said to keep building; these are the Later items that need no outside service or decision.
