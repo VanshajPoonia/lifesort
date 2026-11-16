@@ -14,7 +14,7 @@ interface ReminderItem {
   email: string
   user_name: string
   reminder_days: number
-  type: 'goal' | 'nuke' | 'task' | 'event'
+  type: 'goal' | 'task' | 'event'
 }
 
 // Shape of each row returned by the SQL queries below — Neon's tagged template
@@ -72,28 +72,6 @@ export async function GET(request: Request) {
       })
     }
     
-    // Find nuke goals with reminders
-    const nukeGoals = await sql`
-      SELECT n.id, n.title, n.description, n.deadline as target_date, n.reminder_days,
-             u.email, u.name as user_name
-      FROM nuke_goals n
-      JOIN users u ON n.user_id = u.id
-      WHERE n.completed = false
-      AND (n.reminder_sent IS NULL OR n.reminder_sent = false)
-      AND (n.email_reminder IS NULL OR n.email_reminder = true)
-      AND n.deadline IS NOT NULL
-      AND u.email IS NOT NULL
-      AND DATE(n.deadline) = CURRENT_DATE + INTERVAL '1 day' * COALESCE(n.reminder_days, 3)
-    `
-    
-    for (const nuke of nukeGoals as ReminderRow[]) {
-      allReminders.push({
-        ...nuke,
-        reminder_days: nuke.reminder_days || 3,
-        type: 'nuke',
-      })
-    }
-    
     // Find tasks with due dates
     const tasks = await sql`
       SELECT t.id, t.title, t.description, t.due_date as target_date, t.reminder_days,
@@ -123,14 +101,12 @@ export async function GET(request: Request) {
       try {
         const typeLabels = {
           goal: 'Goal',
-          nuke: 'Focus Goal',
           task: 'Task',
           event: 'Event'
         }
         
         const typeColors = {
           goal: '#7c3aed',
-          nuke: '#ef4444',
           task: '#3b82f6',
           event: '#10b981'
         }
@@ -180,7 +156,7 @@ export async function GET(request: Request) {
                     You have <strong>${daysText}</strong> left to complete this ${typeLabels[item.type].toLowerCase()}. Stay focused and keep pushing forward!
                   </p>
                   
-                  <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://your-app.vercel.app'}/${item.type === 'nuke' ? 'nuke' : item.type + 's'}" class="cta">
+                  <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://your-app.vercel.app'}/${item.type}s" class="cta">
                     View Your ${typeLabels[item.type]}s
                   </a>
                   
@@ -197,8 +173,6 @@ export async function GET(request: Request) {
         // Mark reminder as sent based on type
         if (item.type === 'goal') {
           await sql`UPDATE goals SET reminder_sent = true WHERE id = ${item.id}`
-        } else if (item.type === 'nuke') {
-          await sql`UPDATE nuke_goals SET reminder_sent = true WHERE id = ${item.id}`
         } else if (item.type === 'task') {
           await sql`UPDATE tasks SET reminder_sent = true WHERE id = ${item.id}`
         }
@@ -217,7 +191,6 @@ export async function GET(request: Request) {
       emailsSent: emailsSent.length,
       breakdown: {
         goals: allReminders.filter(r => r.type === 'goal').length,
-        nukeGoals: allReminders.filter(r => r.type === 'nuke').length,
         tasks: allReminders.filter(r => r.type === 'task').length,
       },
       details: emailsSent,
