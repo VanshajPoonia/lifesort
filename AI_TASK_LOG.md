@@ -10,7 +10,7 @@ Keep it short. Entries dated before 2026-10 were moved word for word to `AI_TASK
 
 LifeSort is a broad Next.js App Router application with many implemented product areas and a Vercel-oriented deployment. The repo now has persistent AI memory files in the project root.
 
-Current verification state (2026-11-11, after Stage 1 step 3):
+Current verification state (2026-11-16, after the Stage 1 leftovers):
 
 - `npm run build` passes with TypeScript validation now actually enforced (`next.config.mjs`'s `typescript.ignoreBuildErrors` is `false`; `tsc --noEmit` is clean). `eslint.ignoreDuringBuilds` remains `true` — 62 pre-existing lint findings remain (down from 293 originally; see the 2026-07-25 ESLint cleanup entry, 66 → 65 in the 2026-10-28 design pass, 65 → 64 in the 2026-11-11 Today merge and 64 → 62 in Stage 1 step 3), every one a reviewed-and-commented `react-hooks/set-state-in-effect` exception (either a real state transition or a function intentionally shared with non-effect call sites). It still exits non-zero; that is expected and not a blocker.
 - `npm run lint` runs cleanly via `eslint.config.mjs` (ESLint 9.x + `eslint-config-next@16`) — it exits non-zero on real findings, it does not fail to run.
@@ -18,6 +18,27 @@ Current verification state (2026-11-11, after Stage 1 step 3):
 - `npx tsc --noEmit` is clean.
 
 ## Completed Work
+
+### 2026-11-16 22:30 IST - Stage 1 leftovers: retire the last old screens
+
+- **Agent/tool used:** Claude Code (Opus 5.5). Branch `stage1/retire-leftover-screens`. The user said to work on Lifesort; this closes the Stage 1 exit line "the retired screens are gone".
+- **Read-only count first:** `nuke_goals`, `pomodoro_sessions`, `pomodoro_settings`, `personal_rules` and `goals` had 0 rows, `notifications` 4, `users` 2.
+- **Changes, one commit each:**
+  - `app/reflect/page.tsx` (moved from `app/insights/page.tsx`), `app/reflect/journal-insights-charts.tsx` (moved), `app/insights/page.tsx` (now a redirect), `lib/life-score.ts`: Reflect owns its code. The old page checked the path to pick a title. `/insights` redirects to `/reflect` with its query string. The LifeScore balance link points at the Life Balance tab.
+  - `components/reflect/timeline-view.tsx` (moved from `app/timeline/page.tsx`), `app/timeline/page.tsx` (redirect), `app/reflect/page.tsx`, `app/api/search/route.ts`: the Timeline tab renders the timeline (loaded on demand) instead of a card linking out. Search results point at the tab.
+  - `components/reflect/lifescore-view.tsx` (new, from the old Home card in git history), `app/reflect/page.tsx`: the Today merge removed LifeScore from Home but Reflect's LifeScore tab still linked to Home. The tab now shows the score, every part with its reason, the small improvements and Explain with AI. The unused `ReflectLinkPanel` is gone.
+  - `app/pomodoro/page.tsx`, `app/reset/page.tsx` (redirects to `/`), deleted `app/pomodoro/loading.tsx`, `app/reset/loading.tsx`, `app/api/reset/` (3 routes), `app/api/ai/reset-suggestions/`, `lib/reset.ts`, `lib/ai-usage.ts` (`reset_suggestions` limit), `app/reflect/page.tsx`: Today's focus timer and Start fresh card replace both pages. Reflect lost its red "Feeling overwhelmed? Reset My Life" banner.
+  - Deleted `app/api/dashboard/`: no caller since `c015d1f` (2026-05-15). It was the last reader of `nuke_goals` outside Focus Goal.
+  - `app/nuke/page.tsx` (redirect to `/goals`), deleted `app/nuke/loading.tsx` and `app/api/nuke-goal/`, `app/api/cron/deadline-reminders/route.ts`: Focus Goal is retired and the reminder cron no longer reads `nuke_goals`. The user chose not to build a pinned goal on Today.
+  - `components/settings/rules-view.tsx` (moved from `app/rules/page.tsx`), `components/settings/notifications-view.tsx` (moved from `app/notifications/page.tsx`), `app/rules/page.tsx`, `app/notifications/page.tsx` (redirects), deleted `app/rules/loading.tsx`, `app/settings/page.tsx`, `components/notification-bell.tsx`: Rules and Notifications are Settings tabs, loaded on demand. Settings reads its tab from `useSearchParams` and changes it with `router.replace`, so the bell's View all link (`/settings?tab=notifications`) also switches the tab when Settings is already open. The eight static cards above the tabs are gone and Settings has a heading. The unread count is a neutral "N new" badge instead of red. Rules got a visible heading (the `DashboardLayout` title was never rendered).
+  - `lib/life-score.ts`: found in browser testing. LifeScore suggested "Clear one overdue task" with no overdue tasks because it always took the three lowest parts. Parts at 100 are skipped now.
+  - `scripts/migrations/2026-11-16-drop-focus-goal-pomodoro.sql` (new): drops `nuke_goals`, `pomodoro_sessions` and `pomodoro_settings` after a guard that recounts rows. Nothing has a foreign key into them. A read-only dry run of the guard counted 0. The user approved the drop on 2026-11-16; it runs only after this branch is live.
+  - `AI_PROJECT.md`, `AI_DECISIONS.md`, `AI_BUILD_PLAN.md`, this file: record the above, Stage 1 complete, and the user's answers.
+- **Commands run:** `npx tsc --noEmit` clean (after clearing stale `.next/types` that still listed deleted routes). `npm test` 114/114. `npm run lint` 51 findings, down from 52, all reviewed `react-hooks/set-state-in-effect` (Settings lost its tab-sync effect). `npm run build` passes.
+- **Redirect check** on `127.0.0.1:3100` (production build): `/insights?tab=journal` → `/reflect?tab=journal`, `/timeline?type=…` → `/reflect?…&tab=timeline`, `/pomodoro` and `/reset` → `/`, `/nuke` → `/goals`, `/rules` → `/settings?tab=rules`, `/notifications?x=1` → `/settings?x=1&tab=notifications`. The root `loading.tsx` makes these stream as `NEXT_REDIRECT` in a 200 response, same as the existing `/review`; the browser follows them.
+- **Browser test:** with the user's OK, a throwaway account (`lifesort-leftovers-test-*@example.com`). LifeScore showed the empty state, then the score after two test tasks (one completed). Timeline showed the completed task inside Reflect. `/notifications` landed on the Settings tab with "2 new", the Rules tab loaded, and the bell's View all switched back from Rules. `/nuke` landed on Goals. No console errors. In a 390px frame, Settings (Notifications, Rules) and Reflect (Timeline, LifeScore) had no sideways scroll. The account and its rows (2 tasks, 13 domains, 2 notifications, 1 LifeScore snapshot, 1 session) were deleted in one guarded transaction; `users` is back to 2. The LifeScore suggestion fix was not re-checked on screen because the disk filled up before the rebuild; the rebuild after it passes.
+- **Remaining issues:** saved sidebar preference keys `nuke` and `pomodoro` and the `/pomodoro` and `/nuke` entries in the Tasks `aliases` stay; they are harmless. Coach replies still show raw markdown. `lifesort.kreativvantage.com` still needs the Cloudflare fix.
+- **Suggested next steps:** run the drop migration once production is Ready, then Stage 2 (installable web app: service worker, install prompt, push, share target, voice capture).
 
 ### 2026-11-11 23:59 IST - Deploy, drop the folded tables, Stage 1 step 4 (Capture into Inbox)
 

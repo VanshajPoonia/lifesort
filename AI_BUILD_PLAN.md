@@ -53,7 +53,7 @@ So LifeSort has no active users yet, and there is almost no data to protect. **T
 
 | Sidebar | What goes in it |
 |---|---|
-| Today | Home and Today merged. Reset My Life becomes the welcome-back flow. Focus Goal becomes a pinned goal. Pomodoro becomes a focus mode on a task |
+| Today | Home and Today merged. Reset My Life becomes the welcome-back flow. Pomodoro becomes a focus mode on a task. Focus Goal is retired; Goals and Today's focus list cover it (user decision 2026-11-16, no pinned goal) |
 | Inbox | Inbox and Capture as one box. Typing, voice and photos all land here |
 | Tasks | List, Board, Calendar and Habits tabs. Waiting and Someday become task filters |
 | Domains | The one way to group things: Domain, then Goal, then Project, then Task. Kits attach here |
@@ -75,6 +75,7 @@ Settings absorbs Rules and the full Notifications page. Every old URL keeps work
 7. ✅ Rebuild Reflect around Weekly Review and turn Coach into a side panel (done 2026-11-11: Weekly Review is Reflect's first tab, Coach opens from a header button on every page).
 8. ✅ Cut the sidebar to the 7 places (done 2026-11-11).
 - **Exit:** 7 sidebar places, every old URL redirects, the retired screens are gone.
+- ✅ Leftovers done 2026-11-16: `/insights` and `/timeline` redirect into Reflect (Timeline and LifeScore render as Reflect tabs), `/pomodoro` and `/reset` redirect to Today, `/nuke` redirects to Goals, and `/rules` and `/notifications` are Settings tabs. **Stage 1 is complete.**
 
 **Stage 2: Installable web app and capture**
 - Service worker, install prompt, offline app shell, home screen shortcuts (Add task, Capture).
@@ -125,6 +126,8 @@ All were empty on 2026-11-11. Before running a drop:
 - Search the code for remaining references (search, timeline, notifications, LifeScore, navigation summary, Coach context, templates, Reset).
 - Run it only after the code without those references is deployed to production. Every Vercel environment shares one database, so dropping a table early breaks the live site.
 
+Added 2026-11-16 with the user's OK: `nuke_goals`, `pomodoro_sessions` and `pomodoro_settings` (0 rows, no readers left). Migration: `scripts/migrations/2026-11-16-drop-focus-goal-pomodoro.sql`, same rules as below.
+
 Status (2026-11-11): the four Stage 1 step 3 tables have no readers or writers left, and `scripts/migrations/2026-11-11-drop-folded-tables.sql` is written. It recounts the rows and refuses to drop if any exist. A read-only dry run passed the guard. It ran on 2026-11-11 after `main` was fast-forwarded and the production deploy was Ready. All four tables are gone and the schema snapshots no longer create them.
 
 ### Freeze (no new work)
@@ -154,6 +157,12 @@ Status (2026-11-11): the four Stage 1 step 3 tables have no readers or writers l
 - Pricing: everything is free for now.
 - Kits: the user decides later. At Stage 3, present kit options as a tick list.
 - Stage 1: start now.
+
+### User answers (2026-11-16)
+
+- Throwaway test account on the production database for the browser test: allowed, deleted afterwards.
+- Drop `nuke_goals`, `pomodoro_sessions` and `pomodoro_settings` after the deploy: yes.
+- Pinned goal on Today in place of Focus Goal: no, the Focus list is enough.
 
 ---
 
