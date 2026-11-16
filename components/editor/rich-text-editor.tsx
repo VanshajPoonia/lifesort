@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { ReactNode } from "react"
 import { EditorContent, useEditor } from "@tiptap/react"
 import { BubbleMenu } from "@tiptap/react/menus"
@@ -37,6 +37,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useDictation } from "@/hooks/use-dictation"
 import { normalizeRichTextForEditor } from "@/lib/rich-text"
 import { cn } from "@/lib/utils"
 
@@ -74,44 +75,6 @@ type RefineState =
   | { status: "loading"; action: AiRefineAction; label: string }
   | { status: "ready"; selection: RefineSelection; refinedText: string }
   | { status: "error"; message: string }
-
-type SpeechRecognitionAlternativeLike = { transcript: string }
-type SpeechRecognitionResultLike = {
-  isFinal: boolean
-  length: number
-  [index: number]: SpeechRecognitionAlternativeLike
-}
-type SpeechRecognitionResultListLike = {
-  length: number
-  [index: number]: SpeechRecognitionResultLike
-}
-type SpeechRecognitionEventLike = {
-  resultIndex: number
-  results: SpeechRecognitionResultListLike
-}
-type SpeechRecognitionErrorEventLike = {
-  error?: string
-  message?: string
-}
-type SpeechRecognitionLike = {
-  continuous: boolean
-  interimResults: boolean
-  lang: string
-  onresult: ((event: SpeechRecognitionEventLike) => void) | null
-  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null
-  onend: (() => void) | null
-  start: () => void
-  stop: () => void
-  abort: () => void
-}
-type SpeechRecognitionConstructorLike = new () => SpeechRecognitionLike
-
-declare global {
-  interface Window {
-    SpeechRecognition?: SpeechRecognitionConstructorLike
-    webkitSpeechRecognition?: SpeechRecognitionConstructorLike
-  }
-}
 
 function isAllowedLink(url: string) {
   const trimmed = url.trim()
@@ -225,15 +188,7 @@ export function RichTextEditor({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pendingHtmlRef = useRef<string | null>(null)
   const syncingRef = useRef(false)
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
-  const listeningRef = useRef(false)
   const [refineState, setRefineState] = useState<RefineState>({ status: "idle" })
-  const [dictationState, setDictationState] = useState<{
-    listening: boolean
-    unsupported: boolean
-    interim: string
-    message: string
-  }>({ listening: false, unsupported: false, interim: "", message: "" })
 
   useEffect(() => {
     onChangeRef.current = onChange
@@ -295,14 +250,6 @@ export function RichTextEditor({
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
       if (pendingHtmlRef.current !== null) onChangeRef.current(pendingHtmlRef.current)
-    }
-  }, [])
-
-  useEffect(() => {
-    return () => {
-      recognitionRef.current?.abort()
-      recognitionRef.current = null
-      listeningRef.current = false
     }
   }, [])
 
@@ -400,100 +347,18 @@ export function RichTextEditor({
     setRefineState({ status: "idle" })
   }
 
-  const getSpeechRecognitionConstructor = () => {
-    if (typeof window === "undefined") return null
-    return window.SpeechRecognition || window.webkitSpeechRecognition || null
-  }
-
-  const appendDictation = (text: string) => {
-    const transcript = text.trim()
-    if (!editor || !transcript) return
-    editor.chain().focus().insertContentAt(editor.state.doc.content.size, paragraphContent(transcript)).run()
-  }
-
-  const stopDictation = () => {
-    recognitionRef.current?.stop()
-    listeningRef.current = false
-    setDictationState((current) => ({ ...current, listening: false, interim: "", message: current.message || "Dictation stopped." }))
-  }
+  const appendDictation = useCallback(
+    (text: string) => {
+      if (!editor || !text) return
+      editor.chain().focus().insertContentAt(editor.state.doc.content.size, paragraphContent(text)).run()
+    },
+    [editor],
+  )
+  const dictation = useDictation(appendDictation)
 
   const toggleDictation = () => {
     if (!dictationEnabled || disabled) return
-    if (listeningRef.current) {
-      stopDictation()
-      return
-    }
-
-    const SpeechRecognitionConstructor = getSpeechRecognitionConstructor()
-    if (!SpeechRecognitionConstructor) {
-      setDictationState({
-        listening: false,
-        unsupported: true,
-        interim: "",
-        message: "Voice dictation is not supported in this browser.",
-      })
-      return
-    }
-
-    const recognition = new SpeechRecognitionConstructor()
-    recognition.continuous = true
-    recognition.interimResults = true
-    recognition.lang = "en-US"
-
-    recognition.onresult = (event) => {
-      let finalTranscript = ""
-      let interimTranscript = ""
-
-      for (let index = event.resultIndex; index < event.results.length; index += 1) {
-        const result = event.results[index]
-        const transcript = result[0]?.transcript ?? ""
-        if (result.isFinal) {
-          finalTranscript += transcript
-        } else {
-          interimTranscript += transcript
-        }
-      }
-
-      if (finalTranscript.trim()) appendDictation(finalTranscript)
-      setDictationState((current) => ({ ...current, interim: interimTranscript.trim(), message: "" }))
-    }
-
-    recognition.onerror = (event) => {
-      listeningRef.current = false
-      setDictationState({
-        listening: false,
-        unsupported: false,
-        interim: "",
-        message: event.message || event.error || "Voice dictation stopped.",
-      })
-    }
-
-    recognition.onend = () => {
-      listeningRef.current = false
-      recognitionRef.current = null
-      setDictationState((current) => ({
-        ...current,
-        listening: false,
-        interim: "",
-        message: current.message || "Dictation stopped.",
-      }))
-    }
-
-    try {
-      recognitionRef.current = recognition
-      listeningRef.current = true
-      setDictationState({ listening: true, unsupported: false, interim: "", message: "Listening..." })
-      recognition.start()
-    } catch {
-      listeningRef.current = false
-      recognitionRef.current = null
-      setDictationState({
-        listening: false,
-        unsupported: false,
-        interim: "",
-        message: "Could not start voice dictation.",
-      })
-    }
+    dictation.toggle()
   }
 
   const rootClass = cn(
@@ -565,12 +430,12 @@ export function RichTextEditor({
           <>
             <span className="mx-1 h-6 w-px bg-border" aria-hidden="true" />
             <ToolbarButton
-              label={dictationState.listening ? "Stop dictation" : dictationLabel}
-              active={dictationState.listening}
+              label={dictation.listening ? "Stop dictation" : dictationLabel}
+              active={dictation.listening}
               disabled={disabled}
               onClick={toggleDictation}
             >
-              {dictationState.listening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+              {dictation.listening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
             </ToolbarButton>
           </>
         )}
@@ -650,18 +515,18 @@ export function RichTextEditor({
         </div>
       )}
 
-      {dictationEnabled && (dictationState.listening || dictationState.unsupported || dictationState.message || dictationState.interim) && (
+      {dictationEnabled && (dictation.listening || dictation.unsupported || dictation.message || dictation.interim) && (
         <div
           className={cn(
             "border-b px-3 py-2 text-sm",
-            dictationState.unsupported ? "bg-amber-500/10 text-amber-700 dark:text-amber-300" : "bg-muted/35 text-muted-foreground",
+            dictation.unsupported ? "bg-amber-500/10 text-amber-700 dark:text-amber-300" : "bg-muted/35 text-muted-foreground",
           )}
           aria-live="polite"
         >
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span>{dictationState.interim || dictationState.message}</span>
-            {dictationState.listening && (
-              <Button type="button" size="sm" variant="outline" onClick={stopDictation}>
+            <span>{dictation.interim || dictation.message}</span>
+            {dictation.listening && (
+              <Button type="button" size="sm" variant="outline" onClick={dictation.stop}>
                 Stop
               </Button>
             )}
