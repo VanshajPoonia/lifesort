@@ -1,20 +1,11 @@
 import { NextResponse } from "next/server"
-import { neon } from "@/lib/neon-client"
+
 import { getUserFromSession } from "@/lib/auth"
-import { encryptToken, decryptToken } from "@/lib/token-crypto"
+import { sql } from "@/lib/db"
+import { accessTokenFor, applyGoogleChanges, type GoogleIntegration } from "@/lib/google-calendar-server"
+import type { GoogleEventRaw } from "@/lib/google-sync"
 
-const sql = neon(process.env.DATABASE_URL!)
-
-type CalendarIntegrationRow = Record<string, unknown>
-
-type GoogleCalendarEventRaw = {
-  id: string
-  summary?: string
-  description?: string
-  start?: { dateTime?: string; date?: string }
-  end?: { dateTime?: string; date?: string }
-  location?: string
-}
+type GoogleEventFull = GoogleEventRaw & { description?: string; location?: string }
 
 type CalendarEventItem = {
   id: string
@@ -28,48 +19,19 @@ type CalendarEventItem = {
   location: string
 }
 
-async function refreshGoogleToken(integration: CalendarIntegrationRow) {
-  // integration.refresh_token may be encrypted (v1:...) or plaintext (legacy
-  // row pre-encryption). decryptToken passes through plaintext.
-  const refreshToken = decryptToken(integration.refresh_token as string | null)
-  if (!refreshToken) return null
-
-  const response = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: process.env.GOOGLE_CLIENT_ID!,
-      client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-      refresh_token: refreshToken,
-      grant_type: "refresh_token",
-    }),
-  })
-
-  const tokens = await response.json()
-  if (response.ok) {
-    const expiresAt = new Date(Date.now() + tokens.expires_in * 1000)
-    const encryptedAccess = encryptToken(tokens.access_token)
-    await sql`
-      UPDATE calendar_integrations
-      SET access_token = ${encryptedAccess}, expires_at = ${expiresAt.toISOString()}, updated_at = NOW()
-      WHERE id = ${integration.id as number}
-    `
-    return tokens.access_token
-  }
-  return null
-}
-
-async function fetchGoogleEvents(accessToken: string, timeMin: string, timeMax: string): Promise<CalendarEventItem[]> {
+async function fetchGoogleEvents(accessToken: string, timeMin: string, timeMax: string): Promise<GoogleEventFull[]> {
   const response = await fetch(
     `https://www.googleapis.com/calendar/v3/calendars/primary/events?` +
-    `timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
+    `timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime&maxResults=250`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
   )
-
   if (!response.ok) return []
-
   const data = await response.json()
-  return (data.items || []).map((event: GoogleCalendarEventRaw) => ({
+  return data.items || []
+}
+
+function toItem(event: GoogleEventFull): CalendarEventItem {
+  return {
     id: `google_${event.id}`,
     title: event.summary || "No Title",
     description: event.description || "",
@@ -79,59 +41,45 @@ async function fetchGoogleEvents(accessToken: string, timeMin: string, timeMax: 
     provider: "google",
     color: "#4285f4",
     location: event.location || "",
-  }))
+  }
 }
 
+// GET: Google events for a range. Changes made in Google to LifeSort's own copies are
+// applied to the LifeSort items first (`pulled` counts them), and those copies are left out.
 export async function GET(request: Request) {
-  // Use the same auth pattern as every other protected route. The previous
-  // implementation read a `session_id` cookie and queried `sessions.id` — but
-  // the main auth system in `lib/auth.ts` sets a `session` cookie containing
-  // the session_token. The mismatch caused this route to always 401.
   const user = await getUserFromSession()
   if (!user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   }
 
-  const userId = user.id
   const { searchParams } = new URL(request.url)
-  
-  // Default to current month
   const now = new Date()
   const timeMin = searchParams.get("timeMin") || new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
   const timeMax = searchParams.get("timeMax") || new Date(now.getFullYear(), now.getMonth() + 2, 0).toISOString()
 
-  // Get user's calendar integrations
-  const integrations = await sql`
-    SELECT * FROM calendar_integrations WHERE user_id = ${userId}
-  `
+  const integrations = (await sql`
+    SELECT id, user_id, provider, access_token, refresh_token, expires_at, scope, time_zone, sync_to_google
+    FROM calendar_integrations WHERE user_id = ${user.id}
+  `) as (GoogleIntegration & { provider: string })[]
 
   const allEvents: CalendarEventItem[] = []
+  let pulled = 0
 
   for (const integration of integrations) {
-    // Decrypt the stored access_token. Pass-through for legacy plaintext rows.
-    let accessToken = decryptToken(integration.access_token as string | null)
-
-    // Check if token is expired
-    if (new Date(integration.expires_at as string | number | Date) < new Date()) {
-      if (integration.provider === "google") {
-        accessToken = await refreshGoogleToken(integration)
-      }
-    }
-
-    if (!accessToken) continue
-
+    if (integration.provider !== "google") continue
     try {
-      if (integration.provider === "google") {
-        const events = await fetchGoogleEvents(accessToken, timeMin, timeMax)
-        allEvents.push(...events)
-      }
+      const accessToken = await accessTokenFor(integration)
+      if (!accessToken) continue
+      const events = await fetchGoogleEvents(accessToken, timeMin, timeMax)
+      const changes = await applyGoogleChanges(user.id, integration.time_zone, events)
+      pulled += changes.pulled
+      allEvents.push(...events.filter((event) => !changes.ours.has(event.id)).map(toItem))
     } catch (error) {
-      console.error(`Error fetching ${integration.provider} events:`, error)
+      console.error("Error fetching google events:", error)
     }
   }
 
-  // Sort by start time
   allEvents.sort((a, b) => new Date(a.start || "").getTime() - new Date(b.start || "").getTime())
 
-  return NextResponse.json({ events: allEvents })
+  return NextResponse.json({ events: allEvents, pulled })
 }

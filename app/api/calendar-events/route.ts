@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { neon } from "@/lib/neon-client"
 import { getUserFromSession } from "@/lib/auth"
+import { syncToGoogleSoon } from "@/lib/google-calendar-server"
 import { normalizeLifeAreaId } from "@/lib/life-areas"
 
 const sql = neon(process.env.DATABASE_URL!)
@@ -112,6 +113,7 @@ export async function POST(request: Request) {
       RETURNING *
     `
 
+    syncToGoogleSoon(user.id, "event", result[0]?.id)
     return NextResponse.json(result[0])
   } catch (error) {
     console.error("[v0] Error creating calendar event:", error)
@@ -173,6 +175,7 @@ export async function PUT(request: Request) {
       RETURNING *
     `
 
+    syncToGoogleSoon(user.id, "event", result[0]?.id)
     return NextResponse.json(result[0])
   } catch (error) {
     console.error("[v0] Error updating calendar event:", error)
@@ -197,6 +200,7 @@ export async function DELETE(request: Request) {
       DELETE FROM calendar_events
       WHERE id = ${id} AND user_id = ${user.id}
     `
+    syncToGoogleSoon(user.id, "event", id)
 
     return NextResponse.json({ success: true })
   } catch (error) {

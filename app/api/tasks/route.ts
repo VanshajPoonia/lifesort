@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { neon } from '@/lib/neon-client'
 import { getUserFromSession } from '@/lib/auth'
+import { syncToGoogleSoon } from '@/lib/google-calendar-server'
 import { normalizeLifeAreaId } from '@/lib/life-areas'
 import { addDaysToDate, addMonthsToDate, daysBetweenDates } from '@/lib/date-math'
 
@@ -359,6 +360,7 @@ export async function POST(request: Request) {
       RETURNING *
     `
 
+    if (result[0]?.scheduled_time) syncToGoogleSoon(user.id, 'task', result[0].id)
     return NextResponse.json(result[0])
   } catch (error) {
     console.error('[v0] Create task error:', error)
@@ -564,6 +566,7 @@ export async function PUT(request: Request) {
       RETURNING *
     `
 
+    syncToGoogleSoon(user.id, 'task', result[0]?.id)
     return NextResponse.json(result[0])
   } catch (error) {
     console.error('[v0] Update task error:', error)
@@ -588,6 +591,7 @@ export async function DELETE(request: Request) {
       DELETE FROM tasks
       WHERE id = ${id} AND user_id = ${user.id}
     `
+    syncToGoogleSoon(user.id, 'task', id)
 
     return NextResponse.json({ success: true })
   } catch (error) {

@@ -5,6 +5,7 @@ const { getUserFromSession } = vi.hoisted(() => ({ getUserFromSession: vi.fn() }
 
 vi.mock("@/lib/neon-client", () => ({ neon: () => sql }))
 vi.mock("@/lib/auth", () => ({ getUserFromSession }))
+vi.mock("@/lib/google-calendar-server", () => ({ syncToGoogleSoon: vi.fn() }))
 
 import { DELETE, GET, PATCH, POST, PUT } from "@/app/api/tasks/route"
 
