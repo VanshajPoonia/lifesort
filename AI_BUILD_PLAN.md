@@ -98,6 +98,7 @@ Settings absorbs Rules and the full Notifications page. Every old URL keeps work
 **Stage 4: Snap a photo and it's sorted**
 - Camera or upload in Inbox for a bill, policy, warranty or ID. AI drafts the linked set: a Vault entry, a renewal reminder, a budget line and a task if something is due. The user confirms.
 - Reuse the Groq vision parsing that Investments already uses. Files go to R2, so the `R2_*` env vars must reach Vercel and the flagged token must be rotated first.
+- 🟠 Unparked 2026-11-18. Plan in [The four parked features](#the-four-parked-features-2026-11-18), part A. Gemini reads the photo instead of Groq.
 
 **Stage 5: Life Patterns**
 - One weekly "What I noticed" feed in Reflect, replacing the separate insight screens.
@@ -110,6 +111,7 @@ Settings absorbs Rules and the full Notifications page. Every old URL keeps work
 - Drag tasks onto time slots, using the `scheduled_date` and `duration_minutes` fields tasks already have.
 - A guided morning plan and evening shutdown on Today.
 - 🟡 Built 2026-11-17: Plan your hours on Today (drag or pick a half-hour slot for today's tasks, next to local and Google events, with durations and overlaps; opens by itself before noon) and Move to tomorrow in the evening wrap-up with Undo. Two-way Google sync was skipped by the user: Google stays read-only, because writing needs the `calendar.events` scope in their Google Cloud project and a reconnect.
+- 🟠 Two-way Google sync unparked 2026-11-18. Plan in [The four parked features](#the-four-parked-features-2026-11-18), part B.
 
 **Later**
 - A privacy-scoped connector for ChatGPT and Claude (MCP) that honors per-domain AI exclusion.
@@ -117,6 +119,51 @@ Settings absorbs Rules and the full Notifications page. Every old URL keeps work
 - Imports from Todoist, Notion and CSV. Bank statement upload. Shared household.
 - AI task breakdown with time estimates.
 - 🟡 Built 2026-11-17 from this list: AI task breakdown (Break it down in a task's checklist), task import from Todoist or any CSV (Settings > Account), and bank statement import (Money > Budget). Still waiting on the user: the ChatGPT/Claude connector, email and WhatsApp/Telegram capture (need an inbound service), Notion import, and a shared household (changes who sees what).
+- 🟠 The connector and email/WhatsApp capture were unparked 2026-11-18. Plans in [The four parked features](#the-four-parked-features-2026-11-18), parts C and D. Notion import and shared household still wait.
+
+### The four parked features (2026-11-18)
+
+The user approved building these on 2026-11-18, one at a time, each with tests. Anything that needs their own accounts or consoles goes in `STATUS.md` under Waiting on you, with exact steps, instead of blocking the build. New tables are additive and are applied to the shared database before the code ships, the same as Stages 2 and 3. No new packages and no paid services.
+
+**A. Photo to Vault (Stage 4)**
+- A camera button in Inbox, next to the mic, and Scan a photo on Library > Vault. Both open the same dialog.
+- The browser shrinks the photo to about 1600px and sends it to `POST /api/ai/photo`. Gemini (`gemini-3.5-flash` reads images) drafts the kind of document, a title, a Vault category, its dates, an amount and anything due. Nothing is saved yet. Groq's `llama-3.2-90b-vision-preview`, which Investments still calls, is retired by Groq, so it is not reused.
+- The person checks the draft. Ticks: the Vault entry (always), Remind me before it renews (a task due 14 days ahead, or sooner if the date is close), Add to budget (an expense when there is an amount) and a task when something is due. Confirm calls `POST /api/vault/photo`, which creates them in one transaction. The browser then uploads the original photo to R2 as a Vault attachment.
+- If the AI fails, the same form opens empty so the photo can still be filed by hand. If R2 isn't set up, the entries still save and the person is told the photo wasn't kept.
+- AI limit `photo_scan`, 10 a day. No new tables.
+- Tests: the draft schema and how a draft becomes records (no past dates, reminder maths, amounts).
+- Waits on the user: rotate the R2 token (the four `R2_*` vars are already in Vercel Production and Preview, so only the two key values change) and allow browser uploads in the bucket's CORS settings.
+
+**B. Two-way Google Calendar sync (Stage 6)**
+- Connect asks for `calendar.events` in place of `calendar.readonly`. The redirect address is built from the request's own host, because `NEXT_PUBLIC_APP_URL` points at `lifesort.kreativvantage.com`, which returns 404, so Google connect is broken in production today.
+- New table `calendar_sync_links` (user, item type `event` or `task`, item id, Google event id, when we last pushed, Google's last update). New columns on `calendar_integrations`: `scope`, `time_zone` and `sync_to_google` (off by default).
+- LifeSort to Google: with sync on, saving or deleting a LifeSort event, or planning a task into a time slot, creates, moves or deletes the matching Google event after the response is sent, so a Google error never blocks a save. Our events carry a private LifeSort marker.
+- Google to LifeSort: the existing sync call spots our events. If one was moved or renamed in Google after our last push, the LifeSort event or task takes the new date, time and title. Deleting it in Google only unlinks it; LifeSort keeps its copy. Our events don't show twice.
+- Google's own events stay view-only in LifeSort.
+- The Google dialog on Tasks > Calendar gets a switch ("Also put my LifeSort events and planned tasks on Google Calendar") and Reconnect when only the old read-only permission is held.
+- Tests: building the Google event, time zone conversion, and when a Google change wins.
+- Waits on the user: add the `calendar.events` scope and the `lifesort.vercel.app` redirect address in Google Cloud, then connect.
+
+**C. ChatGPT and Claude connector (MCP)**
+- Sign-in, decided 2026-11-18 because the build needed one (the user can change it): OAuth 2.1 with PKCE and dynamic client registration, which is how Claude and ChatGPT custom connectors connect accounts. The person adds `https://lifesort.vercel.app/api/mcp`, signs in to LifeSort, sees what is shared and taps Allow. Nothing to copy.
+- Hand-written, no new package: OAuth metadata under `/.well-known/`, `/api/oauth/register`, the `/oauth/authorize` consent page, `/api/oauth/token`, and a stateless MCP endpoint (JSON-RPC over POST: `initialize`, `tools/list`, `tools/call`, `ping`).
+- Shared: tasks, goals, notes, calendar events and Inbox. Never shared: Journal, Money, Vault, People, and anything in a domain kept away from AI.
+- Tools: `search` and `fetch` (the pair ChatGPT expects), `get_today`, `list_tasks`, `add_to_inbox`, `add_task`. Writes only add things; nothing edits or deletes.
+- Tables `oauth_clients` and `oauth_grants`. Codes and tokens are stored as SHA-256 hashes. Access tokens last an hour; refresh tokens last 60 days and rotate.
+- Settings > Account: "Use LifeSort in ChatGPT or Claude" with the address to copy, the connected apps and Disconnect.
+- Login learns `?next=` so the consent page can send people to sign in and back.
+- Tests: PKCE, redirect address rules, the token exchange, MCP dispatch and the privacy filter.
+- Waits on the user: nothing to set up. Trying it means adding the connector in Claude or ChatGPT.
+
+**D. Email and WhatsApp capture**
+- Each person gets a private capture address. Anything sent or forwarded to it lands in Inbox: subject as the title, text as the body, source `email`. The address can be reset.
+- Email uses Resend receiving. Resend already sends LifeSort's email, and receiving is on its free plan (each received email counts toward the 3,000 a month). The webhook `/api/capture/email` checks Resend's signature (Svix scheme, checked by hand) and fetches the body from Resend.
+- WhatsApp uses Meta's WhatsApp Cloud API. The webhook `/api/capture/whatsapp` answers Meta's verify check and checks `X-Hub-Signature-256`. A person links their number by sending the 6-character code shown in Settings; after that their text messages land in Inbox with a short "Saved to your Inbox" reply.
+- Table `capture_channels` (user, channel, address token, linked number, link code, last used). Inbox `source` gains `email`, `whatsapp` and `connector`.
+- Settings > Account: "Send things to your Inbox", next to the connector card. Each channel says "not set up yet" until its env vars exist.
+- Limits: 50 captured items a day per person, text capped at 5,000 characters, attachments ignored for now.
+- Tests: both signature checks, address parsing and message to Inbox mapping.
+- Waits on the user: Resend receiving and a webhook secret; a Meta developer app, a number and its tokens.
 
 ### Retiring empty tables
 
@@ -171,6 +218,11 @@ Status (2026-11-11): the four Stage 1 step 3 tables have no readers or writers l
 - Throwaway test account on the production database for the browser test: allowed, deleted afterwards.
 - Drop `nuke_goals`, `pomodoro_sessions` and `pomodoro_settings` after the deploy: yes.
 - Pinned goal on Today in place of Focus Goal: no, the Focus list is enough.
+
+### User answers (2026-11-18)
+
+- Build four parked features one at a time, each with tests: Photo to Vault, two-way Google sync, a ChatGPT/Claude connector, and email or WhatsApp capture. Google read-only and the Stage 4 R2 hold are lifted for these.
+- Ask before any new dependency or paid service. Steps that need the user's accounts or consoles go in `STATUS.md` instead of blocking.
 
 ---
 
