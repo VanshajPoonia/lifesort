@@ -47,8 +47,9 @@ export async function POST(request: Request) {
     const result = await generateText({
       model: gemini(GEMINI_FLASH_MODEL),
       output: Output.object({ schema: photoDraftSchema }),
-      // Three tries under load took over 60 seconds; one retry leaves time for the manual form.
+      // Under load even two tries took 72 seconds, so give up at 50 and let the manual form open.
       maxRetries: 1,
+      abortSignal: AbortSignal.timeout(50_000),
       providerOptions: { google: { thinkingConfig: { thinkingLevel: "minimal" } } },
       messages: [
         {
