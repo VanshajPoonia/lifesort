@@ -221,6 +221,16 @@ Architecture and product decision memory for LifeSort.
 - **Usage check (2026-11-11):** a read-only count on the production database, which every Vercel environment shares, found 2 accounts, no login since 2026-05-20 and almost every feature table empty. The user confirmed they stopped using LifeSort. The first goal is daily use by the user.
 - **Decision (user, 2026-11-11):** Waiting, Someday, Commitments and Maintenance fold into Tasks (statuses, recurring tasks, person links) and their empty tables get dropped. Spaces and Custom Sections are removed. Daily Content and games stay hidden. Everything is free for now. Kits are chosen later from a tick list. This supersedes the 2026-07-23 rule above about keeping trackers as compatibility lenses, which assumed real user data that does not exist.
 
+## Email and WhatsApp capture (2026-11-18)
+
+- **Resend for email.** It already sends LifeSort's mail, receiving is on its free plan (each received email counts toward the 3,000 a month), and it gives a `<id>.resend.app` domain with no DNS work. Its webhook carries only metadata, so the route fetches the body from `GET /emails/receiving/{id}`.
+- **WhatsApp Cloud API, not Telegram,** because the user asked for WhatsApp. Meta's free test number is enough for one person, and messages a person sends plus replies within 24 hours cost nothing.
+- **Signatures checked by hand** (Svix scheme for Resend, `X-Hub-Signature-256` for Meta) instead of adding the `svix` package.
+- **The address is the secret.** Anyone with it can add to that person's Inbox, which is what forwarding needs. It can be reset, unknown addresses get a quiet 204 so senders can't probe, and captured items are capped at 50 a day per person.
+- **A number links by proving it has the code.** Settings shows a 6-character code that lasts 30 minutes; the first message carrying it links the sending number. A number belongs to one person.
+- **Text only for now.** Email attachments and WhatsApp photos or voice notes are ignored (the person gets a short reply on WhatsApp). Photos could go through Photo to Vault later.
+- **Both channels hide themselves** ("not set up yet") until their env vars exist, so the code can ship before the accounts.
+
 ## ChatGPT and Claude connector (2026-11-18)
 
 - **Sign-in is OAuth 2.1 with PKCE and dynamic client registration.** Chosen by Claude Code on 2026-11-18 because the build needed an answer and it's what Claude and ChatGPT custom connectors use to connect an account: the person pastes one address, signs in to LifeSort and taps Allow. Personal access tokens were the alternative; they work in command-line clients but not in the ChatGPT and Claude apps, and copying a token isn't "simplest". The user can change this.

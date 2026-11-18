@@ -8,7 +8,7 @@ The detailed sources are `AI_BUILD_PLAN.md` (the plan; Part 0 is the current dir
 
 No.
 
-- **Part 0, the current direction (Stages 1 to 6 and the Later list):** mostly built. On 18 Nov you approved four parked features. Photo to Vault is built and live. Two-way Google sync and the ChatGPT/Claude connector are built but wait on your OK for database changes. Email/WhatsApp capture is next.
+- **Part 0, the current direction (Stages 1 to 6 and the Later list):** mostly built. On 18 Nov you approved four parked features. Photo to Vault is built and live. Two-way Google sync, the ChatGPT/Claude connector and email/WhatsApp capture are built but wait on your OK for three database changes, and capture also needs your Resend and Meta setup.
 - **Part C, the older detailed backlog:** many items are still partly done or not started. See [What's left in the bigger backlog](#whats-left-in-the-bigger-backlog).
 - **Testing:** a lot of the new work has not been tried in a browser with real use yet. See [What has been checked](#what-has-been-checked).
 
@@ -93,9 +93,17 @@ Settings holds Profile, Notifications (with install and push), Rules, Journal, C
 - The same card lists connected apps with Disconnect.
 - I picked how the apps sign in (the standard OAuth way both apps support) because the build needed it. Say if you want it different.
 
+### Email and WhatsApp capture (built 18 Nov, not live yet)
+
+- Settings > Account > "Send things to your Inbox" gives you a private email address. Forward an email or write to it and it waits in Inbox. The subject becomes the title.
+- Link my WhatsApp shows a short code. Send it from your phone to LifeSort's WhatsApp number once, and after that anything you text that number lands in Inbox. It replies "Saved to your LifeSort Inbox."
+- Text only for now. Email attachments and WhatsApp photos or voice notes are skipped.
+- Up to 50 captured items a day. Anyone with your address can add to your Inbox, so keep it private. Make a new address any time.
+- Both need accounts only you can set up (steps below). Until then each one says "Not set up yet".
+
 ## What has been checked
 
-Every change passed typecheck, the build and the tests (237 tests now). Beyond that:
+Every change passed typecheck, the build and the tests (248 tests now). Beyond that:
 
 | Area | How it was checked | Tried for real? |
 |---|---|---|
@@ -110,6 +118,7 @@ Every change passed typecheck, the build and the tests (237 tests now). Beyond t
 | Photo to Vault | Saves checked with EXPLAIN. Four real AI reads of a made-up bill all hit "Gemini is overloaded" and fell back to the empty form | No. The AI draft and the upload still need a real try |
 | Two-way Google sync | The real code ran against a throwaway local copy of the database with Google faked: turning it on, editing, a move in Google coming back, deleting | No. Needs the database change and a real Google connection |
 | ChatGPT and Claude connector | The whole sign-in and every tool ran against the local copy: consent, wrong codes refused, hidden domains stayed hidden, adding to Inbox, disconnecting | No. Needs the database change and a deploy |
+| Email and WhatsApp capture | Both webhooks ran against the local copy with signed test messages: email filed, bad signatures refused, linking by code, texts saved, the daily cap | No. Needs the database change and your Resend and Meta setup |
 
 You declined test accounts after Stage 2, so most checks since then avoided writing data.
 
@@ -133,7 +142,8 @@ You declined test accounts after Stage 2, so most checks since then avoided writ
 | Keeping photos and files (Photo to Vault, Vault attachments) | Replace the R2 key that was exposed in an old chat, and let browsers upload to the bucket. Steps in [R2 storage](#r2-storage) below |
 | Two-way Google Calendar sync | 1. Say OK to the database change in [Database changes](#database-changes). 2. The Google Cloud steps in [Google Calendar](#google-calendar) |
 | ChatGPT and Claude connector | Say OK to its database change in [Database changes](#database-changes). Nothing to set up after that; try it as in [Trying the connector](#trying-the-connector) |
-| Email to task, WhatsApp or Telegram capture | An inbound email address or a bot account |
+| Email capture | Its database change, then the Resend steps in [Email capture setup](#email-capture-setup) |
+| WhatsApp capture (optional) | Its database change, then the Meta steps in [WhatsApp capture setup](#whatsapp-capture-setup) |
 | Notion import | Your Notion export format, or a Notion connection |
 | Shared household | A decision on who can see what |
 | lifesort.kreativvantage.com | Fix the Cloudflare DNS setting (it returns a 404) |
@@ -144,6 +154,9 @@ These add new tables or columns and change nothing that exists. I tried to run t
 
 - `scripts/migrations/2026-11-18-google-two-way-sync.sql`: three columns on `calendar_integrations` and a new `calendar_sync_links` table. Tested on a local copy of the schema, including running it twice.
 - `scripts/migrations/2026-11-18-connector-oauth.sql`: new `oauth_clients` and `oauth_grants` tables, and Inbox items may come from `connector`, `email` or `whatsapp`. Tested the same way.
+- `scripts/migrations/2026-11-18-capture-channels.sql`: a new `capture_channels` table (and the same Inbox change, so order doesn't matter). Tested the same way.
+
+To OK them, reply "run the three migrations". I'll run them in one go, check the counts, fast-forward `main` and check the deploy.
 
 ### Trying the connector
 
@@ -160,6 +173,30 @@ In [Google Cloud Console](https://console.cloud.google.com), in the project that
 2. Google Auth Platform > Clients > LifeSort's web client > Authorized redirect URIs. Add `https://lifesort.vercel.app/api/calendar/google/callback` (and `http://localhost:3000/api/calendar/google/callback` for local testing). Connecting was broken before this because the old address pointed at lifesort.kreativvantage.com, which returns 404.
 3. Google Auth Platform > Audience. If it says Testing, either add your Google account as a test user (Google then signs you out of the connection every 7 days) or press Publish app. Unverified apps show a "Google hasn't verified this app" screen. Tap Advanced, then Go to LifeSort. That's fine for your own use.
 4. In LifeSort: Tasks > Calendar > Connect Calendar > Connect, allow access, then turn on "Put my LifeSort events and planned tasks on Google".
+
+### Email capture setup
+
+Resend already sends LifeSort's emails. Receiving is on its free plan; each received email counts toward the 3,000 a month.
+
+1. Resend dashboard > Emails > Receiving tab > the three-dots menu > Receiving address. Copy the domain part, like `abc123.resend.app`.
+2. Resend > Webhooks > Add endpoint. URL `https://lifesort.vercel.app/api/capture/email`, event `email.received`. Save, then copy its signing secret (starts with `whsec_`). The free plan allows one webhook endpoint.
+3. Vercel > `v0-calendar-app-sb` > Settings > Environment Variables, for Production: `CAPTURE_EMAIL_DOMAIN` = the domain from step 1, `RESEND_WEBHOOK_SECRET` = the secret from step 2. Then redeploy.
+4. Settings > Account in LifeSort shows your address. Send it a test email.
+5. If the Inbox item says LifeSort couldn't read the email's text, the current `RESEND_API_KEY` is a sending-only key. Make a Full access key in Resend > API Keys and replace it in Vercel.
+
+Later, if you want an address on your own domain, Resend can receive on a subdomain with one MX record.
+
+### WhatsApp capture setup
+
+Uses Meta's WhatsApp Cloud API. Meta's free test number is enough for you alone, and messages you send plus its replies within 24 hours cost nothing.
+
+1. [developers.facebook.com](https://developers.facebook.com) > My Apps > Create app, type Business, then add the WhatsApp product. Meta makes a test business account with a free test number.
+2. WhatsApp > API Setup: add your own phone as a recipient and confirm the code Meta sends. Note the test number and its Phone number ID.
+3. For a token that doesn't expire: business.facebook.com > Settings > System users > add one, give it the app with `whatsapp_business_messaging`, and generate a token. (The 24-hour token on the API Setup page works for a quick try.)
+4. App settings > Basic > App secret > Show.
+5. Vercel, Production: `WHATSAPP_VERIFY_TOKEN` (make up any long string), `WHATSAPP_APP_SECRET` (step 4), `WHATSAPP_ACCESS_TOKEN` (step 3), `WHATSAPP_PHONE_NUMBER_ID` (step 2), `WHATSAPP_NUMBER` (the test number, like `+1 555 010 2030`). Redeploy.
+6. Back in Meta: WhatsApp > Configuration > Webhook > Edit. Callback URL `https://lifesort.vercel.app/api/capture/whatsapp`, Verify token = the string from step 5. Verify and save, then subscribe to `messages`.
+7. In LifeSort: Settings > Account > Link my WhatsApp, and send the code from your phone.
 
 ### R2 storage
 
