@@ -45,7 +45,7 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      await login(email, password)
+      await login(email, password, new URLSearchParams(window.location.search).get('next'))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to login')
     } finally {
