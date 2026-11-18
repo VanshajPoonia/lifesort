@@ -1,15 +1,13 @@
 import { NextResponse } from "next/server"
 import { neon } from "@/lib/neon-client"
 import { getUserFromSession } from "@/lib/auth"
+import { googleRedirectUri } from "@/lib/google-sync"
 import { encryptToken } from "@/lib/token-crypto"
 
 const sql = neon(process.env.DATABASE_URL!)
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET
-const REDIRECT_URI = process.env.NEXT_PUBLIC_APP_URL 
-  ? `${process.env.NEXT_PUBLIC_APP_URL}/api/calendar/google/callback`
-  : "http://localhost:3000/api/calendar/google/callback"
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -48,7 +46,7 @@ export async function GET(request: Request) {
         client_secret: GOOGLE_CLIENT_SECRET!,
         code,
         grant_type: "authorization_code",
-        redirect_uri: REDIRECT_URI,
+        redirect_uri: googleRedirectUri(request.url),
       }),
     })
 
@@ -79,15 +77,18 @@ export async function GET(request: Request) {
     const encryptedAccess = encryptToken(tokens.access_token)
     const encryptedRefresh = encryptToken(tokens.refresh_token)
 
+    const scope = typeof tokens.scope === "string" ? tokens.scope : null
+
     await sql`
-      INSERT INTO calendar_integrations (user_id, provider, access_token, refresh_token, expires_at, calendar_email)
-      VALUES (${userId}, 'google', ${encryptedAccess}, ${encryptedRefresh}, ${expiresAt.toISOString()}, ${userInfo.email})
+      INSERT INTO calendar_integrations (user_id, provider, access_token, refresh_token, expires_at, calendar_email, scope)
+      VALUES (${userId}, 'google', ${encryptedAccess}, ${encryptedRefresh}, ${expiresAt.toISOString()}, ${userInfo.email}, ${scope})
       ON CONFLICT (user_id, provider)
       DO UPDATE SET
         access_token = ${encryptedAccess},
         refresh_token = COALESCE(${encryptedRefresh}, calendar_integrations.refresh_token),
         expires_at = ${expiresAt.toISOString()},
         calendar_email = ${userInfo.email},
+        scope = ${scope},
         updated_at = NOW()
     `
 

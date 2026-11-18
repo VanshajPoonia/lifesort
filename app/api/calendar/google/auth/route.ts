@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server"
 import { getUserFromSession } from "@/lib/auth"
+import { GOOGLE_EVENTS_SCOPE, googleRedirectUri } from "@/lib/google-sync"
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID
-const REDIRECT_URI = process.env.NEXT_PUBLIC_APP_URL
-  ? `${process.env.NEXT_PUBLIC_APP_URL}/api/calendar/google/callback`
-  : "http://localhost:3000/api/calendar/google/callback"
 
-export async function GET() {
+export async function GET(request: Request) {
   const user = await getUserFromSession()
 
   if (!user) {
@@ -14,31 +12,29 @@ export async function GET() {
   }
 
   if (!GOOGLE_CLIENT_ID) {
-    return NextResponse.json({ 
-      error: "Google Calendar not configured", 
+    return NextResponse.json({
+      error: "Google Calendar not configured",
       setup_required: true,
       message: "Please add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables"
     }, { status: 400 })
   }
 
-  // `openid` + `userinfo.email` are required so the callback's
-  // /oauth2/v2/userinfo call returns the user's address; without them
-  // `calendar_integrations.calendar_email` ends up null and the UI shows
-  // a blank "Connected as" label. calendar.events.readonly is a subset of
-  // calendar.readonly and is intentionally omitted.
+  // `openid` + `userinfo.email` let the callback show "Connected as". calendar.events
+  // reads and writes events, which two-way sync needs (user decision 2026-11-18).
   const scopes = [
     "openid",
     "https://www.googleapis.com/auth/userinfo.email",
-    "https://www.googleapis.com/auth/calendar.readonly",
+    GOOGLE_EVENTS_SCOPE,
   ].join(" ")
 
   const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
     `client_id=${GOOGLE_CLIENT_ID}` +
-    `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
+    `&redirect_uri=${encodeURIComponent(googleRedirectUri(request.url))}` +
     `&response_type=code` +
     `&scope=${encodeURIComponent(scopes)}` +
     `&access_type=offline` +
     `&prompt=consent` +
+    `&include_granted_scopes=true` +
     `&state=${user.id}`
 
   return NextResponse.json({ authUrl })
