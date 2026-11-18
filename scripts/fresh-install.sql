@@ -397,10 +397,27 @@ CREATE TABLE IF NOT EXISTS calendar_integrations (
   calendar_email VARCHAR(255),
   email VARCHAR(255),
   calendar_id VARCHAR(255),
+  scope TEXT,
+  time_zone VARCHAR(64),
+  sync_to_google BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   connected_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(user_id, provider)
+);
+
+-- Two-way Google sync (2026-11-18-google-two-way-sync.sql): a LifeSort event or task and its Google copy.
+CREATE TABLE IF NOT EXISTS calendar_sync_links (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  item_type VARCHAR(20) NOT NULL CHECK (item_type IN ('event', 'task')),
+  item_id INTEGER NOT NULL,
+  google_event_id VARCHAR(255) NOT NULL,
+  google_updated_at TIMESTAMP WITH TIME ZONE,
+  pushed_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  UNIQUE (user_id, item_type, item_id),
+  UNIQUE (user_id, google_event_id)
 );
 
 CREATE TABLE IF NOT EXISTS note_folders (
