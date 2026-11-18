@@ -46,7 +46,7 @@ export async function GET(request: Request) {
         client_secret: GOOGLE_CLIENT_SECRET!,
         code,
         grant_type: "authorization_code",
-        redirect_uri: googleRedirectUri(request.url),
+        redirect_uri: googleRedirectUri(request),
       }),
     })
 

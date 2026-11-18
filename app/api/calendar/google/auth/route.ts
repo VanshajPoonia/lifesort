@@ -29,7 +29,7 @@ export async function GET(request: Request) {
 
   const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
     `client_id=${GOOGLE_CLIENT_ID}` +
-    `&redirect_uri=${encodeURIComponent(googleRedirectUri(request.url))}` +
+    `&redirect_uri=${encodeURIComponent(googleRedirectUri(request))}` +
     `&response_type=code` +
     `&scope=${encodeURIComponent(scopes)}` +
     `&access_type=offline` +

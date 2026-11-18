@@ -1,4 +1,5 @@
 import { addDaysToDate } from "@/lib/date-math"
+import { requestOrigin } from "@/lib/redirect-target"
 
 // Two-way Google Calendar sync (AI_BUILD_PLAN.md Part 0, Stage 6). Pure helpers:
 // building the Google event for a LifeSort item, and deciding when a change made
@@ -49,8 +50,8 @@ export type GoogleEventRaw = {
 
 // Built from the request's own host: NEXT_PUBLIC_APP_URL points at a domain that
 // currently returns 404, and the token exchange must repeat the exact same address.
-export function googleRedirectUri(requestUrl: string) {
-  return new URL("/api/calendar/google/callback", requestUrl).toString()
+export function googleRedirectUri(request: Request) {
+  return `${requestOrigin(request)}/api/calendar/google/callback`
 }
 
 export function canWriteToGoogle(scope: string | null | undefined) {
