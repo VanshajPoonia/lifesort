@@ -52,6 +52,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { normalizeLifeArea, type LifeArea } from "@/lib/life-areas"
 import { cn } from "@/lib/utils"
@@ -106,6 +107,8 @@ interface CalendarIntegration {
   email: string
   connected_at: string
   last_synced: string
+  can_write: boolean
+  sync_to_google: boolean
 }
 
 type DragData = {
@@ -278,6 +281,7 @@ export function CalendarView() {
   const [showIntegrationsDialog, setShowIntegrationsDialog] = useState(false)
   const [syncingCalendar, setSyncingCalendar] = useState(false)
   const [googleConfigured, setGoogleConfigured] = useState(false)
+  const [googleSyncMessage, setGoogleSyncMessage] = useState("")
   const [draftTitle, setDraftTitle] = useState("")
   const [creatingDraft, setCreatingDraft] = useState(false)
   const [savingId, setSavingId] = useState<string | null>(null)
@@ -333,13 +337,18 @@ export function CalendarView() {
       if (response.ok) {
         const data = await response.json()
         setSyncedEvents(data.events || [])
+        // Moves made in Google were just applied to LifeSort items, so reload them.
+        if (data.pulled > 0) {
+          void fetchEvents()
+          void fetchTasks()
+        }
       }
     } catch (error) {
       console.error("Error syncing calendar:", error)
     } finally {
       setSyncingCalendar(false)
     }
-  }, [])
+  }, [fetchEvents, fetchTasks])
 
   const fetchIntegrations = useCallback(async () => {
     try {
@@ -467,6 +476,23 @@ export function CalendarView() {
       }
     } catch (error) {
       console.error("Error connecting Google:", error)
+    }
+  }
+
+  const toggleGoogleSync = async (enabled: boolean) => {
+    setGoogleSyncMessage("")
+    try {
+      const response = await fetch("/api/calendar/integrations", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sync_to_google: enabled, time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || "Couldn't change that. Try again.")
+      setIntegrations((current) => current.map((item) => (item.provider === "google" ? { ...item, sync_to_google: enabled } : item)))
+      setGoogleSyncMessage(enabled ? "Copying your upcoming events and planned tasks to Google." : "")
+    } catch (error) {
+      setGoogleSyncMessage(error instanceof Error ? error.message : "Couldn't change that. Try again.")
     }
   }
 
@@ -735,6 +761,8 @@ export function CalendarView() {
             onSync={syncCalendarEvents}
             onConnectGoogle={connectGoogle}
             onDisconnectCalendar={disconnectCalendar}
+            onToggleGoogleSync={toggleGoogleSync}
+            googleSyncMessage={googleSyncMessage}
           />
 
           <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -940,6 +968,8 @@ function CalendarToolbar({
   onSync,
   onConnectGoogle,
   onDisconnectCalendar,
+  onToggleGoogleSync,
+  googleSyncMessage,
 }: {
   view: CalendarView
   cursorDate: Date
@@ -956,7 +986,10 @@ function CalendarToolbar({
   onSync: () => void
   onConnectGoogle: () => void
   onDisconnectCalendar: (provider: string) => void
+  onToggleGoogleSync: (enabled: boolean) => void
+  googleSyncMessage: string
 }) {
+  const google = integrations.find((item) => item.provider === "google")
   return (
     <Card className="surface-card">
       <CardContent className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center lg:justify-between">
@@ -991,22 +1024,22 @@ function CalendarToolbar({
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Calendar Integrations</DialogTitle>
-                <DialogDescription>Connect Google Calendar to show read-only reminders inside LifeSort.</DialogDescription>
+                <DialogDescription>See your Google events here, and put your LifeSort events and planned tasks on Google Calendar.</DialogDescription>
               </DialogHeader>
               <div className="space-y-4 pt-4">
                 <div className="flex items-center justify-between rounded-lg border p-4">
                   <div>
                     <p className="font-medium">Google Calendar</p>
-                    {integrations.find((item) => item.provider === "google") ? (
+                    {google ? (
                       <p className="mt-1 flex items-center gap-1 text-sm text-success">
                         <Check className="h-3.5 w-3.5" />
-                        Connected as {integrations.find((item) => item.provider === "google")?.email}
+                        Connected as {google.email}
                       </p>
                     ) : (
                       <p className="mt-1 text-sm text-muted-foreground">Not connected</p>
                     )}
                   </div>
-                  {integrations.find((item) => item.provider === "google") ? (
+                  {google ? (
                     <Button variant="outline" size="sm" onClick={() => onDisconnectCalendar("google")}>Disconnect</Button>
                   ) : (
                     <Button size="sm" onClick={onConnectGoogle} disabled={!googleConfigured}>
@@ -1014,6 +1047,26 @@ function CalendarToolbar({
                     </Button>
                   )}
                 </div>
+                {google && google.can_write && (
+                  <div className="flex items-start justify-between gap-4 rounded-lg border p-4">
+                    <div>
+                      <Label htmlFor="google-two-way" className="font-medium">Put my LifeSort events and planned tasks on Google</Label>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Moves and renames you make in Google come back here. Deleting in Google leaves LifeSort alone.
+                      </p>
+                    </div>
+                    <Switch id="google-two-way" checked={google.sync_to_google} onCheckedChange={onToggleGoogleSync} />
+                  </div>
+                )}
+                {google && !google.can_write && (
+                  <div className="flex items-start justify-between gap-4 rounded-lg border p-4">
+                    <p className="text-sm text-muted-foreground">
+                      LifeSort can only read this calendar. Reconnect to let it add your events and planned tasks.
+                    </p>
+                    <Button size="sm" variant="outline" onClick={onConnectGoogle}>Reconnect</Button>
+                  </div>
+                )}
+                {googleSyncMessage && <p className="text-sm text-muted-foreground" role="status">{googleSyncMessage}</p>}
                 {!googleConfigured && (
                   <p className="rounded-md bg-muted/50 p-3 text-sm text-muted-foreground">
                     Add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` to enable Google Calendar integration.
