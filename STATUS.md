@@ -1,6 +1,6 @@
 # LifeSort status
 
-A plain summary of where LifeSort stands, written for you to come back to. Last updated 18 Nov 2026.
+A plain summary of where LifeSort stands, written for you to come back to. Last updated 19 Nov 2026.
 
 The detailed sources are `AI_BUILD_PLAN.md` (the plan; Part 0 is the current direction, Part C the bigger backlog), `AI_TASK_LOG.md` (what was done and how it was checked) and `AI_DECISIONS.md` (why things are the way they are).
 
@@ -8,7 +8,7 @@ The detailed sources are `AI_BUILD_PLAN.md` (the plan; Part 0 is the current dir
 
 No.
 
-- **Part 0, the current direction (Stages 1 to 6 and the Later list):** mostly built. On 18 Nov you approved four parked features. Photo to Vault is built and live. Two-way Google sync, the ChatGPT/Claude connector and email/WhatsApp capture are built but wait on your OK for three database changes, and capture also needs your Resend and Meta setup.
+- **Part 0, the current direction (Stages 1 to 6 and the Later list):** mostly built. On 18 Nov you approved four parked features. All four are built and live: Photo to Vault, two-way Google sync, the ChatGPT/Claude connector, and email/WhatsApp capture. The database changes ran on 19 Nov with your OK. Some still need accounts only you can set up (R2, Google Cloud, Resend, Meta). See [Waiting on you](#waiting-on-you).
 - **Part C, the older detailed backlog:** many items are still partly done or not started. See [What's left in the bigger backlog](#whats-left-in-the-bigger-backlog).
 - **Testing:** a lot of the new work has not been tried in a browser with real use yet. See [What has been checked](#what-has-been-checked).
 
@@ -28,7 +28,7 @@ The sidebar has seven places:
 | Money | Overview, Budget (with bank statement import), Income, Investments, Wishlist |
 | Reflect | Weekly Review, What I noticed, LifeScore, Timeline, Journal |
 
-Settings holds Profile, Notifications (with install and push), Rules, Journal, Content, FAQs and Account (with task import, and the ChatGPT/Claude connector once it is live).
+Settings holds Profile, Notifications (with install and push), Rules, Journal, Content, FAQs and Account (with task import, Send things to your Inbox, and the ChatGPT/Claude connector).
 
 ## What was built
 
@@ -77,7 +77,7 @@ Settings holds Profile, Notifications (with install and push), Rules, Journal, C
 
 - Plan your hours on Today: drag today's tasks into half-hour slots next to your calendar and Google events. Opens by itself before noon.
 - Move to tomorrow in the evening wrap-up, with Undo.
-- Two-way Google Calendar sync (built 18 Nov, not live yet). Tasks > Calendar > Connect Calendar has a switch: "Put my LifeSort events and planned tasks on Google". With it on, your LifeSort events and the tasks you plan into a time slot appear in Google Calendar. If you move or rename one of those in Google, LifeSort follows. Your other Google events still show in LifeSort as before. It goes live once you OK one database change and set up Google. See [Waiting on you](#waiting-on-you).
+- Two-way Google Calendar sync (live 19 Nov). Tasks > Calendar > Connect Calendar has a switch: "Put my LifeSort events and planned tasks on Google". With it on, your LifeSort events and the tasks you plan into a time slot appear in Google Calendar. If you move or rename one of those in Google, LifeSort follows. Your other Google events still show in LifeSort as before. It works once you set up Google Cloud. See [Waiting on you](#waiting-on-you).
 
 ### From the Later list (done 17 Nov)
 
@@ -85,7 +85,7 @@ Settings holds Profile, Notifications (with install and push), Rules, Journal, C
 - Bring your tasks over (Settings > Account): Todoist or any CSV.
 - Import a bank statement (Money > Budget): HDFC, SBI, ICICI style CSVs. Safe to import twice.
 
-### ChatGPT and Claude connector (built 18 Nov, not live yet)
+### ChatGPT and Claude connector (live 19 Nov)
 
 - Settings > Account > "Use LifeSort in ChatGPT or Claude" shows one address to paste into Claude or ChatGPT as a connector. You sign in to LifeSort, see what's shared, and tap Allow.
 - Then you can ask things like "what's on today?", "find my passport note" or "add 'call the plumber' to my LifeSort inbox".
@@ -93,7 +93,7 @@ Settings holds Profile, Notifications (with install and push), Rules, Journal, C
 - The same card lists connected apps with Disconnect.
 - I picked how the apps sign in (the standard OAuth way both apps support) because the build needed it. Say if you want it different.
 
-### Email and WhatsApp capture (built 18 Nov, not live yet)
+### Email and WhatsApp capture (live 19 Nov, needs your setup)
 
 - Settings > Account > "Send things to your Inbox" gives you a private email address. Forward an email or write to it and it waits in Inbox. The subject becomes the title.
 - Link my WhatsApp shows a short code. Send it from your phone to LifeSort's WhatsApp number once, and after that anything you text that number lands in Inbox. It replies "Saved to your LifeSort Inbox."
@@ -116,9 +116,9 @@ Every change passed typecheck, the build and the tests (248 tests now). Beyond t
 | Kit drafts, task breakdown | Real AI calls with made-up text | Not in the app |
 | Task and bank imports | Database writes checked with EXPLAIN | Not with real files |
 | Photo to Vault | Saves checked with EXPLAIN. Four real AI reads of a made-up bill all hit "Gemini is overloaded" and fell back to the empty form | No. The AI draft and the upload still need a real try |
-| Two-way Google sync | The real code ran against a throwaway local copy of the database with Google faked: turning it on, editing, a move in Google coming back, deleting | No. Needs the database change and a real Google connection |
-| ChatGPT and Claude connector | The whole sign-in and every tool ran against the local copy: consent, wrong codes refused, hidden domains stayed hidden, adding to Inbox, disconnecting | No. Needs the database change and a deploy |
-| Email and WhatsApp capture | Both webhooks ran against the local copy with signed test messages: email filed, bad signatures refused, linking by code, texts saved, the daily cap | No. Needs the database change and your Resend and Meta setup |
+| Two-way Google sync | The real code ran against a throwaway local copy of the database with Google faked: turning it on, editing, a move in Google coming back, deleting | No. Needs your Google Cloud setup and a real connection |
+| ChatGPT and Claude connector | The whole sign-in and every tool ran against the local copy: consent, wrong codes refused, hidden domains stayed hidden, adding to Inbox, disconnecting. On the live site the sign-in documents, the 401 and the token check answer correctly | No. Needs you to add it in Claude or ChatGPT |
+| Email and WhatsApp capture | Both webhooks ran against the local copy with signed test messages: email filed, bad signatures refused, linking by code, texts saved, the daily cap. Live, both say "not set up" as they should | No. Needs your Resend and Meta setup |
 
 You declined test accounts after Stage 2, so most checks since then avoided writing data.
 
@@ -134,33 +134,30 @@ You declined test accounts after Stage 2, so most checks since then avoided writ
 - [ ] Import a Todoist export (check the priorities look right in the preview)
 - [ ] Import one bank CSV
 - [ ] Snap a bill from Inbox and check the form it fills in
+- [ ] Add LifeSort as a connector in Claude and ask "what's on today?"
 
 ## Waiting on you
 
 | Item | What it needs from you |
 |---|---|
 | Keeping photos and files (Photo to Vault, Vault attachments) | Replace the R2 key that was exposed in an old chat, and let browsers upload to the bucket. Steps in [R2 storage](#r2-storage) below |
-| Two-way Google Calendar sync | 1. Say OK to the database change in [Database changes](#database-changes). 2. The Google Cloud steps in [Google Calendar](#google-calendar) |
-| ChatGPT and Claude connector | Say OK to its database change in [Database changes](#database-changes). Nothing to set up after that; try it as in [Trying the connector](#trying-the-connector) |
-| Email capture | Its database change, then the Resend steps in [Email capture setup](#email-capture-setup) |
-| WhatsApp capture (optional) | Its database change, then the Meta steps in [WhatsApp capture setup](#whatsapp-capture-setup) |
+| Two-way Google Calendar sync | The Google Cloud steps in [Google Calendar](#google-calendar) |
+| ChatGPT and Claude connector | Nothing to set up. Try it as in [Trying the connector](#trying-the-connector) |
+| Email capture | The Resend steps in [Email capture setup](#email-capture-setup) |
+| WhatsApp capture (optional) | The Meta steps in [WhatsApp capture setup](#whatsapp-capture-setup) |
 | Notion import | Your Notion export format, or a Notion connection |
 | Shared household | A decision on who can see what |
 | lifesort.kreativvantage.com | Fix the Cloudflare DNS setting (it returns a 404) |
 
 ### Database changes
 
-These add new tables or columns and change nothing that exists. I tried to run the first one on the live database myself, and the safety check stopped me because you hadn't OK'd it. Fair enough. The code that needs them is built and waits on branch `worktree-four-features`. Once you say OK, I run them and put that code live.
+Done 19 Nov with your OK. All three ran on the live database in one transaction. They only added tables and columns, and users and Inbox counts were the same after. Then `main` moved forward and the deploy went live.
 
-- `scripts/migrations/2026-11-18-google-two-way-sync.sql`: three columns on `calendar_integrations` and a new `calendar_sync_links` table. Tested on a local copy of the schema, including running it twice.
-- `scripts/migrations/2026-11-18-connector-oauth.sql`: new `oauth_clients` and `oauth_grants` tables, and Inbox items may come from `connector`, `email` or `whatsapp`. Tested the same way.
-- `scripts/migrations/2026-11-18-capture-channels.sql`: a new `capture_channels` table (and the same Inbox change, so order doesn't matter). Tested the same way.
-
-To OK them, reply "run the three migrations". I'll run them in one go, check the counts, fast-forward `main` and check the deploy.
+- `scripts/migrations/2026-11-18-google-two-way-sync.sql`: three columns on `calendar_integrations` and a new `calendar_sync_links` table.
+- `scripts/migrations/2026-11-18-connector-oauth.sql`: new `oauth_clients` and `oauth_grants` tables, and Inbox items may come from `connector`, `email` or `whatsapp`.
+- `scripts/migrations/2026-11-18-capture-channels.sql`: a new `capture_channels` table.
 
 ### Trying the connector
-
-Once it's live:
 
 - **Claude:** Settings > Connectors > Add custom connector. Name it LifeSort, paste `https://lifesort.vercel.app/api/mcp`, Add, then Connect. Sign in to LifeSort and tap Allow. In a chat, turn LifeSort on from the tools menu.
 - **ChatGPT:** Settings > Apps & Connectors > Advanced settings > turn on Developer mode. Then Create, paste the same address, choose OAuth, and connect. Developer mode needs a paid ChatGPT plan.

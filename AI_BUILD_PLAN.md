@@ -113,7 +113,7 @@ Settings absorbs Rules and the full Notifications page. Every old URL keeps work
 - A guided morning plan and evening shutdown on Today.
 - 🟡 Built 2026-11-17: Plan your hours on Today (drag or pick a half-hour slot for today's tasks, next to local and Google events, with durations and overlaps; opens by itself before noon) and Move to tomorrow in the evening wrap-up with Undo. Two-way Google sync was skipped by the user: Google stays read-only, because writing needs the `calendar.events` scope in their Google Cloud project and a reconnect.
 - 🟠 Two-way Google sync unparked 2026-11-18. Plan in [The four parked features](#the-four-parked-features-2026-11-18), part B.
-- 🟡 Built 2026-11-18 on the branch, not deployed: it needs `scripts/migrations/2026-11-18-google-two-way-sync.sql` on the shared database first, which waits on the user's OK. Tested against a local Postgres with Google mocked; no real Google account was connected.
+- 🟡 Built 2026-11-18 and deployed 2026-11-19 after the user approved `scripts/migrations/2026-11-18-google-two-way-sync.sql`. Tested against a local Postgres with Google mocked; no real Google account was connected.
 
 **Later**
 - A privacy-scoped connector for ChatGPT and Claude (MCP) that honors per-domain AI exclusion.
@@ -122,8 +122,8 @@ Settings absorbs Rules and the full Notifications page. Every old URL keeps work
 - AI task breakdown with time estimates.
 - 🟡 Built 2026-11-17 from this list: AI task breakdown (Break it down in a task's checklist), task import from Todoist or any CSV (Settings > Account), and bank statement import (Money > Budget). Still waiting on the user: the ChatGPT/Claude connector, email and WhatsApp/Telegram capture (need an inbound service), Notion import, and a shared household (changes who sees what).
 - 🟠 The connector and email/WhatsApp capture were unparked 2026-11-18. Plans in [The four parked features](#the-four-parked-features-2026-11-18), parts C and D. Notion import and shared household still wait.
-- 🟡 Connector built 2026-11-18 on the branch, not deployed: it needs `scripts/migrations/2026-11-18-connector-oauth.sql` first. The whole OAuth and MCP flow ran against a local Postgres; no real Claude or ChatGPT connection yet.
-- 🟡 Email and WhatsApp capture built 2026-11-18 on the branch, not deployed: it needs `scripts/migrations/2026-11-18-capture-channels.sql` and the user's Resend and Meta setup. Both webhooks ran against a local Postgres with signed test requests.
+- 🟡 Connector built 2026-11-18 and deployed 2026-11-19 with `scripts/migrations/2026-11-18-connector-oauth.sql`. The whole OAuth and MCP flow ran against a local Postgres; no real Claude or ChatGPT connection yet.
+- 🟡 Email and WhatsApp capture built 2026-11-18 and deployed 2026-11-19 with `scripts/migrations/2026-11-18-capture-channels.sql`; it stays "not set up" until the user does the Resend and Meta setup. Both webhooks ran against a local Postgres with signed test requests.
 
 ### The four parked features (2026-11-18)
 

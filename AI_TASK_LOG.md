@@ -19,6 +19,17 @@ Current verification state (2026-11-18, after email and WhatsApp capture):
 
 ## Completed Work
 
+### 2026-11-19 IST - Ran the three migrations and deployed the remaining features
+
+- **Agent/tool used:** Claude Code (Opus 5.5). The user replied "run the three migrations" in this session. (An earlier relayed approval from another Claude session was declined; the approval had to come from the user here.)
+- **Before:** a read-only check found 2 users, 0 Inbox items, 0 Google connections, and none of `calendar_sync_links`, `oauth_clients`, `oauth_grants`, `capture_channels`.
+- **Ran:** `psql` on `DATABASE_URL_UNPOOLED` with `-1 -v ON_ERROR_STOP=1` and the three files in order: `2026-11-18-google-two-way-sync.sql`, `2026-11-18-connector-oauth.sql`, `2026-11-18-capture-channels.sql`. One transaction, no errors.
+- **After:** `calendar_integrations` has `scope`, `time_zone`, `sync_to_google`; all four tables exist; `inbox_items_source_check` allows `connector`, `email`, `whatsapp`; still 2 users and 0 Inbox items.
+- **Deploy:** `main` fast-forwarded from `3665aa1` to `168cef6` (`worktree-four-features`). The production deploy came up Ready.
+- **Smoke test on lifesort.vercel.app (no data written):** both `/.well-known` documents use `https://lifesort.vercel.app` (so the forwarded-host origin works on Vercel); `POST /api/mcp` returns 401 with the `WWW-Authenticate` resource metadata, GET 405; the token endpoint returns `invalid_grant` for a made-up refresh token (reads `oauth_grants`); `/oauth/authorize?client_id=nope` shows the can't-connect page (reads `oauth_clients`); `/api/calendar/integrations` answers signed out; sync, capture channels and connections return 401 signed out; the email webhook says not set up (503) and the WhatsApp verify check refuses (403), as designed with no env vars; `/`, `/inbox`, `/settings`, `/tasks`, `/library`, `/login` return 200.
+- **Not done here:** registering a client or connecting an app (that would write rows); the user can try the connector from Claude.
+- **Docs:** `STATUS.md` now says all four are live and lists only the account setup left (R2, Google Cloud, Resend, Meta).
+
 ### 2026-11-18 IST - Email and WhatsApp capture (not deployed, waits on the migration and the user's accounts)
 
 - **Agent/tool used:** Claude Code (Opus 5.5). Worktree branch `worktree-four-features`. Last of the four features approved on 2026-11-18.
