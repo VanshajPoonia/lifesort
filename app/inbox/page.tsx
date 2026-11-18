@@ -63,7 +63,7 @@ import { cn } from "@/lib/utils"
 // tasks, events and the rest for you to confirm.
 
 type InboxStatus = "unsorted" | "converted" | "archived" | "all"
-type InboxSource = "manual" | "quick_add" | "ai_capture"
+type InboxSource = "manual" | "quick_add" | "ai_capture" | "connector" | "email" | "whatsapp"
 type TargetType = "task" | "goal" | "note" | "project" | "habit" | "wishlist_item" | "vault_item" | "calendar_event"
 
 type InboxItem = {
@@ -96,6 +96,9 @@ const sourceLabels: Record<InboxSource, string> = {
   manual: "Typed here",
   quick_add: "Quick Add",
   ai_capture: "Sent to AI",
+  connector: "From ChatGPT or Claude",
+  email: "By email",
+  whatsapp: "By WhatsApp",
 }
 
 const targetOptions: Array<{ value: TargetType; label: string; icon: ElementType }> = [
