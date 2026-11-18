@@ -894,6 +894,23 @@ CREATE TABLE IF NOT EXISTS notifications (
 CREATE INDEX IF NOT EXISTS idx_notifications_user_unread
   ON notifications(user_id, is_read, created_at DESC);
 
+-- ── Email and WhatsApp capture (migrations/2026-11-18-capture-channels.sql) ──
+-- One row per person and channel: a private email address token or a linked WhatsApp number.
+
+CREATE TABLE IF NOT EXISTS capture_channels (
+  id                   SERIAL PRIMARY KEY,
+  user_id              VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  channel              VARCHAR(20)  NOT NULL CHECK (channel IN ('email', 'whatsapp')),
+  address_token        VARCHAR(40)  UNIQUE,
+  phone                VARCHAR(32)  UNIQUE,
+  link_code            VARCHAR(12)  UNIQUE,
+  link_code_expires_at TIMESTAMP WITH TIME ZONE,
+  linked_at            TIMESTAMP WITH TIME ZONE,
+  last_used_at         TIMESTAMP WITH TIME ZONE,
+  created_at           TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  UNIQUE (user_id, channel)
+);
+
 -- ── Connector OAuth (migrations/2026-11-18-connector-oauth.sql) ──
 -- Apps that registered themselves, and their codes and tokens stored as SHA-256 hashes.
 
