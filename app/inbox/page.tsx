@@ -28,6 +28,7 @@ import {
 
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { AI_SORT_MAX_CHARS, AiSortPanel } from "@/components/inbox/ai-sort-panel"
+import { PhotoScanButton } from "@/components/vault/photo-scan"
 import { LifeAreaSelect } from "@/components/life-area-controls"
 import { useAuth } from "@/components/auth-provider"
 import { Button } from "@/components/ui/button"
@@ -459,6 +460,7 @@ export default function InboxPage() {
               >
                 {dictation.listening ? <MicOff className="h-4 w-4" aria-hidden="true" /> : <Mic className="h-4 w-4" aria-hidden="true" />}
               </Button>
+              <PhotoScanButton />
               <Button variant="outline" onClick={() => void saveCapture(false)} disabled={!captureText.trim() || saving} className="gap-2">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Inbox className="h-4 w-4" aria-hidden="true" />}
                 Save

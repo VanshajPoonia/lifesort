@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react"
 import { AttachmentList } from "@/components/attachment-list"
+import { PhotoScanButton } from "@/components/vault/photo-scan"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -513,6 +514,7 @@ export function VaultView() {
             <Button variant="ghost" size="icon" onClick={fetchAll} title="Refresh">
               <RefreshCw className="h-4 w-4" />
             </Button>
+            <PhotoScanButton label="Scan a photo" onSaved={fetchAll} />
             <Button onClick={openAdd}>
               <Plus className="h-4 w-4 mr-1" /> Add item
             </Button>
