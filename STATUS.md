@@ -1,6 +1,6 @@
 # LifeSort status
 
-A plain summary of where LifeSort stands, written for you to come back to. Last updated 17 Nov 2026.
+A plain summary of where LifeSort stands, written for you to come back to. Last updated 18 Nov 2026.
 
 The detailed sources are `AI_BUILD_PLAN.md` (the plan; Part 0 is the current direction, Part C the bigger backlog), `AI_TASK_LOG.md` (what was done and how it was checked) and `AI_DECISIONS.md` (why things are the way they are).
 
@@ -8,7 +8,7 @@ The detailed sources are `AI_BUILD_PLAN.md` (the plan; Part 0 is the current dir
 
 No.
 
-- **Part 0, the current direction (Stages 1 to 6 and the Later list):** mostly built. Everything left there is waiting on a decision from you.
+- **Part 0, the current direction (Stages 1 to 6 and the Later list):** mostly built. On 18 Nov you approved four parked features. Photo to Vault is built. Two-way Google sync, the ChatGPT/Claude connector and email/WhatsApp capture are next.
 - **Part C, the older detailed backlog:** many items are still partly done or not started. See [What's left in the bigger backlog](#whats-left-in-the-bigger-backlog).
 - **Testing:** a lot of the new work has not been tried in a browser with real use yet. See [What has been checked](#what-has-been-checked).
 
@@ -21,7 +21,7 @@ The sidebar has seven places:
 | Place | What's in it |
 |---|---|
 | Today | Focus list with a timer, energy check, today's list, Needs a decision, Start fresh, Plan your hours, Evening wrap-up |
-| Inbox | One capture box. Type, speak or share into it, then Save or Sort with AI |
+| Inbox | One capture box. Type, speak or share into it, then Save or Sort with AI. The camera button files a photo into the Vault |
 | Tasks | List, Calendar and Habits tabs. Waiting and Later are filters. Break it down on any task |
 | Domains | Life areas, goals, projects, and Life Kits |
 | Library | Notes, Journal, People, Vault, Links, Whiteboards |
@@ -58,9 +58,13 @@ Settings holds Profile, Notifications (with install and push), Rules, Journal, C
 - "Describe your situation" lets the AI draft a custom kit for you to check.
 - Onboarding now starts with "What's going on in your life right now?"
 
-### Stage 4: Photo to Vault (not built)
+### Stage 4: Photo to Vault (built 18 Nov)
 
-Parked by you. See [Waiting on you](#waiting-on-you).
+- Snap or pick a photo of a bill, policy, warranty or ID from the camera button in Inbox, or Scan a photo in Library > Vault.
+- The AI fills in a form: name, Vault section, dates, amount and anything due. You check it. Nothing is saved until you tap Save.
+- Ticks add a reminder two weeks before it renews, a task for anything due, and the amount as spending in Money.
+- If the AI can't read it, the same form opens empty so you can still file it.
+- The photo itself is kept with the Vault entry once file storage works. See [Waiting on you](#waiting-on-you).
 
 ### Stage 5: Life Patterns (done 17 Nov)
 
@@ -83,7 +87,7 @@ Parked by you. See [Waiting on you](#waiting-on-you).
 
 ## What has been checked
 
-Every change passed typecheck, the build and the tests (189 tests now). Beyond that:
+Every change passed typecheck, the build and the tests (200 tests now). Beyond that:
 
 | Area | How it was checked | Tried for real? |
 |---|---|---|
@@ -95,6 +99,7 @@ Every change passed typecheck, the build and the tests (189 tests now). Beyond t
 | Plan your hours, Move to tomorrow | Uses existing APIs, no new database code | No |
 | Kit drafts, task breakdown | Real AI calls with made-up text | Not in the app |
 | Task and bank imports | Database writes checked with EXPLAIN | Not with real files |
+| Photo to Vault | Saves checked with EXPLAIN. Four real AI reads of a made-up bill all hit "Gemini is overloaded" and fell back to the empty form | No. The AI draft and the upload still need a real try |
 
 You declined test accounts after Stage 2, so most checks since then avoided writing data.
 
@@ -109,18 +114,32 @@ You declined test accounts after Stage 2, so most checks since then avoided writ
 - [ ] Break it down on a task
 - [ ] Import a Todoist export (check the priorities look right in the preview)
 - [ ] Import one bank CSV
+- [ ] Snap a bill from Inbox and check the form it fills in
 
 ## Waiting on you
 
 | Item | What it needs from you |
 |---|---|
-| Stage 4: snap a photo and it files itself | Replace the Cloudflare R2 key that was exposed in an old chat, then I add it to Vercel |
+| Keeping photos and files (Photo to Vault, Vault attachments) | Replace the R2 key that was exposed in an old chat, and let browsers upload to the bucket. Steps in [R2 storage](#r2-storage) below |
 | Two-way Google Calendar sync | Add the calendar.events permission in Google Cloud and reconnect. Google may show an "unverified app" warning |
 | ChatGPT and Claude connector | A decision on how those apps sign in to your LifeSort account |
 | Email to task, WhatsApp or Telegram capture | An inbound email address or a bot account |
 | Notion import | Your Notion export format, or a Notion connection |
 | Shared household | A decision on who can see what |
 | lifesort.kreativvantage.com | Fix the Cloudflare DNS setting (it returns a 404) |
+
+### R2 storage
+
+The four `R2_*` settings are already in Vercel (Production and Preview). Only the key needs replacing, plus one bucket setting.
+
+1. Cloudflare dashboard > R2 > Manage R2 API Tokens > Create API token. Permission: Object Read & Write, limited to the `lifesort` bucket. Copy the Access Key ID and Secret Access Key.
+2. Vercel > project `v0-calendar-app-sb` > Settings > Environment Variables. Edit `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY` with the new values for Production and Preview. Put the same two values in your local `.env.local`.
+3. Back in Cloudflare, delete the old R2 token.
+4. Cloudflare > R2 > `lifesort` bucket > Settings > CORS Policy > Add, and paste:
+   ```json
+   [{ "AllowedOrigins": ["https://lifesort.vercel.app", "http://localhost:3000"], "AllowedMethods": ["PUT", "GET"], "AllowedHeaders": ["Content-Type"], "MaxAgeSeconds": 3600 }]
+   ```
+5. Redeploy production so it picks up the new key (or tell me and I'll do it).
 
 ## What's left in the bigger backlog
 
@@ -167,6 +186,8 @@ From `AI_BUILD_PLAN.md` Part C. These were planned before Part 0 and wait until 
 - Coach replies show raw markdown (like `**bold**`).
 - Opening a date in the Journal saves an empty entry.
 - AI features (kit drafts, What might this mean, Break it down) took 16 to 105 seconds in tests. The server stops at 60.
+- On 18 Nov Gemini kept answering "this model is experiencing high demand", so every AI feature can fail at busy times. Photo scans fall back to the empty form.
+- Money > Investments' screenshot reader still uses a Groq vision model that Groq has retired, so it likely fails.
 - Push keys are not set for Vercel Preview builds, so push is off there. Production is fine.
 - Pattern weeks and weekdays use server time, so they can be a day off near midnight in India.
 - 50 lint findings remain. All are a known, reviewed kind.

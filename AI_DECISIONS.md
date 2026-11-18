@@ -221,6 +221,15 @@ Architecture and product decision memory for LifeSort.
 - **Usage check (2026-11-11):** a read-only count on the production database, which every Vercel environment shares, found 2 accounts, no login since 2026-05-20 and almost every feature table empty. The user confirmed they stopped using LifeSort. The first goal is daily use by the user.
 - **Decision (user, 2026-11-11):** Waiting, Someday, Commitments and Maintenance fold into Tasks (statuses, recurring tasks, person links) and their empty tables get dropped. Spaces and Custom Sections are removed. Daily Content and games stay hidden. Everything is free for now. Kits are chosen later from a tick list. This supersedes the 2026-07-23 rule above about keeping trackers as compatibility lenses, which assumed real user data that does not exist.
 
+## Photo to Vault (Stage 4, 2026-11-18)
+
+- **Gemini reads photos, not Groq.** `gemini-3.5-flash` takes images through the AI SDK, so photo scans use the one provider every other AI route uses. Groq's `llama-3.2-90b-vision-preview`, which `/api/investments/parse-screenshot` still calls, is retired by Groq.
+- **The AI drafts and the person saves.** `/api/ai/photo` saves nothing. The confirm form shows every field and tick, and `/api/vault/photo` adds everything in one transaction. When the AI fails, the same form opens empty so the photo can still be filed.
+- **Small photo to the AI, original to storage.** The browser shrinks the photo to 1600px JPEG (about 4 MB cap) before it reaches the function, which keeps it under Vercel's request size limit. The original goes straight to R2 through the existing presigned-URL attachments route, so the bytes never pass through our API.
+- **No past dates.** Renewal tasks fall 14 days before the renewal (or expiry) date, or today when that's sooner. Due tasks date from today at the earliest. Spending lands on the document date, or today if the document is dated in the future.
+- **Never store an ID card's own number.** The prompt asks only for policy, account or invoice references, matching the Vault's "reference information only" notice.
+- **Fail fast under load.** `maxRetries: 1`, because three tries during a Gemini overload took 61 seconds, past the 60-second function limit.
+
 ## Imports and task breakdown (2026-11-17)
 
 - **Files are parsed in the browser.** The person sees what was found before anything is saved, and the server only takes validated rows (zod, size caps). No file uploads, no new dependency: `parseCsv` in `lib/task-import.ts` is a small RFC 4180 reader.

@@ -99,6 +99,7 @@ Settings absorbs Rules and the full Notifications page. Every old URL keeps work
 - Camera or upload in Inbox for a bill, policy, warranty or ID. AI drafts the linked set: a Vault entry, a renewal reminder, a budget line and a task if something is due. The user confirms.
 - Reuse the Groq vision parsing that Investments already uses. Files go to R2, so the `R2_*` env vars must reach Vercel and the flagged token must be rotated first.
 - 🟠 Unparked 2026-11-18. Plan in [The four parked features](#the-four-parked-features-2026-11-18), part A. Gemini reads the photo instead of Groq.
+- 🟡 Built 2026-11-18: camera button in Inbox and Scan a photo in the Vault, the AI draft (`/api/ai/photo`), the confirm form with renewal, due-task and spending ticks (`/api/vault/photo`), and the photo upload to R2. Not confirmed: a successful AI draft (Gemini was overloaded during every test) and a real upload (needs the rotated R2 token and a CORS rule).
 
 **Stage 5: Life Patterns**
 - One weekly "What I noticed" feed in Reflect, replacing the separate insight screens.

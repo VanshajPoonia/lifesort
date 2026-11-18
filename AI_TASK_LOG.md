@@ -10,14 +10,28 @@ Keep it short. Entries dated before 2026-10 were moved word for word to `AI_TASK
 
 LifeSort is a broad Next.js App Router application with many implemented product areas and a Vercel-oriented deployment. The repo now has persistent AI memory files in the project root.
 
-Current verification state (2026-11-17, after imports and task breakdown):
+Current verification state (2026-11-18, after Photo to Vault):
 
 - `npm run build` passes with TypeScript validation now actually enforced (`next.config.mjs`'s `typescript.ignoreBuildErrors` is `false`; `tsc --noEmit` is clean). `eslint.ignoreDuringBuilds` remains `true` — 50 pre-existing lint findings remain (down from 293 originally; see the 2026-07-25 ESLint cleanup entry, 66 → 65 in the 2026-10-28 design pass, 65 → 64 in the 2026-11-11 Today merge, 64 → 62 in Stage 1 step 3, then 51 after the Stage 1 deletions and 50 after the Reflect rebuild), every one a reviewed-and-commented `react-hooks/set-state-in-effect` exception (either a real state transition or a function intentionally shared with non-effect call sites). It still exits non-zero; that is expected and not a blocker.
 - `npm run lint` runs cleanly via `eslint.config.mjs` (ESLint 9.x + `eslint-config-next@16`) — it exits non-zero on real findings, it does not fail to run.
-- `npm test` runs Vitest: 189/189 tests passing across 19 suites (`lib/task-breakdown.test.ts`, `lib/task-import.test.ts`, `lib/bank-import.test.ts`, `lib/day-plan.test.ts`, `lib/life-patterns.test.ts`, `lib/life-kits.test.ts`, `lib/life-kit-input.test.ts`, `lib/auth.test.ts`, `lib/date-math.test.ts`, `lib/habit-streaks.test.ts`, `lib/shared-capture.test.ts`, `lib/reminder-push.test.ts`, `lib/push.test.ts`, `app/api/push/subscriptions/route.test.ts`, `app/api/tags/route.test.ts`, `app/api/item-relationships/route.test.ts`, `app/api/tasks/[id]/checklist-items/route.test.ts`, `app/api/tasks/[id]/recurrence/route.test.ts`, `app/api/tasks/route.test.ts`).
+- `npm test` runs Vitest: 200/200 tests passing across 20 suites (`lib/photo-scan.test.ts`, `lib/task-breakdown.test.ts`, `lib/task-import.test.ts`, `lib/bank-import.test.ts`, `lib/day-plan.test.ts`, `lib/life-patterns.test.ts`, `lib/life-kits.test.ts`, `lib/life-kit-input.test.ts`, `lib/auth.test.ts`, `lib/date-math.test.ts`, `lib/habit-streaks.test.ts`, `lib/shared-capture.test.ts`, `lib/reminder-push.test.ts`, `lib/push.test.ts`, `app/api/push/subscriptions/route.test.ts`, `app/api/tags/route.test.ts`, `app/api/item-relationships/route.test.ts`, `app/api/tasks/[id]/checklist-items/route.test.ts`, `app/api/tasks/[id]/recurrence/route.test.ts`, `app/api/tasks/route.test.ts`).
 - `npx tsc --noEmit` is clean.
 
 ## Completed Work
+
+### 2026-11-18 IST - Stage 4: Photo to Vault
+
+- **Agent/tool used:** Claude Code (Opus 5.5). Worktree branch `worktree-four-features`. On 2026-11-18 the user approved building four parked features one at a time (this is the first) and lifted the Stage 4 R2 hold. Plans for all four are in `AI_BUILD_PLAN.md` Part 0, "The four parked features".
+- **Changes, one commit each:**
+  - `lib/photo-scan.ts` and test (11), `app/api/ai/photo/route.ts`, `lib/ai-usage.ts` (`photo_scan`, 10 a day): Gemini reads the photo (multipart, JPEG/PNG/WebP up to 4 MB) and drafts kind, title, Vault section, issuer, summary, reference, document/start/expiry/renewal/due dates, amount, currency and a due action. `cleanDraft` drops impossible dates and bad amounts. Nothing is saved. `maxRetries: 1`, because three tries under load took 61 seconds, past the 60-second limit.
+  - `app/api/vault/photo/route.ts`, `lib/r2.ts` (`isR2Configured`), `app/api/attachments/route.ts`: one transaction adds the Vault entry, a "Renew X" task 14 days before the renewal or expiry date (today if closer), a due task (never dated before today) and an expense on the document date (today if in the future), as ticked. Attachments now return 503 "File storage isn't set up yet" before inserting a row when the `R2_*` vars are missing.
+  - `components/vault/photo-scan.tsx`, `app/inbox/page.tsx`, `components/library/vault-view.tsx`: a camera button beside the mic in Inbox and Scan a photo on Library > Vault. The browser shrinks the photo to 1600px JPEG for the AI (falls back to the original if it can't decode it), shows the draft in a form with ticks, saves, then uploads the original photo to R2 through `/api/attachments` (and removes the attachment row if the upload fails). If the AI fails, the same form opens empty.
+- **Commands run:** `npx tsc --noEmit` clean. `npm test` 200/200 in 20 suites. `npm run lint` 50, unchanged (the new files have none). `npm run build` passes.
+- **Checks without test data:** the save route's three INSERTs ran as `EXPLAIN` in a read-only Neon transaction against the live schema (temporary, uncommitted test); `vault_items` stayed at 0 rows and `users` at 2. Four live Gemini reads of a made-up electricity bill (rendered with headless Chrome) went through the real route with auth and usage mocked. All four got Gemini's "This model is currently experiencing high demand" and returned the friendly error that opens the manual form, so the AI draft itself is not confirmed yet.
+- **Found:** Investments' screenshot parser still calls Groq's `llama-3.2-90b-vision-preview`, which Groq has retired. Not changed here.
+- **R2:** the four `R2_*` vars are already in Vercel Production and Preview (the old log said they weren't). The token in them was exposed in a 2026-07 chat and should be rotated, and browser uploads also need a CORS rule on the bucket. Steps are in `STATUS.md`.
+- **Not verified:** the dialog in a browser, a real photo upload to R2, and a successful AI draft.
+- **Suggested next steps:** retry a photo scan when Gemini isn't overloaded. The user rotates the R2 token and adds the CORS rule. Next feature: two-way Google sync.
 
 ### 2026-11-17 IST - STATUS.md for the user
 
@@ -263,7 +277,7 @@ Current verification state (2026-11-17, after imports and task breakdown):
 
 - No known code bugs beyond the small ones in the 2026-11-11 22:00 entry. Habit saving was broken until 2026-11-11 (fixed in that entry).
 - `lifesort.kreativvantage.com` returns a Cloudflare 404 for every path (seen 2026-11-11). Production itself works at `lifesort.vercel.app`. Needs a DNS or Cloudflare fix by the user.
-- Attachments are not deploy-ready. The `R2_*` env vars exist only in `.env.local`, not in Vercel, and the R2 token there was exposed in a past chat and should be rotated. Stage 4 of `AI_BUILD_PLAN.md` Part 0 depends on this.
+- Attachments and Photo to Vault uploads are not confirmed working. The `R2_*` env vars are in Vercel Production and Preview (checked 2026-11-18), but the token was exposed in a past chat and should be rotated, and the bucket needs a CORS rule for browser uploads. Steps in `STATUS.md`.
 - `npm run lint` reports 62 reviewed `react-hooks/set-state-in-effect` findings and exits non-zero. Expected, not a blocker.
 
 ## Known Risks
