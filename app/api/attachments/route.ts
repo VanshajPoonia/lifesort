@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 
 import { getUserFromSession } from "@/lib/auth"
 import { sql } from "@/lib/db"
-import { buildStorageKey, createUploadUrl } from "@/lib/r2"
+import { buildStorageKey, createUploadUrl, isR2Configured } from "@/lib/r2"
 
 const ITEM_TYPES = new Set(["task", "goal", "project", "note", "vault_item"])
 const MAX_FILE_SIZE = 25 * 1024 * 1024
@@ -73,6 +73,9 @@ export async function POST(request: Request) {
   try {
     const user = await getUserFromSession()
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!isR2Configured()) {
+      return NextResponse.json({ error: "File storage isn't set up yet." }, { status: 503 })
+    }
 
     const body = await request.json()
     const itemType = cleanItemType(body.item_type)
