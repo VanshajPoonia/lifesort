@@ -8,7 +8,7 @@ The detailed sources are `AI_BUILD_PLAN.md` (the plan; Part 0 is the current dir
 
 No.
 
-- **Part 0, the current direction (Stages 1 to 6 and the Later list):** mostly built. On 18 Nov you approved four parked features. Photo to Vault is built. Two-way Google sync, the ChatGPT/Claude connector and email/WhatsApp capture are next.
+- **Part 0, the current direction (Stages 1 to 6 and the Later list):** mostly built. On 18 Nov you approved four parked features. Photo to Vault is built and live. Two-way Google sync is built but waits on your OK for a database change. The ChatGPT/Claude connector and email/WhatsApp capture are next.
 - **Part C, the older detailed backlog:** many items are still partly done or not started. See [What's left in the bigger backlog](#whats-left-in-the-bigger-backlog).
 - **Testing:** a lot of the new work has not been tried in a browser with real use yet. See [What has been checked](#what-has-been-checked).
 
@@ -77,7 +77,7 @@ Settings holds Profile, Notifications (with install and push), Rules, Journal, C
 
 - Plan your hours on Today: drag today's tasks into half-hour slots next to your calendar and Google events. Opens by itself before noon.
 - Move to tomorrow in the evening wrap-up, with Undo.
-- Not done: two-way Google Calendar sync (your choice, Google stays read-only).
+- Two-way Google Calendar sync (built 18 Nov, not live yet). Tasks > Calendar > Connect Calendar has a switch: "Put my LifeSort events and planned tasks on Google". With it on, your LifeSort events and the tasks you plan into a time slot appear in Google Calendar. If you move or rename one of those in Google, LifeSort follows. Your other Google events still show in LifeSort as before. It goes live once you OK one database change and set up Google. See [Waiting on you](#waiting-on-you).
 
 ### From the Later list (done 17 Nov)
 
@@ -87,7 +87,7 @@ Settings holds Profile, Notifications (with install and push), Rules, Journal, C
 
 ## What has been checked
 
-Every change passed typecheck, the build and the tests (200 tests now). Beyond that:
+Every change passed typecheck, the build and the tests (219 tests now). Beyond that:
 
 | Area | How it was checked | Tried for real? |
 |---|---|---|
@@ -100,6 +100,7 @@ Every change passed typecheck, the build and the tests (200 tests now). Beyond t
 | Kit drafts, task breakdown | Real AI calls with made-up text | Not in the app |
 | Task and bank imports | Database writes checked with EXPLAIN | Not with real files |
 | Photo to Vault | Saves checked with EXPLAIN. Four real AI reads of a made-up bill all hit "Gemini is overloaded" and fell back to the empty form | No. The AI draft and the upload still need a real try |
+| Two-way Google sync | The real code ran against a throwaway local copy of the database with Google faked: turning it on, editing, a move in Google coming back, deleting | No. Needs the database change and a real Google connection |
 
 You declined test accounts after Stage 2, so most checks since then avoided writing data.
 
@@ -121,12 +122,27 @@ You declined test accounts after Stage 2, so most checks since then avoided writ
 | Item | What it needs from you |
 |---|---|
 | Keeping photos and files (Photo to Vault, Vault attachments) | Replace the R2 key that was exposed in an old chat, and let browsers upload to the bucket. Steps in [R2 storage](#r2-storage) below |
-| Two-way Google Calendar sync | Add the calendar.events permission in Google Cloud and reconnect. Google may show an "unverified app" warning |
+| Two-way Google Calendar sync | 1. Say OK to the database change in [Database changes](#database-changes). 2. The Google Cloud steps in [Google Calendar](#google-calendar) |
 | ChatGPT and Claude connector | A decision on how those apps sign in to your LifeSort account |
 | Email to task, WhatsApp or Telegram capture | An inbound email address or a bot account |
 | Notion import | Your Notion export format, or a Notion connection |
 | Shared household | A decision on who can see what |
 | lifesort.kreativvantage.com | Fix the Cloudflare DNS setting (it returns a 404) |
+
+### Database changes
+
+These add new tables or columns and change nothing that exists. I tried to run the first one on the live database myself, and the safety check stopped me because you hadn't OK'd it. Fair enough. The code that needs them is built and waits on branch `worktree-four-features`. Once you say OK, I run them and put that code live.
+
+- `scripts/migrations/2026-11-18-google-two-way-sync.sql`: three columns on `calendar_integrations` and a new `calendar_sync_links` table. Tested on a local copy of the schema, including running it twice.
+
+### Google Calendar
+
+In [Google Cloud Console](https://console.cloud.google.com), in the project that holds LifeSort's OAuth client:
+
+1. Google Auth Platform > Data access > Add or remove scopes. Tick `.../auth/calendar.events` and save.
+2. Google Auth Platform > Clients > LifeSort's web client > Authorized redirect URIs. Add `https://lifesort.vercel.app/api/calendar/google/callback` (and `http://localhost:3000/api/calendar/google/callback` for local testing). Connecting was broken before this because the old address pointed at lifesort.kreativvantage.com, which returns 404.
+3. Google Auth Platform > Audience. If it says Testing, either add your Google account as a test user (Google then signs you out of the connection every 7 days) or press Publish app. Unverified apps show a "Google hasn't verified this app" screen. Tap Advanced, then Go to LifeSort. That's fine for your own use.
+4. In LifeSort: Tasks > Calendar > Connect Calendar > Connect, allow access, then turn on "Put my LifeSort events and planned tasks on Google".
 
 ### R2 storage
 

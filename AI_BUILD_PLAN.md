@@ -113,6 +113,7 @@ Settings absorbs Rules and the full Notifications page. Every old URL keeps work
 - A guided morning plan and evening shutdown on Today.
 - 🟡 Built 2026-11-17: Plan your hours on Today (drag or pick a half-hour slot for today's tasks, next to local and Google events, with durations and overlaps; opens by itself before noon) and Move to tomorrow in the evening wrap-up with Undo. Two-way Google sync was skipped by the user: Google stays read-only, because writing needs the `calendar.events` scope in their Google Cloud project and a reconnect.
 - 🟠 Two-way Google sync unparked 2026-11-18. Plan in [The four parked features](#the-four-parked-features-2026-11-18), part B.
+- 🟡 Built 2026-11-18 on the branch, not deployed: it needs `scripts/migrations/2026-11-18-google-two-way-sync.sql` on the shared database first, which waits on the user's OK. Tested against a local Postgres with Google mocked; no real Google account was connected.
 
 **Later**
 - A privacy-scoped connector for ChatGPT and Claude (MCP) that honors per-domain AI exclusion.

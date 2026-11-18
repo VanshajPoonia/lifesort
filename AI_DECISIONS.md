@@ -221,6 +221,15 @@ Architecture and product decision memory for LifeSort.
 - **Usage check (2026-11-11):** a read-only count on the production database, which every Vercel environment shares, found 2 accounts, no login since 2026-05-20 and almost every feature table empty. The user confirmed they stopped using LifeSort. The first goal is daily use by the user.
 - **Decision (user, 2026-11-11):** Waiting, Someday, Commitments and Maintenance fold into Tasks (statuses, recurring tasks, person links) and their empty tables get dropped. Spaces and Custom Sections are removed. Daily Content and games stay hidden. Everything is free for now. Kits are chosen later from a tick list. This supersedes the 2026-07-23 rule above about keeping trackers as compatibility lenses, which assumed real user data that does not exist.
 
+## Two-way Google Calendar sync (Stage 6, 2026-11-18)
+
+- **What "two-way" means here.** LifeSort events, and tasks planned into a time slot, get copies in the person's primary Google calendar. Moves and renames made to those copies in Google come back to the LifeSort item. Google's own events stay view-only in LifeSort. Deleting a copy in Google never deletes the LifeSort item. This replaces the 2026-11-17 read-only choice, which the user lifted.
+- **Off until switched on.** Connecting asks for `calendar.events`, but nothing is written to Google until the person turns on the switch in the Google dialog. The switch saves the browser's time zone, which every Google time is built and read in.
+- **Pushes run after the response** (`after()` from `next/server` through `syncToGoogleSoon`). A Google failure is logged and never fails or slows a LifeSort save. Route tests mock `@/lib/google-calendar-server`, since `after()` only works inside a request.
+- **Links live in `calendar_sync_links`, not on the item tables.** One additive table instead of new columns on `tasks` and `calendar_events`. Google's `updated` timestamp from our last push decides whether a Google change is newer; ours are stored after every push, so a push never bounces back.
+- **Pulls happen in the existing sync GET.** It already ran on every calendar and planner load, so no cron or Google push channel is needed. It returns `pulled` so the calendar can reload.
+- **Redirect address from the request host,** not `NEXT_PUBLIC_APP_URL`, because that domain returns 404 and the token exchange must repeat the exact same address.
+
 ## Photo to Vault (Stage 4, 2026-11-18)
 
 - **Gemini reads photos, not Groq.** `gemini-3.5-flash` takes images through the AI SDK, so photo scans use the one provider every other AI route uses. Groq's `llama-3.2-90b-vision-preview`, which `/api/investments/parse-screenshot` still calls, is retired by Groq.
