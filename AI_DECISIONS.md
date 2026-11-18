@@ -221,6 +221,16 @@ Architecture and product decision memory for LifeSort.
 - **Usage check (2026-11-11):** a read-only count on the production database, which every Vercel environment shares, found 2 accounts, no login since 2026-05-20 and almost every feature table empty. The user confirmed they stopped using LifeSort. The first goal is daily use by the user.
 - **Decision (user, 2026-11-11):** Waiting, Someday, Commitments and Maintenance fold into Tasks (statuses, recurring tasks, person links) and their empty tables get dropped. Spaces and Custom Sections are removed. Daily Content and games stay hidden. Everything is free for now. Kits are chosen later from a tick list. This supersedes the 2026-07-23 rule above about keeping trackers as compatibility lenses, which assumed real user data that does not exist.
 
+## ChatGPT and Claude connector (2026-11-18)
+
+- **Sign-in is OAuth 2.1 with PKCE and dynamic client registration.** Chosen by Claude Code on 2026-11-18 because the build needed an answer and it's what Claude and ChatGPT custom connectors use to connect an account: the person pastes one address, signs in to LifeSort and taps Allow. Personal access tokens were the alternative; they work in command-line clients but not in the ChatGPT and Claude apps, and copying a token isn't "simplest". The user can change this.
+- **Hand-written, no new packages.** The OAuth endpoints and a sessionless MCP server (one JSON-RPC message per POST, JSON replies, no SSE) are small enough to own. The official MCP SDK would be a new dependency, which needs the user's OK.
+- **Public clients only.** No client secrets; S256 PKCE is required. Redirect addresses must be https, or http on loopback for desktop tools.
+- **Secrets are stored as SHA-256 hashes** in `oauth_grants`. Access tokens last an hour, refresh tokens 60 days and rotate on use. A code used twice revokes every token from that grant, as RFC 6749 suggests.
+- **Fixed scope, stated on the consent page.** Tasks, goals, notes, calendar events and Inbox can be read. Journal, money, Vault and people are never reachable. Domains with `is_ai_excluded` or `requires_reauth` are filtered out of every read. Writes only add (`add_to_inbox`, `add_task`); nothing edits or deletes, which keeps the "AI drafts, the person decides" rule.
+- **`search` and `fetch` follow ChatGPT's connector shape** (results with id, title and url; fetch returns id, title, text, url, metadata) so the same server works in both apps.
+- **Origins come from the forwarded host,** so the metadata, the MCP address and the Google redirect match the address the person used.
+
 ## Two-way Google Calendar sync (Stage 6, 2026-11-18)
 
 - **What "two-way" means here.** LifeSort events, and tasks planned into a time slot, get copies in the person's primary Google calendar. Moves and renames made to those copies in Google come back to the LifeSort item. Google's own events stay view-only in LifeSort. Deleting a copy in Google never deletes the LifeSort item. This replaces the 2026-11-17 read-only choice, which the user lifted.

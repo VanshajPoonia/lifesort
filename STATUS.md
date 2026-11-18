@@ -8,7 +8,7 @@ The detailed sources are `AI_BUILD_PLAN.md` (the plan; Part 0 is the current dir
 
 No.
 
-- **Part 0, the current direction (Stages 1 to 6 and the Later list):** mostly built. On 18 Nov you approved four parked features. Photo to Vault is built and live. Two-way Google sync is built but waits on your OK for a database change. The ChatGPT/Claude connector and email/WhatsApp capture are next.
+- **Part 0, the current direction (Stages 1 to 6 and the Later list):** mostly built. On 18 Nov you approved four parked features. Photo to Vault is built and live. Two-way Google sync and the ChatGPT/Claude connector are built but wait on your OK for database changes. Email/WhatsApp capture is next.
 - **Part C, the older detailed backlog:** many items are still partly done or not started. See [What's left in the bigger backlog](#whats-left-in-the-bigger-backlog).
 - **Testing:** a lot of the new work has not been tried in a browser with real use yet. See [What has been checked](#what-has-been-checked).
 
@@ -28,7 +28,7 @@ The sidebar has seven places:
 | Money | Overview, Budget (with bank statement import), Income, Investments, Wishlist |
 | Reflect | Weekly Review, What I noticed, LifeScore, Timeline, Journal |
 
-Settings holds Profile, Notifications (with install and push), Rules, Journal, Content, FAQs and Account (with task import).
+Settings holds Profile, Notifications (with install and push), Rules, Journal, Content, FAQs and Account (with task import, and the ChatGPT/Claude connector once it is live).
 
 ## What was built
 
@@ -85,9 +85,17 @@ Settings holds Profile, Notifications (with install and push), Rules, Journal, C
 - Bring your tasks over (Settings > Account): Todoist or any CSV.
 - Import a bank statement (Money > Budget): HDFC, SBI, ICICI style CSVs. Safe to import twice.
 
+### ChatGPT and Claude connector (built 18 Nov, not live yet)
+
+- Settings > Account > "Use LifeSort in ChatGPT or Claude" shows one address to paste into Claude or ChatGPT as a connector. You sign in to LifeSort, see what's shared, and tap Allow.
+- Then you can ask things like "what's on today?", "find my passport note" or "add 'call the plumber' to my LifeSort inbox".
+- It can see tasks, goals, notes, calendar events and Inbox. It never sees Journal, Money, Vault, People, or any domain you keep away from AI. It can add to Inbox and add tasks, but can't edit or delete anything.
+- The same card lists connected apps with Disconnect.
+- I picked how the apps sign in (the standard OAuth way both apps support) because the build needed it. Say if you want it different.
+
 ## What has been checked
 
-Every change passed typecheck, the build and the tests (219 tests now). Beyond that:
+Every change passed typecheck, the build and the tests (237 tests now). Beyond that:
 
 | Area | How it was checked | Tried for real? |
 |---|---|---|
@@ -101,6 +109,7 @@ Every change passed typecheck, the build and the tests (219 tests now). Beyond t
 | Task and bank imports | Database writes checked with EXPLAIN | Not with real files |
 | Photo to Vault | Saves checked with EXPLAIN. Four real AI reads of a made-up bill all hit "Gemini is overloaded" and fell back to the empty form | No. The AI draft and the upload still need a real try |
 | Two-way Google sync | The real code ran against a throwaway local copy of the database with Google faked: turning it on, editing, a move in Google coming back, deleting | No. Needs the database change and a real Google connection |
+| ChatGPT and Claude connector | The whole sign-in and every tool ran against the local copy: consent, wrong codes refused, hidden domains stayed hidden, adding to Inbox, disconnecting | No. Needs the database change and a deploy |
 
 You declined test accounts after Stage 2, so most checks since then avoided writing data.
 
@@ -123,7 +132,7 @@ You declined test accounts after Stage 2, so most checks since then avoided writ
 |---|---|
 | Keeping photos and files (Photo to Vault, Vault attachments) | Replace the R2 key that was exposed in an old chat, and let browsers upload to the bucket. Steps in [R2 storage](#r2-storage) below |
 | Two-way Google Calendar sync | 1. Say OK to the database change in [Database changes](#database-changes). 2. The Google Cloud steps in [Google Calendar](#google-calendar) |
-| ChatGPT and Claude connector | A decision on how those apps sign in to your LifeSort account |
+| ChatGPT and Claude connector | Say OK to its database change in [Database changes](#database-changes). Nothing to set up after that; try it as in [Trying the connector](#trying-the-connector) |
 | Email to task, WhatsApp or Telegram capture | An inbound email address or a bot account |
 | Notion import | Your Notion export format, or a Notion connection |
 | Shared household | A decision on who can see what |
@@ -134,6 +143,14 @@ You declined test accounts after Stage 2, so most checks since then avoided writ
 These add new tables or columns and change nothing that exists. I tried to run the first one on the live database myself, and the safety check stopped me because you hadn't OK'd it. Fair enough. The code that needs them is built and waits on branch `worktree-four-features`. Once you say OK, I run them and put that code live.
 
 - `scripts/migrations/2026-11-18-google-two-way-sync.sql`: three columns on `calendar_integrations` and a new `calendar_sync_links` table. Tested on a local copy of the schema, including running it twice.
+- `scripts/migrations/2026-11-18-connector-oauth.sql`: new `oauth_clients` and `oauth_grants` tables, and Inbox items may come from `connector`, `email` or `whatsapp`. Tested the same way.
+
+### Trying the connector
+
+Once it's live:
+
+- **Claude:** Settings > Connectors > Add custom connector. Name it LifeSort, paste `https://lifesort.vercel.app/api/mcp`, Add, then Connect. Sign in to LifeSort and tap Allow. In a chat, turn LifeSort on from the tools menu.
+- **ChatGPT:** Settings > Apps & Connectors > Advanced settings > turn on Developer mode. Then Create, paste the same address, choose OAuth, and connect. Developer mode needs a paid ChatGPT plan.
 
 ### Google Calendar
 

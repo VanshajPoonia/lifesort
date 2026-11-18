@@ -122,6 +122,7 @@ Settings absorbs Rules and the full Notifications page. Every old URL keeps work
 - AI task breakdown with time estimates.
 - 🟡 Built 2026-11-17 from this list: AI task breakdown (Break it down in a task's checklist), task import from Todoist or any CSV (Settings > Account), and bank statement import (Money > Budget). Still waiting on the user: the ChatGPT/Claude connector, email and WhatsApp/Telegram capture (need an inbound service), Notion import, and a shared household (changes who sees what).
 - 🟠 The connector and email/WhatsApp capture were unparked 2026-11-18. Plans in [The four parked features](#the-four-parked-features-2026-11-18), parts C and D. Notion import and shared household still wait.
+- 🟡 Connector built 2026-11-18 on the branch, not deployed: it needs `scripts/migrations/2026-11-18-connector-oauth.sql` first. The whole OAuth and MCP flow ran against a local Postgres; no real Claude or ChatGPT connection yet.
 
 ### The four parked features (2026-11-18)
 
