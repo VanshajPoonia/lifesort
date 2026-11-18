@@ -245,7 +245,7 @@ CREATE TABLE IF NOT EXISTS inbox_items (
   ),
   status VARCHAR(30) NOT NULL DEFAULT 'unsorted' CHECK (status IN ('unsorted', 'converted', 'archived')),
   life_area_id INTEGER REFERENCES life_areas(id) ON DELETE SET NULL,
-  source VARCHAR(30) NOT NULL DEFAULT 'manual' CHECK (source IN ('manual', 'quick_add', 'ai_capture')),
+  source VARCHAR(30) NOT NULL DEFAULT 'manual' CHECK (source IN ('manual', 'quick_add', 'ai_capture', 'connector', 'email', 'whatsapp')),
   converted_type VARCHAR(50) CHECK (
     converted_type IS NULL OR converted_type IN (
       'task',
@@ -893,6 +893,32 @@ CREATE TABLE IF NOT EXISTS notifications (
 
 CREATE INDEX IF NOT EXISTS idx_notifications_user_unread
   ON notifications(user_id, is_read, created_at DESC);
+
+-- ── Connector OAuth (migrations/2026-11-18-connector-oauth.sql) ──
+-- Apps that registered themselves, and their codes and tokens stored as SHA-256 hashes.
+
+CREATE TABLE IF NOT EXISTS oauth_clients (
+  client_id     VARCHAR(64)  PRIMARY KEY,
+  client_name   VARCHAR(200) NOT NULL,
+  redirect_uris TEXT[]       NOT NULL,
+  created_at    TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS oauth_grants (
+  id             SERIAL PRIMARY KEY,
+  user_id        VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  client_id      VARCHAR(64)  NOT NULL REFERENCES oauth_clients(client_id) ON DELETE CASCADE,
+  kind           VARCHAR(10)  NOT NULL CHECK (kind IN ('code', 'access', 'refresh')),
+  token_hash     CHAR(64)     NOT NULL UNIQUE,
+  redirect_uri   TEXT,
+  code_challenge VARCHAR(128),
+  expires_at     TIMESTAMP WITH TIME ZONE NOT NULL,
+  used_at        TIMESTAMP WITH TIME ZONE,
+  last_used_at   TIMESTAMP WITH TIME ZONE,
+  created_at     TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_oauth_grants_user_client ON oauth_grants(user_id, client_id);
 
 -- ── Browser push subscriptions (migrations/2026-11-16-push-subscriptions.sql) ──
 
