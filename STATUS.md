@@ -254,7 +254,6 @@ From `AI_BUILD_PLAN.md` Part C. These were planned before Part 0 and wait until 
 - Opening a date in the Journal saves an empty entry.
 - AI features (kit drafts, What might this mean, Break it down) took 16 to 105 seconds in tests. The server stops at 60.
 - On 18 Nov Gemini kept answering "this model is experiencing high demand", so every AI feature can fail at busy times. Photo scans fall back to the empty form.
-- Money > Investments' screenshot reader still uses a Groq vision model that Groq has retired, so it likely fails.
 - Push keys are not set for Vercel Preview builds, so push is off there. Production is fine.
 - Pattern weeks and weekdays use server time, so they can be a day off near midnight in India.
 - 50 lint findings remain. All are a known, reviewed kind.

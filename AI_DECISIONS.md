@@ -252,7 +252,7 @@ Architecture and product decision memory for LifeSort.
 
 ## Photo to Vault (Stage 4, 2026-11-18)
 
-- **Gemini reads photos, not Groq.** `gemini-3.5-flash` takes images through the AI SDK, so photo scans use the one provider every other AI route uses. Groq's `llama-3.2-90b-vision-preview`, which `/api/investments/parse-screenshot` still calls, is retired by Groq.
+- **Gemini reads photos, not Groq.** `gemini-3.5-flash` takes images through the AI SDK, so photo scans use the one provider every other AI route uses. `/api/investments/parse-screenshot` stays on Groq (`qwen/qwen3.8-27b` since 2026-11-19, after Groq retired `llama-3.2-90b-vision-preview`).
 - **The AI drafts and the person saves.** `/api/ai/photo` saves nothing. The confirm form shows every field and tick, and `/api/vault/photo` adds everything in one transaction. When the AI fails, the same form opens empty so the photo can still be filed.
 - **Small photo to the AI, original to storage.** The browser shrinks the photo to 1600px JPEG (about 4 MB cap) before it reaches the function, which keeps it under Vercel's request size limit. The original goes straight to R2 through the existing presigned-URL attachments route, so the bytes never pass through our API.
 - **No past dates.** Renewal tasks fall 14 days before the renewal (or expiry) date, or today when that's sooner. Due tasks date from today at the earliest. Spending lands on the document date, or today if the document is dated in the future.

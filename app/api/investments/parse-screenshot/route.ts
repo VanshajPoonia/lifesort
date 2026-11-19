@@ -5,7 +5,7 @@ import { checkAiUsageLimit, createAiUsageEvent, updateAiUsageEvent } from "@/lib
 
 const sql = neon(process.env.DATABASE_URL!)
 
-const GROQ_VISION_MODEL = "llama-3.2-90b-vision-preview"
+const GROQ_VISION_MODEL = "qwen/qwen3.8-27b"
 const MAX_SCREENSHOT_FILES = 3
 const MAX_SCREENSHOT_SIZE_BYTES = 5 * 1024 * 1024
 const MAX_IMPORT_ITEMS = 50

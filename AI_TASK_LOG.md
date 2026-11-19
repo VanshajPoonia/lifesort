@@ -19,6 +19,13 @@ Current verification state (2026-11-18, after email and WhatsApp capture):
 
 ## Completed Work
 
+### 2026-11-19 IST - Investments screenshot reader on a current Groq model
+
+- **Agent/tool used:** Claude Code (Opus 5.5). The user said yes to swapping the retired model.
+- **Change:** `app/api/investments/parse-screenshot/route.ts` now calls `qwen/qwen3.8-27b` instead of `llama-3.2-90b-vision-preview`. Same Groq endpoint, prompt and parsing.
+- **Checked live:** Groq answers the old model with 400 `model_decommissioned`. `meta-llama/llama-4-scout-17b-16e-instruct` is not available to this key either. With the route's own prompt and a made-up Zerodha holdings screenshot, the new model returned parseable JSON with all three rows, quantities, costs, prices and INR. One name came back as NIFTYBES instead of NIFTYBEES, which the import preview lets the person fix.
+- **Commands run:** `npx tsc --noEmit` clean. `npx vitest run --exclude ".claude/**"` 248/248 in 26 suites (plain `npm test` also picks up the old `.claude/worktrees/four-features` copy, whose 3 push tests fail on a VAPID key). `npm run build` passes.
+
 ### 2026-11-19 IST - Ran the three migrations and deployed the remaining features
 
 - **Agent/tool used:** Claude Code (Opus 5.5). The user replied "run the three migrations" in this session. (An earlier relayed approval from another Claude session was declined; the approval had to come from the user here.)
