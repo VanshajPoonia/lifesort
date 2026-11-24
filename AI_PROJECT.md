@@ -166,7 +166,7 @@ Representative API areas:
 - User/profile/preferences: `profile`, `onboarding`, `sidebar-preferences`, `daily-content`
 - Integrations: `calendar/google/*`, `calendar/sync`, `stock-quote`, `url-preview`
 - AI: `chat`, `daily-content/generate`, `investments/parse-screenshot`, `ai/weekly-summary`, `ai/today-plan`, `ai/capture`, `ai/refine-text`, `ai/life-balance`, `ai/what-am-i-ignoring`, `ai/life-score`, `templates/generate`, `templates/apply`; these routes use main session auth and provider-specific env vars. Planning-oriented AI routes read visible Personal Operating Rules through `lib/personal-rules.ts`. Template Builder uses `/api/templates/*` because it is coupled to the existing Templates product surface.
-- Operational: `cron/deadline-reminders`, `admin/update-subscription`, `search`, `share`, `push/subscriptions` (POST saves this device, DELETE removes it), `push/test` (POST sends a test push to the user's devices)
+- Operational: `cron/deadline-reminders`, `cron/timed-reminders`, `admin/update-subscription`, `search`, `share`, `push/subscriptions` (POST saves this device, DELETE removes it), `push/test` (POST sends a test push to the user's devices)
 - Agent infrastructure: `agent/actions` (GET/POST/PUT/DELETE pending agent actions), `agent/execute` (POST executes a confirmed action). Backed by `agent_action_events` table. Both routes require session auth and Zod-validate every body. `/api/agent/execute` returns 501 TOOL_NOT_IMPLEMENTED until the tool registry is built — this is intentional.
 
 ## Frontend Structure
@@ -232,7 +232,8 @@ State management is mostly local React state:
 ## Deployment Setup
 
 - README says the app is deployed on Vercel and synced from v0.
-- `vercel.json` configures a daily cron:
+- `vercel.json` configures two crons:
+  - path: `/api/cron/timed-reminders`, schedule `30 * * * *` (on the hour in India, 2026-11-24). It pushes habit reminder times and people reminders that fell in the last hour. Push only.
   - path: `/api/cron/deadline-reminders`
   - schedule: `30 2 * * *` (8:00 IST, moved from `0 9 * * *` on 2026-11-16). It sends the reminder emails and, since 2026-11-16, one push per person through `lib/push.ts`.
 - `next.config.mjs` currently sets:

@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/deadline-reminders",
       "schedule": "30 2 * * *"
+    },
+    {
+      "path": "/api/cron/timed-reminders",
+      "schedule": "30 * * * *"
     }
   ]
 }

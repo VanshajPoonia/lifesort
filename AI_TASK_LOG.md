@@ -10,14 +10,33 @@ Keep it short. Entries dated before 2026-10 were moved word for word to `AI_TASK
 
 LifeSort is a broad Next.js App Router application with many implemented product areas and a Vercel-oriented deployment. The repo now has persistent AI memory files in the project root.
 
-Current verification state (2026-11-18, after email and WhatsApp capture):
+Current verification state (2026-11-24, after timed reminders):
 
 - `npm run build` passes with TypeScript validation now actually enforced (`next.config.mjs`'s `typescript.ignoreBuildErrors` is `false`; `tsc --noEmit` is clean). `eslint.ignoreDuringBuilds` remains `true` — 50 pre-existing lint findings remain (down from 293 originally; see the 2026-07-25 ESLint cleanup entry, 66 → 65 in the 2026-10-28 design pass, 65 → 64 in the 2026-11-11 Today merge, 64 → 62 in Stage 1 step 3, then 51 after the Stage 1 deletions and 50 after the Reflect rebuild), every one a reviewed-and-commented `react-hooks/set-state-in-effect` exception (either a real state transition or a function intentionally shared with non-effect call sites). It still exits non-zero; that is expected and not a blocker.
 - `npm run lint` runs cleanly via `eslint.config.mjs` (ESLint 9.x + `eslint-config-next@16`) — it exits non-zero on real findings, it does not fail to run.
-- `npm test` runs Vitest: 248/248 tests passing across 26 suites (`lib/capture.test.ts`, `lib/oauth.test.ts`, `lib/mcp.test.ts`, `lib/connector-tools.test.ts`, `lib/google-sync.test.ts`, `lib/google-calendar-server.test.ts`, `lib/photo-scan.test.ts`, `lib/task-breakdown.test.ts`, `lib/task-import.test.ts`, `lib/bank-import.test.ts`, `lib/day-plan.test.ts`, `lib/life-patterns.test.ts`, `lib/life-kits.test.ts`, `lib/life-kit-input.test.ts`, `lib/auth.test.ts`, `lib/date-math.test.ts`, `lib/habit-streaks.test.ts`, `lib/shared-capture.test.ts`, `lib/reminder-push.test.ts`, `lib/push.test.ts`, `app/api/push/subscriptions/route.test.ts`, `app/api/tags/route.test.ts`, `app/api/item-relationships/route.test.ts`, `app/api/tasks/[id]/checklist-items/route.test.ts`, `app/api/tasks/[id]/recurrence/route.test.ts`, `app/api/tasks/route.test.ts`).
+- `npm test` runs Vitest: 267/267 tests passing across 28 suites (`lib/timed-reminders.test.ts` and `app/api/cron/timed-reminders/route.test.ts` added 2026-11-24) (`lib/capture.test.ts`, `lib/oauth.test.ts`, `lib/mcp.test.ts`, `lib/connector-tools.test.ts`, `lib/google-sync.test.ts`, `lib/google-calendar-server.test.ts`, `lib/photo-scan.test.ts`, `lib/task-breakdown.test.ts`, `lib/task-import.test.ts`, `lib/bank-import.test.ts`, `lib/day-plan.test.ts`, `lib/life-patterns.test.ts`, `lib/life-kits.test.ts`, `lib/life-kit-input.test.ts`, `lib/auth.test.ts`, `lib/date-math.test.ts`, `lib/habit-streaks.test.ts`, `lib/shared-capture.test.ts`, `lib/reminder-push.test.ts`, `lib/push.test.ts`, `app/api/push/subscriptions/route.test.ts`, `app/api/tags/route.test.ts`, `app/api/item-relationships/route.test.ts`, `app/api/tasks/[id]/checklist-items/route.test.ts`, `app/api/tasks/[id]/recurrence/route.test.ts`, `app/api/tasks/route.test.ts`).
 - `npx tsc --noEmit` is clean.
 
 ## Completed Work
+
+### 2026-11-24 IST - Push at the time set on a habit or a people reminder
+
+- **Agent/tool used:** Claude Code (Opus 5.5). The user moved Vercel to Pro and asked Claude to take the best decision on reminder times.
+- **Why:** habits have a Reminder time and people reminders have a date and time, but nothing ever sent either. The only cron was the 8:00 IST morning email and push, because Vercel Hobby allowed one run a day.
+- **Change:** a new hourly cron, `/api/cron/timed-reminders` at `30 * * * *` (on the hour in India), pushes habit reminder times and people reminders that fell in the last hour. Push only, no email. One push per person per run. Habits are skipped on days they are not due (custom days, weekly once done) or already done. A sent people reminder is marked `is_sent`, and a recurring one moves to its next time instead.
+- **No migration.** The time zone comes from the person's Google Calendar link when there is one, else `Asia/Kolkata`, like the morning cron. Each reminder time falls in exactly one hourly slot, so no "pushed" column is needed. A doubled cron call could push twice.
+- **Files:** `lib/timed-reminders.ts` (new) and `lib/timed-reminders.test.ts` (14), `app/api/cron/timed-reminders/route.ts` (new) and `route.test.ts` (5), `vercel.json`, `AI_TASK_LOG.md`, `AI_DECISIONS.md`, `AI_PROJECT.md`, `AGENTS.md`.
+- **Cost:** the cron reads the database once an hour, about 15 Neon compute hours a month at 0.25 CU. The project used 0.62 from Nov 13 to Nov 24. It returns before touching the database when push is not configured.
+- **Commands run:** `npx tsc --noEmit` clean. `npx vitest run --exclude ".claude/**"` 267/267 in 28 suites. `npx eslint .` 50 findings, unchanged. `npm run build` passes on Next.js 15.5.29.
+- **Not verified:** a real push on a phone at a set time.
+- **Limits:** people outside India without a Google Calendar link get India times. Reminders land up to an hour late for zones not on the half hour. Task `reminder_at` has no editor and is not covered.
+- **Suggested next steps:** save each device's time zone with its push subscription (needs a migration), then use it here.
+
+### 2026-11-24 IST - Next.js 15.5.29 for security fixes
+
+- **Agent/tool used:** Claude Code (Opus 5.5), at the user's request across all their Next.js sites.
+- **Change:** `next` 15.5.9 to 15.5.29 (15.5.9 is in the range of open advisories, including a critical RCE in the image optimizer, GHSA-2464-fhr4-w9xw). The one floating `latest` specifier was pinned to the version in the lockfile first, so the update could not move it. Commits `a3ea723` and `fca77ca`, pushed and deployed before this log entry was written, so the log is caught up here.
+- **Files:** `package.json`, `pnpm-lock.yaml`.
 
 ### 2026-11-19 IST - Investments screenshot reader on a current Groq model
 
