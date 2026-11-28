@@ -56,11 +56,11 @@ describe("localNow", () => {
 describe("dueHabits", () => {
   const now = localNow(run, IST)
 
-  it("sends a habit whose time fell in the last hour, once", () => {
+  it("sends a habit whose time fell in the last two hours, once", () => {
     expect(dueHabits([habit({ reminder_time: "19:00" })], [], now)).toHaveLength(1)
-    expect(dueHabits([habit({ reminder_time: "18:01" })], [], now)).toHaveLength(1)
-    // 18:00 belonged to the previous run, 19:01 to the next one.
-    expect(dueHabits([habit({ reminder_time: "18:00" })], [], now)).toHaveLength(0)
+    expect(dueHabits([habit({ reminder_time: "17:01" })], [], now)).toHaveLength(1)
+    // 17:00 belonged to the previous run, 19:01 to the next one.
+    expect(dueHabits([habit({ reminder_time: "17:00" })], [], now)).toHaveLength(0)
     expect(dueHabits([habit({ reminder_time: "19:01" })], [], now)).toHaveLength(0)
   })
 
@@ -97,10 +97,10 @@ describe("wallTimeToInstant", () => {
 })
 
 describe("duePeopleReminders", () => {
-  it("sends a reminder whose time fell in the last hour", () => {
+  it("sends a reminder whose time fell in the last two hours", () => {
     expect(duePeopleReminders([reminder({ remind_at: "2026-11-24T19:00" })], run, IST)).toHaveLength(1)
-    expect(duePeopleReminders([reminder({ remind_at: "2026-11-24T18:15" })], run, IST)).toHaveLength(1)
-    expect(duePeopleReminders([reminder({ remind_at: "2026-11-24T18:00" })], run, IST)).toHaveLength(0)
+    expect(duePeopleReminders([reminder({ remind_at: "2026-11-24T17:05" })], run, IST)).toHaveLength(1)
+    expect(duePeopleReminders([reminder({ remind_at: "2026-11-24T17:00" })], run, IST)).toHaveLength(0)
     expect(duePeopleReminders([reminder({ remind_at: "2026-11-24T19:05" })], run, IST)).toHaveLength(0)
   })
 })

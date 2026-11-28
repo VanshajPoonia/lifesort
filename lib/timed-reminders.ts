@@ -2,8 +2,8 @@ import type { PushPayload } from "@/lib/push"
 
 // Used when a person has no Google Calendar time zone. The morning cron is set for IST too.
 export const DEFAULT_TIME_ZONE = "Asia/Kolkata"
-// The cron runs once an hour on the minute, so each reminder time falls in exactly one run.
-const SLOT_MINUTES = 60
+// The cron runs every two hours on the minute, so each reminder time falls in exactly one run.
+const SLOT_MINUTES = 120
 
 export type LocalNow = { day: string; minutes: number; weekday: number }
 
@@ -74,7 +74,7 @@ function clockMinutes(time: string) {
   return h * 60 + m
 }
 
-// Habits whose reminder time fell in the last hour, on a day they are due and not yet done.
+// Habits whose reminder time fell in the last two hours, on a day they are due and not yet done.
 export function dueHabits(habits: HabitReminderRow[], checkins: CheckinRow[], now: LocalNow) {
   return habits.filter((habit) => {
     const since = (now.minutes - clockMinutes(habit.reminder_time) + 1440) % 1440
@@ -101,7 +101,7 @@ export function wallTimeToInstant(wall: string, timeZone: string) {
   return asUtc - offsetAt(asUtc - offsetAt(asUtc))
 }
 
-// People reminders whose time fell in the last hour. `now` should be the run's minute.
+// People reminders whose time fell in the last two hours. `now` should be the run's minute.
 export function duePeopleReminders(reminders: PeopleReminderRow[], now: Date, timeZone: string) {
   return reminders.filter((r) => {
     const late = now.getTime() - wallTimeToInstant(r.remind_at, timeZone)

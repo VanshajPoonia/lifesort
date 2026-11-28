@@ -19,6 +19,16 @@ Current verification state (2026-11-24, after timed reminders):
 
 ## Completed Work
 
+### 2026-11-28 IST - Timed reminders every two hours instead of hourly
+
+- **Agent/tool used:** Claude Code (Opus 5.5), at the user's request to run the Lifesort crons a little less often.
+- **Change:** `/api/cron/timed-reminders` runs at `30 */2 * * *` (every two hours, on the hour in India) and `SLOT_MINUTES` in `lib/timed-reminders.ts` is 120, so each habit time and people reminder still falls in exactly one run. The schedule and the slot must change together, or reminders are skipped or pushed twice. The 8:00 IST morning cron is unchanged.
+- **Why:** half the runs, so half the Neon compute for this cron.
+- **Files:** `vercel.json`, `lib/timed-reminders.ts`, `lib/timed-reminders.test.ts`, `app/api/cron/timed-reminders/route.ts`, `AGENTS.md`, `AI_DECISIONS.md`, `AI_PROJECT.md`, `AI_TASK_LOG.md`.
+- **Commands run:** `vitest run lib/timed-reminders.test.ts` (vitest 3.2.4 through npx, alias `@` to the repo root) 14/14, and 2 of them fail with the old 60-minute slot. `npx tsc --noEmit` and `npm run build` were not run locally: there is no `node_modules` here and the disk had under 3 GB free. Vercel's production build runs `next build` with TypeScript enforced.
+- **Limits:** reminders now land up to two hours late. The first two-hour run after the deploy can push a habit time that the last hourly run already pushed; people reminders are marked sent, so they do not repeat.
+- **Suggested next steps:** none.
+
 ### 2026-11-24 IST - Push at the time set on a habit or a people reminder
 
 - **Agent/tool used:** Claude Code (Opus 5.5). The user moved Vercel to Pro and asked Claude to take the best decision on reminder times.
