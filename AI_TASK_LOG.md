@@ -19,6 +19,16 @@ Current verification state (2026-11-24, after timed reminders):
 
 ## Completed Work
 
+### 2026-11-28 IST - Timed reminders back to hourly
+
+- **Agent/tool used:** Claude Code (Opus 5.5), at the user's request.
+- **Change:** reverted bd1d433. `/api/cron/timed-reminders` runs at `30 * * * *` again and `SLOT_MINUTES` is 60, with the tests, comments, `AGENTS.md`, `AI_PROJECT.md` and `AI_DECISIONS.md` as before. `AI_DECISIONS.md` now notes why two hours was dropped.
+- **Why:** with runs every two hours a reminder set for 19:01 IST would push at 21:00. Neon has room: the lifemanage project is a small share of the org's 78 CU-hours since Nov 14, against 100 per project a month.
+- **Files:** `vercel.json`, `lib/timed-reminders.ts`, `lib/timed-reminders.test.ts`, `app/api/cron/timed-reminders/route.ts`, `AGENTS.md`, `AI_DECISIONS.md`, `AI_PROJECT.md`, `AI_TASK_LOG.md`.
+- **Commands run:** `vitest run lib/timed-reminders.test.ts` (vitest 3.2.4 through npx) 14/14. `npx tsc --noEmit` and `npm run build` were not run locally (no `node_modules`, little disk); the two-hour version's Vercel production build passed on the same code paths, and this push gets its own production build.
+- **Limits:** none from the switch: the first hourly run starts where the last two-hour run stopped, so nothing is skipped or pushed twice.
+- **Suggested next steps:** none.
+
 ### 2026-11-28 IST - Timed reminders every two hours instead of hourly
 
 - **Agent/tool used:** Claude Code (Opus 5.5), at the user's request to run the Lifesort crons a little less often.

@@ -233,7 +233,7 @@ State management is mostly local React state:
 
 - README says the app is deployed on Vercel and synced from v0.
 - `vercel.json` configures two crons:
-  - path: `/api/cron/timed-reminders`, schedule `30 */2 * * *` (on the hour in India, every two hours since 2026-11-28). It pushes habit reminder times and people reminders that fell in the last two hours. Push only.
+  - path: `/api/cron/timed-reminders`, schedule `30 * * * *` (on the hour in India, 2026-11-24). It pushes habit reminder times and people reminders that fell in the last hour. Push only.
   - path: `/api/cron/deadline-reminders`
   - schedule: `30 2 * * *` (8:00 IST, moved from `0 9 * * *` on 2026-11-16). It sends the reminder emails and, since 2026-11-16, one push per person through `lib/push.ts`.
 - `next.config.mjs` currently sets:

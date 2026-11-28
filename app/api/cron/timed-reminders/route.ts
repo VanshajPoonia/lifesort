@@ -24,8 +24,8 @@ function authorized(request: Request) {
   return actual.length === expected.length && timingSafeEqual(actual, expected)
 }
 
-// Vercel Cron calls this every two hours at :30 UTC, on the hour in India. It pushes habit reminder
-// times and people reminders that fell in the last two hours, to people who turned push on.
+// Vercel Cron calls this hourly at :30 UTC, on the hour in India. It pushes habit reminder times
+// and people reminders that fell in the last hour, to people who turned push on.
 export async function GET(request: Request) {
   if (!authorized(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   if (!isPushConfigured()) return NextResponse.json({ ok: true, skipped: "push is not configured" })
